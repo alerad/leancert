@@ -1,0 +1,20 @@
+name = "LeanBound"
+version = "0.1.0"
+defaultTargets = ["leanbound"]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.21.0"
+
+[[lean_lib]]
+name = "LeanBound"
+precompileModules = false
+
+[[lean_exe]]
+name = "leanbound"
+root = "Main"
+
+[[lean_exe]]
+name = "lean_bridge"
+root = "LeanBound.Bridge"

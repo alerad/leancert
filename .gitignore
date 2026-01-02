@@ -1,0 +1,11 @@
+/.lake
+/build
+*.olean
+*.ilean
+*.trace
+*.hash
+.DS_Store
+site/
+__pycache__/
+*.pyc
+.lake/
