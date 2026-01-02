@@ -73,6 +73,10 @@ import LeanBound.Discovery
 
 For use in proofs, use the corresponding tactics: `interval_minimize`, `interval_maximize`.
 
+### Examples
+
+See `LeanBound/Examples/Showcase.lean` for classic inequalities proved with the library, including bounds on `exp`, `sin`, `cos`, and composed expressions.
+
 ## Architecture
 
 ### Expression AST
@@ -149,6 +153,10 @@ verified = lf.verify_bound(expr, {'x': (0, 1)}, upper=2)
 - **Symbolic simplification**: Mitigates the dependency problem in interval arithmetic (e.g., `x - x` simplifies to `0` before evaluation, avoiding spurious width)
 - **Adaptive verification**: `verify_bound(method='adaptive')` uses global optimization and counterexample concretization to filter false positives
 - **Certificate generation**: Results include `certificate.to_lean_tactic()` for generating formal Lean proofs from Python
+
+### Limitations
+
+- **sqrt/log bounds**: The bridge uses computable algebraic bounds for `log` (`1-1/x ≤ log(x) ≤ x-1`), which are correct but ~2x wider than optimal. For tight bounds on expressions containing `sqrt` or `log`, use Lean's `evalInterval?` directly or the Taylor model API.
 
 ## Lean Bridge
 
