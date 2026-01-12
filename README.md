@@ -190,8 +190,8 @@ This enables workflows where Python handles search strategy while Lean provides 
 The following have complete proofs with no `sorry`:
 
 - Interval arithmetic (FTIA) for `+`, `-`, `*`, `/`, `^`
-- Transcendental bounds: `exp`, `sin`, `cos`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`
-- Taylor series remainder bounds for `exp`, `sin`, `cos`
+- Transcendental bounds: `exp`, `sin`, `cos`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`, `log`
+- Taylor series remainder bounds for `exp`, `sin`, `cos`, `log` (Lagrange form)
 - Forward-mode AD for core functions (exp, sin, cos, etc.)
 - Global optimization (`globalMinimize_lo_correct`, `globalMaximize_hi_correct`)
 - Root finding: bisection (existence) and Newton (uniqueness)
@@ -205,7 +205,6 @@ These work computationally but have proof gaps:
 |-----------|-------|
 | `atanh` interval | Fallback path uses `sorry`; Taylor model path is verified |
 | `atanh` Taylor remainder | `atanh_series_remainder_bound` incomplete |
-| `log` Taylor model | `tmLog_correct` incomplete; computable bounds work |
 | `sinc`, `erf` derivatives | Missing differentiability proofs in AD |
 | `interval_integrate` tactic | Proof automation incomplete |
 
@@ -219,7 +218,7 @@ grep -r "sorry" --include="*.lean" LeanBound/ | grep -v "no sorry"
 
 Priority areas:
 
-1. Filling `sorry` gaps (especially `atanh` Taylor remainder, `tmLog_correct`)
+1. Filling `sorry` gaps (especially `atanh` Taylor remainder)
 2. Additional functions (`asin`, `acos`, real powers)
 3. Subdivision strategies for optimization
 4. Documentation and examples
