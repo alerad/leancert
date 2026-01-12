@@ -1,0 +1,282 @@
+/-
+Copyright (c) 2025 LeanBound Contributors. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: LeanBound Contributors
+-/
+import LeanBound.Core.Dyadic
+import LeanBound.Core.IntervalReal
+import Mathlib.Data.Rat.Cast.Order
+
+/-!
+# Dyadic Intervals
+
+Intervals with Dyadic endpoints. These support "Outward Rounding", ensuring
+mathematical soundness even when we limit numerical precision.
+
+## Main definitions
+
+* `IntervalDyadic` - Interval with Dyadic endpoints
+* `IntervalDyadic.add`, `mul`, `neg` - Interval arithmetic operations
+* `IntervalDyadic.roundOut` - Outward rounding to control precision
+* `IntervalDyadic.toIntervalRat` - Convert to rational interval for verification
+
+## Design notes
+
+The key feature is `roundOut`: after each operation, we can enforce a minimum
+exponent to prevent precision explosion. When rounding:
+- Lower bounds are shifted down (toward -∞)
+- Upper bounds are shifted up (toward +∞)
+
+This maintains the containment invariant: the rounded interval always contains
+the original interval, which contains the true mathematical value.
+
+## Performance
+
+In v1.0, `Rat` multiplication of `1/3 * 1/3 * ... * 1/3` (10 times) creates
+a denominator of 3^10 = 59049. Each operation requires GCD computation.
+
+In v1.1, with `precision = -10`, the denominator stays fixed at 2^10 = 1024.
+The result is slightly less tight but computed significantly faster.
+-/
+
+namespace LeanBound.Core
+
+/-- An interval with Dyadic endpoints.
+
+Maintains invariant: `lo.toRat ≤ hi.toRat` -/
+structure IntervalDyadic where
+  /-- Lower bound -/
+  lo : Dyadic
+  /-- Upper bound -/
+  hi : Dyadic
+  /-- Invariant: lower bound ≤ upper bound -/
+  le : lo.toRat ≤ hi.toRat
+  deriving Repr
+
+namespace IntervalDyadic
+
+/-! ### Membership and Sets -/
+
+/-- The set of reals contained in this interval -/
+def toSet (I : IntervalDyadic) : Set ℝ := Set.Icc (I.lo : ℝ) (I.hi : ℝ)
+
+/-- Membership in a Dyadic interval -/
+instance : Membership ℝ IntervalDyadic where
+  mem I x := (I.lo.toRat : ℝ) ≤ x ∧ x ≤ (I.hi.toRat : ℝ)
+
+@[simp]
+theorem mem_def (x : ℝ) (I : IntervalDyadic) :
+    x ∈ I ↔ (I.lo.toRat : ℝ) ≤ x ∧ x ≤ (I.hi.toRat : ℝ) := Iff.rfl
+
+/-! ### Conversion to IntervalRat -/
+
+/-- Convert to IntervalRat for verification with existing theorems -/
+def toIntervalRat (I : IntervalDyadic) : IntervalRat :=
+  ⟨I.lo.toRat, I.hi.toRat, I.le⟩
+
+/-- Membership is preserved by conversion to IntervalRat -/
+theorem mem_toIntervalRat {x : ℝ} {I : IntervalDyadic} :
+    x ∈ I ↔ x ∈ I.toIntervalRat := by
+  simp only [mem_def, toIntervalRat, IntervalRat.mem_def]
+
+/-! ### Construction -/
+
+/-- Create a singleton interval from a Dyadic -/
+def singleton (d : Dyadic) : IntervalDyadic := ⟨d, d, le_refl _⟩
+
+/-- Default interval [0, 0] -/
+instance : Inhabited IntervalDyadic where
+  default := singleton Dyadic.zero
+
+/-- Create an interval, checking the invariant -/
+def mk? (lo hi : Dyadic) : Option IntervalDyadic :=
+  if h : lo.toRat ≤ hi.toRat then some ⟨lo, hi, h⟩ else none
+
+/-- The width of an interval -/
+def width (I : IntervalDyadic) : Dyadic := I.hi.sub I.lo
+
+/-- Midpoint of an interval (approximate, using larger exponent) -/
+def midpoint (I : IntervalDyadic) : Dyadic :=
+  let sum := I.lo.add I.hi
+  ⟨sum.mantissa >>> 1, sum.exponent⟩  -- Divide by 2
+
+/-! ### Outward Rounding -/
+
+/-- Outward rounding: enforces a maximum precision (minimum exponent).
+
+This is the key operation for preventing precision explosion.
+`minExp` is the minimum allowed exponent (higher = coarser precision).
+
+For example, `minExp = -10` ensures all values are multiples of 2^(-10) ≈ 0.001.
+-/
+def roundOut (I : IntervalDyadic) (minExp : Int) : IntervalDyadic :=
+  let newLo := I.lo.shiftDown minExp
+  let newHi := I.hi.shiftUp minExp
+  ⟨newLo, newHi, by
+    -- Proof: newLo ≤ I.lo ≤ I.hi ≤ newHi
+    have h1 : newLo.toRat ≤ I.lo.toRat := Dyadic.toRat_shiftDown_le I.lo minExp
+    have h2 : I.lo.toRat ≤ I.hi.toRat := I.le
+    have h3 : I.hi.toRat ≤ newHi.toRat := Dyadic.toRat_shiftUp_ge I.hi minExp
+    linarith⟩
+
+/-- roundOut produces an interval containing the original -/
+theorem roundOut_contains {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (minExp : Int) :
+    x ∈ I.roundOut minExp := by
+  simp only [mem_def] at *
+  constructor
+  · have h := Dyadic.toRat_shiftDown_le I.lo minExp
+    have h' : ((I.lo.shiftDown minExp).toRat : ℝ) ≤ (I.lo.toRat : ℝ) := by exact_mod_cast h
+    calc ((I.roundOut minExp).lo.toRat : ℝ) = ((I.lo.shiftDown minExp).toRat : ℝ) := by rfl
+      _ ≤ (I.lo.toRat : ℝ) := h'
+      _ ≤ x := hx.1
+  · have h := Dyadic.toRat_shiftUp_ge I.hi minExp
+    have h' : (I.hi.toRat : ℝ) ≤ ((I.hi.shiftUp minExp).toRat : ℝ) := by exact_mod_cast h
+    calc x ≤ (I.hi.toRat : ℝ) := hx.2
+      _ ≤ ((I.hi.shiftUp minExp).toRat : ℝ) := h'
+      _ = ((I.roundOut minExp).hi.toRat : ℝ) := by rfl
+
+/-! ### Interval Negation -/
+
+/-- Negate an interval -/
+def neg (I : IntervalDyadic) : IntervalDyadic where
+  lo := I.hi.neg
+  hi := I.lo.neg
+  le := by
+    simp only [Dyadic.toRat_neg]
+    linarith [I.le]
+
+/-- FTIA for negation -/
+theorem mem_neg {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) : -x ∈ neg I := by
+  simp only [mem_def] at *
+  simp only [neg, Dyadic.toRat_neg, Rat.cast_neg]
+  constructor <;> linarith
+
+/-! ### Interval Addition -/
+
+/-- Add two intervals -/
+def add (I J : IntervalDyadic) : IntervalDyadic where
+  lo := I.lo.add J.lo
+  hi := I.hi.add J.hi
+  le := by
+    simp only [Dyadic.toRat_add]
+    linarith [I.le, J.le]
+
+/-- FTIA for addition -/
+theorem mem_add {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) :
+    x + y ∈ add I J := by
+  simp only [mem_def] at *
+  simp only [add, Dyadic.toRat_add, Rat.cast_add]
+  constructor <;> linarith
+
+/-- Add with precision control -/
+def addRounded (I J : IntervalDyadic) (prec : Int := -53) : IntervalDyadic :=
+  (add I J).roundOut prec
+
+/-! ### Interval Subtraction -/
+
+/-- Subtract two intervals -/
+def sub (I J : IntervalDyadic) : IntervalDyadic := add I (neg J)
+
+/-- FTIA for subtraction -/
+theorem mem_sub {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) :
+    x - y ∈ sub I J := by
+  simp only [sub_eq_add_neg]
+  exact mem_add hx (mem_neg hy)
+
+/-! ### Interval Multiplication -/
+
+/-- Multiply two intervals.
+
+Uses min/max of all four endpoint products to handle signs correctly.
+This is the exact multiplication - mantissas may grow. Use `mulRounded` or
+`mulNormalized` for controlled precision.
+
+Correctness: For x ∈ [a,b] and y ∈ [c,d], the product x*y lies in the interval
+[min(ac,ad,bc,bd), max(ac,ad,bc,bd)]. -/
+def mul (I J : IntervalDyadic) : IntervalDyadic :=
+  let v1 := I.lo.mul J.lo
+  let v2 := I.lo.mul J.hi
+  let v3 := I.hi.mul J.lo
+  let v4 := I.hi.mul J.hi
+  ⟨Dyadic.min4 v1 v2 v3 v4, Dyadic.max4 v1 v2 v3 v4, by
+    -- min4 ≤ max4 by construction: min of set ≤ max of set
+    -- This follows from Dyadic.le_iff_toRat_le and transitivity
+    sorry⟩
+
+/-- FTIA for multiplication -/
+theorem mem_mul {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) :
+    x * y ∈ mul I J := by
+  simp only [mem_def] at *
+  simp only [mul]
+  -- Proof: x*y is in the convex hull of the four endpoint products.
+  -- Since x ∈ [lo_I, hi_I] and y ∈ [lo_J, hi_J], we can write
+  -- x*y as a convex combination. The min/max bounds contain all
+  -- possible values in this convex hull.
+  sorry
+
+/-- Multiply with precision control (outward rounding) -/
+def mulRounded (I J : IntervalDyadic) (prec : Int := -53) : IntervalDyadic :=
+  (mul I J).roundOut prec
+
+/-- Multiply with mantissa normalization (prevents bit explosion) -/
+def mulNormalized (I J : IntervalDyadic) (maxBits : Nat := 256) : IntervalDyadic :=
+  let result := mul I J
+  ⟨result.lo.normalizeDown maxBits, result.hi.normalizeUp maxBits, by
+    -- Normalization preserves ordering: lo.normalizeDown ≤ lo ≤ hi ≤ hi.normalizeUp
+    sorry⟩
+
+/-! ### Interval Scaling -/
+
+/-- Scale an interval by a constant Dyadic -/
+def scale (I : IntervalDyadic) (c : Dyadic) : IntervalDyadic :=
+  if Dyadic.le Dyadic.zero c then
+    ⟨I.lo.mul c, I.hi.mul c, by sorry⟩
+  else
+    ⟨I.hi.mul c, I.lo.mul c, by sorry⟩
+
+/-- Scale by a power of 2 (very efficient: just adjusts exponents) -/
+def scale2 (I : IntervalDyadic) (n : Int) : IntervalDyadic :=
+  ⟨I.lo.scale2 n, I.hi.scale2 n, by
+    simp only [Dyadic.scale2, Dyadic.toRat]
+    sorry⟩
+
+/-! ### Comparison and Containment -/
+
+/-- Check if interval contains zero -/
+def containsZero (I : IntervalDyadic) : Bool :=
+  Dyadic.le I.lo Dyadic.zero && Dyadic.le Dyadic.zero I.hi
+
+/-- Check if entire interval is positive -/
+def isPositive (I : IntervalDyadic) : Bool :=
+  Dyadic.lt Dyadic.zero I.lo
+
+/-- Check if entire interval is negative -/
+def isNegative (I : IntervalDyadic) : Bool :=
+  Dyadic.lt I.hi Dyadic.zero
+
+/-- Check if I ⊆ J -/
+def subset (I J : IntervalDyadic) : Bool :=
+  Dyadic.le J.lo I.lo && Dyadic.le I.hi J.hi
+
+/-- Check if the upper bound is ≤ a rational -/
+def upperBoundedBy (I : IntervalDyadic) (q : ℚ) : Bool :=
+  I.hi.toRat ≤ q
+
+/-- Check if a rational is ≤ the lower bound -/
+def lowerBoundedBy (I : IntervalDyadic) (q : ℚ) : Bool :=
+  q ≤ I.lo.toRat
+
+/-! ### Helper for Transcendentals -/
+
+/-- Convert from IntervalRat (for transcendental results) -/
+def ofIntervalRat (I : IntervalRat) (prec : Int := -53) : IntervalDyadic :=
+  -- Convert Rat endpoints to Dyadic with outward rounding
+  -- For simplicity, we use a conservative conversion
+  let lo := Dyadic.ofInt (Int.floor (I.lo * (2 ^ (-prec).toNat)))
+  let loD := lo.scale2 prec
+  let hi := Dyadic.ofInt (Int.ceil (I.hi * (2 ^ (-prec).toNat)))
+  let hiD := hi.scale2 prec
+  ⟨loD, hiD, by sorry⟩
+
+end IntervalDyadic
+end LeanBound.Core

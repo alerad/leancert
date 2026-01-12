@@ -11,6 +11,9 @@ import LeanBound.Core.IntervalReal
 import LeanBound.Core.IntervalRealEndpoints
 import LeanBound.Core.Taylor
 import LeanBound.Core.DerivativeIntervals
+-- v1.1: Dyadic arithmetic (high-performance alternative to Rat)
+import LeanBound.Core.Dyadic
+import LeanBound.Core.IntervalDyadic
 
 -- Numerics modules
 import LeanBound.Numerics.IntervalEval
@@ -22,6 +25,8 @@ import LeanBound.Numerics.RootFinding.Main
 import LeanBound.Numerics.TaylorModel
 import LeanBound.Numerics.IntervalEvalRefined
 import LeanBound.Numerics.Certificate
+-- v1.1: Dyadic evaluator (prevents denominator explosion)
+import LeanBound.Numerics.IntervalEvalDyadic
 
 -- Global Optimization
 import LeanBound.Numerics.Optimization.Box
@@ -34,6 +39,8 @@ import LeanBound.Numerics.SearchAPI
 -- Tactics
 import LeanBound.Tactic.Interval
 import LeanBound.Tactic.Discovery
+-- v1.1: fast_bound tactic (uses Dyadic backend)
+import LeanBound.Tactic.DyadicAuto
 
 -- Discovery Mode
 import LeanBound.Discovery
@@ -60,6 +67,9 @@ export LeanBound.Core (Expr)
 -- Re-export interval types
 export LeanBound.Core (IntervalRat)
 
+-- v1.1: Re-export Dyadic types (high-performance arithmetic)
+export LeanBound.Core (Dyadic IntervalDyadic)
+
 -- Re-export evaluation and interval operations
 export LeanBound.Numerics (
   ExprSupported
@@ -85,6 +95,13 @@ export LeanBound.Numerics (
   evalDualRefined
   evalDualRefined1
   evalDualRefined_val_correct
+  -- v1.1: Dyadic evaluation (prevents denominator explosion)
+  DyadicConfig
+  evalIntervalDyadic
+  evalIntervalDyadic_correct
+  checkUpperBoundDyadic
+  checkLowerBoundDyadic
+  checkBoundsDyadic
 )
 
 -- Re-export certificate verification
