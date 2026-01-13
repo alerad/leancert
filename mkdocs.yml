@@ -61,6 +61,8 @@ nav:
     - Solver API: api/solver.md
     - Result Types: api/types.md
     - Expressions: api/expr.md
+  - Neural Networks:
+    - Verification: ml/neural-networks.md
   - Lean Architecture:
     - Golden Theorems: architecture/golden-theorems.md
     - Verification Status: architecture/verification-status.md

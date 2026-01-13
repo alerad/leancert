@@ -10,6 +10,7 @@ LeanBound automates proofs of inequalities, global extrema, root existence, and 
 - **Global Optimization**: Branch-and-bound with verified lower/upper bounds
 - **Root Finding**: Existence proofs (bisection) and uniqueness proofs (Newton contraction)
 - **Integration**: Verified Riemann sum bounds
+- **Neural Network Verification**: Interval propagation with DeepPoly relaxations
 - **Python SDK**: High-level API with symbolic simplification and false-positive filtering
 
 ## Quick Example

@@ -82,6 +82,17 @@ The dyadic backend avoids rational denominator explosion by using fixed-precisio
 
 See `LeanBound/Test/BenchmarkBackends.lean` for performance comparisons.
 
+### Neural Network Verification
+
+The ML module provides verified interval propagation for neural networks:
+
+- `mem_forwardInterval`: Soundness of dense layer propagation
+- `mem_relu`, `mem_sigmoid`: Activation function soundness
+- `relu_relaxation_sound`: DeepPoly ReLU triangle relaxation
+- `sigmoid_relaxation_sound`: DeepPoly sigmoid monotonicity bounds
+
+See `LeanBound/ML/` for the full implementation.
+
 ## Incomplete (Contains `sorry`)
 
 These features work computationally but have gaps in formal proofs:

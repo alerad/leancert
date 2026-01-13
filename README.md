@@ -183,6 +183,52 @@ verified = lf.verify_bound(expr, {'x': (0, 1)}, upper=2)
 
 This enables workflows where Python handles search strategy while Lean provides verified computation.
 
+## Neural Network Verification
+
+LeanBound includes verified interval propagation for neural networks, enabling robustness verification.
+
+### Features
+
+- **Dense Layers**: Verified forward propagation with ReLU activation
+- **DeepPoly Relaxations**: Tight linear bounds for ReLU (triangle relaxation) and sigmoid
+- **Optimized Backend**: Structure-of-arrays layout, split-sign decomposition, integer arithmetic
+
+### Quick Example
+
+```lean
+import LeanBound.ML.Network
+
+open LeanBound.ML
+
+-- Define a 2-layer network
+def net : TwoLayerNet := {
+  layer1 := { weights := [[1, -1], [0, 1]], bias := [0, 0] }
+  layer2 := { weights := [[1, 1]], bias := [0] }
+}
+
+-- Propagate input intervals through the network
+def outputBounds := net.forwardInterval inputIntervals
+```
+
+### Soundness Theorem
+
+```lean
+theorem mem_forwardInterval :
+    (∀ i, xs[i] ∈ Is[i]) → (∀ i, (forwardReal net xs)[i] ∈ (forwardInterval net Is)[i])
+```
+
+If every real input is in its interval, every real output is in its output interval.
+
+### Files
+
+| File | Description |
+|------|-------------|
+| `ML/Network.lean` | Layer and network definitions |
+| `ML/IntervalVector.lean` | ReLU, sigmoid activations |
+| `ML/Symbolic/ReLU.lean` | DeepPoly ReLU relaxation |
+| `ML/Symbolic/Sigmoid.lean` | DeepPoly sigmoid relaxation |
+| `ML/Optimized.lean` | High-performance implementations |
+
 ## Verification Status
 
 ### Fully Verified
