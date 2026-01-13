@@ -68,7 +68,7 @@ theorem layer1_wf : layer1.WellFormed := by
 
 theorem layer2_wf : layer2.WellFormed := by
   constructor
-  · intro row hrow; simp only [layer2, Layer.inputDim] at hrow ⊢; fin_cases hrow <;> rfl
+  · intro row hrow; simp only [layer2, Layer.inputDim] at hrow ⊢; fin_cases hrow; rfl
   · rfl
 
 theorem teacherNet_wf : teacherNet.WellFormed 2 := by
