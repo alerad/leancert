@@ -71,7 +71,9 @@ noncomputable def layerNormReal (x : List ℝ) (gamma beta : List ℚ) (epsilon 
 /-! ### Interval GELU -/
 
 /-- Constants for GELU approximation as rationals -/
-private def gelu_c1 : ℚ := 797885 / 1000000  -- ≈ √(2/π) ≈ 0.7978845608
+-- √(2/π) ≈ 0.7978845608028654
+-- We use a lower bound so that the interval [c1_lo, c1_lo + 2e-6] contains √(2/π)
+private def gelu_c1_lo : ℚ := 797884 / 1000000  -- Lower bound for √(2/π)
 private def gelu_c2 : ℚ := 44715 / 1000000   -- 0.044715
 
 /--
@@ -95,8 +97,9 @@ def geluIntervalRat (I : IntervalRat) : IntervalRat :=
   let c2_x3 := IntervalRat.scale gelu_c2 x3
   let inner := IntervalRat.add I c2_x3
 
-  -- arg = c1 * inner (using interval containing c1)
-  let c1_interval : IntervalRat := ⟨gelu_c1, gelu_c1 + 1/1000000, by norm_num⟩
+  -- arg = c1 * inner (using interval containing √(2/π))
+  -- √(2/π) ∈ [0.797884, 0.797885] (provable from 3.141592 < π < 3.141593)
+  let c1_interval : IntervalRat := ⟨gelu_c1_lo, gelu_c1_lo + 1/1000000, by norm_num⟩
   let arg := IntervalRat.mul c1_interval inner
 
   -- tanh(arg) ∈ [-1, 1] always
@@ -122,22 +125,63 @@ def geluVector (v : IntervalVector) (prec : Int := -53) : IntervalVector :=
 
 /-! ### GELU Correctness -/
 
+/-- The constant √(2/π) is bounded by our rational interval.
+    Uses the 6-decimal precision bounds: 3.141592 < π < 3.141593.
+    Proof outline: From 3.141592 < π < 3.141593, we get
+    0.636618... < 2/π < 0.636620... and thus
+    0.797884 < √(2/π) < 0.797885 -/
+theorem sqrt_two_div_pi_mem_interval :
+    Real.sqrt (2 / Real.pi) ∈
+      (⟨gelu_c1_lo, gelu_c1_lo + 1/1000000, by norm_num⟩ : IntervalRat) := by
+  rw [IntervalRat.mem_def]
+  simp only [gelu_c1_lo]
+  have hpi_lo : (3.141592 : ℝ) < Real.pi := Real.pi_gt_d6
+  have hpi_hi : Real.pi < (3.141593 : ℝ) := Real.pi_lt_d6
+  have hpi_pos : (0 : ℝ) < Real.pi := Real.pi_pos
+  have h_two_pos : (0 : ℝ) < 2 := by norm_num
+  have _h_div_lo : 2 / (3.141593 : ℝ) < 2 / Real.pi :=
+    div_lt_div_of_pos_left h_two_pos (by linarith) hpi_hi
+  have _h_div_hi : 2 / Real.pi < 2 / (3.141592 : ℝ) :=
+    div_lt_div_of_pos_left h_two_pos (by linarith) hpi_lo
+  -- Technical proof involving rational coercions and sqrt bounds.
+  -- From the π bounds above: 0.636618... < 2/π < 0.636620...
+  -- Therefore: 0.797884 < √(2/π) < 0.797885
+  sorry
+
 /-- GELU is bounded by the interval computation.
-    The proof follows from composition of verified operations. -/
+    The proof follows from composition of verified operations:
+    1. x³ ∈ pow I 3 (by mem_pow)
+    2. c2*x³ ∈ scale gelu_c2 (pow I 3) (by mem_scale)
+    3. x + c2*x³ ∈ add I (scale gelu_c2 (pow I 3)) (by mem_add)
+    4. √(2/π) ∈ c1_interval (by sqrt_two_div_pi_mem_interval)
+    5. √(2/π) * inner ∈ mul c1_interval inner (by mem_mul)
+    6. tanh(arg) ∈ tanhInterval arg (by mem_tanhInterval)
+    7. 1 + tanh ∈ add (singleton 1) tanh_interval (by mem_add)
+    8. 0.5*x ∈ scale (1/2) I (by mem_scale)
+    9. Final: 0.5*x*(1+tanh(...)) ∈ mul half_x one_plus_tanh (by mem_mul) -/
 theorem mem_geluIntervalRat {x : ℝ} {I : IntervalRat}
     (hx : x ∈ I) :
     Real.gelu x ∈ geluIntervalRat I := by
-  -- The proof requires:
-  -- 1. x³ ∈ pow I 3 (by mem_pow)
-  -- 2. tanh bounds (by mem_tanhInterval)
-  -- 3. Composition of interval arithmetic
-  sorry -- Straightforward composition of existing FTIA theorems
+  unfold Real.gelu geluIntervalRat
+  set c1_real := Real.sqrt (2 / Real.pi)
+  set c2_real : ℝ := 0.044715
+  -- The proof is straightforward composition of FTIA lemmas, but requires
+  -- careful handling of rational coercions (↑(1/2) vs ↑1/2 and similar).
+  -- Core lemmas used: mem_pow, mem_scale, mem_add, mem_mul, mem_tanhInterval
+  have _h_x3 : x ^ 3 ∈ IntervalRat.pow I 3 := IntervalRat.mem_pow hx 3
+  have _hc2_eq : c2_real = (gelu_c2 : ℝ) := by simp only [gelu_c2]; norm_num
+  have _h_c1_mem : c1_real ∈ (⟨gelu_c1_lo, gelu_c1_lo + 1/1000000, by norm_num⟩ : IntervalRat) :=
+    sqrt_two_div_pi_mem_interval
+  sorry
 
 theorem mem_geluInterval {x : ℝ} {I : IntervalDyadic}
-    (hx : x ∈ I) (prec : Int) :
+    (hx : x ∈ I) (prec : Int) (hprec : prec ≤ 0 := by norm_num) :
     Real.gelu x ∈ geluInterval I prec := by
   -- Follows from mem_geluIntervalRat and mem_ofIntervalRat
-  sorry
+  simp only [geluInterval]
+  have hmem_rat : x ∈ I.toIntervalRat := IntervalDyadic.mem_toIntervalRat.mpr hx
+  have hgelu_in_rat := mem_geluIntervalRat hmem_rat
+  exact IntervalDyadic.mem_ofIntervalRat hgelu_in_rat prec hprec
 
 /-! ### Interval Layer Normalization -/
 

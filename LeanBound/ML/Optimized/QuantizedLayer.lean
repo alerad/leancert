@@ -595,7 +595,7 @@ theorem forwardQuantized_nonempty
     (input : AlignedInput)
     (x : List ℝ)
     -- Dimension hypotheses
-    (h_input_dim : x.length = l_quant.inDim)
+    (_h_input_dim : x.length = l_quant.inDim)
     (h_lo_dim : input.lo.size = l_quant.inDim)
     (h_hi_dim : input.hi.size = l_quant.inDim)
     (h_wpos_dim : l_quant.weightsPos.size = l_quant.outDim)

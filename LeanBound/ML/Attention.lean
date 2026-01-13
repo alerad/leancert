@@ -213,7 +213,7 @@ def multiHeadAttention (params : MultiHeadAttentionParams)
   let seq_len := X.length
   List.range seq_len |>.map (fun pos =>
     -- Gather outputs from all heads at this position
-    let head_outputs := heads.filterMap (fun head => head.get? pos)
+    let head_outputs := heads.filterMap (fun head => head[pos]?)
     -- Concatenate
     let concat := concatVectors head_outputs
     -- Project through W_O
@@ -243,7 +243,7 @@ noncomputable def Real.scaledDotProductAttention (Q K V : List (List ℝ)) (d_k 
     -- Weighted sum of values
     let d_v := if V.isEmpty then 0 else V.head!.length
     List.range d_v |>.map (fun j =>
-      (List.zipWith (fun w v => w * v.get! j) weights V).sum)
+      (List.zipWith (fun w v => w * v[j]!) weights V).sum)
   )
 
 /-! ### Soundness -/
@@ -256,18 +256,18 @@ noncomputable def Real.scaledDotProductAttention (Q K V : List (List ℝ)) (d_k 
 theorem mem_attentionWeights {q_real : List ℝ} {K_real : List (List ℝ)}
     {q : IntervalVector} {K : List IntervalVector}
     (_hq : q_real.length = q.length)
-    (_hK : K_real.length = K.length)
+    (hK : K_real.length = K.length)
     -- (membership hypotheses omitted for brevity - same pattern as other theorems)
     (d_k : Nat) (prec : Int) :
     let weights_real := K_real.map (fun k =>
       (List.zipWith (· * ·) q_real k).sum / Real.sqrt d_k)
     let weights := attentionWeights q K d_k prec
     weights_real.length ≤ weights.length := by
-  -- The proof composes:
-  -- 1. Dot product soundness
-  -- 2. Scaling soundness
-  -- 3. Softmax soundness
-  sorry
+  -- weights_real.length = K_real.length = K.length
+  -- weights = softmax (K.map ...) prec
+  -- softmax scores prec = List.range scores.length |>.map ...
+  -- So weights.length = scores.length = K.length
+  simp only [attentionWeights, Softmax.softmax, List.length_map, List.length_range, ← hK, le_refl]
 
 /-- Main soundness theorem for scaled dot-product attention.
 
@@ -277,7 +277,7 @@ theorem mem_attentionWeights {q_real : List ℝ} {K_real : List (List ℝ)}
 theorem mem_scaledDotProductAttention
     {Q_real K_real V_real : List (List ℝ)}
     {Q K V : List IntervalVector}
-    (_hQ : Q_real.length = Q.length)
+    (hQ : Q_real.length = Q.length)
     (_hK : K_real.length = K.length)
     (_hV : V_real.length = V.length)
     -- (membership hypotheses omitted - follows FTIA pattern)
@@ -285,12 +285,10 @@ theorem mem_scaledDotProductAttention
     let output_real := Real.scaledDotProductAttention Q_real K_real V_real d_k
     let output := scaledDotProductAttention Q K V d_k prec
     output_real.length ≤ output.length := by
-  -- Proof outline:
-  -- 1. For each query position i:
-  --    a. Compute attention weights (use mem_attentionWeights)
-  --    b. Apply to values (use weighted sum soundness)
-  -- 2. Output dimensions match
-  sorry
+  -- output_real.length = Q_real.length = Q.length
+  -- output.length = Q.length
+  simp only [Real.scaledDotProductAttention, scaledDotProductAttention]
+  rw [List.length_map, List.length_map, ← hQ]
 
 /-! ### Integration with Transformer -/
 

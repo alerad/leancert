@@ -151,7 +151,7 @@ def tanhChebyshev (a : AffineForm) : AffineForm :=
 /-! ## Natural Logarithm -/
 
 /-- Logarithm using interval evaluation (requires positive input). -/
-noncomputable def log (a : AffineForm) (taylorDepth : Nat := 8) : AffineForm :=
+noncomputable def log (a : AffineForm) (_taylorDepth : Nat := 8) : AffineForm :=
   let I := a.toInterval
   if h : 0 < I.lo then
     let logI := IntervalRat.logInterval ⟨I, h⟩

@@ -100,7 +100,7 @@ def inv (a : AffineForm) : AffineForm :=
       L(x) = -1/(lo·hi)·x + (lo+hi)/(lo·hi)
     with error bounded by (√hi - √lo)² / (2·lo·hi)
 -/
-def invChebyshev (a : AffineForm) (hpos : 0 < a.toInterval.lo) : AffineForm :=
+def invChebyshev (a : AffineForm) (_hpos : 0 < a.toInterval.lo) : AffineForm :=
   let I := a.toInterval
   let lo := I.lo
   let hi := I.hi
@@ -151,8 +151,10 @@ def sqrt (a : AffineForm) : AffineForm :=
       r := |rad|  -- Use abs to ensure non-negativity
       r_nonneg := abs_nonneg _ }
   else
-    -- Negative values - undefined, return NaN-like
-    { c0 := 0, coeffs := [], r := 10^30, r_nonneg := by norm_num }
+    -- Negative values - return conservative bounds based on I.hi
+    -- sqrt v ≤ max I.hi 1 for any v ∈ I with v ≥ 0
+    let bound := max I.hi 1
+    { c0 := 0, coeffs := [], r := bound, r_nonneg := le_trans (by norm_num : (0:ℚ) ≤ 1) (le_max_right _ _) }
 
 /-- Chebyshev linearization for √x on [lo, hi].
 
@@ -160,7 +162,7 @@ def sqrt (a : AffineForm) : AffineForm :=
     where m = (lo + hi)/2 is the midpoint.
     Error ≤ (√hi - √lo)²/4
 -/
-def sqrtChebyshev (a : AffineForm) (hpos : 0 < a.toInterval.lo) : AffineForm :=
+def sqrtChebyshev (a : AffineForm) (_hpos : 0 < a.toInterval.lo) : AffineForm :=
   let I := a.toInterval
   let lo := I.lo
   let hi := I.hi
@@ -286,17 +288,74 @@ theorem mem_inv {a : AffineForm} {eps : NoiseAssignment} {v : ℝ}
 
 /-- Square root is sound for non-negative inputs -/
 theorem mem_sqrt {a : AffineForm} {eps : NoiseAssignment} {v : ℝ}
-    (_hvalid : validNoise eps)
-    (_hlen : eps.length = a.coeffs.length)
-    (_hmem : mem_affine a eps v)
-    (_hv_nonneg : 0 ≤ v) :
+    (hvalid : validNoise eps)
+    (hlen : eps.length = a.coeffs.length)
+    (hmem : mem_affine a eps v)
+    (hv_nonneg : 0 ≤ v) :
     mem_affine (sqrt a) eps (Real.sqrt v) := by
-  -- The proof follows from:
-  -- 1. v ∈ a.toInterval (by mem_toInterval)
-  -- 2. √v ∈ [0, max(I.hi, 1)] (by sqrt monotonicity and sqrt_le_max)
-  -- 3. The sqrt function computes mid = (0 + max(I.hi,1))/2, rad = max(I.hi,1)/2
-  -- 4. So |√v - mid| ≤ rad
-  sorry
+  -- Get v ∈ a.toInterval
+  have hv_in_I := mem_toInterval hvalid hlen hmem
+
+  -- Set up the interval
+  let I := a.toInterval
+
+  -- Get Real.sqrt v ∈ sqrtInterval I = [0, max I.hi 1]
+  have hsqrt_in := IntervalRat.mem_sqrtInterval hv_in_I hv_nonneg
+  simp only [IntervalRat.sqrtInterval, IntervalRat.mem_def, Rat.cast_zero] at hsqrt_in
+  have hsqrt_lo : 0 ≤ Real.sqrt v := hsqrt_in.1
+  have hsqrt_hi : Real.sqrt v ≤ max (I.hi : ℝ) 1 := by
+    have := hsqrt_in.2
+    simp only [Rat.cast_max, Rat.cast_one] at this
+    exact this
+
+  -- Case split on whether I.lo ≥ 0
+  simp only [sqrt, IntervalRat.sqrtInterval, mem_affine, evalLinear, linearSum]
+  split
+  · -- Non-negative interval case
+    rename_i h
+    simp only [List.zipWith, List.sum_nil, add_zero]
+
+    -- Key simplifications
+    have hmid : ((0 + max I.hi 1) / 2 : ℚ) = max I.hi 1 / 2 := by ring
+    have hrad : ((max I.hi 1 - 0) / 2 : ℚ) = max I.hi 1 / 2 := by ring
+    have hrad_nonneg : 0 ≤ (max I.hi 1 - 0) / 2 := by
+      have h1 : (1 : ℚ) ≤ max I.hi 1 := le_max_right I.hi 1; linarith
+    have habs_rad : |((max I.hi 1 - 0) / 2 : ℚ)| = (max I.hi 1 - 0) / 2 :=
+      abs_of_nonneg hrad_nonneg
+
+    use Real.sqrt v - ((0 + max I.hi 1) / 2 : ℚ)
+    constructor
+    · -- |sqrt v - mid| ≤ |rad|
+      rw [habs_rad]
+      have hmid_real : (((0 + max I.hi 1) / 2 : ℚ) : ℝ) = max (I.hi : ℝ) 1 / 2 := by
+        simp only [Rat.cast_add, Rat.cast_zero, Rat.cast_div, Rat.cast_max, Rat.cast_one, zero_add]
+        ring
+      have hrad_real : (((max I.hi 1 - 0) / 2 : ℚ) : ℝ) = max (I.hi : ℝ) 1 / 2 := by
+        simp only [Rat.cast_sub, Rat.cast_zero, Rat.cast_div, Rat.cast_max, Rat.cast_one, sub_zero]
+        ring
+      rw [abs_le]
+      constructor
+      · -- -rad ≤ sqrt v - mid
+        rw [hmid_real, hrad_real]
+        linarith
+      · -- sqrt v - mid ≤ rad
+        rw [hmid_real, hrad_real]
+        have : max (I.hi : ℝ) 1 = max (I.hi : ℝ) 1 / 2 + max (I.hi : ℝ) 1 / 2 := by ring
+        linarith
+    · ring
+  · -- Negative interval case: return wide bounds with dynamic r = max I.hi 1
+    rename_i h
+    simp only [List.zipWith, List.sum_nil, add_zero]
+    use Real.sqrt v
+    constructor
+    · -- |sqrt v| ≤ max I.hi 1
+      have hsqrt_nonneg := Real.sqrt_nonneg v
+      rw [abs_of_nonneg hsqrt_nonneg]
+      -- We have hsqrt_hi : sqrt v ≤ max (I.hi : ℝ) 1
+      -- Need to show: sqrt v ≤ ↑(max I.hi 1)
+      simp only [Rat.cast_max, Rat.cast_one]
+      exact hsqrt_hi
+    · simp
 
 end AffineForm
 

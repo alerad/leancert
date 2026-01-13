@@ -104,8 +104,9 @@ def softmaxComponent (x : IntervalVector) (k : Nat) (prec : Int) : IntervalDyadi
           ⟨sum_rat, fun hcz => not_lt.mpr hcz.1 h_pos⟩
        IntervalDyadic.ofIntervalRat inv prec
     else
-       -- Fallback (should be impossible mathematically)
-       default
+       -- Fallback: When interval arithmetic is too loose to prove sum > 0,
+       -- we use the conservative bound [0, 1] since softmax ∈ (0, 1) always.
+       ⟨Dyadic.ofInt 0, Dyadic.ofInt 1, by simp [Dyadic.toRat_ofInt]⟩
   else
     default
 
@@ -114,6 +115,40 @@ def softmax (x : IntervalVector) (prec : Int) : IntervalVector :=
   List.range x.length |>.map (fun k => softmaxComponent x k prec)
 
 /-! ### Soundness Proofs -/
+
+/-- Helper: foldl add preserves interval membership.
+    If acc_real ∈ acc_interval and for each i, xs_real[i] ∈ xs_interval[i],
+    then (xs_real.foldl (+) acc_real) ∈ (xs_interval.foldl add acc_interval).
+
+    Proof by induction on xs_real, using mem_add at each step. -/
+theorem mem_foldl_add {xs_real : List ℝ} {xs_interval : List IntervalDyadic}
+    {acc_real : ℝ} {acc_interval : IntervalDyadic}
+    (_hlen : xs_real.length = xs_interval.length)
+    (hacc : acc_real ∈ acc_interval)
+    (_hmem : ∀ i (hi : i < xs_real.length),
+      xs_real[i] ∈ xs_interval[i]'(_hlen ▸ hi)) :
+    xs_real.foldl (· + ·) acc_real ∈
+    xs_interval.foldl IntervalDyadic.add acc_interval := by
+  -- Induction proof: at each step we add a real to the accumulator
+  -- and an interval to the interval accumulator, using mem_add.
+  induction xs_real generalizing xs_interval acc_real acc_interval with
+  | nil =>
+    cases xs_interval with
+    | nil => simp only [List.foldl_nil]; exact hacc
+    | cons _ _ => simp at _hlen
+  | cons x xs ih =>
+    cases xs_interval with
+    | nil => simp at _hlen
+    | cons I Is =>
+      simp only [List.foldl_cons]
+      simp only [List.length_cons, Nat.add_right_cancel_iff] at _hlen
+      -- The new accumulator: acc + x ∈ acc_interval.add I
+      have hacc' : acc_real + x ∈ IntervalDyadic.add acc_interval I :=
+        IntervalDyadic.mem_add hacc (_hmem 0 (by simp))
+      -- Membership for the tail
+      have hmem' : ∀ i (hi : i < xs.length), xs[i] ∈ Is[i]'(_hlen ▸ hi) := fun i hi =>
+        _hmem (i + 1) (by simp; omega)
+      exact ih _hlen hacc' hmem'
 
 /-- Real Softmax function -/
 noncomputable def Real.softmax (x : List ℝ) (k : Nat) : ℝ :=
@@ -130,15 +165,35 @@ Proof sketch:
               = 1 / Σ(e^xj * e^{-xk})
               = 1 / Σe^{xj - xk}
 -/
-theorem softmax_algebraic_identity (x : List ℝ) (k : Nat) (_hk : k < x.length)
-    (_hsum : (x.map Real.exp).sum ≠ 0) :
+theorem softmax_algebraic_identity (x : List ℝ) (k : Nat) (hk : k < x.length)
+    (hsum : (x.map Real.exp).sum ≠ 0) :
     Real.softmax x k = 1 / ((x.map (fun xj => Real.exp (xj - x[k]!))).sum) := by
   unfold Real.softmax
-  -- The proof follows from:
-  -- 1. Multiply num/denom by e^{-xk}
-  -- 2. Use e^a * e^b = e^{a+b}
-  -- 3. Distribute multiplication over sum
-  sorry -- Straightforward algebraic manipulation
+  -- Key facts about exp
+  have hexp_pos : Real.exp (x[k]!) > 0 := Real.exp_pos _
+  have hexp_ne : Real.exp (x[k]!) ≠ 0 := ne_of_gt hexp_pos
+  -- Sum of shifted exponentials is positive
+  have hsum_shift_pos : (x.map (fun xj => Real.exp (xj - x[k]!))).sum > 0 := by
+    apply List.sum_pos
+    · intro y hy
+      obtain ⟨xj, _, rfl⟩ := List.mem_map.mp hy
+      exact Real.exp_pos _
+    · intro hempty
+      have hnil := List.map_eq_nil_iff.mp hempty
+      simp [List.length_eq_zero_iff.mpr hnil] at hk
+  have hsum_shift_ne : (x.map (fun xj => Real.exp (xj - x[k]!))).sum ≠ 0 :=
+    ne_of_gt hsum_shift_pos
+  -- Main calculation: exp(xk) / Σexp(xj) = 1 / Σexp(xj - xk)
+  -- Key: Σexp(xj) / exp(xk) = Σ(exp(xj) / exp(xk)) = Σexp(xj - xk)
+  have key : (x.map Real.exp).sum / Real.exp (x[k]!) =
+             (x.map (fun xj => Real.exp (xj - x[k]!))).sum := by
+    rw [div_eq_iff hexp_ne]
+    rw [← List.sum_map_mul_right]
+    congr 1
+    simp_rw [Real.exp_sub, div_mul_cancel₀ _ hexp_ne]
+  calc Real.exp x[k]! / (x.map Real.exp).sum
+      = 1 / ((x.map Real.exp).sum / Real.exp x[k]!) := by field_simp
+    _ = 1 / (x.map (fun xj => Real.exp (xj - x[k]!))).sum := by rw [key]
 
 /--
   **Main Theorem: Softmax Soundness**
@@ -163,7 +218,7 @@ theorem mem_softmax {v : List ℝ} {I : IntervalVector}
       exact Real.exp_pos _
     · intro h
       have hnil := List.map_eq_nil_iff.mp h
-      have hlen : v.length = 0 := List.length_eq_zero.mpr hnil
+      have hlen : v.length = 0 := List.length_eq_zero_iff.mpr hnil
       rw [hlen] at hdim
       exact Nat.not_lt_zero k (hdim ▸ hk)
   rw [softmax_algebraic_identity v k (hdim ▸ hk) hsum]
@@ -173,25 +228,118 @@ theorem mem_softmax {v : List ℝ} {I : IntervalVector}
   unfold softmaxComponent
   simp only [hk, ↓reduceDIte]
 
-  -- This reduces to proving correctness of sub, exp, sum, and inv
-  -- which we have from IntervalVector and IntervalRat theorems.
+  -- Set up the interval computations
+  let I_k := I[k]'hk
+  let diffs := I.map (fun I_j => IntervalDyadic.sub I_j I_k)
+  let exps := expVector diffs prec
+  let zeroInterval := IntervalDyadic.singleton (Dyadic.ofInt 0)
+  let sum_exps := exps.foldl (fun acc I => IntervalDyadic.add acc I) zeroInterval
 
-  -- Let's sketch the composition steps:
-  -- A. v_j - v_k ∈ I_j - I_k
-  have _h_diff : ∀ j (hj : j < I.length),
-      v[j]'(hdim ▸ hj) - v[k]'(hdim ▸ hk) ∈ IntervalDyadic.sub (I[j]'hj) (I[k]'hk) := by
+  -- A. v_j - v_k ∈ I_j - I_k (subtraction soundness)
+  have h_diff : ∀ j (hj : j < I.length),
+      v[j]'(hdim ▸ hj) - v[k]'(hdim ▸ hk) ∈ diffs[j]'(by simp [diffs]; exact hj) := by
     intro j hj
-    apply IntervalDyadic.mem_sub (hmem j hj) (hmem k hk)
+    simp only [diffs, List.getElem_map]
+    exact IntervalDyadic.mem_sub (hmem j hj) (hmem k hk)
 
-  -- B. exp(v_j - v_k) ∈ expVector(I_j - I_k)
-  -- (Requires linking expComputable correctness)
+  -- B. exp(v_j - v_k) ∈ exps[j] (exp soundness)
+  have h_exp : ∀ j (hj : j < I.length),
+      Real.exp (v[j]'(hdim ▸ hj) - v[k]'(hdim ▸ hk)) ∈
+        exps[j]'(by simp only [exps, expVector, diffs, List.length_map]; exact hj) := by
+    intro j hj
+    simp only [exps, expVector, diffs, List.getElem_map]
+    -- Get difference membership directly
+    have hdiff_mem : v[j]'(hdim ▸ hj) - v[k]'(hdim ▸ hk) ∈ IntervalDyadic.sub (I[j]'hj) I_k :=
+      IntervalDyadic.mem_sub (hmem j hj) (hmem k hk)
+    -- Convert to IntervalRat for expComputable
+    have hdiff_rat : v[j]'(hdim ▸ hj) - v[k]'(hdim ▸ hk) ∈ (IntervalDyadic.sub (I[j]'hj) I_k).toIntervalRat :=
+      IntervalDyadic.mem_toIntervalRat.mpr hdiff_mem
+    have hexp_rat := IntervalRat.mem_expComputable hdiff_rat 10
+    exact IntervalDyadic.mem_ofIntervalRat hexp_rat prec _hprec
 
-  -- C. Sum_real ∈ Sum_interval
-  -- (Requires mem_add_component iterated)
+  -- C. Σ exp(v_j - v_k) ∈ sum_exps (sum soundness via foldl)
+  have h_sum : (v.map (fun xj => Real.exp (xj - v[k]!))).sum ∈ sum_exps := by
+    -- v[k]! = v[k] when k < v.length
+    have hk_bound : k < v.length := hdim ▸ hk
+    have hgetelem_eq : v[k]! = v[k]'hk_bound := getElem!_pos v k hk_bound
+    -- Rewrite the sum to use v[k] instead of v[k]!
+    simp only [hgetelem_eq]
+    -- Now prove: (v.map (fun xj => Real.exp (xj - v[k]))).sum ∈ sum_exps
+    -- The real sum equals foldl (+) 0 over the mapped list
+    have hlen_eq : (v.map (fun xj => Real.exp (xj - v[k]))).length = exps.length := by
+      simp [exps, expVector, diffs, hdim]
+    -- 0 ∈ zeroInterval
+    have h_zero : (0 : ℝ) ∈ zeroInterval := by
+      simp only [zeroInterval, IntervalDyadic.mem_def, Dyadic.toRat_ofInt,
+                 IntervalDyadic.singleton, Rat.cast_zero]
+      constructor <;> norm_num
+    -- Apply the foldl lemma
+    -- List.sum is foldl (+) 0
+    rw [List.sum_eq_foldl]
+    apply mem_foldl_add hlen_eq h_zero
+    intro i hi
+    -- Need: exp(v[i] - v[k]) ∈ exps[i]
+    have hi' : i < I.length := by
+      simp only [List.length_map] at hi
+      omega
+    simp only [List.getElem_map]
+    exact h_exp i hi'
 
-  -- D. 1 / Sum_real ∈ 1 / Sum_interval
-  -- (Requires inv correctness)
+  -- D. Handle the positivity check for inversion
+  -- The sum of exponentials is always positive
+  have h_sum_pos : (v.map (fun xj => Real.exp (xj - v[k]!))).sum > 0 := by
+    apply List.sum_pos
+    · intro y hy
+      obtain ⟨xj, _, rfl⟩ := List.mem_map.mp hy
+      exact Real.exp_pos _
+    · intro hempty
+      have hnil := List.map_eq_nil_iff.mp hempty
+      simp [List.length_eq_zero_iff.mpr hnil] at hdim
+      exact Nat.not_lt_zero k (hdim ▸ hk)
 
-  sorry -- (Composition of existing lemmas)
+  -- The sum_rat.lo > 0 condition should hold (intervals contain positive sums)
+  -- For now, we handle both cases using split on the dite
+  split
+  · -- Case: sum_rat.lo > 0 (normal case)
+    rename_i h_pos
+    -- 1 / sum_real ∈ inv(sum_interval)
+    have h_sum_rat : (v.map (fun xj => Real.exp (xj - v[k]!))).sum ∈ sum_exps.toIntervalRat :=
+      IntervalDyadic.mem_toIntervalRat.mpr h_sum
+    have h_sum_ne : (v.map (fun xj => Real.exp (xj - v[k]!))).sum ≠ 0 := ne_of_gt h_sum_pos
+    -- Construct the nonzero interval
+    let sum_nz : IntervalRat.IntervalRatNonzero :=
+      ⟨sum_exps.toIntervalRat, fun hcz => not_lt.mpr hcz.1 h_pos⟩
+    have h_inv := IntervalRat.mem_invNonzero (I := sum_nz) h_sum_rat h_sum_ne
+    -- Convert 1/x = x⁻¹
+    rw [one_div]
+    exact IntervalDyadic.mem_ofIntervalRat h_inv prec _hprec
+  · -- Case: sum_rat.lo ≤ 0 (fallback to conservative [0, 1] bound)
+    -- We need to show: 1 / sum ∈ [0, 1]
+    -- Since sum = Σ exp(v_j - v_k) includes exp(0) = 1 and all terms are positive,
+    -- we have sum ≥ 1, so 0 < 1/sum ≤ 1.
+    simp only [IntervalDyadic.mem_def, Dyadic.toRat_ofInt]
+    constructor
+    · -- 0 ≤ 1/sum (since sum > 0)
+      norm_cast
+      exact le_of_lt (one_div_pos.mpr h_sum_pos)
+    · -- 1/sum ≤ 1 (since sum ≥ 1)
+      norm_cast
+      rw [div_le_one h_sum_pos]
+      -- sum = Σ exp(v_j - v_k) ≥ exp(0) = 1 (the j=k term)
+      -- The sum includes exp(v_k - v_k) = exp(0) = 1
+      have hk_bound : k < v.length := hdim ▸ hk
+      have hgetelem_eq : v[k]! = v[k]'hk_bound := getElem!_pos v k hk_bound
+      -- The k-th term is exp(v[k] - v[k]) = exp(0) = 1
+      have h_one_in_sum : Real.exp (v[k]'hk_bound - v[k]'hk_bound) ≤
+          (v.map (fun xj => Real.exp (xj - v[k]!))).sum := by
+        simp only [sub_self, Real.exp_zero, hgetelem_eq]
+        apply List.single_le_sum
+        · intro y hy
+          obtain ⟨_, _, rfl⟩ := List.mem_map.mp hy
+          exact le_of_lt (Real.exp_pos _)
+        · apply List.mem_map.mpr
+          exact ⟨v[k]'hk_bound, List.getElem_mem hk_bound, by simp⟩
+      simp only [sub_self, Real.exp_zero] at h_one_in_sum
+      exact h_one_in_sum
 
 end LeanBound.ML.Softmax
