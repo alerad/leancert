@@ -14,6 +14,7 @@ import Mathlib.Analysis.SpecialFunctions.Trigonometric.ArctanDeriv
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
 import Mathlib.Analysis.Calculus.Deriv.Slope
 import Mathlib.Analysis.SpecialFunctions.Arsinh
+import Mathlib.Analysis.SpecialFunctions.Sqrt
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
 
 /-!
@@ -260,6 +261,83 @@ noncomputable def log? (d : DualInterval) : Option DualInterval :=
   else
     none
 
+/-- Compute a conservative upper bound on 1/(2*sqrt(lo)) for lo > 0.
+    Uses the fact that:
+    - For 0 < lo ≤ 1: sqrt(lo) ≥ lo, so 1/(2*sqrt(lo)) ≤ 1/(2*lo)
+    - For lo > 1: sqrt(lo) > 1, so 1/(2*sqrt(lo)) < 1/2 -/
+def sqrtDerivCoefBound (lo : ℚ) (hpos : 0 < lo) : IntervalRat :=
+  if lo ≤ 1 then
+    ⟨0, 1 / (2 * lo), by
+      apply div_nonneg; norm_num
+      apply mul_nonneg; norm_num; exact le_of_lt hpos⟩
+  else
+    ⟨0, 1 / 2, by norm_num⟩
+
+/-- For lo > 0, the derivative coefficient 1/(2*sqrt(x)) is bounded above for x ≥ lo. -/
+theorem sqrtDerivCoef_bound {x lo : ℝ} (hlo_pos : 0 < lo) (hx_ge : lo ≤ x) :
+    1 / (2 * Real.sqrt x) ≤ max (1 / (2 * lo)) (1 / 2) := by
+  have hx_pos : 0 < x := lt_of_lt_of_le hlo_pos hx_ge
+  have hsqrt_pos : 0 < Real.sqrt x := Real.sqrt_pos.mpr hx_pos
+  have hdenom_pos : 0 < 2 * Real.sqrt x := by positivity
+  -- sqrt(x) ≥ sqrt(lo) since sqrt is monotone
+  have hsqrt_mono : Real.sqrt lo ≤ Real.sqrt x := Real.sqrt_le_sqrt hx_ge
+  have hsqrt_lo_pos : 0 < Real.sqrt lo := Real.sqrt_pos.mpr hlo_pos
+  -- 1/(2*sqrt(x)) ≤ 1/(2*sqrt(lo))
+  have hcoef_le : 1 / (2 * Real.sqrt x) ≤ 1 / (2 * Real.sqrt lo) := by
+    apply div_le_div_of_nonneg_left (by norm_num : (0 : ℝ) ≤ 1)
+    · positivity
+    · linarith
+  -- Now bound 1/(2*sqrt(lo))
+  rcases le_or_lt lo 1 with hle | hgt
+  · -- lo ≤ 1: sqrt(lo) ≥ lo (since sqrt(x) ≥ x for 0 < x ≤ 1)
+    have hsqrt_ge_lo : lo ≤ Real.sqrt lo := by
+      have h1 : lo * lo ≤ lo := by nlinarith
+      have h2 : lo = Real.sqrt lo * Real.sqrt lo → lo ≤ Real.sqrt lo := by
+        intro heq
+        by_contra hc
+        push_neg at hc
+        have : lo * lo > lo := by nlinarith
+        linarith
+      rw [← Real.sq_sqrt (le_of_lt hlo_pos)] at h1
+      rcases eq_or_lt_of_le (Real.sqrt_nonneg lo) with hsz | hsgt
+      · -- Case sqrt(lo) = 0 contradicts lo > 0
+        have hsqrt_zero : Real.sqrt lo = 0 := hsz.symm
+        have hlo_le_zero : lo ≤ 0 := Real.sqrt_eq_zero'.mp hsqrt_zero
+        linarith
+      · nlinarith [Real.sq_sqrt (le_of_lt hlo_pos)]
+    -- 1/(2*sqrt(lo)) ≤ 1/(2*lo)
+    have hbound : 1 / (2 * Real.sqrt lo) ≤ 1 / (2 * lo) := by
+      apply div_le_div_of_nonneg_left (by norm_num : (0 : ℝ) ≤ 1)
+      · positivity
+      · linarith
+    calc 1 / (2 * Real.sqrt x) ≤ 1 / (2 * Real.sqrt lo) := hcoef_le
+      _ ≤ 1 / (2 * lo) := hbound
+      _ ≤ max (1 / (2 * lo)) (1 / 2) := le_max_left _ _
+  · -- lo > 1: sqrt(lo) > 1
+    have hsqrt_gt_one : 1 < Real.sqrt lo := by
+      rw [← Real.sqrt_one]
+      exact Real.sqrt_lt_sqrt (by norm_num) hgt
+    -- 1/(2*sqrt(lo)) < 1/2
+    have hbound : 1 / (2 * Real.sqrt lo) < 1 / 2 := by
+      rw [div_lt_div_iff (by positivity : (0:ℝ) < 2 * Real.sqrt lo) (by norm_num : (0:ℝ) < 2)]
+      ring_nf
+      linarith
+    calc 1 / (2 * Real.sqrt x) ≤ 1 / (2 * Real.sqrt lo) := hcoef_le
+      _ ≤ 1 / 2 := le_of_lt hbound
+      _ ≤ max (1 / (2 * lo)) (1 / 2) := le_max_right _ _
+
+/-- Partial dual for sqrt (chain rule: d(sqrt f) = f' / (2 * sqrt(f)))
+    Returns None if the value interval is not strictly positive. -/
+noncomputable def sqrt? (d : DualInterval) : Option DualInterval :=
+  if h : IntervalRat.isPositive d.val then
+    let sqrt_val := IntervalRat.sqrtInterval d.val
+    -- d(sqrt f) = f' / (2 * sqrt(f)) = f' * (1 / (2 * sqrt(f)))
+    let deriv_coef := sqrtDerivCoefBound d.val.lo h
+    let der' := IntervalRat.mul d.der deriv_coef
+    some { val := sqrt_val, der := der' }
+  else
+    none
+
 end DualInterval
 
 /-! ### Dual evaluation -/
@@ -376,7 +454,7 @@ noncomputable def evalDual? (e : Expr) (ρ : DualEnv) : Option DualInterval :=
       | none => none
   | Expr.sqrt e =>
       match evalDual? e ρ with
-      | some d => some (DualInterval.sqrt d)
+      | some d => DualInterval.sqrt? d
       | none => none
 
 /-- Single-variable version of evalDual? -/
@@ -562,6 +640,10 @@ theorem evalFunc1_sinc (e : Expr) :
 /-- Helper lemma: evalFunc1 for erf unfolds correctly -/
 theorem evalFunc1_erf (e : Expr) :
     evalFunc1 (Expr.erf e) = fun t => Real.erf (evalFunc1 e t) := rfl
+
+/-- Helper lemma: evalFunc1 for sqrt unfolds correctly -/
+theorem evalFunc1_sqrt (e : Expr) :
+    evalFunc1 (Expr.sqrt e) = fun t => Real.sqrt (evalFunc1 e t) := rfl
 
 /-- Helper lemma: evalFunc1 for const -/
 @[simp]
@@ -1006,10 +1088,16 @@ theorem evalDual?_val_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
     cases heq : evalDual? e' ρ_dual with
     | none => simp only [heq, reduceCtorEq] at hsome
     | some d =>
-      simp only [heq, Option.some.injEq] at hsome
-      rw [← hsome]
-      simp only [Expr.eval_sqrt, DualInterval.sqrt]
-      exact IntervalRat.mem_sqrtInterval' (ih d heq)
+      simp only [heq] at hsome
+      -- hsome : DualInterval.sqrt? d = some D
+      simp only [DualInterval.sqrt?] at hsome
+      split at hsome
+      · next hpos =>
+        simp only [Option.some.injEq] at hsome
+        rw [← hsome]
+        simp only [Expr.eval_sqrt]
+        exact IntervalRat.mem_sqrtInterval' (ih d heq)
+      · exact absurd hsome (by simp)
 
 /-- Single-variable version of evalDual?_val_correct -/
 theorem evalDual?1_val_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
@@ -1167,9 +1255,28 @@ theorem evalFunc1_differentiableAt_of_evalDual? (e : Expr) (hsupp : ExprSupporte
           Real.continuous_exp.comp (continuous_neg.comp (continuous_pow 2))
         exact (hcont.integral_hasStrictDerivAt 0 y).differentiableAt
       exact herf_diff.differentiableAt.comp x (ih d heq)
-  | @sqrt _ _ _ =>
-    -- sqrt is only differentiable at positive points
-    sorry
+  | @sqrt e' hs ih =>
+    unfold evalDual?1 evalDual? at hsome
+    cases heq : evalDual? e' _ with
+    | none => rw [heq] at hsome; exact absurd hsome (by simp)
+    | some d =>
+      rw [heq] at hsome
+      simp only [DualInterval.sqrt?] at hsome
+      split at hsome
+      · next hpos =>
+        simp only [Option.some.injEq] at hsome
+        have hval := evalDual?1_val_correct e' hs I d x hx heq
+        -- The argument is positive, so sqrt is differentiable
+        have hpos_x : 0 < evalFunc1 e' x := by
+          have hval' : evalFunc1 e' x ∈ d.val := hval
+          simp only [IntervalRat.mem_def] at hval'
+          simp only [IntervalRat.isPositive] at hpos
+          have hlo_pos : (0 : ℝ) < d.val.lo := by exact_mod_cast hpos
+          exact lt_of_lt_of_le hlo_pos hval'.1
+        -- sqrt is differentiable at nonzero points
+        have hne : evalFunc1 e' x ≠ 0 := ne_of_gt hpos_x
+        exact (Real.hasDerivAt_sqrt hne).differentiableAt.comp x (ih d heq)
+      · exact absurd hsome (by simp)
 
 /-- The derivative component of evalDual? is correct when it returns some.
     For a supported expression (with inv) evaluated at a point x in the interval I,
@@ -1506,9 +1613,90 @@ theorem evalDual?_der_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       have hprod2 := IntervalRat.mem_mul hprod1 hder
       convert hprod2 using 1
       ring
-  | @sqrt _ _ _ =>
-    -- sqrt derivative requires positive domain
-    sorry
+  | @sqrt e' hs ih =>
+    unfold evalDual?1 evalDual? at hsome
+    cases heq : evalDual? e' _ with
+    | none => rw [heq] at hsome; exact absurd hsome (by simp)
+    | some d =>
+      rw [heq] at hsome
+      simp only [DualInterval.sqrt?] at hsome
+      split at hsome
+      · next hpos =>
+        simp only [Option.some.injEq] at hsome
+        rw [← hsome]
+        -- d(sqrt f)/dx = f'/(2*sqrt(f))
+        have hval := evalDual?1_val_correct e' hs I d x hx heq
+        have hval' : evalFunc1 e' x ∈ d.val := hval
+        have hpos_x : 0 < evalFunc1 e' x := by
+          simp only [IntervalRat.mem_def] at hval'
+          simp only [IntervalRat.isPositive] at hpos
+          have hlo_pos : (0 : ℝ) < d.val.lo := by exact_mod_cast hpos
+          exact lt_of_lt_of_le hlo_pos hval'.1
+        have hne_x : evalFunc1 e' x ≠ 0 := ne_of_gt hpos_x
+        have hd := evalFunc1_differentiableAt_of_evalDual? e' hs I d x hx heq
+        rw [evalFunc1_sqrt]
+        have heq_fun : (fun t => Real.sqrt (evalFunc1 e' t)) = Real.sqrt ∘ evalFunc1 e' := rfl
+        rw [heq_fun, deriv_comp x (Real.hasDerivAt_sqrt hne_x).differentiableAt hd]
+        rw [(Real.hasDerivAt_sqrt hne_x).deriv]
+        -- Goal: deriv (evalFunc1 e') x / (2 * √(evalFunc1 e' x)) ∈ d.der * sqrtDerivCoefBound
+        have hder := ih d heq
+        -- Show 1/(2*sqrt(f(x))) is in sqrtDerivCoefBound
+        have hlo_le_val : (d.val.lo : ℝ) ≤ evalFunc1 e' x := by
+          simp only [IntervalRat.mem_def] at hval'
+          exact hval'.1
+        have hlo_pos_real : (0 : ℝ) < (d.val.lo : ℚ) := by
+          simp only [IntervalRat.isPositive] at hpos
+          exact_mod_cast hpos
+        -- Use our sqrtDerivCoef_bound theorem
+        have hcoef_bound := DualInterval.sqrtDerivCoef_bound hlo_pos_real hlo_le_val
+        -- The coefficient 1/(2*sqrt(f(x))) is positive and bounded
+        have hcoef_pos : 0 ≤ 1 / (2 * Real.sqrt (evalFunc1 e' x)) := by
+          apply div_nonneg (by norm_num)
+          apply mul_nonneg (by norm_num)
+          exact le_of_lt (Real.sqrt_pos.mpr hpos_x)
+        have hcoef_mem : 1 / (2 * Real.sqrt (evalFunc1 e' x)) ∈ DualInterval.sqrtDerivCoefBound d.val.lo hpos := by
+          simp only [DualInterval.sqrtDerivCoefBound, IntervalRat.mem_def]
+          split
+          · -- d.val.lo ≤ 1
+            next hle_one =>
+            constructor
+            · simp only [Rat.cast_zero]
+              exact hcoef_pos
+            · -- Show 1/(2*sqrt(f(x))) ≤ 1/(2*lo)
+              have hle_real : (d.val.lo : ℝ) ≤ 1 := by exact_mod_cast hle_one
+              have h1 : max (1 / (2 * (d.val.lo : ℝ))) (1 / 2) = 1 / (2 * (d.val.lo : ℝ)) := by
+                apply max_eq_left
+                -- 1/2 ≤ 1/(2*lo) when lo ≤ 1
+                apply div_le_div_of_nonneg_left (by norm_num) (by positivity)
+                calc 2 * (d.val.lo : ℝ) ≤ 2 * 1 := by nlinarith
+                  _ = 2 := by ring
+              calc 1 / (2 * Real.sqrt (evalFunc1 e' x))
+                  ≤ max (1 / (2 * (d.val.lo : ℝ))) (1 / 2) := hcoef_bound
+                _ = 1 / (2 * (d.val.lo : ℝ)) := h1
+                _ = ↑(1 / (2 * d.val.lo)) := by push_cast; ring
+          · -- d.val.lo > 1
+            next hgt_one =>
+            push_neg at hgt_one
+            constructor
+            · simp only [Rat.cast_zero]
+              exact hcoef_pos
+            · -- Show 1/(2*sqrt(f(x))) ≤ 1/2
+              have hgt_real : 1 < (d.val.lo : ℝ) := by exact_mod_cast hgt_one
+              have h1 : max (1 / (2 * (d.val.lo : ℝ))) (1 / 2) = 1 / 2 := by
+                apply max_eq_right
+                -- 1/(2*lo) ≤ 1/2 when lo > 1
+                apply div_le_div_of_nonneg_left (by norm_num) (by norm_num : (0:ℝ) < 2)
+                calc (2 : ℝ) = 2 * 1 := by ring
+                  _ ≤ 2 * d.val.lo := by nlinarith
+              calc 1 / (2 * Real.sqrt (evalFunc1 e' x))
+                  ≤ max (1 / (2 * (d.val.lo : ℝ))) (1 / 2) := hcoef_bound
+                _ = 1 / 2 := h1
+                _ = ↑(1 / 2 : ℚ) := by norm_num
+        -- Combine: f'(x)/(2*sqrt(f(x))) = f'(x) * (1/(2*sqrt(f(x)))) ∈ d.der * sqrtDerivCoefBound
+        have hmul := IntervalRat.mem_mul hder hcoef_mem
+        convert hmul using 1
+        field_simp [ne_of_gt (Real.sqrt_pos.mpr hpos_x)]
+      · exact absurd hsome (by simp)
 
 /-- Combined correctness theorem for evalDual?1 -/
 theorem evalDual?1_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
