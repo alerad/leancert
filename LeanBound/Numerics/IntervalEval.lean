@@ -281,7 +281,11 @@ def coshInterval (I : IntervalRat) (taylorDepth : ℕ := 10) : IntervalRat :=
 /-! ### Interval inverse -/
 
 /-- Wide bound constant for when inverse is undefined (denominator contains 0) -/
-private def invWideBound : ℚ := 1000000000000000000000000000000
+def invWideBound : ℚ := 10^30
+
+private theorem invWideBound_pos : (0 : ℝ) < invWideBound := by
+  simp only [invWideBound]
+  norm_num
 
 /-- Computable interval inverse.
     For [a,b] with a > 0: returns [1/b, 1/a] (1/x is decreasing on positive reals)
@@ -385,34 +389,41 @@ theorem mem_invInterval_neg {x : ℝ} {I : IntervalRat}
     exact absurd hle' hle
 
 /-- Correctness of invInterval when denominator interval contains zero.
-    NOTE: This case is fundamentally unprovable with finite bounds since 1/x → ±∞ as x → 0.
-    The wide bounds are a safe default that will cause the tactic to fail (as it should)
-    when trying to prove specific bounds on expressions with zero in the denominator range. -/
+    Requires a bound on |x⁻¹| to be provable, since x can be arbitrarily close to 0. -/
 theorem mem_invInterval_wide {x : ℝ} {I : IntervalRat}
-    (_hx : x ∈ I) (hlo : ¬(I.lo > 0)) (hhi : ¬(I.hi < 0)) :
+    (_hx : x ∈ I) (hlo : ¬(I.lo > 0)) (hhi : ¬(I.hi < 0))
+    (hbnd : |x⁻¹| ≤ invWideBound) :
     x⁻¹ ∈ invInterval I := by
   simp only [IntervalRat.mem_def, invInterval, hlo, hhi, ↓reduceDIte]
-  simp only [invWideBound, Rat.cast_neg, Rat.cast_ofNat]
-  -- NOTE: This is unprovable in general since x can be arbitrarily close to 0.
-  -- The tactic will fail gracefully because these wide bounds won't satisfy typical goals.
-  -- We use sorry here as a marker that this case requires user-level handling.
-  sorry
+  constructor
+  · -- -invWideBound ≤ x⁻¹
+    calc ((-invWideBound : ℚ) : ℝ) = -(invWideBound : ℝ) := by simp
+      _ ≤ -|x⁻¹| := neg_le_neg hbnd
+      _ ≤ x⁻¹ := neg_abs_le x⁻¹
+  · -- x⁻¹ ≤ invWideBound
+    calc x⁻¹ ≤ |x⁻¹| := le_abs_self x⁻¹
+      _ ≤ (invWideBound : ℝ) := hbnd
 
 /-- Main correctness theorem for invInterval.
     Fully proved for intervals bounded away from zero.
-    The case where the interval contains zero uses sorry (see note in mem_invInterval_wide).
-
-    NOTE: The `x ≠ 0` hypothesis would be needed for a complete proof in the zero-crossing case,
-    but even with it, finite bounds can't contain x⁻¹ when x can be arbitrarily close to 0. -/
+    For intervals containing zero, requires a bound on |x⁻¹|. -/
 theorem mem_invInterval {x : ℝ} {I : IntervalRat}
-    (hx : x ∈ I) :
+    (hx : x ∈ I) (hbnd : |x⁻¹| ≤ invWideBound) :
     x⁻¹ ∈ invInterval I := by
   -- Case split based on the interval position
   by_cases hpos : I.lo > 0
   · exact mem_invInterval_pos hx hpos
   · by_cases hneg : I.hi < 0
     · exact mem_invInterval_neg hx hneg
-    · exact mem_invInterval_wide hx hpos hneg
+    · exact mem_invInterval_wide hx hpos hneg hbnd
+
+/-- Correctness of invInterval for intervals bounded away from zero (no extra hypothesis needed) -/
+theorem mem_invInterval_nonzero {x : ℝ} {I : IntervalRat}
+    (hx : x ∈ I) (hnonzero : I.lo > 0 ∨ I.hi < 0) :
+    x⁻¹ ∈ invInterval I := by
+  rcases hnonzero with hpos | hneg
+  · exact mem_invInterval_pos hx hpos
+  · exact mem_invInterval_neg hx hneg
 
 /-! ### Core interval evaluation (computable) -/
 
@@ -578,8 +589,9 @@ theorem evalIntervalCore_correct (e : Expr) (hsupp : ExprSupportedCore e)
         have hhi_neg : (I.hi : ℝ) < 0 := by exact_mod_cast hneg
         have hx_neg : Expr.eval ρ_real e < 0 := lt_of_le_of_lt ih.2 hhi_neg
         exact mem_invInterval_neg ih hneg
-      · -- Zero-crossing interval: uses sorry (fundamentally unprovable with finite bounds)
-        exact mem_invInterval_wide ih hpos hneg
+      · -- Zero-crossing interval: need bound hypothesis we can't provide here
+        -- The value (Expr.eval ρ_real e)⁻¹ could be arbitrarily large
+        sorry
   | sin _ ih =>
     simp only [Expr.eval_sin, evalIntervalCore]
     exact IntervalRat.mem_sinComputable ih cfg.taylorDepth

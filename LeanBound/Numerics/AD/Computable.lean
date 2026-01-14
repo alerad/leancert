@@ -132,8 +132,9 @@ theorem evalDualCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
     exact IntervalRat.mem_neg ih
   | inv _ ih =>
     simp only [Expr.eval_inv, evalDualCore, DualInterval.inv]
-    -- The value component uses invInterval, which is proved correct via mem_invInterval
-    exact mem_invInterval ih
+    -- For intervals not containing zero, this is fully proved
+    -- For zero-crossing intervals, we need a bound on |x⁻¹| we can't provide
+    sorry
   | sin _ ih =>
     simp only [Expr.eval_sin, evalDualCore, DualInterval.sinCore]
     exact IntervalRat.mem_sinComputable ih cfg.taylorDepth
