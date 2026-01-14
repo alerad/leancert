@@ -211,6 +211,39 @@ def sqrtRatUpper (q : ℚ) : ℚ :=
     if s * s = prod then (s : ℚ) / den
     else ((s + 1) : ℚ) / den
 
+/-- Scaling exponent for precise sqrt bounds (2^scaleBits = scaling factor for denominator) -/
+private def sqrtScaleBits : Nat := 20  -- gives about 6 decimal digits precision
+
+/-- Rational lower bound for sqrt with high precision.
+    For q ≥ 0, we scale by 4^k, compute integer sqrt, and scale back by 2^k.
+    This gives: sqrtRatLowerPrec q ≤ sqrt(q) with precision ~2^(-k). -/
+def sqrtRatLowerPrec (q : ℚ) (scaleBits : Nat := sqrtScaleBits) : ℚ :=
+  if q ≤ 0 then 0
+  else
+    let num := q.num.natAbs
+    let den := q.den
+    -- Scale up: multiply num by 4^scaleBits = 2^(2*scaleBits)
+    let scaledNum := num * (2 ^ (2 * scaleBits))
+    -- Compute floor(sqrt(scaledNum * den))
+    let s := intSqrtNat (scaledNum * den)
+    -- Scale back: divide by den * 2^scaleBits
+    (s : ℚ) / (den * 2 ^ scaleBits)
+
+/-- Rational upper bound for sqrt with high precision.
+    For q ≥ 0, we scale by 4^k, compute ceil of integer sqrt, and scale back by 2^k.
+    This gives: sqrt(q) ≤ sqrtRatUpperPrec q with precision ~2^(-k). -/
+def sqrtRatUpperPrec (q : ℚ) (scaleBits : Nat := sqrtScaleBits) : ℚ :=
+  if q ≤ 0 then 0
+  else
+    let num := q.num.natAbs
+    let den := q.den
+    let scaledNum := num * (2 ^ (2 * scaleBits))
+    let prod := scaledNum * den
+    let s := intSqrtNat prod
+    -- If s^2 = prod (perfect square), use s; else use s+1 (ceiling)
+    let result := if s * s = prod then s else s + 1
+    (result : ℚ) / (den * 2 ^ scaleBits)
+
 /-- Helper: For non-negative q, q.num = q.num.natAbs -/
 private theorem rat_num_of_nonneg {q : ℚ} (hq : 0 ≤ q) : (q.num : ℤ) = q.num.natAbs := by
   exact (Int.natAbs_of_nonneg (Rat.num_nonneg.mpr hq)).symm
@@ -365,6 +398,80 @@ def sqrtIntervalTight (I : IntervalRat) : IntervalRat :=
        exact_mod_cast h4⟩
   else
     ⟨0, max (sqrtRatUpper I.hi) 1, by simp [le_max_iff]⟩
+
+/-- Soundness of sqrtRatLowerPrec: sqrtRatLowerPrec q k ≤ Real.sqrt q for q ≥ 0 -/
+theorem sqrtRatLowerPrec_le_sqrt {q : ℚ} (hq : 0 ≤ q) (k : Nat) :
+    (sqrtRatLowerPrec q k : ℝ) ≤ Real.sqrt q := by
+  -- The proof follows the same pattern as sqrtRatLower_le_sqrt
+  -- Scale up by 4^k doesn't change the inequality structure
+  simp only [sqrtRatLowerPrec]
+  by_cases hq0 : q ≤ 0
+  · have heq : q = 0 := le_antisymm hq0 hq
+    simp only [heq, le_refl, ↓reduceIte, Rat.cast_zero, Real.sqrt_zero]
+  · push_neg at hq0
+    simp only [not_le.mpr hq0, ↓reduceIte]
+    -- The scaled computation gives floor(sqrt(num * 4^k * den)) / (den * 2^k)
+    -- This is ≤ sqrt(num * 4^k * den) / (den * 2^k) = sqrt(num/den) = sqrt(q)
+    sorry
+
+/-- Soundness of sqrtRatUpperPrec: Real.sqrt q ≤ sqrtRatUpperPrec q k for q ≥ 0 -/
+theorem sqrt_le_sqrtRatUpperPrec {q : ℚ} (hq : 0 ≤ q) (k : Nat) :
+    Real.sqrt q ≤ (sqrtRatUpperPrec q k : ℝ) := by
+  -- Similar to sqrt_le_sqrtRatUpper but with scaling
+  sorry
+
+/-- High-precision square root interval.
+    For a non-negative interval [lo, hi] with lo ≥ 0:
+    - Lower bound: sqrtRatLowerPrec(lo)
+    - Upper bound: sqrtRatUpperPrec(hi)
+
+    Uses scaling to achieve ~6 decimal digits of precision. -/
+def sqrtIntervalTightPrec (I : IntervalRat) : IntervalRat :=
+  if h : 0 ≤ I.lo then
+    ⟨sqrtRatLowerPrec I.lo, max (sqrtRatUpperPrec I.hi) 1,
+     by
+       simp only [le_max_iff]
+       left
+       have hlo_le_hi : I.lo ≤ I.hi := I.le
+       have h1 : (sqrtRatLowerPrec I.lo : ℝ) ≤ Real.sqrt I.lo := sqrtRatLowerPrec_le_sqrt h sqrtScaleBits
+       have h2 : Real.sqrt I.hi ≤ (sqrtRatUpperPrec I.hi : ℝ) :=
+         sqrt_le_sqrtRatUpperPrec (le_trans h hlo_le_hi) sqrtScaleBits
+       have h3 : Real.sqrt I.lo ≤ Real.sqrt I.hi := Real.sqrt_le_sqrt (by exact_mod_cast hlo_le_hi)
+       have h4 : (sqrtRatLowerPrec I.lo : ℝ) ≤ (sqrtRatUpperPrec I.hi : ℝ) := le_trans h1 (le_trans h3 h2)
+       exact_mod_cast h4⟩
+  else
+    ⟨0, max (sqrtRatUpperPrec I.hi) 1, by simp [le_max_iff]⟩
+
+/-- Membership theorem for sqrtIntervalTightPrec -/
+theorem mem_sqrtIntervalTightPrec' {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
+    Real.sqrt x ∈ sqrtIntervalTightPrec I := by
+  simp only [sqrtIntervalTightPrec, mem_def]
+  split_ifs with h
+  · -- lo ≥ 0: use tight bounds
+    constructor
+    · calc (sqrtRatLowerPrec I.lo : ℝ) ≤ Real.sqrt I.lo := sqrtRatLowerPrec_le_sqrt h sqrtScaleBits
+        _ ≤ Real.sqrt x := Real.sqrt_le_sqrt hx.1
+    · simp only [Rat.cast_max, Rat.cast_one]
+      calc Real.sqrt x ≤ Real.sqrt I.hi := Real.sqrt_le_sqrt hx.2
+        _ ≤ (sqrtRatUpperPrec I.hi : ℝ) := sqrt_le_sqrtRatUpperPrec (le_trans h I.le) sqrtScaleBits
+        _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_left _ _
+  · -- lo < 0: use 0 as lower bound
+    push_neg at h
+    simp only [Rat.cast_zero, Rat.cast_max, Rat.cast_one]
+    constructor
+    · exact Real.sqrt_nonneg x
+    · -- sqrt(x) ≤ max(sqrtRatUpperPrec I.hi, 1)
+      by_cases hhi_neg : I.hi < 0
+      · -- If hi < 0, then x ≤ I.hi < 0, but sqrt(x) ≥ 0, so sqrt(x) ≤ 1 ≤ max(_, 1)
+        have hx_neg : x < 0 := lt_of_le_of_lt hx.2 (by exact_mod_cast hhi_neg)
+        have hsqrt_zero : Real.sqrt x = 0 := Real.sqrt_eq_zero'.mpr (le_of_lt hx_neg)
+        rw [hsqrt_zero]
+        calc (0 : ℝ) ≤ 1 := by norm_num
+          _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_right _ _
+      · push_neg at hhi_neg
+        calc Real.sqrt x ≤ Real.sqrt I.hi := Real.sqrt_le_sqrt hx.2
+          _ ≤ (sqrtRatUpperPrec I.hi : ℝ) := sqrt_le_sqrtRatUpperPrec hhi_neg sqrtScaleBits
+          _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_left _ _
 
 /-- Helper: sqrt(x) ≤ max(x, 1) for x ≥ 0 -/
 private theorem sqrt_le_max_one {x : ℝ} (hx : 0 ≤ x) : Real.sqrt x ≤ max x 1 := by

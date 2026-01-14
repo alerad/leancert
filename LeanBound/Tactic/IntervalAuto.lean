@@ -371,6 +371,21 @@ where
 
 /-- The main interval_bound tactic implementation -/
 def intervalBoundCore (taylorDepth : Nat) : TacticM Unit := do
+  -- Pre-process: convert ≥ to ≤ and > to < for uniform handling
+  -- First intro variables to get into the body of the forall
+  let preprocessed ← do
+    try
+      evalTactic (← `(tactic| intro _x _hx; simp only [ge_iff_le, gt_iff_lt]; revert _x _hx))
+      pure true
+    catch e =>
+      trace[interval_decide] "Forall preprocessing failed: {e.toMessageData}"
+      try
+        evalTactic (← `(tactic| simp only [ge_iff_le, gt_iff_lt]))
+        pure true
+      catch _ => pure false
+  if preprocessed then
+    trace[interval_decide] "Preprocessing applied ≥/> → ≤/<"
+
   -- Pre-process: normalize powers (x^2 → x*x, x^3 → x*x*x, etc.)
   try
     evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one] at *))
@@ -841,8 +856,8 @@ where
     Automatically proves bounds on expressions using interval arithmetic.
 
     Usage:
-    - `interval_bound` - uses default Taylor depth of 10
-    - `interval_bound 20` - uses Taylor depth of 20
+    - `interval_bound` - uses adaptive precision (tries depths 10, 15, 20, 25, 30)
+    - `interval_bound 20` - uses fixed Taylor depth of 20
 
     Supports goals of the form:
     - `∀ x ∈ I, f x ≤ c`
@@ -851,10 +866,30 @@ where
     - `∀ x ∈ I, c < f x`
 -/
 elab "interval_bound" depth:(num)? : tactic => do
-  let taylorDepth := match depth with
-    | some n => n.getNat
-    | none => 10
-  intervalBoundCore taylorDepth
+  match depth with
+  | some n =>
+    -- Fixed depth specified by user
+    intervalBoundCore n.getNat
+  | none =>
+    -- Adaptive: try increasing depths until success
+    let depths := [10, 15, 20, 25, 30]
+    let goal ← getMainGoal
+    let goalState ← saveState
+    let mut lastError : Option Exception := none
+    for d in depths do
+      try
+        restoreState goalState
+        trace[interval_decide] "Trying Taylor depth {d}..."
+        intervalBoundCore d
+        trace[interval_decide] "Success with Taylor depth {d}"
+        return  -- Success!
+      catch e =>
+        lastError := some e
+        continue
+    -- All depths failed, report the last error
+    match lastError with
+    | some e => throw e
+    | none => throwError "interval_bound: All precision levels failed"
 
 /-! ## Global Optimization Tactic
 
@@ -1341,6 +1376,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       let proofStx ← Term.exprToSyntax proofAtZero
 
       try
+        -- Apply simp to unfold Expr.eval
         evalTactic (← `(tactic| (
           have h0 := $proofStx;
           simp only [LeanBound.Core.Expr.eval, LeanBound.Core.Expr.eval_pi,
@@ -1350,24 +1386,53 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                      LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
                      LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
                      Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
-                     Rat.cast_zero, sub_zero, zero_sub, neg_neg] at h0;
-          linarith
+                     Rat.cast_zero, sub_zero, zero_sub, neg_neg] at h0
+        )))
+
+        -- Log the hypothesis after first simp
+        let hyps ← getLCtx
+        for d in hyps do
+          if d.userName.toString.startsWith "h0" then
+            trace[interval_decide] "After first simp, h0 type: {← inferType d.toExpr}"
+
+        -- Normalize rational expressions
+        evalTactic (← `(tactic| norm_num at h0))
+
+        -- Log after norm_num
+        let hyps2 ← getLCtx
+        for d in hyps2 do
+          if d.userName.toString.startsWith "h0" then
+            trace[interval_decide] "After norm_num, h0 type: {← inferType d.toExpr}"
+
+        -- Try various approaches to close the goal
+        evalTactic (← `(tactic| (
+          first
+          | linarith
+          | (simp only [← sub_eq_add_neg] at h0; exact sub_pos.mp h0)
+          | (simp only [← sub_eq_add_neg, sub_pos] at h0; exact h0)
+          | (have h1 := lt_add_of_neg_add_lt_left h0; simp at h1; exact h1)
+          | (have h1 := h0; ring_nf at h1; linarith)
         )))
         let remainingGoals ← getGoals
         if !remainingGoals.isEmpty then
           throwError "proveClosedExpressionBound: Goal not closed after difference approach"
         return
       catch e =>
+        trace[interval_decide] "Difference approach error: {e.toMessageData}"
         throwError "proveClosedExpressionBound: Difference approach failed: {e.toMessageData}"
 
     let some boundRat := boundRat?
       | throwError "proveClosedExpressionBound: Could not extract rational bound from {boundExpr}"
 
+    trace[interval_decide] "boundRat extracted: {boundRat}"
+
     -- Reify the function expression directly
     let ast ← reify funcExpr
+    trace[interval_decide] "ast reified"
 
     -- Generate the support proof
     let supportProof ← mkSupportedCoreProof ast
+    trace[interval_decide] "supportProof generated"
 
     -- Build config expression
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -1394,15 +1459,20 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
         else ``LeanBound.Numerics.Certificate.checkUpperBound
 
     -- Build the certificate check expression and verify it's true
+    trace[interval_decide] "Building certificate check"
     let checkExpr ← mkAppM checkName #[ast, intervalExpr, toExpr boundRat, cfgExpr]
+    trace[interval_decide] "checkExpr built"
     let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
     let certGoal ← mkFreshExprMVar certTy
     let certGoalId := certGoal.mvarId!
     certGoalId.withContext do
       try
         setGoals [certGoalId]
+        trace[interval_decide] "Running native_decide"
         evalTactic (← `(tactic| native_decide))
-      catch _ =>
+        trace[interval_decide] "Certificate verified"
+      catch e =>
+        trace[interval_decide] "native_decide failed: {e.toMessageData}"
         throwError "proveClosedExpressionBound: Certificate check failed for closed expression"
 
     -- Apply the verify theorem with the certificate to get:
@@ -1455,25 +1525,28 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
     -- The proof has type: Expr.eval (fun _ => 0) ast ≤/≥ (boundRat : ℝ)
     -- The goal has type: Real.pi ≤/≥ 4 (or similar)
     -- We need to show these are definitionally equal after simp
+    -- Build the rational bound expression for comparison
+    let boundRatExpr := toExpr boundRat
+
     -- Try multiple approaches to close the goal
-    -- Approach 1: Direct simp + exact
+    -- Approach 1: Direct simp + exact (works for integer bounds like 4)
     try
+      setGoals [goal]
+      evalTactic (← `(tactic| have h0 := $proofStx))
       evalTactic (← `(tactic| (
-        have h0 := $proofStx;
         simp only [LeanBound.Core.Expr.eval, LeanBound.Core.Expr.eval_pi,
                    LeanBound.Core.Expr.eval_const, LeanBound.Core.Expr.eval_sqrt,
                    LeanBound.Core.Expr.eval_add, LeanBound.Core.Expr.eval_sub,
                    LeanBound.Core.Expr.eval_mul, LeanBound.Core.Expr.eval_neg,
                    LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
                    LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
-                   Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast] at h0;
-        exact h0
+                   Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast] at h0
       )))
+      evalTactic (← `(tactic| exact h0))
       return  -- Success!
-    catch e1 =>
-      trace[interval_decide] "Approach 1 failed: {e1.toMessageData}"
+    catch _ => pure ()
 
-    -- Approach 2: Convert with norm_num for decimal bounds
+    -- Approach 2: Use convert with norm_num to handle decimal bounds like 3.15
     setGoals [goal]
     try
       evalTactic (← `(tactic| (
@@ -1484,14 +1557,40 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                    LeanBound.Core.Expr.eval_mul, LeanBound.Core.Expr.eval_neg,
                    LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
                    LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
-                   Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast] at h0;
-        convert h0 using 1 <;> (norm_num; try simp [Rat.divInt_eq_div])
+                   Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
+                   Rat.divInt_eq_div] at h0;
+        convert h0 using 1 <;> norm_num
       )))
       return  -- Success!
     catch e2 =>
       trace[interval_decide] "Approach 2 failed: {e2.toMessageData}"
 
-    -- Approach 3: Use refine with type unification
+    -- Approach 3: Normalize goal bound first using show_term
+    setGoals [goal]
+    let boundRatStx ← Term.exprToSyntax (toExpr boundRat)
+    try
+      -- Use show to rewrite the goal type
+      evalTactic (← `(tactic| (
+        show $(← Term.exprToSyntax funcExpr) ≤ ↑($boundRatStx : ℚ)
+      )))
+      -- Now types should match
+      evalTactic (← `(tactic| (
+        have h0 := $proofStx;
+        simp only [LeanBound.Core.Expr.eval, LeanBound.Core.Expr.eval_pi,
+                   LeanBound.Core.Expr.eval_const, LeanBound.Core.Expr.eval_sqrt,
+                   LeanBound.Core.Expr.eval_add, LeanBound.Core.Expr.eval_sub,
+                   LeanBound.Core.Expr.eval_mul, LeanBound.Core.Expr.eval_neg,
+                   LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
+                   LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
+                   Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
+                   Rat.divInt_eq_div] at h0;
+        exact h0
+      )))
+      return  -- Success!
+    catch e3 =>
+      trace[interval_decide] "Approach 3 failed: {e3.toMessageData}"
+
+    -- Approach 4: Use refine with explicit type cast
     setGoals [goal]
     try
       evalTactic (← `(tactic| (
@@ -1504,12 +1603,12 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                    LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
                    LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
                    Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
-                   Rat.divInt_eq_div] at h0 ⊢;
-        exact h0
+                   Rat.divInt_eq_div] at h0;
+        exact_mod_cast h0
       )))
       return  -- Success!
-    catch e3 =>
-      trace[interval_decide] "Approach 3 failed: {e3.toMessageData}"
+    catch e4 =>
+      trace[interval_decide] "Approach 4 failed: {e4.toMessageData}"
 
     throwError "proveClosedExpressionBound: Failed to close goal after all attempts"
 
@@ -1559,28 +1658,28 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
       trace[interval_decide] "No free variables, trying closed expression path"
       -- This is a closed expression (like Real.pi, Real.sqrt 2, etc.)
       -- First try norm_num for simple cases
+      -- Track if norm_num created a new goal (e.g., converting 3.15 to 63/20)
+      let mut currentGoal := goal
+      let mut currentGoalType := goalType
       try
         evalTactic (← `(tactic| norm_num))
         let remainingGoals ← getGoals
         if remainingGoals.isEmpty then
-          trace[interval_decide] "norm_num succeeded and closed the goal"
-          return
+          return  -- norm_num closed the goal
         else
-          trace[interval_decide] "norm_num ran but didn't close the goal"
-      catch e =>
-        trace[interval_decide] "norm_num failed: {e.toMessageData}"
-        pure ()
+          let isAssignedAfter ← goal.isAssigned
+          -- If norm_num assigned our goal but didn't close it, use the new goal
+          if isAssignedAfter && !remainingGoals.isEmpty then
+            currentGoal := remainingGoals.head!
+            currentGoalType ← currentGoal.getType
+      catch _ => pure ()
 
       -- Try to handle as a closed expression (no variables, just constants like pi)
       -- This uses direct certificate verification instead of interval_bound
       try
-        trace[interval_decide] "Trying proveClosedExpressionBound"
-        proveClosedExpressionBound goal goalType taylorDepth
-        trace[interval_decide] "proveClosedExpressionBound succeeded"
+        proveClosedExpressionBound currentGoal currentGoalType taylorDepth
         return
-      catch e =>
-        trace[interval_decide] "proveClosedExpressionBound failed: {e.toMessageData}"
-        pure ()
+      catch _ => pure ()
 
       -- Use first constant as fallback singleton point if available, else 0
       trace[interval_decide] "Falling through to fallback"

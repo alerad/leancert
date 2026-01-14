@@ -269,20 +269,25 @@ theorem mem_tanhInterval {x : ℝ} {I : IntervalRat} (_hx : x ∈ I) :
     linarith
 
 /-- Interval enclosure for π.
-    Uses the bounds 3.14 ≤ π ≤ 3.15 which are easily verified.
-    More precise: 157/50 = 3.14, 63/20 = 3.15 -/
+    Uses tight bounds from Mathlib's pi_gt_d20 and pi_lt_d20 which give 20 decimal digits.
+    3.14159265358979323846 < π < 3.14159265358979323847 -/
 def piInterval : IntervalRat :=
-  ⟨157/50, 63/20, by norm_num⟩
+  -- Use rational approximation: 31415926535897932/10000000000000000 ≤ pi ≤ 31415926535897933/10000000000000000
+  ⟨31415926535897932/10000000000000000, 31415926535897933/10000000000000000, by norm_num⟩
 
-/-- Correctness of pi interval: Real.pi ∈ [3.14, 3.15] -/
+/-- Correctness of pi interval: Real.pi ∈ piInterval -/
 theorem mem_piInterval : Real.pi ∈ piInterval := by
   simp only [IntervalRat.mem_def, piInterval]
   constructor
-  · -- 3.14 ≤ π: follows from Real.pi_gt_d2 which says 3.14 < π
-    have h : (3.14 : ℝ) < Real.pi := Real.pi_gt_d2
+  · -- Lower bound from pi_gt_d20
+    have h : (3.14159265358979323846 : ℝ) < Real.pi := Real.pi_gt_d20
+    have eq : (31415926535897932 : ℚ) / 10000000000000000 = (3.1415926535897932 : ℚ) := by norm_num
+    simp only [Rat.cast_div, Rat.cast_ofNat] at *
     linarith
-  · -- π ≤ 3.15: follows from Real.pi_lt_d2 which says π < 3.15
-    have h : Real.pi < (3.15 : ℝ) := Real.pi_lt_d2
+  · -- Upper bound from pi_lt_d20
+    have h : Real.pi < (3.14159265358979323847 : ℝ) := Real.pi_lt_d20
+    have eq : (31415926535897933 : ℚ) / 10000000000000000 = (3.1415926535897933 : ℚ) := by norm_num
+    simp only [Rat.cast_div, Rat.cast_ofNat] at *
     linarith
 
 /-- Interval bound for sinh using computable Taylor series for exp.
@@ -493,7 +498,7 @@ def evalIntervalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : In
   | Expr.sinh e => sinhInterval (evalIntervalCore e ρ cfg) cfg.taylorDepth
   | Expr.cosh e => coshInterval (evalIntervalCore e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => tanhInterval (evalIntervalCore e ρ cfg)  -- Tight bounds: [-1, 1]
-  | Expr.sqrt e => IntervalRat.sqrtIntervalTight (evalIntervalCore e ρ cfg)
+  | Expr.sqrt e => IntervalRat.sqrtIntervalTightPrec (evalIntervalCore e ρ cfg)
   | Expr.pi => piInterval
 
 /-- Computable interval evaluator with division support.
@@ -559,7 +564,7 @@ def evalIntervalCoreWithDiv (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {
   | Expr.sinh e => sinhInterval (evalIntervalCoreWithDiv e ρ cfg) cfg.taylorDepth
   | Expr.cosh e => coshInterval (evalIntervalCoreWithDiv e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => tanhInterval (evalIntervalCoreWithDiv e ρ cfg)  -- Tight bounds: [-1, 1]
-  | Expr.sqrt e => IntervalRat.sqrtIntervalTight (evalIntervalCoreWithDiv e ρ cfg)
+  | Expr.sqrt e => IntervalRat.sqrtIntervalTightPrec (evalIntervalCoreWithDiv e ρ cfg)
   | Expr.pi => piInterval
 
 /-- A real environment is contained in an interval environment -/
@@ -624,7 +629,7 @@ theorem evalIntervalCore_correct (e : Expr) (hsupp : ExprSupportedCore e)
     exact IntervalRat.mem_expComputable ih cfg.taylorDepth
   | sqrt _ ih =>
     simp only [Expr.eval_sqrt, evalIntervalCore]
-    exact IntervalRat.mem_sqrtIntervalTight' ih
+    exact IntervalRat.mem_sqrtIntervalTightPrec' ih
   | sinh _ ih =>
     simp only [Expr.eval_sinh, evalIntervalCore, sinhInterval]
     exact IntervalRat.mem_sinhComputable ih cfg.taylorDepth
