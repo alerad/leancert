@@ -185,6 +185,142 @@ theorem verify_bounds (e : Expr) (hsupp : ExprSupportedCore e)
   exact ⟨verify_lower_bound e hsupp I lo cfg h_cert.1 x hx,
          verify_upper_bound e hsupp I hi cfg h_cert.2 x hx⟩
 
+/-! ### ExprSupportedWithInv bounds
+
+Support for expressions with inv, log, atan, arsinh, atanh. These use the
+`evalInterval?` evaluator which may return `none` for invalid inputs.
+
+NOTE: These are noncomputable because `evalInterval?` uses Real Taylor approximations.
+They cannot be used with `native_decide`. Use the verification theorems directly
+in term proofs or with explicit computation.
+-/
+
+/-- Check upper bound for ExprSupportedWithInv expressions.
+    Returns `true` iff evalInterval?1 succeeds and the upper bound is ≤ c.
+    NOTE: Noncomputable - cannot be used with native_decide. -/
+noncomputable def checkUpperBoundWithInv (e : Expr) (I : IntervalRat) (c : ℚ) : Bool :=
+  match evalInterval?1 e I with
+  | some J => decide (J.hi ≤ c)
+  | none => false
+
+/-- Check lower bound for ExprSupportedWithInv expressions.
+    Returns `true` iff evalInterval?1 succeeds and the lower bound is ≥ c.
+    NOTE: Noncomputable - cannot be used with native_decide. -/
+noncomputable def checkLowerBoundWithInv (e : Expr) (I : IntervalRat) (c : ℚ) : Bool :=
+  match evalInterval?1 e I with
+  | some J => decide (c ≤ J.lo)
+  | none => false
+
+/-- Check strict upper bound for ExprSupportedWithInv expressions.
+    NOTE: Noncomputable - cannot be used with native_decide. -/
+noncomputable def checkStrictUpperBoundWithInv (e : Expr) (I : IntervalRat) (c : ℚ) : Bool :=
+  match evalInterval?1 e I with
+  | some J => decide (J.hi < c)
+  | none => false
+
+/-- Check strict lower bound for ExprSupportedWithInv expressions.
+    NOTE: Noncomputable - cannot be used with native_decide. -/
+noncomputable def checkStrictLowerBoundWithInv (e : Expr) (I : IntervalRat) (c : ℚ) : Bool :=
+  match evalInterval?1 e I with
+  | some J => decide (c < J.lo)
+  | none => false
+
+/-- Verification theorem for upper bounds with ExprSupportedWithInv. -/
+theorem verify_upper_bound_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (I : IntervalRat) (c : ℚ)
+    (h_cert : checkUpperBoundWithInv e I c = true) :
+    ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
+  simp only [checkUpperBoundWithInv] at h_cert
+  split at h_cert
+  · next J hsome =>
+    simp only [decide_eq_true_eq] at h_cert
+    exact evalInterval?_le_of_hi e hsupp I J c hsome h_cert
+  · simp at h_cert
+
+/-- Verification theorem for lower bounds with ExprSupportedWithInv. -/
+theorem verify_lower_bound_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (I : IntervalRat) (c : ℚ)
+    (h_cert : checkLowerBoundWithInv e I c = true) :
+    ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
+  simp only [checkLowerBoundWithInv] at h_cert
+  split at h_cert
+  · next J hsome =>
+    simp only [decide_eq_true_eq] at h_cert
+    exact evalInterval?_ge_of_lo e hsupp I J c hsome h_cert
+  · simp at h_cert
+
+/-- Verification theorem for strict upper bounds with ExprSupportedWithInv. -/
+theorem verify_strict_upper_bound_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (I : IntervalRat) (c : ℚ)
+    (h_cert : checkStrictUpperBoundWithInv e I c = true) :
+    ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
+  simp only [checkStrictUpperBoundWithInv] at h_cert
+  split at h_cert
+  · next J hsome =>
+    simp only [decide_eq_true_eq] at h_cert
+    intro x hx
+    have hle := evalInterval?_le_of_hi e hsupp I J J.hi hsome (le_refl _) x hx
+    have hJ_hi : Expr.eval (fun _ => x) e ≤ J.hi := hle
+    calc Expr.eval (fun _ => x) e ≤ J.hi := hJ_hi
+      _ < c := by exact_mod_cast h_cert
+  · simp at h_cert
+
+/-- Verification theorem for strict lower bounds with ExprSupportedWithInv. -/
+theorem verify_strict_lower_bound_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (I : IntervalRat) (c : ℚ)
+    (h_cert : checkStrictLowerBoundWithInv e I c = true) :
+    ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
+  simp only [checkStrictLowerBoundWithInv] at h_cert
+  split at h_cert
+  · next J hsome =>
+    simp only [decide_eq_true_eq] at h_cert
+    intro x hx
+    have hge := evalInterval?_ge_of_lo e hsupp I J J.lo hsome (le_refl _) x hx
+    have hJ_lo : (J.lo : ℝ) ≤ Expr.eval (fun _ => x) e := hge
+    have hc_lt_lo : (c : ℝ) < (J.lo : ℝ) := by exact_mod_cast h_cert
+    exact lt_of_lt_of_le hc_lt_lo hJ_lo
+  · simp at h_cert
+
+/-- Bridge theorem for Set.Icc upper bounds with ExprSupportedWithInv. -/
+theorem verify_upper_bound_Icc_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+    (h_cert : checkUpperBoundWithInv e ⟨lo, hi, hle⟩ c = true) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e ≤ c := by
+  intro x hx
+  have := verify_upper_bound_withInv e hsupp ⟨lo, hi, hle⟩ c h_cert
+  apply this
+  rwa [IntervalRat.mem_iff_mem_Icc]
+
+/-- Bridge theorem for Set.Icc lower bounds with ExprSupportedWithInv. -/
+theorem verify_lower_bound_Icc_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+    (h_cert : checkLowerBoundWithInv e ⟨lo, hi, hle⟩ c = true) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c ≤ Expr.eval (fun _ => x) e := by
+  intro x hx
+  have := verify_lower_bound_withInv e hsupp ⟨lo, hi, hle⟩ c h_cert
+  apply this
+  rwa [IntervalRat.mem_iff_mem_Icc]
+
+/-- Bridge theorem for Set.Icc strict upper bounds with ExprSupportedWithInv. -/
+theorem verify_strict_upper_bound_Icc_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+    (h_cert : checkStrictUpperBoundWithInv e ⟨lo, hi, hle⟩ c = true) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e < c := by
+  intro x hx
+  have := verify_strict_upper_bound_withInv e hsupp ⟨lo, hi, hle⟩ c h_cert
+  apply this
+  rwa [IntervalRat.mem_iff_mem_Icc]
+
+/-- Bridge theorem for Set.Icc strict lower bounds with ExprSupportedWithInv. -/
+theorem verify_strict_lower_bound_Icc_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+    (h_cert : checkStrictLowerBoundWithInv e ⟨lo, hi, hle⟩ c = true) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c < Expr.eval (fun _ => x) e := by
+  intro x hx
+  have := verify_strict_lower_bound_withInv e hsupp ⟨lo, hi, hle⟩ c h_cert
+  apply this
+  rwa [IntervalRat.mem_iff_mem_Icc]
+
 /-! ### Smart Bounds with Monotonicity
 
 These checkers use derivative information to get tighter bounds at interval endpoints.
@@ -493,6 +629,48 @@ theorem verify_lower_bound_Icc (e : Expr) (hsupp : ExprSupported e)
     ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   have := verify_lower_bound_smart e hsupp ⟨lo, hi, hle⟩ c cfg h_cert
+  apply this
+  rwa [IntervalRat.mem_iff_mem_Icc]
+
+/-- Bridge from IntervalRat proof to Set.Icc upper bound goal (Core version).
+    This version uses ExprSupportedCore and the basic checkUpperBound (no monotonicity). -/
+theorem verify_upper_bound_Icc_core (e : Expr) (hsupp : ExprSupportedCore e)
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
+    (h_cert : checkUpperBound e ⟨lo, hi, hle⟩ c cfg = true) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e ≤ c := by
+  intro x hx
+  have := verify_upper_bound e hsupp ⟨lo, hi, hle⟩ c cfg h_cert
+  apply this
+  rwa [IntervalRat.mem_iff_mem_Icc]
+
+/-- Bridge from IntervalRat proof to Set.Icc lower bound goal (Core version).
+    This version uses ExprSupportedCore and the basic checkLowerBound (no monotonicity). -/
+theorem verify_lower_bound_Icc_core (e : Expr) (hsupp : ExprSupportedCore e)
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
+    (h_cert : checkLowerBound e ⟨lo, hi, hle⟩ c cfg = true) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c ≤ Expr.eval (fun _ => x) e := by
+  intro x hx
+  have := verify_lower_bound e hsupp ⟨lo, hi, hle⟩ c cfg h_cert
+  apply this
+  rwa [IntervalRat.mem_iff_mem_Icc]
+
+/-- Bridge from IntervalRat proof to Set.Icc strict upper bound goal (Core version). -/
+theorem verify_strict_upper_bound_Icc_core (e : Expr) (hsupp : ExprSupportedCore e)
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
+    (h_cert : checkStrictUpperBound e ⟨lo, hi, hle⟩ c cfg = true) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e < c := by
+  intro x hx
+  have := verify_strict_upper_bound e hsupp ⟨lo, hi, hle⟩ c cfg h_cert
+  apply this
+  rwa [IntervalRat.mem_iff_mem_Icc]
+
+/-- Bridge from IntervalRat proof to Set.Icc strict lower bound goal (Core version). -/
+theorem verify_strict_lower_bound_Icc_core (e : Expr) (hsupp : ExprSupportedCore e)
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
+    (h_cert : checkStrictLowerBound e ⟨lo, hi, hle⟩ c cfg = true) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c < Expr.eval (fun _ => x) e := by
+  intro x hx
+  have := verify_strict_lower_bound e hsupp ⟨lo, hi, hle⟩ c cfg h_cert
   apply this
   rwa [IntervalRat.mem_iff_mem_Icc]
 

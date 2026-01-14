@@ -350,12 +350,27 @@ where
 
 /-- The main interval_bound tactic implementation -/
 def intervalBoundCore (taylorDepth : Nat) : TacticM Unit := do
+  -- Pre-process: normalize powers (x^2 → x*x, x^3 → x*x*x, etc.)
+  try
+    evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one] at *))
+  catch _ => pure ()
+
+  -- Check if the goal was already solved by simplification (e.g., x^0 ≤ 1 → 1 ≤ 1)
+  let goals ← getGoals
+  if goals.isEmpty then
+    return
+
   let goal ← getMainGoal
   let goalType ← goal.getType
 
   -- Parse the goal
   let some boundGoal ← parseBoundGoal goalType
     | do
+      -- If parsing fails, try to solve trivially (e.g., after x^0 → 1, goal becomes 1 ≤ 1)
+      try
+        evalTactic (← `(tactic| intro _ _; norm_num))
+        return
+      catch _ => pure ()
       -- Debug: show the goal structure
       let goalWhnf ← whnf goalType
       throwError "interval_bound: Could not parse goal as a bound. Expected:\n\
@@ -462,8 +477,8 @@ where
       -- 5. Apply appropriate theorem based on interval source
       match intervalInfo.fromSetIcc with
         | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
-          -- For Set.Icc goals, we need to handle cast differences and Expr.eval
-          let proof ← mkAppM ``verify_upper_bound_Icc #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
+          -- For Set.Icc goals, use the Core version which accepts ExprSupportedCore
+          let proof ← mkAppM ``verify_upper_bound_Icc_core #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
 
           -- Try direct apply first
           setGoals [goal]
@@ -475,22 +490,26 @@ where
               evalTactic (← `(tactic| native_decide))
           catch _ =>
             -- Apply failed, so we need to use convert
-            -- First, build the certificate proof using native_decide
             setGoals [goal]
 
-            -- Build the certificate type and prove it
+            -- Build the certificate expression (using checkUpperBound, not Smart)
             let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-            let certTy ← mkAppM ``Eq #[
-              ← mkAppM ``LeanBound.Numerics.Certificate.checkUpperBoundSmart #[ast, intervalRat, boundRat, cfgExpr],
-              mkConst ``Bool.true
-            ]
-            let certProof ← mkDecideProof certTy
+            let checkExpr ← mkAppM ``LeanBound.Numerics.Certificate.checkUpperBound #[ast, intervalRat, boundRat, cfgExpr]
+
+            -- Build proof that checkUpperBound ... = true using native_decide via an auxiliary goal
+            let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
+            let certGoal ← mkFreshExprMVar certTy
+            let certGoalId := certGoal.mvarId!
+            setGoals [certGoalId]
+            evalTactic (← `(tactic| native_decide))
+            let certProof := certGoal
 
             -- Apply the theorem with the certificate to get the conclusion
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
 
             -- Now use convert on the conclusion (not the full proof)
+            setGoals [goal]
             evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
 
             -- Close side goals (usually equality goals for Set.Icc and bounds)
@@ -519,6 +538,12 @@ where
               catch _ => pure false
               if closed then continue
               let closed ← try
+                -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
+                evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))
+                pure true
+              catch _ => pure false
+              if closed then continue
+              let closed ← try
                 evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))
                 pure true
               catch _ => pure false
@@ -527,8 +552,8 @@ where
               logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
 
         | none =>
-          -- Direct IntervalRat goal
-          let proof ← mkAppM ``verify_upper_bound_smart #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
+          -- Direct IntervalRat goal - use verify_upper_bound which accepts ExprSupportedCore
+          let proof ← mkAppM ``verify_upper_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
           let newGoals ← goal.apply proof
           setGoals newGoals
           for g in newGoals do
@@ -547,7 +572,8 @@ where
       -- Handle based on interval source
       match intervalInfo.fromSetIcc with
         | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
-          let proof ← mkAppM ``verify_lower_bound_Icc #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
+          -- Use Core version which accepts ExprSupportedCore
+          let proof ← mkAppM ``verify_lower_bound_Icc_core #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
 
           -- Try direct apply first
           setGoals [goal]
@@ -561,13 +587,19 @@ where
             -- Apply failed, use convert
             setGoals [goal]
             let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-            let certTy ← mkAppM ``Eq #[
-              ← mkAppM ``LeanBound.Numerics.Certificate.checkLowerBoundSmart #[ast, intervalRat, boundRat, cfgExpr],
-              mkConst ``Bool.true
-            ]
-            let certProof ← mkDecideProof certTy
+            let checkExpr ← mkAppM ``LeanBound.Numerics.Certificate.checkLowerBound #[ast, intervalRat, boundRat, cfgExpr]
+
+            -- Build proof using native_decide via an auxiliary goal
+            let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
+            let certGoal ← mkFreshExprMVar certTy
+            let certGoalId := certGoal.mvarId!
+            setGoals [certGoalId]
+            evalTactic (← `(tactic| native_decide))
+            let certProof := certGoal
+
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
+            setGoals [goal]
             evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
 
             -- Close side goals
@@ -594,11 +626,22 @@ where
                 pure true
               catch _ => pure false
               if closed then continue
+              let closed ← try
+                -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
+                evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))
+                pure true
+              catch _ => pure false
+              if closed then continue
+              let closed ← try
+                evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))
+                pure true
+              catch _ => pure false
+              if closed then continue
               logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
 
         | none =>
-          -- Direct IntervalRat goal
-          let proof ← mkAppM ``verify_lower_bound_smart #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
+          -- Direct IntervalRat goal - use verify_lower_bound which accepts ExprSupportedCore
+          let proof ← mkAppM ``verify_lower_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
           let newGoals ← goal.apply proof
           setGoals newGoals
           for g in newGoals do
@@ -614,20 +657,71 @@ where
       let supportProof ← mkSupportedCoreProof ast
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
-      -- TODO: Add bridge theorem for strict bounds with Set.Icc
-      let proof ← mkAppM ``verify_strict_upper_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
-      let newGoals ← goal.apply proof
-      setGoals newGoals
+      -- Handle based on interval source
+      match intervalInfo.fromSetIcc with
+        | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
+          -- For Set.Icc goals, use the Core version which accepts ExprSupportedCore
+          let proof ← mkAppM ``verify_strict_upper_bound_Icc_core #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
 
-      for g in newGoals do
-        setGoals [g]
-        try
-          evalTactic (← `(tactic| native_decide))
-        catch _ =>
+          -- Try direct apply first
+          setGoals [goal]
           try
-            evalTactic (← `(tactic| norm_cast))
+            let newGoals ← goal.apply proof
+            setGoals newGoals
+            for g in newGoals do
+              setGoals [g]
+              evalTactic (← `(tactic| native_decide))
           catch _ =>
-            evalTactic (← `(tactic| simp only [Rat.cast_zero, Rat.cast_one, Rat.cast_intCast, Rat.cast_natCast]))
+            -- Apply failed, use convert
+            setGoals [goal]
+            let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
+            let checkExpr ← mkAppM ``LeanBound.Numerics.Certificate.checkStrictUpperBound #[ast, intervalRat, boundRat, cfgExpr]
+
+            -- Build proof using native_decide via an auxiliary goal
+            let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
+            let certGoal ← mkFreshExprMVar certTy
+            let certGoalId := certGoal.mvarId!
+            setGoals [certGoalId]
+            evalTactic (← `(tactic| native_decide))
+            let certProof := certGoal
+
+            let conclusionProof ← mkAppM' proof #[certProof]
+            let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
+            setGoals [goal]
+            evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+
+            -- Close side goals
+            let goals ← getGoals
+            for g in goals do
+              setGoals [g]
+              let closed ← try evalTactic (← `(tactic| rfl)); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| congr 1 <;> norm_num)); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| norm_cast)); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| norm_num)); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one])); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast])); pure true catch _ => pure false
+              if closed then continue
+              logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
+
+        | none =>
+          -- Direct IntervalRat goal
+          let proof ← mkAppM ``verify_strict_upper_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
+          let newGoals ← goal.apply proof
+          setGoals newGoals
+          for g in newGoals do
+            setGoals [g]
+            try
+              evalTactic (← `(tactic| native_decide))
+            catch _ =>
+              try
+                evalTactic (← `(tactic| norm_cast))
+              catch _ =>
+                evalTactic (← `(tactic| simp only [Rat.cast_zero, Rat.cast_one, Rat.cast_intCast, Rat.cast_natCast]))
 
   /-- Prove ∀ x ∈ I, c < f x -/
   proveForallGt (goal : MVarId) (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
@@ -638,20 +732,71 @@ where
       let supportProof ← mkSupportedCoreProof ast
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
-      -- TODO: Add bridge theorem for strict bounds with Set.Icc
-      let proof ← mkAppM ``verify_strict_lower_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
-      let newGoals ← goal.apply proof
-      setGoals newGoals
+      -- Handle based on interval source
+      match intervalInfo.fromSetIcc with
+        | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
+          -- For Set.Icc goals, use the Core version which accepts ExprSupportedCore
+          let proof ← mkAppM ``verify_strict_lower_bound_Icc_core #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
 
-      for g in newGoals do
-        setGoals [g]
-        try
-          evalTactic (← `(tactic| native_decide))
-        catch _ =>
+          -- Try direct apply first
+          setGoals [goal]
           try
-            evalTactic (← `(tactic| norm_cast))
+            let newGoals ← goal.apply proof
+            setGoals newGoals
+            for g in newGoals do
+              setGoals [g]
+              evalTactic (← `(tactic| native_decide))
           catch _ =>
-            evalTactic (← `(tactic| simp only [Rat.cast_zero, Rat.cast_one, Rat.cast_intCast, Rat.cast_natCast]))
+            -- Apply failed, use convert
+            setGoals [goal]
+            let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
+            let checkExpr ← mkAppM ``LeanBound.Numerics.Certificate.checkStrictLowerBound #[ast, intervalRat, boundRat, cfgExpr]
+
+            -- Build proof using native_decide via an auxiliary goal
+            let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
+            let certGoal ← mkFreshExprMVar certTy
+            let certGoalId := certGoal.mvarId!
+            setGoals [certGoalId]
+            evalTactic (← `(tactic| native_decide))
+            let certProof := certGoal
+
+            let conclusionProof ← mkAppM' proof #[certProof]
+            let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
+            setGoals [goal]
+            evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+
+            -- Close side goals
+            let goals ← getGoals
+            for g in goals do
+              setGoals [g]
+              let closed ← try evalTactic (← `(tactic| rfl)); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| congr 1 <;> norm_num)); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| norm_cast)); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| norm_num)); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one])); pure true catch _ => pure false
+              if closed then continue
+              let closed ← try evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast])); pure true catch _ => pure false
+              if closed then continue
+              logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
+
+        | none =>
+          -- Direct IntervalRat goal
+          let proof ← mkAppM ``verify_strict_lower_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
+          let newGoals ← goal.apply proof
+          setGoals newGoals
+          for g in newGoals do
+            setGoals [g]
+            try
+              evalTactic (← `(tactic| native_decide))
+            catch _ =>
+              try
+                evalTactic (← `(tactic| norm_cast))
+              catch _ =>
+                evalTactic (← `(tactic| simp only [Rat.cast_zero, Rat.cast_one, Rat.cast_intCast, Rat.cast_natCast]))
 
 /-! ## Tactic Syntax -/
 

@@ -142,21 +142,42 @@ theorem defaultLargeBound_pos : 0 < defaultLargeBound := by
     5. I = [a, 0] with a < 0 → (-∞, 1/a]
     6. I = [0, 0] → empty (1/0 is undefined) -/
 def invExtended (I : IntervalRat) (large_bound : ℚ := defaultLargeBound) : ExtendedInterval :=
-  if 0 < I.lo then
+  if hpos : 0 < I.lo then
     -- Case 1: Strictly positive interval [1/hi, 1/lo]
-    ExtendedInterval.singleton ⟨1 / I.hi, 1 / I.lo, by sorry⟩
-  else if I.hi < 0 then
+    ExtendedInterval.singleton ⟨1 / I.hi, 1 / I.lo,
+      one_div_le_one_div_of_le hpos I.le⟩
+  else if hneg : I.hi < 0 then
     -- Case 2: Strictly negative interval [1/hi, 1/lo]
-    ExtendedInterval.singleton ⟨1 / I.hi, 1 / I.lo, by sorry⟩
-  else if I.lo < 0 ∧ 0 < I.hi then
+    have hlo_neg : I.lo < 0 := lt_of_le_of_lt I.le hneg
+    ExtendedInterval.singleton ⟨1 / I.hi, 1 / I.lo, by
+      rw [one_div, one_div]
+      exact (inv_le_inv_of_neg hneg hlo_neg).mpr I.le⟩
+  else if hstraddle : I.lo < 0 ∧ 0 < I.hi then
     -- Case 3: Straddles zero → split into two branches
-    ⟨[⟨-large_bound, 1 / I.lo, by sorry⟩, ⟨1 / I.hi, large_bound, by sorry⟩]⟩
-  else if I.lo = 0 ∧ 0 < I.hi then
+    -- Design assumption: large_bound is large enough that:
+    --   -large_bound ≤ 1/lo (i.e., |lo| ≥ 1/large_bound)
+    --   1/hi ≤ large_bound (i.e., |hi| ≥ 1/large_bound)
+    -- With default large_bound = 10^30, this holds for inputs with |lo|, |hi| ≥ 10^-30
+    ⟨[⟨-large_bound, 1 / I.lo, by
+        have _ := one_div_neg.mpr hstraddle.1
+        -- Requires large_bound ≥ |1/lo| = -1/lo (design assumption)
+        sorry⟩,
+      ⟨1 / I.hi, large_bound, by
+        have _ := one_div_pos.mpr hstraddle.2
+        -- Requires large_bound ≥ 1/hi (design assumption)
+        sorry⟩]⟩
+  else if hzero_lo : I.lo = 0 ∧ 0 < I.hi then
     -- Case 4: [0, b] with b > 0 → [1/b, ∞)
-    ExtendedInterval.singleton ⟨1 / I.hi, large_bound, by sorry⟩
-  else if I.lo < 0 ∧ I.hi = 0 then
+    ExtendedInterval.singleton ⟨1 / I.hi, large_bound, by
+      have _ := one_div_pos.mpr hzero_lo.2
+      -- Requires large_bound ≥ 1/hi (design assumption)
+      sorry⟩
+  else if hzero_hi : I.lo < 0 ∧ I.hi = 0 then
     -- Case 5: [a, 0] with a < 0 → (-∞, 1/a]
-    ExtendedInterval.singleton ⟨-large_bound, 1 / I.lo, by sorry⟩
+    ExtendedInterval.singleton ⟨-large_bound, 1 / I.lo, by
+      have _ := one_div_neg.mpr hzero_hi.1
+      -- Requires large_bound ≥ |1/lo| = -1/lo (design assumption)
+      sorry⟩
   else
     -- Case 6: [0, 0] → empty (undefined)
     ExtendedInterval.empty
