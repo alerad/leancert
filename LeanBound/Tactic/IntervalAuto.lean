@@ -169,6 +169,24 @@ where
               return some (a / b)
       return none
 
+    -- Case 7: OfScientific.ofScientific (for decimal literals like 2.72)
+    -- OfScientific.ofScientific : {α : Type} → [OfScientific α] → ℕ → Bool → ℕ → α
+    -- 2.72 = ofScientific 272 true 2 = 272 * 10^(-2) = 272/100
+    else if fn.isConstOf ``OfScientific.ofScientific then
+      -- args: [type, inst, mantissa, isNegExp, exponent]
+      if args.size >= 5 then
+        if let some mantissa ← extractNatLit args[2]! then
+          let isNegExp := args[3]!.isConstOf ``Bool.true
+          if let some exp ← extractNatLit args[4]! then
+            let base : ℚ := 10
+            if isNegExp then
+              -- mantissa * 10^(-exp) = mantissa / 10^exp
+              return some ((mantissa : ℚ) / (base ^ exp))
+            else
+              -- mantissa * 10^exp
+              return some ((mantissa : ℚ) * (base ^ exp))
+      return none
+
     else return none
 
 /-- Build an IntervalRat expression from two rational expressions and their Lean representations -/
@@ -516,38 +534,36 @@ where
             let goals ← getGoals
             for g in goals do
               setGoals [g]
-              let closed ← try
-                evalTactic (← `(tactic| rfl))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                -- For Set.Icc equality, use congr_arg with norm_num
-                evalTactic (← `(tactic| congr 1 <;> norm_num))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                evalTactic (← `(tactic| norm_cast))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                evalTactic (← `(tactic| norm_num))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
-                evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))
-                pure true
-              catch _ => pure false
-              if closed then continue
+              -- Helper: try a tactic and check if goal was actually closed
+              let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                try
+                  tac
+                  -- Check if goal is now assigned/closed
+                  let isAssigned ← g.isAssigned
+                  let goalsEmpty := (← getGoals).isEmpty
+                  if isAssigned || goalsEmpty then
+                    return true
+                  return false
+                catch _ =>
+                  return false
+              -- Try decimal-specific tactic first for efficiency
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              -- Handle negative decimals (-(1/2) = ↑(Rat.divInt (-1) 2))
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+              -- For Set.Icc equality, use congr_arg with norm_num
+              if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
+              -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
+              if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+              -- Handle decimal bounds (2.72 = ↑(Rat.divInt 68 25))
+              -- norm_num converts 2.72 to 68/25, then simp+push_cast closes the equality
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
+              if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
               -- Last resort - leave the goal for the user but warn
               logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
 
@@ -606,37 +622,30 @@ where
             let goals ← getGoals
             for g in goals do
               setGoals [g]
-              let closed ← try
-                evalTactic (← `(tactic| rfl))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                evalTactic (← `(tactic| congr 1 <;> norm_num))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                evalTactic (← `(tactic| norm_cast))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                evalTactic (← `(tactic| norm_num))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
-                evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))
-                pure true
-              catch _ => pure false
-              if closed then continue
-              let closed ← try
-                evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))
-                pure true
-              catch _ => pure false
-              if closed then continue
+              -- Helper: try a tactic and check if goal was actually closed
+              let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                try
+                  tac
+                  -- Check if goal is now assigned/closed
+                  if ← g.isAssigned then return true
+                  if (← getGoals).isEmpty then return true
+                  return false
+                catch _ => return false
+              -- Try decimal-specific tactic first for efficiency
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              -- Handle negative decimals (-(1/2) = ↑(Rat.divInt (-1) 2))
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
+              -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
+              if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+              -- Handle decimal bounds (2.72 = ↑(Rat.divInt 68 25)) - fallback tactics
+              if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
+              if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
               logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
 
         | none =>
@@ -694,18 +703,30 @@ where
             let goals ← getGoals
             for g in goals do
               setGoals [g]
-              let closed ← try evalTactic (← `(tactic| rfl)); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| congr 1 <;> norm_num)); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| norm_cast)); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| norm_num)); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one])); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast])); pure true catch _ => pure false
-              if closed then continue
+              -- Helper: try a tactic and check if goal was actually closed
+              let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                try
+                  tac
+                  -- Check if goal is now assigned/closed
+                  if ← g.isAssigned then return true
+                  if (← getGoals).isEmpty then return true
+                  return false
+                catch _ => return false
+              -- Try decimal-specific tactic first for efficiency
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              -- Handle negative decimals (-(1/2) = ↑(Rat.divInt (-1) 2))
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
+              -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
+              if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+              -- Handle decimal bounds - fallback tactics
+              if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
+              if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
               logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
 
         | none =>
@@ -769,18 +790,30 @@ where
             let goals ← getGoals
             for g in goals do
               setGoals [g]
-              let closed ← try evalTactic (← `(tactic| rfl)); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| congr 1 <;> norm_num)); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| norm_cast)); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| norm_num)); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one])); pure true catch _ => pure false
-              if closed then continue
-              let closed ← try evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast])); pure true catch _ => pure false
-              if closed then continue
+              -- Helper: try a tactic and check if goal was actually closed
+              let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                try
+                  tac
+                  -- Check if goal is now assigned/closed
+                  if ← g.isAssigned then return true
+                  if (← getGoals).isEmpty then return true
+                  return false
+                catch _ => return false
+              -- Try decimal-specific tactic first for efficiency
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              -- Handle negative decimals (-(1/2) = ↑(Rat.divInt (-1) 2))
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
+              -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
+              if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+              -- Handle decimal bounds - fallback tactics
+              if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
+              if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
               logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
 
         | none =>
