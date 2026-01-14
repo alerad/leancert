@@ -41,6 +41,9 @@ The tactic detects the goal structure:
 
 open Lean Meta Elab Tactic Term
 
+-- Debug trace option for interval_decide
+initialize registerTraceClass `interval_decide
+
 namespace LeanBound.Tactic.Auto
 
 open LeanBound.Meta
@@ -1151,5 +1154,510 @@ elab "root_bound" depth:(num)? : tactic => do
     | some n => n.getNat
     | none => 10
   rootBoundCore taylorDepth
+
+/-! ## Point Inequality Tactic (interval_decide)
+
+The `interval_decide` tactic proves point inequalities like `Real.exp 1 ≤ 3` by
+transforming them into singleton interval bounds `∀ x ∈ Set.Icc c c, f x ≤ b`
+and using the existing `interval_bound` machinery.
+-/
+
+/-- Check if a Lean Name ends with a given suffix string -/
+private def nameEndsWithStr (n : Lean.Name) (suffix : String) : Bool :=
+  match n with
+  | .str _ s => s == suffix || s.endsWith ("." ++ suffix)
+  | _ => false
+
+/-- Parse a point inequality goal and extract lhs, rhs, and inequality type.
+    Returns (lhs, rhs, isStrict, isReversed) where:
+    - isStrict: true for < or >, false for ≤ or ≥
+    - isReversed: true for ≥ or > (need to flip the comparison) -/
+def parsePointIneq (goal : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr × Bool × Bool)) := do
+  let goal ← whnf goal
+  let fn := goal.getAppFn
+  let args := goal.getAppArgs
+
+  if let .const name _ := fn then
+    -- Check for LE/le patterns (handles both LE.le and Real.le etc.)
+    -- LE.le: args = [type, inst, lhs, rhs] (4 args)
+    -- Real.le: args = [lhs, rhs] (2 args)
+    if name == ``LE.le && args.size >= 4 then
+      return some (args[2]!, args[3]!, false, false)
+    if nameEndsWithStr name "le" && args.size >= 2 then
+      -- Likely a specialized le like Real.le
+      return some (args[args.size - 2]!, args[args.size - 1]!, false, false)
+    -- LT.lt patterns
+    if name == ``LT.lt && args.size >= 4 then
+      return some (args[2]!, args[3]!, true, false)
+    if nameEndsWithStr name "lt" && args.size >= 2 then
+      return some (args[args.size - 2]!, args[args.size - 1]!, true, false)
+    -- GE.ge patterns
+    if name == ``GE.ge && args.size >= 4 then
+      return some (args[2]!, args[3]!, false, true)
+    if nameEndsWithStr name "ge" && args.size >= 2 then
+      return some (args[args.size - 2]!, args[args.size - 1]!, false, true)
+    -- GT.gt patterns
+    if name == ``GT.gt && args.size >= 4 then
+      return some (args[2]!, args[3]!, true, true)
+    if nameEndsWithStr name "gt" && args.size >= 2 then
+      return some (args[args.size - 2]!, args[args.size - 1]!, true, true)
+  return none
+
+/-- Try to collect all constant rational values from an expression.
+    Returns the list of rational constants found (for building the singleton interval). -/
+partial def collectConstants (e : Lean.Expr) : MetaM (List ℚ) := do
+  -- Don't use whnf - it expands Real.exp to Complex.exp which we don't want
+  -- First try to extract as rational directly
+  if let some q ← extractRatFromReal e then
+    return [q]
+
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+
+  -- For function applications, collect from arguments
+  if let .const name _ := fn then
+    let nameStr := name.toString
+    -- Unary functions: collect from the argument
+    -- Check by name suffix since the full name might include module prefix
+    if nameStr.endsWith "exp" || nameStr.endsWith "sin" || nameStr.endsWith "cos" ||
+       nameStr.endsWith "sqrt" || nameStr.endsWith "log" || nameStr.endsWith "sinh" ||
+       nameStr.endsWith "cosh" || nameStr.endsWith "tanh" || nameStr.endsWith "arctan" then
+      if args.size > 0 then
+        return ← collectConstants args.back!
+    -- Negation
+    if name == ``Neg.neg && args.size >= 3 then
+      return ← collectConstants args[2]!
+
+  -- Binary operations
+  if fn.isConstOf ``HAdd.hAdd || fn.isConstOf ``HSub.hSub ||
+     fn.isConstOf ``HMul.hMul || fn.isConstOf ``HDiv.hDiv then
+    if args.size >= 6 then
+      let lhsConsts ← collectConstants args[4]!
+      let rhsConsts ← collectConstants args[5]!
+      return lhsConsts ++ rhsConsts
+
+  return []
+
+/-- Try to prove a closed expression bound directly using certificate verification.
+    For goals like `Real.pi ≤ 4` where the expression doesn't contain any variables,
+    we can directly use verify_upper_bound/verify_lower_bound with a singleton interval. -/
+def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDepth : Nat) : TacticM Unit := do
+  trace[interval_decide] "proveClosedExpressionBound: Starting with goal {goalType}"
+  goal.withContext do
+    -- Parse the inequality
+    let some (lhs, rhs, isStrict, isReversedOrig) ← parsePointIneq goalType
+      | throwError "proveClosedExpressionBound: Expected a point inequality"
+    trace[interval_decide] "Parsed: lhs={lhs}, rhs={rhs}, isStrict={isStrict}, isReversedOrig={isReversedOrig}"
+
+    -- Determine which side has the function by checking where we find rational constants
+    let lhsConsts ← collectConstants lhs
+    let rhsConsts ← collectConstants rhs
+
+    let (funcExpr, boundExpr, needsFlip) :=
+      if lhsConsts.isEmpty && !rhsConsts.isEmpty then
+        -- lhs is the function (has no extractable rationals, likely transcendental)
+        (lhs, rhs, false)
+      else if rhsConsts.isEmpty && !lhsConsts.isEmpty then
+        -- rhs is the function (has no extractable rationals, likely transcendental)
+        (rhs, lhs, true)
+      else
+        -- Either both have constants or neither does - default based on isReversed
+        if isReversedOrig then (rhs, lhs, false) else (lhs, rhs, false)
+
+    -- isReversed indicates whether we need a lower bound (true) or upper bound (false)
+    -- For lhs ≤ rhs: if funcExpr is lhs, we need upper bound on func
+    -- For lhs ≤ rhs: if funcExpr is rhs (needsFlip=true), we need lower bound on func
+    let isReversed := isReversedOrig != needsFlip
+    trace[interval_decide] "funcExpr={funcExpr}, boundExpr={boundExpr}, needsFlip={needsFlip}, isReversed={isReversed}"
+
+    -- Try to extract the bound as a rational
+    let boundRat? ← extractRatFromReal boundExpr
+
+    -- If bound is not a rational, we have two transcendental expressions (like pi < sqrt(2) + sqrt(3))
+    -- Transform to: 0 < rhs - lhs (for LT) or 0 < lhs - rhs (for GT) etc.
+    if boundRat?.isNone then
+      trace[interval_decide] "Bound is not rational, trying difference approach"
+      -- Build the difference expression
+      let diffExpr ←
+        if isStrict then
+          if isReversed then
+            -- bound > func means func - bound < 0, so we prove bound - func > 0
+            mkAppM ``HSub.hSub #[boundExpr, funcExpr]
+          else
+            -- func < bound means bound - func > 0
+            mkAppM ``HSub.hSub #[boundExpr, funcExpr]
+        else
+          if isReversed then
+            -- bound ≥ func means we prove bound - func ≥ 0
+            mkAppM ``HSub.hSub #[boundExpr, funcExpr]
+          else
+            -- func ≤ bound means bound - func ≥ 0
+            mkAppM ``HSub.hSub #[boundExpr, funcExpr]
+
+      trace[interval_decide] "diffExpr = {diffExpr}"
+
+      -- Reify the difference expression
+      let diffAst ← reify diffExpr
+      let supportProof ← mkSupportedCoreProof diffAst
+      let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
+
+      -- Build singleton interval
+      let zeroRat : ℚ := 0
+      let leProof ← mkAppM ``le_refl #[toExpr zeroRat]
+      let intervalExpr ← mkAppM ``IntervalRat.mk #[toExpr zeroRat, toExpr zeroRat, leProof]
+
+      -- We want to prove 0 < diff or 0 ≤ diff
+      let theoremName := if isStrict then ``verify_strict_lower_bound else ``verify_lower_bound
+      let checkName := if isStrict then ``LeanBound.Numerics.Certificate.checkStrictLowerBound
+                       else ``LeanBound.Numerics.Certificate.checkLowerBound
+
+      -- Build certificate check
+      let checkExpr ← mkAppM checkName #[diffAst, intervalExpr, toExpr zeroRat, cfgExpr]
+      let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
+      let certGoal ← mkFreshExprMVar certTy
+      let certGoalId := certGoal.mvarId!
+      certGoalId.withContext do
+        try
+          setGoals [certGoalId]
+          evalTactic (← `(tactic| native_decide))
+        catch _ =>
+          throwError "proveClosedExpressionBound: Certificate check failed for difference expression"
+
+      -- Apply theorem: 0 < diff on [0,0]
+      let proof ← mkAppM theoremName #[diffAst, supportProof, intervalExpr, toExpr zeroRat, cfgExpr, certGoal]
+
+      -- Build membership and application like before
+      let zeroRatAsReal ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, toExpr (0 : ℚ)]
+      let h1 ← mkAppM ``le_refl #[zeroRatAsReal]
+      let h2 ← mkAppM ``le_refl #[zeroRatAsReal]
+      let memProof ← mkAppM ``And.intro #[h1, h2]
+      let proofAtZero := Lean.mkApp2 proof zeroRatAsReal memProof
+
+      let proofType ← inferType proofAtZero
+      trace[interval_decide] "Difference proof type: {proofType}"
+
+      -- Now we need to transform 0 < diff into the original goal lhs < rhs
+      setGoals [goal]
+      let proofStx ← Term.exprToSyntax proofAtZero
+
+      try
+        evalTactic (← `(tactic| (
+          have h0 := $proofStx;
+          simp only [LeanBound.Core.Expr.eval, LeanBound.Core.Expr.eval_pi,
+                     LeanBound.Core.Expr.eval_const, LeanBound.Core.Expr.eval_sqrt,
+                     LeanBound.Core.Expr.eval_add, LeanBound.Core.Expr.eval_sub,
+                     LeanBound.Core.Expr.eval_mul, LeanBound.Core.Expr.eval_neg,
+                     LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
+                     LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
+                     Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
+                     Rat.cast_zero, sub_zero, zero_sub, neg_neg] at h0;
+          linarith
+        )))
+        let remainingGoals ← getGoals
+        if !remainingGoals.isEmpty then
+          throwError "proveClosedExpressionBound: Goal not closed after difference approach"
+        return
+      catch e =>
+        throwError "proveClosedExpressionBound: Difference approach failed: {e.toMessageData}"
+
+    let some boundRat := boundRat?
+      | throwError "proveClosedExpressionBound: Could not extract rational bound from {boundExpr}"
+
+    -- Reify the function expression directly
+    let ast ← reify funcExpr
+
+    -- Generate the support proof
+    let supportProof ← mkSupportedCoreProof ast
+
+    -- Build config expression
+    let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
+
+    -- Build the singleton interval [0, 0]
+    let zeroRat : ℚ := 0
+    let leProof ← mkAppM ``le_refl #[toExpr zeroRat]
+    let intervalExpr ← mkAppM ``IntervalRat.mk #[toExpr zeroRat, toExpr zeroRat, leProof]
+
+    -- Choose the appropriate verify theorem based on strict/reversed
+    let theoremName :=
+      if isStrict then
+        if isReversed then ``verify_strict_lower_bound else ``verify_strict_upper_bound
+      else
+        if isReversed then ``verify_lower_bound else ``verify_upper_bound
+
+    -- Build the check function name for native_decide (use full paths to avoid ambiguity)
+    let checkName :=
+      if isStrict then
+        if isReversed then ``LeanBound.Numerics.Certificate.checkStrictLowerBound
+        else ``LeanBound.Numerics.Certificate.checkStrictUpperBound
+      else
+        if isReversed then ``LeanBound.Numerics.Certificate.checkLowerBound
+        else ``LeanBound.Numerics.Certificate.checkUpperBound
+
+    -- Build the certificate check expression and verify it's true
+    let checkExpr ← mkAppM checkName #[ast, intervalExpr, toExpr boundRat, cfgExpr]
+    let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
+    let certGoal ← mkFreshExprMVar certTy
+    let certGoalId := certGoal.mvarId!
+    certGoalId.withContext do
+      try
+        setGoals [certGoalId]
+        evalTactic (← `(tactic| native_decide))
+      catch _ =>
+        throwError "proveClosedExpressionBound: Certificate check failed for closed expression"
+
+    -- Apply the verify theorem with the certificate to get:
+    -- ∀ x ∈ I, Expr.eval (fun _ => x) ast ≤/≥ (boundRat : ℝ)
+    let proof ← mkAppM theoremName #[ast, supportProof, intervalExpr, toExpr boundRat, cfgExpr, certGoal]
+
+    -- Build the membership proof for x=0: 0 ∈ ⟨0, 0, _⟩
+    -- IntervalRat membership: (0 : ℝ) ∈ ⟨lo, hi, _⟩ means (↑lo : ℝ) ≤ 0 ∧ 0 ≤ (↑hi : ℝ)
+    -- Since lo = hi = 0, this is (↑(0:ℚ) : ℝ) ≤ 0 ∧ 0 ≤ (↑(0:ℚ) : ℝ)
+    -- Which simplifies to 0 ≤ 0 ∧ 0 ≤ 0
+
+    -- (0 : ℝ) expressed as the zero element of Real
+    let zeroReal ← mkAppOptM ``OfNat.ofNat #[mkConst ``Real, mkRawNatLit 0, none]
+
+    -- Now we need to apply the proof to 0 and provide the membership proof
+    -- The membership type is: zeroReal ∈ intervalExpr
+    -- IntervalRat.instMembership defines: x ∈ I ↔ (I.lo : ℝ) ≤ x ∧ x ≤ (I.hi : ℝ)
+    -- For I = ⟨0, 0, _⟩, this is (↑(0:ℚ) : ℝ) ≤ x ∧ x ≤ (↑(0:ℚ) : ℝ)
+
+    -- Build (↑(0:ℚ) : ℝ)
+    -- Rat.cast requires target type annotation
+    let zeroRatAsReal ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, toExpr (0 : ℚ)]
+
+    -- Build (↑(0:ℚ) : ℝ) ≤ (0 : ℝ)  - this is 0 ≤ 0
+    let h1 ← mkAppM ``le_refl #[zeroRatAsReal]
+
+    -- Build (0 : ℝ) ≤ (↑(0:ℚ) : ℝ)  - same as above
+    let h2 ← mkAppM ``le_refl #[zeroRatAsReal]
+
+    -- The membership proof
+    let memProof ← mkAppM ``And.intro #[h1, h2]
+
+    -- Apply the universal statement to x=0 with the membership proof
+    -- proof 0 memProof : Expr.eval (fun _ => 0) ast ≤/≥ (boundRat : ℝ)
+    let proofAtZero := Lean.mkApp2 proof zeroRatAsReal memProof
+
+    -- Now we need to simp the lhs to get the actual value
+    -- Use the main goal and apply the proof, then simp to close
+    setGoals [goal]
+
+    -- Convert proof to syntax
+    let proofStx ← Term.exprToSyntax proofAtZero
+
+    -- Debug: check proof type
+    let proofType ← inferType proofAtZero
+    trace[interval_decide] "Proof type: {proofType}"
+    trace[interval_decide] "Goal type: {goalType}"
+
+    -- Use convert to match the proof with the goal, allowing for definitional equality
+    -- The proof has type: Expr.eval (fun _ => 0) ast ≤/≥ (boundRat : ℝ)
+    -- The goal has type: Real.pi ≤/≥ 4 (or similar)
+    -- We need to show these are definitionally equal after simp
+    -- Try multiple approaches to close the goal
+    -- Approach 1: Direct simp + exact
+    try
+      evalTactic (← `(tactic| (
+        have h0 := $proofStx;
+        simp only [LeanBound.Core.Expr.eval, LeanBound.Core.Expr.eval_pi,
+                   LeanBound.Core.Expr.eval_const, LeanBound.Core.Expr.eval_sqrt,
+                   LeanBound.Core.Expr.eval_add, LeanBound.Core.Expr.eval_sub,
+                   LeanBound.Core.Expr.eval_mul, LeanBound.Core.Expr.eval_neg,
+                   LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
+                   LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
+                   Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast] at h0;
+        exact h0
+      )))
+      return  -- Success!
+    catch e1 =>
+      trace[interval_decide] "Approach 1 failed: {e1.toMessageData}"
+
+    -- Approach 2: Convert with norm_num for decimal bounds
+    setGoals [goal]
+    try
+      evalTactic (← `(tactic| (
+        have h0 := $proofStx;
+        simp only [LeanBound.Core.Expr.eval, LeanBound.Core.Expr.eval_pi,
+                   LeanBound.Core.Expr.eval_const, LeanBound.Core.Expr.eval_sqrt,
+                   LeanBound.Core.Expr.eval_add, LeanBound.Core.Expr.eval_sub,
+                   LeanBound.Core.Expr.eval_mul, LeanBound.Core.Expr.eval_neg,
+                   LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
+                   LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
+                   Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast] at h0;
+        convert h0 using 1 <;> (norm_num; try simp [Rat.divInt_eq_div])
+      )))
+      return  -- Success!
+    catch e2 =>
+      trace[interval_decide] "Approach 2 failed: {e2.toMessageData}"
+
+    -- Approach 3: Use refine with type unification
+    setGoals [goal]
+    try
+      evalTactic (← `(tactic| (
+        refine ?_;
+        have h0 := $proofStx;
+        simp only [LeanBound.Core.Expr.eval, LeanBound.Core.Expr.eval_pi,
+                   LeanBound.Core.Expr.eval_const, LeanBound.Core.Expr.eval_sqrt,
+                   LeanBound.Core.Expr.eval_add, LeanBound.Core.Expr.eval_sub,
+                   LeanBound.Core.Expr.eval_mul, LeanBound.Core.Expr.eval_neg,
+                   LeanBound.Core.Expr.eval_exp, LeanBound.Core.Expr.eval_log,
+                   LeanBound.Core.Expr.eval_sin, LeanBound.Core.Expr.eval_cos,
+                   Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
+                   Rat.divInt_eq_div] at h0 ⊢;
+        exact h0
+      )))
+      return  -- Success!
+    catch e3 =>
+      trace[interval_decide] "Approach 3 failed: {e3.toMessageData}"
+
+    throwError "proveClosedExpressionBound: Failed to close goal after all attempts"
+
+/-- The interval_decide tactic implementation.
+    Transforms `f(c) ≤ b` into `∀ x ∈ [c,c], f(x) ≤ b` and uses interval_bound. -/
+def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  trace[interval_decide] "intervalDecideCore: goal type = {goalType}"
+
+  let some (lhs, rhs, isStrict, isReversed) ← parsePointIneq goalType
+    | throwError "interval_decide: Expected a point inequality (≤, <, ≥, >)"
+
+  -- Determine which side has the transcendental function by checking where we find rational constants
+  -- If lhs has only rational constants and rhs doesn't (or vice versa), swap appropriately
+  let lhsConsts ← collectConstants lhs
+  let rhsConsts ← collectConstants rhs
+
+  -- The bound side should have rational constants, the function side shouldn't (or has transcendentals)
+  -- If lhs has rationals and rhs doesn't → rhs is the function (flip for LE goals)
+  -- If rhs has rationals and lhs doesn't → lhs is the function (standard for LE goals)
+  let (funcExpr, boundExpr, needsFlip) :=
+    if lhsConsts.isEmpty && !rhsConsts.isEmpty then
+      -- lhs is the function (has no extractable rationals, likely transcendental)
+      (lhs, rhs, false)
+    else if rhsConsts.isEmpty && !lhsConsts.isEmpty then
+      -- rhs is the function (has no extractable rationals, likely transcendental)
+      (rhs, lhs, true)
+    else
+      -- Either both have constants or neither does - default to lhs as function
+      if isReversed then (rhs, lhs, false) else (lhs, rhs, false)
+
+  let actualIsReversed := isReversed != needsFlip  -- XOR to determine final orientation
+  trace[interval_decide] "funcExpr = {funcExpr}, boundExpr = {boundExpr}, needsFlip = {needsFlip}, actualIsReversed = {actualIsReversed}"
+
+  -- Collect constants from the function expression for the singleton point
+  let consts ← collectConstants funcExpr
+  trace[interval_decide] "consts = {consts}"
+
+  -- Check if funcExpr has any free variables - if not, it's a closed expression
+  let hasFreeVars := funcExpr.hasFVar
+  trace[interval_decide] "hasFreeVars = {hasFreeVars}"
+
+  -- Determine the singleton point to use
+  let c : ℚ ←
+    if !hasFreeVars then
+      trace[interval_decide] "No free variables, trying closed expression path"
+      -- This is a closed expression (like Real.pi, Real.sqrt 2, etc.)
+      -- First try norm_num for simple cases
+      try
+        evalTactic (← `(tactic| norm_num))
+        let remainingGoals ← getGoals
+        if remainingGoals.isEmpty then
+          trace[interval_decide] "norm_num succeeded and closed the goal"
+          return
+        else
+          trace[interval_decide] "norm_num ran but didn't close the goal"
+      catch e =>
+        trace[interval_decide] "norm_num failed: {e.toMessageData}"
+        pure ()
+
+      -- Try to handle as a closed expression (no variables, just constants like pi)
+      -- This uses direct certificate verification instead of interval_bound
+      try
+        trace[interval_decide] "Trying proveClosedExpressionBound"
+        proveClosedExpressionBound goal goalType taylorDepth
+        trace[interval_decide] "proveClosedExpressionBound succeeded"
+        return
+      catch e =>
+        trace[interval_decide] "proveClosedExpressionBound failed: {e.toMessageData}"
+        pure ()
+
+      -- Use first constant as fallback singleton point if available, else 0
+      trace[interval_decide] "Falling through to fallback"
+      if consts.isEmpty then pure 0 else pure consts.head!
+    else
+      -- Expression has free variables - use constants if available, else 0
+      if consts.isEmpty then pure 0 else pure consts.head!
+
+  -- Try norm_num first for simple cases
+  let goalsBefore ← getGoals
+  try
+    evalTactic (← `(tactic| norm_num))
+    let goalsAfter ← getGoals
+    if goalsAfter.isEmpty || goalsAfter.length < goalsBefore.length then
+      return
+  catch _ => pure ()
+
+  -- Build syntax for the constant c as a real number literal
+  let cStx : Lean.Term ←
+    if c.den == 1 then
+      if c.num >= 0 then
+        pure ⟨Syntax.mkNumLit (toString c.num)⟩
+      else
+        `(- $(Syntax.mkNumLit (toString (-c.num))))
+    else
+      if c.num >= 0 then
+        `($(Syntax.mkNumLit (toString c.num)) / $(Syntax.mkNumLit (toString c.den)))
+      else
+        `(- ($(Syntax.mkNumLit (toString (-c.num))) / $(Syntax.mkNumLit (toString c.den))))
+
+  let depthStx := Syntax.mkNumLit (toString taylorDepth)
+
+  -- Try using interval_bound with singleton interval
+  -- Note: This approach has limitations due to macro hygiene
+  try
+    evalTactic (← `(tactic|
+      (have h : ∀ x ∈ Set.Icc ($cStx : ℝ) $cStx, _ := by interval_bound $depthStx) <;>
+      exact h $cStx ⟨le_refl $cStx, le_refl $cStx⟩
+    ))
+    return
+  catch _ => pure ()
+
+  -- Provide helpful error message with manual workaround
+  let cStr := if c.den == 1 then s!"{c.num}" else s!"{c.num}/{c.den}"
+  throwError "interval_decide: Could not automatically prove this inequality.\n\n\
+              Use the manual workaround pattern:\n\
+              ```lean\n\
+              have h : ∀ x ∈ Set.Icc ({cStr}:ℝ) {cStr}, f x ≤ bound := by interval_bound\n\
+              exact h {cStr} ⟨le_refl {cStr}, le_refl {cStr}⟩\n\
+              ```\n\
+              Replace `f x` with your expression (using `x` instead of `{cStr}`)."
+
+/-- The interval_decide tactic.
+
+    Attempts to prove point inequalities involving transcendental functions.
+
+    Usage:
+    - `interval_decide` - uses default Taylor depth of 10
+    - `interval_decide 20` - uses Taylor depth of 20
+
+    The tactic first tries `norm_num` for simple cases like `Real.exp 0 ≤ 2`.
+
+    For more complex cases involving non-zero constants (like `Real.exp 1 ≤ 3`),
+    use the manual workaround pattern:
+    ```lean
+    example : Real.exp 1 ≤ 3 := by
+      have h : ∀ x ∈ Set.Icc (1:ℝ) 1, Real.exp x ≤ 3 := by interval_bound
+      exact h 1 ⟨le_refl 1, le_refl 1⟩
+    ```
+
+    The key is to use a singleton interval `[c, c]` and replace the constant `c`
+    with a variable `x` in the expression.
+-/
+elab "interval_decide" depth:(num)? : tactic => do
+  let taylorDepth := match depth with
+    | some n => n.getNat
+    | none => 10
+  intervalDecideCore taylorDepth
 
 end LeanBound.Tactic.Auto

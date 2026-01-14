@@ -232,6 +232,10 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let h ← mkSupportedCoreProof e
     mkAppM ``LeanBound.Numerics.ExprSupportedCore.tanh #[h]
 
+  else if fn.isConstOf ``LeanBound.Core.Expr.pi then
+    -- Expr.pi => ExprSupportedCore.pi
+    pure <| Lean.mkConst ``LeanBound.Numerics.ExprSupportedCore.pi
+
   else
     throwError "Cannot generate ExprSupportedCore proof for: {e_ast}\n\
                 This expression contains unsupported operations (log, atan, arsinh, or atanh).\n\
@@ -328,6 +332,15 @@ partial def mkSupportedWithInvProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let e := args[0]!
     let h ← mkSupportedWithInvProof e
     mkAppM ``LeanBound.Numerics.ExprSupportedWithInv.erf #[h]
+
+  else if fn.isConstOf ``LeanBound.Core.Expr.sqrt then
+    let e := args[0]!
+    let h ← mkSupportedWithInvProof e
+    mkAppM ``LeanBound.Numerics.ExprSupportedWithInv.sqrt #[h]
+
+  else if fn.isConstOf ``LeanBound.Core.Expr.pi then
+    -- Expr.pi => ExprSupportedWithInv.pi
+    pure <| Lean.mkConst ``LeanBound.Numerics.ExprSupportedWithInv.pi
 
   else
     throwError "Cannot generate ExprSupportedWithInv proof for: {e_ast}\n\

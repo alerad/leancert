@@ -102,6 +102,7 @@ noncomputable def evalIntervalReal (e : Expr) (ρ : IntervalRealEnv) : IntervalR
   | Expr.cosh e => IntervalReal.coshInterval (evalIntervalReal e ρ)
   | Expr.tanh _ => ⟨-1, 1, by norm_num⟩  -- tanh is bounded by (-1, 1)
   | Expr.sqrt e => IntervalReal.sqrtInterval (evalIntervalReal e ρ)
+  | Expr.pi => ⟨Real.pi, Real.pi, le_refl _⟩  -- Pi as singleton interval
 
 /-- A real environment is contained in a real-interval environment -/
 def envMemReal (ρ_real : Nat → ℝ) (ρ_int : IntervalRealEnv) : Prop :=

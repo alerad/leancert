@@ -270,6 +270,8 @@ inductive Expr where
   | tanh (e : Expr)
   /-- Square root (partial: undefined for x < 0) -/
   | sqrt (e : Expr)
+  /-- The mathematical constant π -/
+  | pi
   deriving Repr, DecidableEq, Inhabited
 
 namespace Expr
@@ -310,6 +312,7 @@ noncomputable def eval (ρ : Nat → ℝ) : Expr → ℝ
   | cosh e => Real.cosh (eval ρ e)
   | tanh e => Real.tanh (eval ρ e)
   | sqrt e => Real.sqrt (eval ρ e)
+  | pi => Real.pi
 
 /-- Update variable assignment at a specific index -/
 def updateVar (ρ : Nat → ℝ) (idx : Nat) (x : ℝ) : Nat → ℝ :=
@@ -359,6 +362,7 @@ def freeVars : Expr → Finset Nat
   | cosh e => freeVars e
   | tanh e => freeVars e
   | sqrt e => freeVars e
+  | pi => ∅
 
 /-- An expression is closed if it has no free variables -/
 def isClosed (e : Expr) : Prop := freeVars e = ∅
@@ -423,6 +427,9 @@ theorem eval_tanh (ρ : Nat → ℝ) (e : Expr) : eval ρ (tanh e) = Real.tanh (
 
 @[simp]
 theorem eval_sqrt (ρ : Nat → ℝ) (e : Expr) : eval ρ (sqrt e) = Real.sqrt (eval ρ e) := rfl
+
+@[simp]
+theorem eval_pi (ρ : Nat → ℝ) : eval ρ pi = Real.pi := rfl
 
 @[simp]
 theorem eval_sub (ρ : Nat → ℝ) (e₁ e₂ : Expr) :
@@ -590,6 +597,7 @@ def usesOnlyVar0 : Expr → Bool
   | cosh e => e.usesOnlyVar0
   | tanh e => e.usesOnlyVar0
   | sqrt e => e.usesOnlyVar0
+  | pi => true
 
 /-- If two environments agree on variable 0, then a usesOnlyVar0 expression evaluates the same -/
 theorem eval_usesOnlyVar0_eq (e : Expr) (he : e.usesOnlyVar0 = true)
@@ -651,6 +659,7 @@ theorem eval_usesOnlyVar0_eq (e : Expr) (he : e.usesOnlyVar0 = true)
   | sqrt e ih =>
     simp only [usesOnlyVar0] at he
     simp only [eval_sqrt, ih he]
+  | pi => rfl
 
 /-- For single-variable expressions, `fun n => if n = 0 then x else 0` and `fun _ => x`
     give the same evaluation result. -/

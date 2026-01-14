@@ -104,6 +104,7 @@ def evalFloat (e : Expr) (ρ : FloatEnv) : Float :=
       if x.abs < 1e-10 then 1.0
       else Float.sin x / x
   | Expr.erf a => floatErf (evalFloat a ρ)
+  | Expr.pi => 3.141592653589793
 
 /-- Evaluate with a list-based environment (for compatibility with Box) -/
 def evalFloatList (e : Expr) (vars : List Float) : Float :=

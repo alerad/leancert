@@ -381,6 +381,8 @@ def evalExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : Ex
       liftUnary tanhInterval (evalExtended e ρ cfg)
   | Expr.sqrt e =>
       liftUnary IntervalRat.sqrtInterval (evalExtended e ρ cfg)
+  | Expr.pi =>
+      ExtendedInterval.singleton piInterval
 
 /-- Convenience function for single-variable extended evaluation -/
 def evalExtended1 (e : Expr) (I : IntervalRat) (cfg : ExtendedConfig := {}) : ExtendedInterval :=
@@ -450,6 +452,10 @@ theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
   | tanh _ ih =>
     simp only [Expr.eval_tanh, evalExtended]
     exact mem_liftUnary (fun x I hx => mem_tanhInterval hx) ih
+  | pi =>
+    simp only [Expr.eval_pi, evalExtended]
+    rw [ExtendedInterval.mem_singleton]
+    exact mem_piInterval
 
 /-! ## Utility: Hull Soundness -/
 

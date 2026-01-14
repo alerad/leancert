@@ -137,6 +137,10 @@ def mkExprCosh (e : Lean.Expr) : MetaM Lean.Expr :=
 def mkExprTanh (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanBound.Core.Expr.tanh #[e]
 
+/-- Build `LeanBound.Core.Expr.pi`. -/
+def mkExprPi : MetaM Lean.Expr :=
+  mkAppM ``LeanBound.Core.Expr.pi #[]
+
 /-! ## Constant Extraction
 
 Lean stores numbers as complex hierarchies of type classes (`OfNat.ofNat`,
@@ -383,6 +387,9 @@ where
     | Real.tanh x =>
       let ex ← toLeanBoundExpr x
       return some (← mkExprTanh ex)
+
+    -- The constant π
+    | Real.pi => return some (← mkExprPi)
 
     | _ => return none
 

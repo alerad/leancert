@@ -228,6 +228,9 @@ theorem exprSupportedCore_continuousOn (e : LExpr) (hsupp : LeanBound.Numerics.E
       rw [h]
       exact Real.continuous_sinh.div Real.continuous_cosh (fun x => ne_of_gt (Real.cosh_pos x))
     exact hcont.comp_continuousOn ih
+  | pi =>
+    simp only [LeanBound.Core.Expr.eval]
+    exact continuousOn_const
 
 /-! ## Metaprogramming: Continuity Proof Generation
 

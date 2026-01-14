@@ -210,6 +210,7 @@ def evalIntervalDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig :
   | Expr.cosh e => coshIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
   | Expr.tanh e => tanhIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
   | Expr.sqrt e => sqrtIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
+  | Expr.pi => IntervalDyadic.ofIntervalRat piInterval cfg.precision
 
 /-! ### Correctness -/
 
@@ -309,6 +310,9 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
       rw [Real.sinh_eq, Real.cosh_eq]
       have h2 : Real.exp (-x) > 0 := Real.exp_pos (-x)
       linarith
+  | pi =>
+    simp only [Expr.eval_pi, evalIntervalDyadic]
+    exact IntervalDyadic.mem_ofIntervalRat mem_piInterval cfg.precision hprec
 
 /-! ### Convenience Functions -/
 

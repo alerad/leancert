@@ -62,6 +62,7 @@ noncomputable def evalDual (e : Expr) (ρ : DualEnv) : DualInterval :=
   | Expr.cosh e => DualInterval.cosh (evalDual e ρ)
   | Expr.tanh e => DualInterval.tanh (evalDual e ρ)
   | Expr.sqrt e => DualInterval.sqrt (evalDual e ρ)
+  | Expr.pi => DualInterval.piConst
 
 /-! ### Partial dual evaluation (supports inv) -/
 
@@ -144,6 +145,7 @@ noncomputable def evalDual? (e : Expr) (ρ : DualEnv) : Option DualInterval :=
       match evalDual? e ρ with
       | some d => DualInterval.sqrt? d
       | none => none
+  | Expr.pi => some DualInterval.piConst
 
 /-- Single-variable version of evalDual? -/
 noncomputable def evalDual?1 (e : Expr) (I : IntervalRat) : Option DualInterval :=

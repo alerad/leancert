@@ -9,6 +9,7 @@ import LeanBound.Core.IntervalRealEndpoints
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
+import Mathlib.Data.Real.Pi.Bounds
 
 /-!
 # Interval Evaluation of Expressions
@@ -69,6 +70,7 @@ inductive ExprSupportedCore : Expr → Prop where
   | sinh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.sinh e)
   | cosh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.cosh e)
   | tanh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.tanh e)
+  | pi : ExprSupportedCore Expr.pi
 
 /-! ### Extended supported expression subset (with exp) -/
 
@@ -264,6 +266,23 @@ theorem mem_tanhInterval {x : ℝ} {I : IntervalRat} (_hx : x ∈ I) :
     -- Need: sinh x ≤ cosh x
     rw [Real.sinh_eq, Real.cosh_eq]
     have h2 : Real.exp (-x) > 0 := Real.exp_pos (-x)
+    linarith
+
+/-- Interval enclosure for π.
+    Uses the bounds 3.14 ≤ π ≤ 3.15 which are easily verified.
+    More precise: 157/50 = 3.14, 63/20 = 3.15 -/
+def piInterval : IntervalRat :=
+  ⟨157/50, 63/20, by norm_num⟩
+
+/-- Correctness of pi interval: Real.pi ∈ [3.14, 3.15] -/
+theorem mem_piInterval : Real.pi ∈ piInterval := by
+  simp only [IntervalRat.mem_def, piInterval]
+  constructor
+  · -- 3.14 ≤ π: follows from Real.pi_gt_d2 which says 3.14 < π
+    have h : (3.14 : ℝ) < Real.pi := Real.pi_gt_d2
+    linarith
+  · -- π ≤ 3.15: follows from Real.pi_lt_d2 which says π < 3.15
+    have h : Real.pi < (3.15 : ℝ) := Real.pi_lt_d2
     linarith
 
 /-- Interval bound for sinh using computable Taylor series for exp.
@@ -475,6 +494,7 @@ def evalIntervalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : In
   | Expr.cosh e => coshInterval (evalIntervalCore e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => tanhInterval (evalIntervalCore e ρ cfg)  -- Tight bounds: [-1, 1]
   | Expr.sqrt e => IntervalRat.sqrtIntervalTight (evalIntervalCore e ρ cfg)
+  | Expr.pi => piInterval
 
 /-- Computable interval evaluator with division support.
 
@@ -540,6 +560,7 @@ def evalIntervalCoreWithDiv (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {
   | Expr.cosh e => coshInterval (evalIntervalCoreWithDiv e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => tanhInterval (evalIntervalCoreWithDiv e ρ cfg)  -- Tight bounds: [-1, 1]
   | Expr.sqrt e => IntervalRat.sqrtIntervalTight (evalIntervalCoreWithDiv e ρ cfg)
+  | Expr.pi => piInterval
 
 /-- A real environment is contained in an interval environment -/
 def envMem (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) : Prop :=
@@ -613,6 +634,9 @@ theorem evalIntervalCore_correct (e : Expr) (hsupp : ExprSupportedCore e)
   | tanh _ ih =>
     simp only [Expr.eval_tanh, evalIntervalCore, tanhInterval]
     exact mem_tanhInterval ih
+  | pi =>
+    simp only [Expr.eval_pi, evalIntervalCore]
+    exact mem_piInterval
 
 /-! ### Extended interval evaluation (noncomputable, supports exp) -/
 
@@ -647,6 +671,7 @@ noncomputable def evalInterval (e : Expr) (ρ : IntervalEnv) : IntervalRat :=
   | Expr.cosh _ => default  -- cosh unbounded; use evalIntervalCore for tight bounds
   | Expr.tanh _ => default  -- tanh bounded but not in ExprSupported; use evalIntervalCore
   | Expr.sqrt e => IntervalRat.sqrtInterval (evalInterval e ρ)
+  | Expr.pi => piInterval
 
 /-- Fundamental correctness theorem for extended evaluation.
 
@@ -836,6 +861,7 @@ noncomputable def evalInterval? (e : Expr) (ρ : IntervalEnv) : Option IntervalR
       match evalInterval? e ρ with
       | some I => some (IntervalRat.sqrtInterval I)
       | none => none
+  | Expr.pi => some piInterval
 
 /-- Syntactic support predicate for expressions with inv and log (no semantic conditions).
     This is the most general support predicate, allowing all expression constructors.
@@ -859,6 +885,7 @@ inductive ExprSupportedWithInv : Expr → Prop where
   | sinc {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.sinc e)
   | erf {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.erf e)
   | sqrt {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.sqrt e)
+  | pi : ExprSupportedWithInv Expr.pi
 
 /-- ExprSupported implies ExprSupportedWithInv -/
 theorem ExprSupported.toWithInv {e : Expr} (h : ExprSupported e) : ExprSupportedWithInv e := by
@@ -1060,6 +1087,11 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_sqrt]
       exact IntervalRat.mem_sqrtInterval' (ih I' heq)
+  | pi =>
+    simp only [evalInterval?] at hsome
+    cases hsome
+    simp only [Expr.eval_pi]
+    exact mem_piInterval
 
 /-- Single-variable version of evalInterval? -/
 noncomputable def evalInterval?1 (e : Expr) (I : IntervalRat) : Option IntervalRat :=

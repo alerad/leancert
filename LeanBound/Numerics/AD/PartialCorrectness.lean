@@ -213,6 +213,11 @@ theorem evalDual?_val_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         simp only [Expr.eval_sqrt]
         exact IntervalRat.mem_sqrtInterval' (ih d heq)
       · exact absurd hsome (by simp)
+  | pi =>
+    simp only [evalDual?, Option.some.injEq] at hsome
+    rw [← hsome]
+    simp only [Expr.eval_pi, DualInterval.piConst]
+    exact mem_piInterval
 
 /-- Single-variable version of evalDual?_val_correct -/
 theorem evalDual?1_val_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
@@ -392,6 +397,7 @@ theorem evalFunc1_differentiableAt_of_evalDual? (e : Expr) (hsupp : ExprSupporte
         have hne : evalFunc1 e' x ≠ 0 := ne_of_gt hpos_x
         exact (Real.hasDerivAt_sqrt hne).differentiableAt.comp x (ih d heq)
       · exact absurd hsome (by simp)
+  | pi => exact differentiableAt_const _
 
 /-- The derivative component of evalDual? is correct when it returns some.
     For a supported expression (with inv) evaluated at a point x in the interval I,
@@ -812,6 +818,12 @@ theorem evalDual?_der_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         convert hmul using 1
         field_simp [ne_of_gt (Real.sqrt_pos.mpr hpos_x)]
       · exact absurd hsome (by simp)
+  | pi =>
+    simp only [evalDual?1, evalDual?, Option.some.injEq] at hsome
+    rw [← hsome]
+    simp only [evalFunc1_pi, deriv_const, DualInterval.piConst]
+    convert IntervalRat.mem_singleton 0 using 1
+    norm_cast
 
 /-- Combined correctness theorem for evalDual?1 -/
 theorem evalDual?1_correct (e : Expr) (hsupp : ExprSupportedWithInv e)

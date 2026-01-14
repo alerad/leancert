@@ -209,6 +209,13 @@ noncomputable def fromExpr (e : Expr) (domain : IntervalRat) (degree : ℕ) : Ta
   | Expr.cosh e => cosh (fromExpr e domain degree) degree
   | Expr.tanh e => tanh (fromExpr e domain degree) degree
   | Expr.sqrt _ => const 0 domain  -- Fallback for sqrt (not yet supported)
+  | Expr.pi =>
+      -- Pi is represented as a constant Taylor model with the pi interval as remainder
+      -- We use the pi interval [3.14, 3.15] which encloses Real.pi
+      { poly := 0
+        remainder := LeanBound.Numerics.piInterval
+        center := domain.lo + (domain.hi - domain.lo) / 2
+        domain := domain }
 
 /-- Safe (partial) builder: convert an expression to a Taylor model, returning `none`
     if an inversion would require dividing by an interval that contains 0. -/
@@ -261,6 +268,12 @@ noncomputable def fromExpr? (e : Expr) (domain : IntervalRat) (degree : ℕ) :
       let tm ← fromExpr? e domain degree
       pure <| tanh tm degree
   | Expr.sqrt _ => none  -- Not supported: sqrt evalSet proof incomplete
+  | Expr.pi =>
+      -- Pi is a constant Taylor model with pi interval as remainder
+      some { poly := 0
+             remainder := LeanBound.Numerics.piInterval
+             center := domain.midpoint
+             domain := domain }
 
 end TaylorModel
 
@@ -392,6 +405,11 @@ theorem fromExpr?_center (e : Expr) (domain : IntervalRat) (degree : ℕ)
   | sqrt _ _ =>
       intro tm h
       simp [TaylorModel.fromExpr?] at h
+  | pi =>
+      intro tm h
+      simp [TaylorModel.fromExpr?] at h
+      cases h
+      rfl
 
 namespace TaylorModel
 
@@ -718,6 +736,11 @@ theorem fromExpr?_domain (e : Expr) (domain : IntervalRat) (degree : ℕ)
   | sqrt _ _ =>
       intro tm h
       simp [TaylorModel.fromExpr?] at h
+  | pi =>
+      intro tm h
+      simp [TaylorModel.fromExpr?] at h
+      cases h
+      rfl
 
 /-- Core evalSet correctness: if fromExpr? succeeds, evaluation is in evalSet. -/
 theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ)
@@ -901,6 +924,13 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
           (hd0.symm ▸ ih degree tm0 h0) x hx0
   | sqrt _ _ =>
       simp [TaylorModel.fromExpr?] at h
+  | pi =>
+      simp [TaylorModel.fromExpr?] at h
+      cases h
+      intro x _hx
+      simp only [Expr.eval_pi, TaylorModel.evalSet, Set.mem_setOf_eq]
+      refine ⟨Real.pi, mem_piInterval, ?_⟩
+      simp only [Polynomial.aeval_zero]; ring
 
 /-- fromExpr? produces correct Taylor models when it succeeds. -/
 theorem fromExpr_correct (e : Expr) (domain : IntervalRat) (degree : ℕ)

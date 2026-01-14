@@ -104,6 +104,7 @@ def evalDualCore (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : DualInterv
   | Expr.cosh e => DualInterval.coshCore (evalDualCore e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => DualInterval.tanhCore (evalDualCore e ρ cfg) cfg.taylorDepth
   | Expr.sqrt e => DualInterval.sqrt (evalDualCore e ρ cfg)
+  | Expr.pi => DualInterval.piConst
 
 /-- Computable single-variable derivative interval -/
 def derivIntervalCore (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
@@ -156,6 +157,9 @@ theorem evalDualCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
   | tanh _ ih =>
     simp only [Expr.eval_tanh, evalDualCore, DualInterval.tanhCore]
     exact mem_tanhInterval ih
+  | pi =>
+    simp only [Expr.eval_pi, evalDualCore, DualInterval.piConst]
+    exact mem_piInterval
 
 /-- Correctness theorem for computable dual derivative component.
     Uses ExprSupported since derivative correctness requires differentiability. -/
