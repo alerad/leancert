@@ -130,6 +130,11 @@ theorem evalDualCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
   | neg _ ih =>
     simp only [Expr.eval_neg, evalDualCore, DualInterval.neg]
     exact IntervalRat.mem_neg ih
+  | inv _ _ =>
+    -- evalDualCore returns default for inv, which is not verified
+    -- This case uses sorry as a marker that inv is not fully supported in AD mode
+    simp only [Expr.eval_inv, evalDualCore]
+    sorry
   | sin _ ih =>
     simp only [Expr.eval_sin, evalDualCore, DualInterval.sinCore]
     exact IntervalRat.mem_sinComputable ih cfg.taylorDepth

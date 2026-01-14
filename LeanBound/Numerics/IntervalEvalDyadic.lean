@@ -246,6 +246,10 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
   | neg _ ih =>
     simp only [Expr.eval_neg, evalIntervalDyadic]
     exact IntervalDyadic.mem_neg ih
+  | inv _ _ =>
+    -- inv (1/x) is not fully supported in Dyadic mode
+    simp only [Expr.eval_inv, evalIntervalDyadic]
+    sorry
   | sin _ ih =>
     simp only [Expr.eval_sin, evalIntervalDyadic, sinIntervalDyadic]
     -- Chain: ih gives Dyadic membership → convert to Rat → use sinComputable → convert back

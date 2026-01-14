@@ -144,8 +144,8 @@ on the structure of `e : LeanBound.Core.Expr`.
     This function inspects the head constant of the AST expression and
     recursively builds the appropriate proof constructor.
 
-    Supported: const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh
-    Not supported: inv, log, atan, arsinh, atanh -/
+    Supported: const, var, add, mul, neg, inv, sin, cos, exp, sqrt, sinh, cosh, tanh
+    Not supported: log, atan, arsinh, atanh -/
 partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
   -- Get the head constant and arguments
   let fn := e_ast.getAppFn
@@ -183,6 +183,12 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let e := args[0]!
     let h ← mkSupportedCoreProof e
     mkAppM ``LeanBound.Numerics.ExprSupportedCore.neg #[h]
+
+  else if fn.isConstOf ``LeanBound.Core.Expr.inv then
+    -- Expr.inv e => ExprSupportedCore.inv h
+    let e := args[0]!
+    let h ← mkSupportedCoreProof e
+    mkAppM ``LeanBound.Numerics.ExprSupportedCore.inv #[h]
 
   else if fn.isConstOf ``LeanBound.Core.Expr.sin then
     -- Expr.sin e => ExprSupportedCore.sin h
@@ -228,8 +234,8 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
 
   else
     throwError "Cannot generate ExprSupportedCore proof for: {e_ast}\n\
-                This expression contains unsupported operations (inv, log, atan, arsinh, or atanh).\n\
-                Use mkSupportedWithInvProof for expressions with inv or log."
+                This expression contains unsupported operations (log, atan, arsinh, or atanh).\n\
+                Use mkSupportedWithInvProof for expressions with log."
 
 /-! ## ExprSupportedWithInv Proof Generation
 

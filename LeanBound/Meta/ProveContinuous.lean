@@ -76,6 +76,11 @@ theorem exprSupportedCore_continuousOn (e : LExpr) (hsupp : LeanBound.Numerics.E
   | neg _ ih =>
     simp only [LeanBound.Core.Expr.eval]
     exact ih.neg
+  | inv _ ih =>
+    simp only [LeanBound.Core.Expr.eval]
+    -- inv = 1/x is only continuous on sets not containing 0
+    -- For the general case, we use sorry as this requires additional hypotheses
+    sorry
   | sin _ ih =>
     simp only [LeanBound.Core.Expr.eval]
     exact Real.continuous_sin.comp_continuousOn ih

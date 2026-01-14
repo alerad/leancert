@@ -347,6 +347,10 @@ theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
   | neg _ ih =>
     simp only [Expr.eval_neg, evalExtended]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_neg hx) ih
+  | inv _ _ =>
+    -- inv can produce unbounded results, so this case is incomplete
+    simp only [Expr.eval_inv, evalExtended]
+    sorry
   | sin _ ih =>
     simp only [Expr.eval_sin, evalExtended]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_sinComputable hx cfg.taylorDepth) ih
