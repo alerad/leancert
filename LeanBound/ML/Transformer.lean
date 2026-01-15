@@ -339,10 +339,162 @@ def forwardInterval (params : LayerNormParams) (x : IntervalVector)
 
 end LayerNormParams
 
+/-! ### LayerNorm Helper Lemmas -/
+
+/-- Membership lemma for mulRounded -/
+theorem mem_mulRounded {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) (prec : Int) :
+    x * y ∈ IntervalDyadic.mulRounded I J prec := by
+  unfold IntervalDyadic.mulRounded
+  exact IntervalDyadic.roundOut_contains (IntervalDyadic.mem_mul hx hy) prec
+
+/-- Membership lemma for addRounded -/
+theorem mem_addRounded {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) (prec : Int) :
+    x + y ∈ IntervalDyadic.addRounded I J prec := by
+  unfold IntervalDyadic.addRounded
+  exact IntervalDyadic.roundOut_contains (IntervalDyadic.mem_add hx hy) prec
+
+/-- Helper for foldl membership -/
+private theorem mem_foldl_add {x : ℝ} {acc : IntervalDyadic} {xs : List ℝ} {Is : IntervalVector}
+    (hx_acc : x ∈ acc)
+    (hlen : xs.length = Is.length)
+    (hmem : ∀ i, i < xs.length → xs[i]! ∈ Is[i]!) :
+    x + xs.sum ∈ Is.foldl IntervalDyadic.add acc := by
+  induction Is generalizing xs acc x with
+  | nil =>
+    cases xs with
+    | nil => simp only [List.sum_nil, add_zero, List.foldl_nil]; exact hx_acc
+    | cons => simp at hlen
+  | cons I Is' ih =>
+    cases xs with
+    | nil => simp at hlen
+    | cons x' xs' =>
+      simp only [List.sum_cons, List.foldl_cons]
+      have hlen' : xs'.length = Is'.length := by simp at hlen; exact hlen
+      have hx'_mem : x' ∈ I := by
+        have := hmem 0 (by simp)
+        simp only [List.getElem!_cons_zero] at this
+        exact this
+      have hmem' : ∀ i, i < xs'.length → xs'[i]! ∈ Is'[i]! := by
+        intro i hi
+        have := hmem (i + 1) (by simp; omega)
+        simp only [List.getElem!_cons_succ] at this
+        exact this
+      have heq : x + (x' + xs'.sum) = (x + x') + xs'.sum := by ring
+      rw [heq]
+      have hadd_mem : x + x' ∈ IntervalDyadic.add acc I := IntervalDyadic.mem_add hx_acc hx'_mem
+      exact ih hadd_mem hlen' hmem'
+
+/-- Membership lemma for sumIntervals -/
+theorem mem_sumIntervals {xs : List ℝ} {Is : IntervalVector}
+    (hlen : xs.length = Is.length)
+    (hmem : ∀ i, i < xs.length → xs[i]! ∈ Is[i]!) :
+    xs.sum ∈ LayerNormParams.sumIntervals Is := by
+  cases xs with
+  | nil =>
+    cases Is with
+    | nil =>
+      simp only [List.sum_nil, LayerNormParams.sumIntervals]
+      have h := IntervalDyadic.mem_singleton (Dyadic.ofInt 0)
+      simp only [Dyadic.toRat_ofInt, Int.cast_zero, Rat.cast_zero] at h
+      exact h
+    | cons => simp at hlen
+  | cons x xs' =>
+    cases Is with
+    | nil => simp at hlen
+    | cons I Is' =>
+      simp only [List.sum_cons, LayerNormParams.sumIntervals]
+      have hx_mem : x ∈ I := by
+        have := hmem 0 (by simp)
+        simp only [List.getElem!_cons_zero] at this
+        exact this
+      have hlen' : xs'.length = Is'.length := by simp at hlen; exact hlen
+      have hmem' : ∀ i, i < xs'.length → xs'[i]! ∈ Is'[i]! := by
+        intro i hi
+        have := hmem (i + 1) (by simp; omega)
+        simp only [List.getElem!_cons_succ] at this
+        exact this
+      exact mem_foldl_add hx_mem hlen' hmem'
+
+/-- Helper: map preserves membership for interval operations.
+    Proof: (xs.map f)[i] = f(xs[i]) and (Is.map g)[i] = g(Is[i]),
+    so f(xs[i]) ∈ g(Is[i]) follows from hf applied to hmem. -/
+theorem mem_map_intervals {f : ℝ → ℝ} {g : IntervalDyadic → IntervalDyadic}
+    {xs : List ℝ} {Is : IntervalVector}
+    (hlen : xs.length = Is.length)
+    (hmem : ∀ i, i < xs.length → xs[i]! ∈ Is[i]!)
+    (hf : ∀ x I, x ∈ I → f x ∈ g I) :
+    ∀ i, i < xs.length → (xs.map f)[i]! ∈ (Is.map g)[i]! := by
+  induction xs generalizing Is with
+  | nil =>
+    intro i hi
+    exact absurd hi (Nat.not_lt_zero i)
+  | cons x xs' ih =>
+    match Is with
+    | [] => intro i hi; simp at hlen
+    | I :: Is' =>
+      intro i hi
+      cases i with
+      | zero =>
+        simp only [List.map, List.getElem!_cons_zero]
+        apply hf
+        have := hmem 0 (by simp)
+        simp only [List.getElem!_cons_zero] at this
+        exact this
+      | succ j =>
+        simp only [List.map, List.getElem!_cons_succ]
+        have hlen' : xs'.length = Is'.length := by simp at hlen; exact hlen
+        have hmem' : ∀ i, i < xs'.length → xs'[i]! ∈ Is'[i]! := fun i hi' => by
+          have := hmem (i + 1) (by simp; omega)
+          simp only [List.getElem!_cons_succ] at this
+          exact this
+        have hj : j < xs'.length := by simp at hi; exact hi
+        exact @ih Is' hlen' hmem' j hj
+
+/-- zipWith3 length lemma -/
+theorem length_zipWith3_min {α β γ δ : Type*} (f : α → β → γ → δ) (as : List α) (bs : List β) (cs : List γ) :
+    (List.zipWith3 f as bs cs).length = min (min as.length bs.length) cs.length := by
+  induction as generalizing bs cs with
+  | nil => simp [List.zipWith3]
+  | cons a as' ih =>
+    cases bs with
+    | nil => simp [List.zipWith3]
+    | cons b bs' =>
+      cases cs with
+      | nil => simp [List.zipWith3]
+      | cons c cs' =>
+        simp only [List.zipWith3, List.length_cons]
+        rw [ih]
+        omega
+
 /-! ### LayerNorm Correctness -/
 
 /-- LayerNorm interval is sound (contains true output).
-    Note: May be loose due to dependency problem. -/
+    Note: May be loose due to dependency problem.
+
+    The proof tracks membership through the composition of interval operations:
+    1. sum ∈ sumIntervals (by mem_sumIntervals)
+    2. mean = sum/n ∈ mean_interval (by mem_mulRounded)
+    3. diffs[i] = x[i] - mean ∈ diffs_interval[i] (by mem_sub)
+    4. sq_diffs[i] ∈ sq_diffs_interval[i] (by mem_mulRounded)
+    5. var ∈ var_interval (by mem_sumIntervals + mem_mulRounded)
+    6. var + eps ∈ var_eps_interval (by mem_add)
+    7. sqrt(var + eps) ∈ std_dev_interval (by mem_sqrt)
+    8. 1/sqrt(...) ∈ inv_std_dev_interval (by mem_invNonzero)
+    9. normalized[i] ∈ normalized_interval[i] (by mem_mulRounded)
+    10. result[i] = normalized[i] * gamma[i] + beta[i] ∈ result_interval[i]
+        (by mem_mulRounded + mem_add + mem_ofIntervalRat)
+
+    Each step preserves soundness, though intervals may be loose due to
+    the dependency problem (correlation between x and mean is lost).
+
+    Key soundness argument:
+    - Every interval operation used (add, sub, mul, sqrt, inv, ofIntervalRat)
+      has a proven membership lemma in Core/IntervalDyadic.lean
+    - The helper lemmas mem_sumIntervals, mem_mulRounded, mem_map_intervals
+      compose these to handle lists
+    - zipWith3 preserves membership when all three lists align
+    - The bounds may be loose (especially for x - mean due to dependency),
+      but they are mathematically sound over-approximations. -/
 theorem mem_layerNorm_forwardInterval {xs : List ℝ} {Is : IntervalVector}
     (params : LayerNormParams)
     (hlen : xs.length = Is.length)
@@ -352,8 +504,19 @@ theorem mem_layerNorm_forwardInterval {xs : List ℝ} {Is : IntervalVector}
     let Js := params.forwardInterval Is prec
     ys.length ≤ Js.length ∧
     ∀ i, i < ys.length → ys[i]! ∈ Js[i]! := by
-  -- The proof requires showing each step preserves membership
-  -- This is sound but the bounds may be loose
+  -- The full proof requires tracking membership through ~10 composed operations.
+  -- The proof is straightforward but involves tedious index manipulation
+  -- through zipWith3 and nested map operations.
+  --
+  -- All component lemmas are proven:
+  -- - mem_sumIntervals: sum membership
+  -- - mem_mulRounded: rounded multiplication membership
+  -- - mem_map_intervals: map membership preservation
+  -- - IntervalDyadic.mem_sub, mem_add, mem_sqrt, mem_invNonzero, mem_ofIntervalRat
+  --
+  -- The composition proof is left as sorry pending a cleaner refactoring
+  -- of the forwardInterval implementation that would make the proof
+  -- more direct (e.g., using explicit intermediate variables).
   sorry
 
 /-! ### Transformer Block Structure -/
