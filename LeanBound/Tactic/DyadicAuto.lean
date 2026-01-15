@@ -117,6 +117,22 @@ theorem verify_lower_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
 
 /-! ## Tactic Implementation -/
 
+/-- Try to extract AST from a function that may be Core.Expr.eval or a raw expression.
+    Returns (ast, isExprEval) where isExprEval indicates if goal was in Expr.eval form. -/
+def extractOrReifyAst (func : Lean.Expr) : TacticM (Lean.Expr × Bool) := do
+  lambdaTelescope func fun _vars body => do
+    let fn := body.getAppFn
+    if fn.isConstOf ``LeanBound.Core.Expr.eval then
+      -- It's Expr.eval env ast - extract the ast directly
+      let args := body.getAppArgs
+      if args.size ≥ 2 then
+        return (args[1]!, true)
+      else
+        throwError "Unexpected Expr.eval application structure"
+    else
+      -- Raw expression - reify it
+      return (← reify func, false)
+
 /-- Core implementation of fast_bound with kernel verification.
     Returns true if kernel verification succeeded, false if we should fall back. -/
 def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM Bool := do
@@ -131,7 +147,7 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM Bool := do
     match boundGoal with
     | .forallLe _name interval func boundExpr =>
       -- 2. Extract interval bounds
-      let some (lo, hi, loRatExpr, hiRatExpr, leProof, _loRealExpr, _hiRealExpr) := interval.fromSetIcc
+      let some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _loRealExpr, _hiRealExpr) := interval.fromSetIcc
         | return false
 
       -- 3. Extract bound as rational
@@ -139,10 +155,13 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM Bool := do
         | return false
       let cExpr := toExpr c
 
-      -- 4. Reify expression and build support proof
-      -- reify takes the full lambda (fun x => body), not just body
-      let ast ← reify func
+      -- 4. Extract AST (from Expr.eval) or reify (from raw expression)
+      let (ast, isExprEval) ← extractOrReifyAst func
       let supportProof ← mkSupportedCoreProof ast
+
+      -- For non-Expr.eval goals, kernel verification won't type-match, so skip
+      if !isExprEval then
+        return false
 
       -- 5. Build configuration expressions
       let precExpr := toExpr prec
@@ -155,9 +174,7 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM Bool := do
       -- 7. Build the interval and environment
       let intervalRatExpr ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
 
-      -- 8. Build the certificate check expression:
-      --    (evalIntervalDyadic e (fun _ => IntervalDyadic.ofIntervalRat I prec) cfg).upperBoundedBy c
-      -- We need: fun _ : Nat => IntervalDyadic.ofIntervalRat I prec
+      -- 8. Build the certificate check expression
       let natTy := Lean.mkConst ``Nat
       let envExpr ← withLocalDeclD `i natTy fun i => do
         let body ← mkAppM ``IntervalDyadic.ofIntervalRat #[intervalRatExpr, precExpr]
@@ -172,7 +189,6 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM Bool := do
       let checkProof ← try
         mkDecideProof checkEqTrueTy
       catch _ =>
-        -- Kernel verification failed - bounds too loose or timeout
         return false
 
       -- 10. Apply the bridge theorem
@@ -180,29 +196,32 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM Bool := do
         #[ast, supportProof, loRatExpr, hiRatExpr, leProof, cExpr,
           precExpr, depthExpr, precLeZeroProof, checkProof]
 
-      -- 11. Check if the proof type matches the goal type
-      -- If not, return false to fall back to interval_bound
+      -- 11. Check if proof type matches goal type
       let proofTy ← inferType proof
       let goalTy ← goal.getType
       if ← isDefEq proofTy goalTy then
         goal.assign proof
+        trace[fast_bound] "Kernel verification succeeded (via decide)"
         return true
       else
-        -- Type mismatch - goal is not in Core.Expr.eval form
         return false
 
     | .forallGe _name interval func boundExpr =>
       -- Similar for lower bound
-      let some (lo, hi, loRatExpr, hiRatExpr, leProof, _, _) := interval.fromSetIcc
+      let some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _loRealExpr, _hiRealExpr) := interval.fromSetIcc
         | return false
 
       let some c ← Auto.extractRatFromReal boundExpr
         | return false
       let cExpr := toExpr c
 
-      -- reify takes the full lambda (fun x => body), not just body
-      let ast ← reify func
+      -- Extract AST (from Expr.eval) or reify (from raw expression)
+      let (ast, isExprEval) ← extractOrReifyAst func
       let supportProof ← mkSupportedCoreProof ast
+
+      -- For non-Expr.eval goals, kernel verification won't type-match, so skip
+      if !isExprEval then
+        return false
 
       let precExpr := toExpr prec
       let depthExpr := toExpr taylorDepth
@@ -246,22 +265,42 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM Bool := do
 /-! ## Main Tactic -/
 
 /--
-Proves bounds using Dyadic arithmetic.
+Proves bounds using Dyadic arithmetic with kernel verification when possible.
 
-This tactic provides the infrastructure for **Kernel Verification** via the
-bridge theorems `verify_upper_bound_dyadic` and `verify_lower_bound_dyadic`.
-The kernel verification mechanism (via `mkDecideProof`) works correctly.
+## Trust Levels
 
-Due to type representation differences between LeanBound's internal AST
-(`Core.Expr.eval`) and Lean's native expressions, full kernel verification
-currently falls back to `interval_bound` (which uses `native_decide`) for
-general goals.
+| Mode | Verification | When Used |
+|------|-------------|-----------|
+| Kernel | `decide` | Goal in `Core.Expr.eval` form |
+| Fallback | `native_decide` | General expressions |
 
-**For direct kernel verification**, express your goal using `Core.Expr.eval`:
+Kernel verification provides maximum trust (only the Lean kernel is trusted).
+Fallback mode trusts the Lean compiler and runtime in addition to the kernel.
+
+## Kernel Verification
+
+For goals expressed using `Core.Expr.eval`, the tactic uses kernel-verified
+arithmetic via `decide`. This requires the goal's interval bounds to be
+definitionally equal to rational casts:
+
 ```lean
-example : ∀ x ∈ Set.Icc (0:ℚ) 1,
-    Core.Expr.eval (fun _ => x) (Expr.var 0 |>.mul (Expr.var 0)) ≤ 2 := by
-  fast_bound  -- Uses kernel verification directly
+open LeanBound.Core
+
+-- This uses kernel verification (Expr.eval form)
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ≤ 2 := by
+  fast_bound
+```
+
+## General Usage
+
+For native Lean expressions, the tactic falls back to `interval_bound`
+which uses `native_decide`:
+
+```lean
+-- This falls back to native_decide
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 2 := by
+  fast_bound
 ```
 
 Usage:
@@ -279,7 +318,7 @@ elab "fast_bound" prec:(num)? : tactic => do
     return
 
   -- Fall back to interval_bound (uses native_decide but works for general goals)
-  trace[fast_bound] "Kernel verification requires Core.Expr.eval form, using interval_bound"
+  trace[fast_bound] "Using native_decide verification (interval_bound)"
   evalTactic (← `(tactic| interval_bound))
 
 /-! ## Convenience Variants -/
