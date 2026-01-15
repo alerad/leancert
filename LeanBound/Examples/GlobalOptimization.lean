@@ -76,36 +76,36 @@ def boxLarge2D : Box :=
 /-! ### Example evaluations -/
 
 -- Minimize x² over [-1, 1]
-#eval
+#eval!
   let B : Box := [⟨-1, 1, by norm_num⟩]
   let result := globalMinimizeCore exprXSq B { maxIterations := 100, tolerance := 1/100 }
   s!"Min x^2 on [-1,1]: lo={result.bound.lo}, hi={result.bound.hi}, iters={result.bound.iterations}"
 
 -- Minimize (x - 1/2)² over [0, 1]
-#eval
+#eval!
   let B : Box := [⟨0, 1, by norm_num⟩]
   let e := exprShiftedSq (1/2)
   let result := globalMinimizeCore e B { maxIterations := 100, tolerance := 1/100 }
   s!"Min (x-1/2)^2 on [0,1]: lo={result.bound.lo}, hi={result.bound.hi}, iters={result.bound.iterations}"
 
 -- Minimize x² + y² over [-1, 1]²
-#eval
+#eval!
   let result := globalMinimizeCore exprSumSq boxSym2D { maxIterations := 500, tolerance := 1/10 }
   s!"Min x^2+y^2 on [-1,1]^2: lo={result.bound.lo}, hi={result.bound.hi}, iters={result.bound.iterations}"
 
 -- Minimize x² + y² over [0, 1]²
-#eval
+#eval!
   let result := globalMinimizeCore exprSumSq boxUnit2D { maxIterations := 500, tolerance := 1/10 }
   s!"Min x^2+y^2 on [0,1]^2: lo={result.bound.lo}, hi={result.bound.hi}, iters={result.bound.iterations}"
 
 -- Maximize x² over [-1, 1] (should give 1 at x = ±1)
-#eval
+#eval!
   let B : Box := [⟨-1, 1, by norm_num⟩]
   let result := globalMaximizeCore exprXSq B { maxIterations := 100, tolerance := 1/100 }
   s!"Max x^2 on [-1,1]: lo={result.bound.lo}, hi={result.bound.hi}, iters={result.bound.iterations}"
 
 -- Rosenbrock function (harder test)
-#eval
+#eval!
   let result := globalMinimizeCore exprRosenbrock boxLarge2D
     { maxIterations := 1000, tolerance := 1/4 }
   s!"Min Rosenbrock on [-2,2]^2: lo={result.bound.lo}, hi={result.bound.hi}, iters={result.bound.iterations}"
