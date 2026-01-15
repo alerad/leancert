@@ -20,11 +20,15 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.tabs
     - navigation.sections
-    - navigation.top
+    - navigation.expand
+    - navigation.path
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
     - content.code.copy
-    - content.tabs.link
+    - content.code.annotate
 
 plugins:
   - search
@@ -57,13 +61,18 @@ extra_javascript:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Lean Tactics:
+    - Reference: tactics.md
+    - Root Finding: architecture/root-finding.md
   - Python SDK:
     - Solver API: api/solver.md
     - Result Types: api/types.md
     - Expressions: api/expr.md
+    - PyTorch Export: python/pytorch.md
+    - Bug Validation: python/validation.md
   - Neural Networks:
     - Verification: ml/neural-networks.md
     - Distillation: ml/distillation.md
-  - Lean Architecture:
+  - Architecture:
     - Golden Theorems: architecture/golden-theorems.md
     - Verification Status: architecture/verification-status.md
