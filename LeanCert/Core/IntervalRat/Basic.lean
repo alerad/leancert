@@ -76,9 +76,6 @@ theorem exists_mem_iff_exists_Icc {P : ℝ → Prop} (I : IntervalRat) :
 /-- Create an interval from a single rational -/
 def singleton (q : ℚ) : IntervalRat := ⟨q, q, le_refl q⟩
 
-instance : Singleton ℚ IntervalRat where
-  singleton := singleton
-
 theorem mem_singleton (q : ℚ) : (q : ℝ) ∈ singleton q := by
   simp only [mem_def, singleton, le_refl, and_self]
 
