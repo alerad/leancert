@@ -3,8 +3,8 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel.Core
-import Mathlib.Data.Complex.ExponentialBounds
+import LeanBound.Numerics.TaylorModel.Core
+import Mathlib.Analysis.Complex.ExponentialBounds
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 
 /-!
@@ -413,13 +413,11 @@ theorem log_taylor_remainder_bound' (J : IntervalRat) (c : ℚ) (n : ℕ) (z : �
     have hi_ne' : (i : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr hi_ne
     have hfact_ne : ((i - 1).factorial : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero _)
     field_simp
-    have h_neg : (-1 : ℝ)^(i + 1) = (-1 : ℝ)^(i - 1) := by
-      have : i + 1 = i - 1 + 2 := by omega
-      rw [this, pow_add]
-      simp
-    rw [h_neg]
-    ring
-
+    push_cast
+    rw [div_eq_mul_inv, mul_assoc, mul_assoc ((-1) ^ _), ← mul_one (_ ^ (_ - 1))]
+    congr 1
+    . grind only
+    . grind only
   have hsum_eq : ∑ i ∈ Finset.range (n + 1), (iteratedDeriv i Real.log c / i.factorial) * (z - c)^i
       = Real.log c + Polynomial.aeval (z - (c : ℝ)) (logTaylorPolyAtCenter c n) := by
     rw [Finset.sum_eq_add_sum_diff_singleton (Finset.mem_range.mpr (Nat.zero_lt_succ n))]
@@ -458,7 +456,7 @@ theorem log_taylor_remainder_bound' (J : IntervalRat) (c : ℚ) (n : ℕ) (z : �
       have hn1_ne : (n + 1 : ℝ) ≠ 0 := by positivity
       have hfact_ne : (n.factorial : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero n)
       field_simp
-      ring
+      grind only
     have hstep : M * |z - c|^(n+1) / (n+1).factorial = |z - c|^(n+1) / ((n+1) * a^(n+1)) := by
       have h1 : M * |z - c|^(n+1) / (n+1).factorial = M / (n+1).factorial * |z - c|^(n+1) := by ring
       rw [h1, hfact_eq, one_div, inv_mul_eq_div]
