@@ -624,9 +624,12 @@ def verify_bound(
     upper: Optional[float] = None,
     lower: Optional[float] = None,
     config: Config = Config(),
-    method: str = 'interval',
+    method: str = 'adaptive',
 ) -> bool:
-    """Verify that an expression satisfies bounds.
+    """Verify that an expression satisfies bounds with false positive filtering.
+
+    This function uses global optimization with counterexample concretization
+    to filter false positives caused by interval over-approximation.
 
     Args:
         expr: Expression to verify.
@@ -634,7 +637,15 @@ def verify_bound(
         upper: Upper bound to verify (expr <= upper).
         lower: Lower bound to verify (expr >= lower).
         config: Solver configuration.
-        method: 'interval' (fast) or 'adaptive' (tighter, uses optimization).
+        method: 'adaptive' (default, uses optimization with false positive
+               filtering) or 'interval' (fast, conservative).
+
+    Returns:
+        True if verified.
+
+    Raises:
+        VerificationFailed: If bound verification fails AND is confirmed by
+                           concrete evaluation (not a false positive).
     """
     return _get_solver().verify_bound(expr, domain, upper, lower, config, method)
 

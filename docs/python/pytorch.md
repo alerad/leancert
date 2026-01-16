@@ -211,10 +211,162 @@ with open("MNISTClassifier.lean", "w") as f:
     f.write(lean_code)
 ```
 
+## Transformer Export
+
+LeanCert supports exporting Transformer architectures for formal verification.
+
+### Quick Example
+
+```python
+import torch
+import torch.nn as nn
+import leancert as lc
+
+# Create a PyTorch transformer
+encoder_layer = nn.TransformerEncoderLayer(d_model=64, nhead=4)
+transformer = nn.TransformerEncoder(encoder_layer, num_layers=2)
+
+# Export to LeanCert
+encoder = lc.nn.from_pytorch_transformer(transformer)
+
+# Generate Lean code with affine arithmetic for tight LayerNorm bounds
+lean_code = encoder.export_lean(
+    name="myTransformer",
+    namespace="MyProject.Transformers",
+    input_domain={f"x{i}": (-1, 1) for i in range(64)},
+    use_affine_layernorm=True,  # Use affine arithmetic for tighter bounds
+)
+```
+
+### `from_pytorch_transformer`
+
+```python
+lc.nn.from_pytorch_transformer(
+    model: nn.Module,
+    input_names: List[str] = None,
+    max_denominator: int = 10000,
+    description: str = ""
+) -> TransformerEncoder
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `model` | `nn.Module` | PyTorch transformer model |
+| `input_names` | `List[str]` | Names for input variables (default: x0, x1, ...) |
+| `max_denominator` | `int` | Max denominator for rational approximation |
+| `description` | `str` | Optional description for documentation |
+
+**Supported architectures:**
+
+- `nn.TransformerEncoder` with `nn.TransformerEncoderLayer`
+- Custom models with `norm1`/`norm2` and `linear1`/`linear2` attributes
+- BERT-style models with `encoder.layer[i]` structure
+
+### Transformer Components
+
+The export creates these Lean structures:
+
+#### `LayerNormParams`
+
+```python
+lc.nn.LayerNormParams.from_numpy(
+    gamma: np.ndarray,   # Scale parameter
+    beta: np.ndarray,    # Shift parameter
+    epsilon: float = 1e-6,
+    max_denom: int = 10000
+)
+```
+
+#### `FFNBlock`
+
+Feed-forward network with GELU activation:
+
+```python
+lc.nn.FFNBlock.from_numpy(
+    w1: np.ndarray,  # First linear weights
+    b1: np.ndarray,  # First linear bias
+    w2: np.ndarray,  # Second linear weights
+    b2: np.ndarray,  # Second linear bias
+    max_denom: int = 10000
+)
+```
+
+#### `TransformerBlock`
+
+A single transformer layer (LayerNorm → FFN → Residual → LayerNorm):
+
+```python
+block = lc.nn.TransformerBlock(
+    ln1=layer_norm_params_1,
+    ffn=ffn_block,
+    ln2=layer_norm_params_2
+)
+```
+
+#### `TransformerEncoder`
+
+Complete encoder with multiple blocks:
+
+```python
+encoder = lc.nn.TransformerEncoder(
+    blocks=[block1, block2, ...],
+    final_ln=optional_final_layernorm,
+    input_names=["x0", "x1", ...]
+)
+```
+
+### Affine Arithmetic for LayerNorm
+
+Standard interval arithmetic can produce loose bounds for LayerNorm due to the "dependency problem" - the mean and variance are computed from the same input, creating correlations that interval arithmetic ignores.
+
+LeanCert provides **affine arithmetic** for tighter LayerNorm bounds:
+
+```python
+# Enable affine arithmetic (recommended for transformers)
+lean_code = encoder.export_lean(
+    name="transformer",
+    use_affine_layernorm=True  # Uses forwardIntervalTight
+)
+```
+
+This uses `LeanCert.ML.LayerNormAffine` which tracks linear correlations between variables.
+
+### Generated Lean Code
+
+The export generates Lean code that:
+
+1. Defines rational weight/bias matrices
+2. Creates `TransformerBlock` structures
+3. Provides well-formedness proofs
+4. Computes output bounds via interval propagation
+
+```lean
+-- Generated code example
+import LeanCert.ML.Transformer
+import LeanCert.ML.LayerNormAffine
+
+namespace MyProject.Transformers
+
+-- Layer definitions...
+
+def myTransformerBlocks : List TransformerBlock := [...]
+
+def myTransformerForward (x : IntervalVector) : IntervalVector :=
+  myTransformerBlocks.foldl (fun acc blk => blk.forwardIntervalTight acc (-53)) x
+
+#eval myTransformerOutputBounds.map (fun I => (I.lo.toRat, I.hi.toRat))
+
+end MyProject.Transformers
+```
+
 ## Limitations
 
 1. **Float precision**: Rational approximation introduces small errors. Verify that `max_denominator` is sufficient for your use case.
 
 2. **Large models**: Models with millions of parameters generate large Lean files. Consider verifying critical subnetworks.
 
-3. **Activations**: Only ReLU and Sigmoid are directly supported. Other activations need manual interval implementations.
+3. **Activations**: Only ReLU, Sigmoid, and GELU are directly supported. Other activations need manual interval implementations.
+
+4. **Attention**: Self-attention mechanisms are verified in Lean (`LeanCert.ML.Attention`) but not automatically extracted from PyTorch. Export the FFN portion and verify attention separately.

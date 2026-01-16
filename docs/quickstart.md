@@ -23,12 +23,16 @@ print(f"Maximum: {result.max_bound}")
 
 ```python
 # Verify that x^2 + sin(x) ≤ 2 on [0, 1]
+# Uses adaptive method with false positive filtering by default
 verified = lc.verify_bound(expr, {'x': (0, 1)}, upper=2)
 
-if verified.success:
+if verified:
     print("Bound verified!")
-    # Get the Lean tactic to prove this formally
-    print(verified.certificate.to_lean_tactic())
+
+# For a certificate that can be exported to Lean, use find_bounds:
+result = lc.find_bounds(expr, {'x': (0, 1)})
+if result.max_bound.hi <= 2:
+    print(result.certificate.to_lean_tactic())
 ```
 
 ### Finding Roots
@@ -49,7 +53,7 @@ LeanCert automatically simplifies expressions to avoid interval explosion:
 # Without simplification: (x*100 + 5) - (x*100) would have wide bounds
 # With simplification: reduces to 5
 expr = (x * 100 + 5) - (x * 100)
-simplified = lf.simplify(expr)  # Returns const(5)
+simplified = lc.simplify(expr)  # Returns const(5)
 ```
 
 ## Lean Tactics

@@ -286,29 +286,28 @@ class TestHyperbolicFunctions:
         assert expr.free_vars() == frozenset({'x'})
 
     def test_sinh_compile(self):
-        """sinh compiles to (exp(x) - exp(-x)) / 2."""
+        """sinh compiles to a kernel primitive."""
         from leancert.expr import var, sinh
         x = var('x')
         expr = sinh(x)
         kernel_expr = expr.compile(['x'])
-        # Should be a derived expression, check it's valid JSON
-        assert kernel_expr['kind'] == 'div' or kernel_expr['kind'] == 'mul'
+        assert kernel_expr['kind'] == 'sinh'
 
     def test_cosh_compile(self):
-        """cosh compiles to (exp(x) + exp(-x)) / 2."""
+        """cosh compiles to a kernel primitive."""
         from leancert.expr import var, cosh
         x = var('x')
         expr = cosh(x)
         kernel_expr = expr.compile(['x'])
-        assert kernel_expr['kind'] == 'div' or kernel_expr['kind'] == 'mul'
+        assert kernel_expr['kind'] == 'cosh'
 
     def test_tanh_compile(self):
-        """tanh compiles to sinh(x) / cosh(x)."""
+        """tanh compiles to a kernel primitive."""
         from leancert.expr import var, tanh
         x = var('x')
         expr = tanh(x)
         kernel_expr = expr.compile(['x'])
-        assert kernel_expr['kind'] == 'div'
+        assert kernel_expr['kind'] == 'tanh'
 
     def test_arsinh_compile(self):
         """arsinh is a primitive in the kernel."""

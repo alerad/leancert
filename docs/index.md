@@ -23,15 +23,15 @@ LeanCert automates proofs of inequalities, global extrema, root existence, and i
 ```python
 import leancert as lc
 
-x = lf.var('x')
-expr = x**2 + lf.sin(x)
+x = lc.var('x')
+expr = x**2 + lc.sin(x)
 
 # Find rigorous bounds on [0, 1]
-result = lf.find_bounds(expr, {'x': (0, 1)})
+result = lc.find_bounds(expr, {'x': (0, 1)})
 print(f"Bounds: [{result.min_bound}, {result.max_bound}]")
 
 # Prove root existence
-roots = lf.find_roots(x**2 - 2, {'x': (1, 2)})
+roots = lc.find_roots(x**2 - 2, {'x': (1, 2)})
 ```
 
 ### Lean

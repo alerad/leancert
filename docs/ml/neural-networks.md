@@ -188,6 +188,31 @@ theorem mem_layerNormInterval {x : Vector n ℝ} {I : IntervalVector n}
 
 **Note**: Standard interval arithmetic may overestimate LayerNorm bounds due to variable correlation (the mean and variance are computed from the same input).
 
+### Affine Arithmetic for Tight LayerNorm Bounds
+
+To address the dependency problem in LayerNorm, LeanCert provides `LeanCert.ML.LayerNormAffine` which uses **affine arithmetic** to track linear correlations between variables:
+
+```lean
+import LeanCert.ML.LayerNormAffine
+
+-- Tight bounds via affine forms that track variable correlations
+def layerNormAffine (x : AffineVector n) (γ β : List ℚ) : AffineVector n
+
+-- Used in TransformerBlock.forwardIntervalTight
+theorem layerNormAffine_sound {x_real : Vector n ℝ} {x_affine : AffineVector n}
+    (hx : x_real ∈ x_affine) :
+    layerNorm x_real γ β ∈ (layerNormAffine x_affine γ β).toIntervalVector
+```
+
+**Key insight**: In LayerNorm, the centering operation `x - μ` creates correlated outputs (they sum to zero). Standard interval arithmetic loses this correlation, leading to loose bounds. Affine arithmetic preserves it:
+
+| Method | LayerNorm([0.9, 1.1]) Bounds |
+|--------|------------------------------|
+| Standard Interval | [-1.5, 1.5] |
+| Affine Arithmetic | [-0.1, 0.1] |
+
+Use `TransformerBlock.forwardIntervalTight` for the tightest bounds on transformer layers.
+
 ## Optimized Implementation
 
 For real-world networks, the `LeanCert.ML.Optimized` module provides:
@@ -236,3 +261,7 @@ def output := qnet.forward alignedInput
 | `ML/Symbolic/ReLU.lean` | DeepPoly ReLU relaxation |
 | `ML/Symbolic/Sigmoid.lean` | DeepPoly sigmoid relaxation |
 | `ML/Optimized.lean` | High-performance implementations |
+| `ML/LayerNormAffine.lean` | Affine arithmetic for tight LayerNorm bounds |
+| `ML/Transformer.lean` | Full transformer block definitions |
+| `ML/Attention.lean` | Scaled dot-product attention verification |
+| `ML/Softmax.lean` | Softmax interval propagation |

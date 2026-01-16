@@ -9,15 +9,15 @@ LeanCert uses symbolic expressions that are reified to the Lean AST.
 ```python
 import leancert as lc
 
-x = lf.var('x')
-y = lf.var('y')
+x = lc.var('x')
+y = lc.var('y')
 ```
 
 ### Constants
 
 ```python
-c = lf.const(3.14159)
-half = lf.const(1, 2)  # Fraction 1/2
+c = lc.const(3.14159)
+half = lc.const(1, 2)  # Fraction 1/2
 ```
 
 ### Arithmetic
@@ -30,32 +30,32 @@ expr = (x + y) / (x - y)
 ### Transcendental Functions
 
 ```python
-lf.sin(x)
-lf.cos(x)
-lf.exp(x)
-lf.log(x)
-lf.tan(x)
-lf.atan(x)
-lf.sinh(x)
-lf.cosh(x)
-lf.tanh(x)
-lf.arsinh(x)
-lf.atanh(x)
+lc.sin(x)
+lc.cos(x)
+lc.exp(x)
+lc.log(x)
+lc.tan(x)
+lc.atan(x)
+lc.sinh(x)
+lc.cosh(x)
+lc.tanh(x)
+lc.arsinh(x)
+lc.atanh(x)
 ```
 
 ### Special Functions
 
 ```python
-lf.sinc(x)  # sin(x)/x with sinc(0) = 1
-lf.erf(x)   # Error function
+lc.sinc(x)  # sin(x)/x with sinc(0) = 1
+lc.erf(x)   # Error function
 ```
 
 ### Min/Max/Clamp
 
 ```python
-lf.Min(x, y)
-lf.Max(x, y)
-lf.clamp(x, lo, hi)  # Equivalent to Min(Max(x, lo), hi)
+lc.Min(x, y)
+lc.Max(x, y)
+lc.clamp(x, lo, hi)  # Equivalent to Min(Max(x, lo), hi)
 ```
 
 ## Domain Specification
@@ -79,7 +79,7 @@ from leancert import Box
 box = Box({'x': (0, 1), 'y': (-1, 1)})
 
 # Or pass directly to solver functions
-result = lf.find_bounds(x + y, {'x': (0, 1), 'y': (0, 1)})
+result = lc.find_bounds(x + y, {'x': (0, 1), 'y': (0, 1)})
 ```
 
 ## Simplification
@@ -93,14 +93,14 @@ LeanCert includes symbolic simplification to mitigate the dependency problem in 
 ### Example
 
 ```python
-x = lf.var('x')
+x = lc.var('x')
 
 # Without simplification, (x*100 + 5) - (x*100) on [0, 1e10]
 # would give bounds like [-1e12, 1e12] due to dependency
 
 # With simplification, it reduces to 5
 expr = (x * 100 + 5) - (x * 100)
-simplified = lf.simplify(expr)
+simplified = lc.simplify(expr)
 # simplified is const(5)
 ```
 
