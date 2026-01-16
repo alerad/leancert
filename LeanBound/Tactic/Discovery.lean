@@ -350,6 +350,7 @@ private def tryConvertSetIcc (interval : Lean.Expr) : MetaM (Option Lean.Expr) :
 
 /-- The interval_minimize tactic implementation -/
 unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
+  LeanBound.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -441,6 +442,7 @@ unsafe def elabIntervalMinimize : Tactic := fun stx => do
 
 /-- The interval_maximize tactic implementation -/
 unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
+  LeanBound.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -577,6 +579,7 @@ where
 
 /-- The interval_argmax tactic implementation -/
 unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
+  LeanBound.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -754,6 +757,7 @@ def parseMultivariateExistentialGoal (goalType : Lean.Expr) :
 
 /-- The interval_minimize_mv tactic implementation for multivariate goals -/
 unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
+  LeanBound.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -844,6 +848,7 @@ unsafe def elabIntervalMinimizeMv : Tactic := fun stx => do
 
 /-- The interval_maximize_mv tactic implementation for multivariate goals -/
 unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
+  LeanBound.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -966,12 +971,55 @@ def parseRootExistsGoal (goal : Lean.Expr) : MetaM (Option RootExistsGoal) := do
     else return none
   | _ => return none
 where
+  getLeArgs (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+    if fn.isConstOf ``LE.le && args.size >= 4 then
+      return some (args[2]!, args[3]!)
+    return none
+
+  extractLowerBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some (a, b) ← getLeArgs e then
+      if ← isDefEq b x then
+        return some a
+    return none
+
+  extractUpperBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some (a, b) ← getLeArgs e then
+      if ← isDefEq a x then
+        return some b
+    return none
+
+  extractBoundsFromAnd (memExpr : Lean.Expr) (x : Lean.Expr) :
+      MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    match_expr memExpr with
+    | And a b =>
+      if let some lo ← extractLowerBound a x then
+        if let some hi ← extractUpperBound b x then
+          return some (lo, hi)
+      if let some lo ← extractLowerBound b x then
+        if let some hi ← extractUpperBound a x then
+          return some (lo, hi)
+      return none
+    | _ => return none
+
+  mkSetIccFromBounds (loExpr hiExpr : Lean.Expr) : MetaM Lean.Expr := do
+    mkAppM ``Set.Icc #[loExpr, hiExpr]
+
   /-- Extract the interval from a membership expression x ∈ I -/
   extractInterval (memExpr : Lean.Expr) (x : Lean.Expr) : MetaM (Option Lean.Expr) := do
     match_expr memExpr with
     | Membership.mem _ _ _ interval xExpr =>
       if ← isDefEq xExpr x then return some interval else return none
-    | _ => return none
+    | _ =>
+      if let some (loExpr, hiExpr) ← extractBoundsFromAnd memExpr x then
+        return some (← mkSetIccFromBounds loExpr hiExpr)
+      let memExprWhnf ← withTransparency TransparencyMode.all <| whnf memExpr
+      if memExprWhnf == memExpr then
+        return none
+      if let some (loExpr, hiExpr) ← extractBoundsFromAnd memExprWhnf x then
+        return some (← mkSetIccFromBounds loExpr hiExpr)
+      return none
 
   /-- Extract function from f(x) = 0 -/
   extractFuncFromEqZero (eqExpr : Lean.Expr) (x : Lean.Expr) : MetaM (Option Lean.Expr) := do
@@ -991,6 +1039,7 @@ where
 
 /-- The interval_roots tactic implementation -/
 def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
+  LeanBound.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -1086,15 +1135,52 @@ def parseUniqueRootGoal (goalType : Lean.Expr) : MetaM (Option (Name × Lean.Exp
       withLocalDeclD name ty fun x => do
         let bodyInst := innerBody.instantiate1 x
         let bodyInst ← whnf bodyInst
+        let getLeArgs (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+          let fn := e.getAppFn
+          let args := e.getAppArgs
+          if fn.isConstOf ``LE.le && args.size >= 4 then
+            return some (args[2]!, args[3]!)
+          return none
+        let extractLowerBound (e : Lean.Expr) : MetaM (Option Lean.Expr) := do
+          if let some (a, b) ← getLeArgs e then
+            if ← isDefEq b x then
+              return some a
+          return none
+        let extractUpperBound (e : Lean.Expr) : MetaM (Option Lean.Expr) := do
+          if let some (a, b) ← getLeArgs e then
+            if ← isDefEq a x then
+              return some b
+          return none
+        let extractBoundsFromAnd (memExpr : Lean.Expr) :
+            MetaM (Option (Lean.Expr × Lean.Expr)) := do
+          match_expr memExpr with
+          | And a b =>
+            if let some lo ← extractLowerBound a then
+              if let some hi ← extractUpperBound b then
+                return some (lo, hi)
+            if let some lo ← extractLowerBound b then
+              if let some hi ← extractUpperBound a then
+                return some (lo, hi)
+            return none
+          | _ => return none
+        let extractInterval (memExpr : Lean.Expr) : MetaM (Option Lean.Expr) := do
+          match_expr memExpr with
+          | Membership.mem _ _ _ interval xExpr =>
+            if ← isDefEq xExpr x then return some interval else return none
+          | _ =>
+            if let some (loExpr, hiExpr) ← extractBoundsFromAnd memExpr then
+              return some (← mkAppM ``Set.Icc #[loExpr, hiExpr])
+            let memExprWhnf ← withTransparency TransparencyMode.all <| whnf memExpr
+            if memExprWhnf == memExpr then
+              return none
+            if let some (loExpr, hiExpr) ← extractBoundsFromAnd memExprWhnf then
+              return some (← mkAppM ``Set.Icc #[loExpr, hiExpr])
+            return none
         -- bodyInst should be x ∈ I ∧ f x = 0
         match_expr bodyInst with
         | And memExpr eqExpr =>
           -- Extract interval from membership (use pattern matching)
-          let some interval := ← (do
-            match_expr memExpr with
-            | Membership.mem _ _ _ interval xExpr =>
-              if ← isDefEq xExpr x then return some interval else return none
-            | _ => return none) | return none
+          let some interval ← extractInterval memExpr | return none
           -- Extract function from equality
           let some func := ← (do
             match_expr eqExpr with
@@ -1124,6 +1210,7 @@ def parseUniqueRootGoal (goalType : Lean.Expr) : MetaM (Option (Name × Lean.Exp
     without noncomputable Real functions.
 -/
 unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
+  LeanBound.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
 

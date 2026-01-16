@@ -51,6 +51,25 @@ open LeanBound.Core
 open LeanBound.Numerics
 open LeanBound.Numerics.Certificate
 
+/-! ## Goal Normalization -/
+
+/-- Normalize common goal patterns for interval tactics. -/
+def intervalNormCore : TacticM Unit := do
+  try
+    evalTactic (← `(tactic|
+      simp only [ge_iff_le, gt_iff_lt, sub_eq_add_neg, Rat.divInt_eq_div] at *))
+  catch _ =>
+    pure ()
+
+/-- The interval_norm tactic.
+
+    Normalizes inequalities, subtraction, and rational division forms to reduce
+    goal-shape variation before parsing. -/
+syntax (name := intervalNormTac) "interval_norm" : tactic
+
+@[tactic intervalNormTac]
+def elabIntervalNorm : Tactic := fun _ => intervalNormCore
+
 /-! ## Rational Extraction Helpers
 
 Utilities for extracting rational numbers from Lean expressions representing
@@ -218,6 +237,102 @@ structure IntervalInfo where
   fromSetIcc : Option (ℚ × ℚ × Lean.Expr × Lean.Expr × Lean.Expr × Lean.Expr × Lean.Expr) := none
   deriving Repr
 
+/-- Bridge: Set.Icc bound to arrow chain (lo ≤ x → x ≤ hi). -/
+theorem forall_arrow_of_Icc {α} [Preorder α] {lo hi : α} {P : α → Prop} :
+    (∀ x ∈ Set.Icc lo hi, P x) → ∀ x, lo ≤ x → x ≤ hi → P x := by
+  intro h x hxlo hxhi
+  exact h x ⟨hxlo, hxhi⟩
+
+/-- Bridge: Set.Icc bound to reversed arrow chain (x ≤ hi → lo ≤ x). -/
+theorem forall_arrow_of_Icc_rev {α} [Preorder α] {lo hi : α} {P : α → Prop} :
+    (∀ x ∈ Set.Icc lo hi, P x) → ∀ x, x ≤ hi → lo ≤ x → P x := by
+  intro h x hxhi hxlo
+  exact h x ⟨hxlo, hxhi⟩
+
+/-- Bridge: Set.Icc bound to conjunctive domain (lo ≤ x ∧ x ≤ hi). -/
+theorem forall_and_of_Icc {α} [Preorder α] {lo hi : α} {P : α → Prop} :
+    (∀ x ∈ Set.Icc lo hi, P x) → ∀ x, (lo ≤ x ∧ x ≤ hi) → P x := by
+  intro h x hx
+  exact h x hx
+
+/-- Bridge: Set.Icc bound to reversed conjunctive domain (x ≤ hi ∧ lo ≤ x). -/
+theorem forall_and_of_Icc_rev {α} [Preorder α] {lo hi : α} {P : α → Prop} :
+    (∀ x ∈ Set.Icc lo hi, P x) → ∀ x, (x ≤ hi ∧ lo ≤ x) → P x := by
+  intro h x hx
+  exact h x ⟨hx.2, hx.1⟩
+
+private def goalNeedsIccWrapper (goalType : Lean.Expr) : MetaM Bool := do
+  let goalType ← whnf goalType
+  if !goalType.isForall then
+    return false
+  let .forallE name ty body _ := goalType | return false
+  withLocalDeclD name ty fun x => do
+    let bodyRaw := body.instantiate1 x
+    let bodyWhnf ← whnf bodyRaw
+    if !bodyWhnf.isForall then
+      return false
+    let .forallE _ memTy innerBody _ := bodyWhnf | return false
+    let memTyRaw :=
+      match bodyRaw with
+      | .forallE _ memTyRaw _ _ => memTyRaw
+      | _ => memTy
+
+    let isMembership : MetaM Bool := do
+      match_expr memTyRaw with
+      | Membership.mem _ _ _ _ _ => return true
+      | _ => return false
+
+    if (← isMembership) then
+      return false
+
+    let isAnd (e : Lean.Expr) : Bool :=
+      match e with
+      | .app (.app (.const ``And _) _) _ => true
+      | _ => false
+
+    let getLeArgs (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+      let fn := e.getAppFn
+      let args := e.getAppArgs
+      if fn.isConstOf ``LE.le && args.size >= 4 then
+        return some (args[2]!, args[3]!)
+      if fn.isConstOf ``LT.lt && args.size >= 4 then
+        return some (args[2]!, args[3]!)
+      return none
+
+    let isBoundProp (e : Lean.Expr) : MetaM Bool := do
+      if let some (a, b) ← getLeArgs e then
+        if (← isDefEq a x) || (← isDefEq b x) then
+          return true
+      return false
+
+    let memTyWhnf ← withTransparency TransparencyMode.all <| whnf memTy
+    if isAnd memTy || isAnd memTyWhnf then
+      return true
+
+    if innerBody.isForall then
+      let .forallE _ memTy2 _ _ := innerBody | return false
+      let memTy2Whnf ← withTransparency TransparencyMode.all <| whnf memTy2
+      if (← isBoundProp memTy) || (← isBoundProp memTyWhnf) then
+        if (← isBoundProp memTy2) || (← isBoundProp memTy2Whnf) then
+          return true
+    return false
+
+private def tryNormalizeGoalToIcc : TacticM Bool := do
+  let goal ← getMainGoal
+  if ← goalNeedsIccWrapper (← goal.getType) then
+    try
+      evalTactic (← `(tactic|
+        first
+        | refine (forall_arrow_of_Icc ?_)
+        | refine (forall_arrow_of_Icc_rev ?_)
+        | refine (forall_and_of_Icc ?_)
+        | refine (forall_and_of_Icc_rev ?_)
+      ))
+      return true
+    catch _ => return false
+  else
+    return false
+
 /-- Result of analyzing a bound goal -/
 inductive BoundGoal where
   /-- ∀ x ∈ I, f x ≤ c -/
@@ -297,7 +412,65 @@ def parseBoundGoal (goal : Lean.Expr) : MetaM (Option BoundGoal) := do
           return ← withLocalDeclD `hx memTy fun _hx => do
             let comparison := innerBody.instantiate1 _hx
             parseComparison comparison interval
+        let parseArrowBounds (memTy innerBody : Lean.Expr) : MetaM (Option BoundGoal) := do
+          let memTyWhnf ← withTransparency TransparencyMode.all <| whnf memTy
+          let memTyCandidates := if memTyWhnf == memTy then #[memTy] else #[memTy, memTyWhnf]
 
+          let rec findSome (cands : List Lean.Expr) (f : Lean.Expr → MetaM (Option BoundGoal)) :
+              MetaM (Option BoundGoal) := do
+            match cands with
+            | [] => return none
+            | cand :: rest =>
+              if let some goal ← f cand then
+                return some goal
+              findSome rest f
+
+          let tryLower (memTyCand : Lean.Expr) : MetaM (Option BoundGoal) := do
+            if let some loExpr ← extractLowerBound memTyCand x then
+              return ← withLocalDeclD `hx1 memTy fun _hx1 => do
+                let innerBodyInst := innerBody.instantiate1 _hx1
+                if innerBodyInst.isForall then
+                  let .forallE _ memTy2 innerBody2 _ := innerBodyInst | return none
+                  let memTy2Whnf ← withTransparency TransparencyMode.all <| whnf memTy2
+                  let memTy2Candidates := if memTy2Whnf == memTy2 then #[memTy2] else #[memTy2, memTy2Whnf]
+                  let tryUpper (memTy2Cand : Lean.Expr) : MetaM (Option BoundGoal) := do
+                    if let some hiExpr ← extractUpperBound memTy2Cand x then
+                      if let some interval ← mkIntervalInfoFromBounds loExpr hiExpr then
+                        return ← withLocalDeclD `hx2 memTy2 fun _hx2 => do
+                          let comparison := innerBody2.instantiate1 _hx2
+                          parseComparison comparison interval
+                    return none
+                  return ← findSome memTy2Candidates.toList tryUpper
+                return none
+            return none
+
+          let tryUpper (memTyCand : Lean.Expr) : MetaM (Option BoundGoal) := do
+            if let some hiExpr ← extractUpperBound memTyCand x then
+              return ← withLocalDeclD `hx1 memTy fun _hx1 => do
+                let innerBodyInst := innerBody.instantiate1 _hx1
+                if innerBodyInst.isForall then
+                  let .forallE _ memTy2 innerBody2 _ := innerBodyInst | return none
+                  let memTy2Whnf ← withTransparency TransparencyMode.all <| whnf memTy2
+                  let memTy2Candidates := if memTy2Whnf == memTy2 then #[memTy2] else #[memTy2, memTy2Whnf]
+                  let tryLower (memTy2Cand : Lean.Expr) : MetaM (Option BoundGoal) := do
+                    if let some loExpr ← extractLowerBound memTy2Cand x then
+                      if let some interval ← mkIntervalInfoFromBounds loExpr hiExpr then
+                        return ← withLocalDeclD `hx2 memTy2 fun _hx2 => do
+                          let comparison := innerBody2.instantiate1 _hx2
+                          parseComparison comparison interval
+                    return none
+                  return ← findSome memTy2Candidates.toList tryLower
+                return none
+            return none
+
+          if let some goal ← findSome memTyCandidates.toList tryLower then
+            return some goal
+          if let some goal ← findSome memTyCandidates.toList tryUpper then
+            return some goal
+          return none
+
+        if let some arrowGoal ← parseArrowBounds memTy innerBody then
+          return some arrowGoal
         return none
       else
         return none
@@ -377,7 +550,11 @@ where
       else return none
     | _ =>
       -- The memTy might be definitionally expanded - check if it's a conjunction
+      if let some (loExpr, hiExpr) ← extractBoundsFromAnd memTy x then
+        return ← mkIntervalInfoFromBounds loExpr hiExpr
       let memTyWhnf ← withTransparency TransparencyMode.all <| whnf memTy
+      if memTyWhnf == memTy then
+        return none
       if let some (loExpr, hiExpr) ← extractBoundsFromAnd memTyWhnf x then
         return ← mkIntervalInfoFromBounds loExpr hiExpr
       return none
@@ -566,6 +743,7 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
 
 /-- The main interval_bound tactic implementation -/
 def intervalBoundCore (taylorDepth : Nat) : TacticM Unit := do
+  intervalNormCore
   -- Pre-process: convert ≥ to ≤ and > to < for uniform handling
   -- First intro variables to get into the body of the forall
   let preprocessed ← do
@@ -711,6 +889,8 @@ where
   proveForallLe (goal : MVarId) (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
       (taylorDepth : Nat) : TacticM Unit := do
     goal.withContext do
+      discard <| tryNormalizeGoalToIcc
+      let goal ← getMainGoal
       -- 1. Get AST (either from Expr.eval or by reifying)
       let ast ← getAst func
 
@@ -829,6 +1009,8 @@ where
   proveForallGe (goal : MVarId) (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
       (taylorDepth : Nat) : TacticM Unit := do
     goal.withContext do
+      discard <| tryNormalizeGoalToIcc
+      let goal ← getMainGoal
       let ast ← getAst func
       let boundRat ← extractRatBound bound
       let (supportProof, useWithInv) ← getSupportProof ast
@@ -929,6 +1111,8 @@ where
   proveForallLt (goal : MVarId) (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
       (taylorDepth : Nat) : TacticM Unit := do
     goal.withContext do
+      discard <| tryNormalizeGoalToIcc
+      let goal ← getMainGoal
       let ast ← getAst func
       let boundRat ← extractRatBound bound
       let (supportProof, useWithInv) ← getSupportProof ast
@@ -1035,6 +1219,8 @@ where
   proveForallGt (goal : MVarId) (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
       (taylorDepth : Nat) : TacticM Unit := do
     goal.withContext do
+      discard <| tryNormalizeGoalToIcc
+      let goal ← getMainGoal
       let ast ← getAst func
       let boundRat ← extractRatBound bound
       let (supportProof, useWithInv) ← getSupportProof ast
@@ -1369,6 +1555,22 @@ partial def parseMultivariateBoundGoal (goal : Lean.Expr) : MetaM (Option Multiv
         }
     return none
 
+  let memCandidates (e : Lean.Expr) : MetaM (Array Lean.Expr) := do
+    let eWhnf ← withTransparency TransparencyMode.all <| whnf e
+    if eWhnf == e then
+      return #[e]
+    return #[e, eWhnf]
+
+  let rec findSome (cands : List Lean.Expr)
+      (f : Lean.Expr → MetaM (Option MultivariateBoundGoal)) :
+      MetaM (Option MultivariateBoundGoal) := do
+    match cands with
+    | [] => return none
+    | cand :: rest =>
+      if let some goal ← f cand then
+        return some goal
+      findSome rest f
+
   let rec collect (e : Lean.Expr) (acc : Array VarIntervalInfo) (fvars : Array Lean.Expr) :
       MetaM (Option MultivariateBoundGoal) := do
     -- Don't use whnf at the top level - it might destroy the forall structure
@@ -1424,14 +1626,56 @@ partial def parseMultivariateBoundGoal (goal : Lean.Expr) : MetaM (Option Multiv
             let nextBody := innerBody.instantiate1 _hx
             collect nextBody (acc.push info) (fvars.push x)
         else
-          let memTyWhnf ← withTransparency TransparencyMode.all <| whnf memTy
-          let memTyToParse := if memTyWhnf == memTy then memTy else memTyWhnf
+          let memTyCandidates ← memCandidates memTy
           -- Handle conjunction form: (lo ≤ x ∧ x ≤ hi) → ...
-          if let some (loExpr, hiExpr) ← extractBoundsFromAnd memTyToParse x then
-            if let some info ← mkVarIntervalInfoFromBounds x loExpr hiExpr then
-              return ← withLocalDeclD `_ memTy fun _hx => do
-                let nextBody := innerBody.instantiate1 _hx
-                collect nextBody (acc.push info) (fvars.push x)
+          let tryAnd (memTyCand : Lean.Expr) : MetaM (Option MultivariateBoundGoal) := do
+            if let some (loExpr, hiExpr) ← extractBoundsFromAnd memTyCand x then
+              if let some info ← mkVarIntervalInfoFromBounds x loExpr hiExpr then
+                return ← withLocalDeclD `_ memTy fun _hx => do
+                  let nextBody := innerBody.instantiate1 _hx
+                  collect nextBody (acc.push info) (fvars.push x)
+            return none
+          if let some result ← findSome memTyCandidates.toList tryAnd then
+            return some result
+          -- Handle expanded bounds: lo ≤ x → x ≤ hi → ...
+          let tryLower (memTyCand : Lean.Expr) : MetaM (Option MultivariateBoundGoal) := do
+            if let some loExpr ← extractLowerBound memTyCand x then
+              return ← withLocalDeclD `_ memTy fun _hx1 => do
+                let innerBodyInst := innerBody.instantiate1 _hx1
+                if innerBodyInst.isForall then
+                  let .forallE _ memTy2 innerBody2 _ := innerBodyInst | return none
+                  let memTy2Candidates ← memCandidates memTy2
+                  let tryUpper (memTy2Cand : Lean.Expr) : MetaM (Option MultivariateBoundGoal) := do
+                    if let some hiExpr ← extractUpperBound memTy2Cand x then
+                      if let some info ← mkVarIntervalInfoFromBounds x loExpr hiExpr then
+                        return ← withLocalDeclD `_ memTy2 fun _hx2 => do
+                          let nextBody := innerBody2.instantiate1 _hx2
+                          collect nextBody (acc.push info) (fvars.push x)
+                    return none
+                  return ← findSome memTy2Candidates.toList tryUpper
+                return none
+            return none
+          let tryUpper (memTyCand : Lean.Expr) : MetaM (Option MultivariateBoundGoal) := do
+            if let some hiExpr ← extractUpperBound memTyCand x then
+              return ← withLocalDeclD `_ memTy fun _hx1 => do
+                let innerBodyInst := innerBody.instantiate1 _hx1
+                if innerBodyInst.isForall then
+                  let .forallE _ memTy2 innerBody2 _ := innerBodyInst | return none
+                  let memTy2Candidates ← memCandidates memTy2
+                  let tryLower (memTy2Cand : Lean.Expr) : MetaM (Option MultivariateBoundGoal) := do
+                    if let some loExpr ← extractLowerBound memTy2Cand x then
+                      if let some info ← mkVarIntervalInfoFromBounds x loExpr hiExpr then
+                        return ← withLocalDeclD `_ memTy2 fun _hx2 => do
+                          let nextBody := innerBody2.instantiate1 _hx2
+                          collect nextBody (acc.push info) (fvars.push x)
+                    return none
+                  return ← findSome memTy2Candidates.toList tryLower
+                return none
+            return none
+          if let some result ← findSome memTyCandidates.toList tryLower then
+            return some result
+          if let some result ← findSome memTyCandidates.toList tryUpper then
+            return some result
           -- Not a membership quantifier, treat as the inner body
           if acc.isEmpty then
             return none
@@ -1500,6 +1744,7 @@ open LeanBound.Numerics.Optimization in
 open LeanBound.Numerics.Certificate.GlobalOpt in
 /-- The main multivariate_bound tactic implementation -/
 def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
+  intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
   trace[LeanBound.discovery] "multivariate_bound goal: {goalType}"
@@ -1560,10 +1805,25 @@ where
   getVarExprs (vars : Array VarIntervalInfo) : TacticM (Array Lean.Expr) := do
     let lctx ← getLCtx
     let mut out : Array Lean.Expr := #[]
+    let mut used : Array Lean.FVarId := #[]
     for info in vars do
       match lctx.findFromUserName? info.varName with
-      | some decl => out := out.push (Lean.mkFVar decl.fvarId)
-      | none => throwError m!"multivariate_bound: missing local {info.varName}"
+      | some decl =>
+          out := out.push (Lean.mkFVar decl.fvarId)
+          used := used.push decl.fvarId
+      | none =>
+          let mut fallback : Option Lean.LocalDecl := none
+          for decl in lctx do
+            if !(used.any (fun id => id == decl.fvarId)) then
+              if (← isDefEq decl.type info.varType) then
+                fallback := some decl
+                break
+          match fallback with
+          | some decl =>
+              out := out.push (Lean.mkFVar decl.fvarId)
+              used := used.push decl.fvarId
+          | none =>
+              throwError m!"multivariate_bound: missing local {info.varName}"
     return out
 
   /-- Build an environment function ρ from a list of variables. -/
@@ -1610,17 +1870,9 @@ where
       -- For now, we'll use a direct approach: intro all vars and hypotheses, then apply the theorem
       setGoals [goal]
 
-      -- Intro all the quantified variables and membership hypotheses
-      let mut introNames : Array Lean.Name := #[]
-      for i in [:vars.size] do
-        introNames := introNames.push (vars[i]!.varName)
-        introNames := introNames.push (Name.mkSimple s!"h{i}")
-
-      -- Use intro tactic for all vars
+      -- Intro all binders (variables and hypotheses) in order.
       try
-        for nm in introNames do
-          let ident := Lean.mkIdent nm
-          evalTactic (← `(tactic| intro $ident:ident))
+        evalTactic (← `(tactic| repeat intro))
       catch _ => pure ()
 
       let mainGoalAfterIntro ← getMainGoal
@@ -1656,7 +1908,9 @@ where
       evalTactic (← `(tactic| exact (by
         have hmem : Box.envMem $rhoSyntax $boxSyntax := by
           intro i
-          fin_cases i <;> simp [Box.envMem, IntervalRat.mem_iff_mem_Icc] <;> assumption
+          fin_cases i <;>
+            simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc] at * <;>
+            first | assumption | constructor <;> assumption
         have hzero : ∀ i, i ≥ ($boxSyntax).length → $rhoSyntax i = 0 := by
           intro i hi
           have hnot : ¬ i < ($boxSyntax).length := by exact not_lt.mpr hi
@@ -1683,16 +1937,9 @@ where
 
       setGoals [goal]
 
-      -- Intro all the quantified variables and membership hypotheses
-      let mut introNames : Array Lean.Name := #[]
-      for i in [:vars.size] do
-        introNames := introNames.push (vars[i]!.varName)
-        introNames := introNames.push (Name.mkSimple s!"h{i}")
-
+      -- Intro all binders (variables and hypotheses) in order.
       try
-        for nm in introNames do
-          let ident := Lean.mkIdent nm
-          evalTactic (← `(tactic| intro $ident:ident))
+        evalTactic (← `(tactic| repeat intro))
       catch _ => pure ()
 
       let mainGoalAfterIntro ← getMainGoal
@@ -1723,7 +1970,9 @@ where
       evalTactic (← `(tactic| exact (by
         have hmem : Box.envMem $rhoSyntax $boxSyntax := by
           intro i
-          fin_cases i <;> simp [Box.envMem, IntervalRat.mem_iff_mem_Icc] <;> assumption
+          fin_cases i <;>
+            simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc] at * <;>
+            first | assumption | constructor <;> assumption
         have hzero : ∀ i, i ≥ ($boxSyntax).length → $rhoSyntax i = 0 := by
           intro i hi
           have hnot : ¬ i < ($boxSyntax).length := by exact not_lt.mpr hi
@@ -1969,12 +2218,63 @@ def parseRootGoal (goal : Lean.Expr) : MetaM (Option RootGoal) := do
     return none
 
 where
+  getLeArgs (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+    if fn.isConstOf ``LE.le && args.size >= 4 then
+      return some (args[2]!, args[3]!)
+    return none
+
+  extractLowerBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some (a, b) ← getLeArgs e then
+      if ← isDefEq b x then
+        return some a
+    return none
+
+  extractUpperBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some (a, b) ← getLeArgs e then
+      if ← isDefEq a x then
+        return some b
+    return none
+
+  extractBoundsFromAnd (memTy : Lean.Expr) (x : Lean.Expr) :
+      MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    match_expr memTy with
+    | And a b =>
+      if let some lo ← extractLowerBound a x then
+        if let some hi ← extractUpperBound b x then
+          return some (lo, hi)
+      if let some lo ← extractLowerBound b x then
+        if let some hi ← extractUpperBound a x then
+          return some (lo, hi)
+      return none
+    | _ => return none
+
+  mkIntervalRatFromBounds (loExpr hiExpr : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some lo ← extractRatFromReal loExpr then
+      if let some hi ← extractRatFromReal hiExpr then
+        let loRatExpr := toExpr lo
+        let hiRatExpr := toExpr hi
+        let leProofTy ← mkAppM ``LE.le #[loRatExpr, hiRatExpr]
+        let leProof ← mkDecideProof leProofTy
+        let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
+        return some intervalRat
+    return none
+
   /-- Extract the interval from a membership expression -/
   extractInterval (memTy : Lean.Expr) (x : Lean.Expr) : MetaM (Option Lean.Expr) := do
     match_expr memTy with
     | Membership.mem _ _ _ interval xExpr =>
       if ← isDefEq xExpr x then return some interval else return none
-    | _ => return none
+    | _ =>
+      if let some (loExpr, hiExpr) ← extractBoundsFromAnd memTy x then
+        return ← mkIntervalRatFromBounds loExpr hiExpr
+      let memTyWhnf ← withTransparency TransparencyMode.all <| whnf memTy
+      if memTyWhnf == memTy then
+        return none
+      if let some (loExpr, hiExpr) ← extractBoundsFromAnd memTyWhnf x then
+        return ← mkIntervalRatFromBounds loExpr hiExpr
+      return none
 
 /-- The main root_bound tactic implementation -/
 def rootBoundCore (taylorDepth : Nat) : TacticM Unit := do
@@ -2473,6 +2773,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
 /-- The interval_decide tactic implementation.
     Transforms `f(c) ≤ b` into `∀ x ∈ [c,c], f(x) ≤ b` and uses interval_bound. -/
 def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
+  intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
   trace[interval_decide] "intervalDecideCore: goal type = {goalType}"
@@ -3264,6 +3565,7 @@ private def proveForallGtSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
     - `interval_bound_subdiv 20 5` - uses Taylor depth 20 and max subdivision depth 5
 -/
 elab "interval_bound_subdiv" depth:(num)? subdivDepth:(num)? : tactic => do
+  intervalNormCore
   let maxSubdiv := match subdivDepth with
     | some n => n.getNat
     | none => 3
