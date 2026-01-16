@@ -499,17 +499,21 @@ theorem tmLog_correct (J : IntervalRat) (n : ℕ)
     simp only [IntervalRat.midpoint, c]
     apply div_pos
     · linarith [J.le]
-    · norm_num
-  set c_interval : IntervalRat.IntervalRatPos :=
+    · decide
+  let c_interval : IntervalRat.IntervalRatPos :=
     { toIntervalRat := IntervalRat.singleton c
-      lo_pos := by simp only [IntervalRat.singleton]; exact hc_pos } with hc_int_def
-  set logc_interval := IntervalRat.logInterval c_interval with hlogc_int_def
-  set logc_approx := logc_interval.midpoint with hlogc_approx_def
-  set logc_error := logc_interval.width / 2 with hlogc_error_def
-  set base_poly := logTaylorPolyAtCenter c n with hbase_poly_def
-  set poly := base_poly + Polynomial.C logc_approx with hpoly_def
-  set rem := logRemainderBound J c n logc_error with hrem_def
-  set r := Real.log z - Polynomial.aeval (z - (c : ℝ)) poly with hr_def
+      lo_pos := by simp only [IntervalRat.singleton]; exact hc_pos }
+  let logc_interval := IntervalRat.logInterval c_interval
+  let logc_approx := logc_interval.midpoint
+  let logc_error := logc_interval.width / 2
+  let base_poly := logTaylorPolyAtCenter c n
+  have hbase_poly_def : base_poly = logTaylorPolyAtCenter c n := rfl
+  let poly := base_poly + Polynomial.C logc_approx
+  have hpoly_def : poly = base_poly + Polynomial.C logc_approx := rfl
+  let rem := logRemainderBound J c n logc_error
+  have hrem_def : rem = logRemainderBound J c n logc_error := rfl
+  let r := Real.log z - Polynomial.aeval (z - (c : ℝ)) poly
+  have hr_def : r = Real.log z - Polynomial.aeval (z - (c : ℝ)) poly := rfl
   refine ⟨r, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
     have hr_decomp : r = (Real.log z - Real.log c -
@@ -517,7 +521,6 @@ theorem tmLog_correct (J : IntervalRat) (n : ℕ)
       simp only [hr_def, hpoly_def, map_add, Polynomial.aeval_C, eq_ratCast]
       ring
     have hlog_approx := log_approx_error_bound hc_pos
-    simp only [hc_int_def, hlogc_int_def, hlogc_approx_def, hlogc_error_def] at hlog_approx
     have hz_pos : 0 < z := by
       simp only [IntervalRat.mem_def] at hz
       exact lt_of_lt_of_le (by exact_mod_cast hpos) hz.1
@@ -526,7 +529,7 @@ theorem tmLog_correct (J : IntervalRat) (n : ℕ)
     have htri : |r| ≤ |Real.log z - Real.log c - Polynomial.aeval (z - (c : ℝ)) base_poly| +
         |Real.log c - logc_approx| := by
       rw [hr_decomp]
-      exact abs_add _ _
+      exact abs_add_le _ _
     have hlog_part : |Real.log c - logc_approx| ≤ logc_error := hlog_approx
     have hTaylor_part : |Real.log z - Real.log c - Polynomial.aeval (z - (c : ℝ)) base_poly| ≤
         (logLagrangeRemainder J c n : ℝ) := by
