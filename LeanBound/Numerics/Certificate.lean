@@ -779,7 +779,7 @@ Useful for adaptive subdivision algorithms.
 /-- Any x in [lo, hi] is in [lo, mid] or [mid, hi] for any mid in between -/
 theorem mem_split_general {lo mid hi : ℚ} {x : ℝ}
     (hx : x ∈ Set.Icc (lo : ℝ) (hi : ℝ))
-    (hLeMid : lo ≤ mid) (hMidLe : mid ≤ hi) :
+    (_hLeMid : lo ≤ mid) (_hMidLe : mid ≤ hi) :
     x ∈ Set.Icc (lo : ℝ) (mid : ℝ) ∨ x ∈ Set.Icc (mid : ℝ) (hi : ℝ) := by
   simp only [Set.mem_Icc] at hx ⊢
   by_cases h : x ≤ mid
@@ -791,7 +791,7 @@ theorem mem_split_general {lo mid hi : ℚ} {x : ℝ}
 /-- Combine upper bounds from two arbitrary adjacent intervals.
     If f ≤ c on [lo, mid] and f ≤ c on [mid, hi], then f ≤ c on [lo, hi]. -/
 theorem verify_upper_bound_general_split (e : Expr) (hsupp : ExprSupportedCore e)
-    (lo mid hi : ℚ) (hLo : lo ≤ mid) (hHi : mid ≤ hi) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
+    (lo mid hi : ℚ) (hLo : lo ≤ mid) (hHi : mid ≤ hi) (_hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
     (h_left : checkUpperBound e ⟨lo, mid, hLo⟩ c cfg = true)
     (h_right : checkUpperBound e ⟨mid, hi, hHi⟩ c cfg = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e ≤ c := by
@@ -804,7 +804,7 @@ theorem verify_upper_bound_general_split (e : Expr) (hsupp : ExprSupportedCore e
 
 /-- Combine lower bounds from two arbitrary adjacent intervals. -/
 theorem verify_lower_bound_general_split (e : Expr) (hsupp : ExprSupportedCore e)
-    (lo mid hi : ℚ) (hLo : lo ≤ mid) (hHi : mid ≤ hi) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
+    (lo mid hi : ℚ) (hLo : lo ≤ mid) (hHi : mid ≤ hi) (_hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
     (h_left : checkLowerBound e ⟨lo, mid, hLo⟩ c cfg = true)
     (h_right : checkLowerBound e ⟨mid, hi, hHi⟩ c cfg = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c ≤ Expr.eval (fun _ => x) e := by
@@ -817,7 +817,7 @@ theorem verify_lower_bound_general_split (e : Expr) (hsupp : ExprSupportedCore e
 
 /-- Combine strict upper bounds from two arbitrary adjacent intervals. -/
 theorem verify_strict_upper_bound_general_split (e : Expr) (hsupp : ExprSupportedCore e)
-    (lo mid hi : ℚ) (hLo : lo ≤ mid) (hHi : mid ≤ hi) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
+    (lo mid hi : ℚ) (hLo : lo ≤ mid) (hHi : mid ≤ hi) (_hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
     (h_left : checkStrictUpperBound e ⟨lo, mid, hLo⟩ c cfg = true)
     (h_right : checkStrictUpperBound e ⟨mid, hi, hHi⟩ c cfg = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e < c := by
@@ -830,7 +830,7 @@ theorem verify_strict_upper_bound_general_split (e : Expr) (hsupp : ExprSupporte
 
 /-- Combine strict lower bounds from two arbitrary adjacent intervals. -/
 theorem verify_strict_lower_bound_general_split (e : Expr) (hsupp : ExprSupportedCore e)
-    (lo mid hi : ℚ) (hLo : lo ≤ mid) (hHi : mid ≤ hi) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
+    (lo mid hi : ℚ) (hLo : lo ≤ mid) (hHi : mid ≤ hi) (_hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
     (h_left : checkStrictLowerBound e ⟨lo, mid, hLo⟩ c cfg = true)
     (h_right : checkStrictLowerBound e ⟨mid, hi, hHi⟩ c cfg = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c < Expr.eval (fun _ => x) e := by

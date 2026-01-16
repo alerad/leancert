@@ -412,7 +412,7 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
 
   -- 6. Prove membership (x ∈ I)
   trace[LeanBound.discovery] "Proving membership..."
-  let memGoal ← getMainGoal
+  let _memGoal ← getMainGoal
   try
     evalTactic (← `(tactic| simp only [Set.mem_Icc]; constructor <;> native_decide))
   catch _ =>
@@ -449,9 +449,9 @@ unsafe def elabIntervalArgmax : Tactic := fun stx => do
   intervalArgmaxCore depth
 
 /-- The interval_argmin tactic implementation -/
-unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
-  let goal ← getMainGoal
-  let goalType ← goal.getType
+unsafe def intervalArgminCore (_taylorDepth : Nat) : TacticM Unit := do
+  let _goal ← getMainGoal
+  let _goalType ← _goal.getType
 
   -- For argmin, the goal is: ∃ x ∈ I, ∀ y ∈ I, f(x) ≤ f(y)
   -- This is similar to argmax but with the inequality reversed

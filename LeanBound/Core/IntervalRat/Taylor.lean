@@ -1402,7 +1402,7 @@ theorem atanh_taylor_remainder_in_interval {q : ℚ} (hq : |(q : ℝ)| < 1) (n :
             have hk_le' : Nat.succ k ≤ m := by
               simpa [m] using hk_le
             exact (Nat.succ_le_iff).1 hk_le'
-          exact ⟨k, Finset.mem_range.2 hk_lt, by simpa [hk]⟩
+          exact ⟨k, Finset.mem_range.2 hk_lt, by simp [hk]⟩
         · intro k hk
           simp [term]
 

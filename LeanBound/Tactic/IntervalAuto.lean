@@ -2473,13 +2473,13 @@ private partial def proveUpperBoundWithSubdiv
   -- Try left half [lo, mid]
   let leftProof ← proveUpperBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some leftProof := leftProof
+  let some _ := leftProof
     | trace[interval_decide] "Left half failed"; return none
 
   -- Try right half [mid, hi]
   let rightProof ← proveUpperBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some rightProof := rightProof
+  let some _ := rightProof
     | trace[interval_decide] "Right half failed"; return none
 
   -- Build certificate proofs for the split theorem
@@ -2629,13 +2629,13 @@ private partial def proveLowerBoundWithSubdiv
   -- Try left half [lo, mid]
   let leftProof ← proveLowerBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some leftProof := leftProof
+  let some _ := leftProof
     | trace[interval_decide] "Left half failed"; return none
 
   -- Try right half [mid, hi]
   let rightProof ← proveLowerBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some rightProof := rightProof
+  let some _ := rightProof
     | trace[interval_decide] "Right half failed"; return none
 
   -- Build certificate proofs for the split theorem
@@ -2779,13 +2779,13 @@ private partial def proveStrictUpperBoundWithSubdiv
   -- Try left half [lo, mid]
   let leftProof ← proveStrictUpperBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some leftProof := leftProof
+  let some _ := leftProof
     | trace[interval_decide] "Left half failed"; return none
 
   -- Try right half [mid, hi]
   let rightProof ← proveStrictUpperBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some rightProof := rightProof
+  let some _ := rightProof
     | trace[interval_decide] "Right half failed"; return none
 
   -- Build certificate proofs for the split theorem
@@ -2877,13 +2877,13 @@ private partial def proveStrictLowerBoundWithSubdiv
   -- Try left half [lo, mid]
   let leftProof ← proveStrictLowerBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some leftProof := leftProof
+  let some _ := leftProof
     | trace[interval_decide] "Left half failed"; return none
 
   -- Try right half [mid, hi]
   let rightProof ← proveStrictLowerBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some rightProof := rightProof
+  let some _ := rightProof
     | trace[interval_decide] "Right half failed"; return none
 
   -- Build certificate proofs for the split theorem
