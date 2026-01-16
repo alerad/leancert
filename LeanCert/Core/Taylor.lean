@@ -7,7 +7,7 @@ import Mathlib.Analysis.Calculus.Taylor
 import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
-import LeanBound.Core.DerivativeIntervals
+import LeanCert.Core.DerivativeIntervals
 /-!
 # Generic Taylor Series Abstractions
 
@@ -867,7 +867,7 @@ theorem sinh_cosh_deriv_bound {a b : ℝ} (_hab : a ≤ b) (n : ℕ) :
       rw [iteratedDeriv_succ']
       have hderiv : deriv Real.sinh = Real.cosh := by
         funext x
-        exact LeanBound.Core.DerivativeIntervals.sinh_deriv_eq x
+        exact LeanCert.Core.DerivativeIntervals.sinh_deriv_eq x
       rw [hderiv]
       exact ih.2
     · -- cosh case: d/dx cosh = sinh

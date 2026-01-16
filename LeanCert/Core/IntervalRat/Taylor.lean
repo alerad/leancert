@@ -3,10 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanBound.Core.IntervalRat.Basic
-import LeanBound.Core.IntervalRat.LogReduction
-import LeanBound.Core.Taylor
-import LeanBound.Core.Expr
+import LeanCert.Core.IntervalRat.Basic
+import LeanCert.Core.IntervalRat.LogReduction
+import LeanCert.Core.Taylor
+import LeanCert.Core.Expr
 import Mathlib.Analysis.Complex.ExponentialBounds
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecificLimits.Normed

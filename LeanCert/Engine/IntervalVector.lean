@@ -31,7 +31,7 @@ enabling verified linear algebra computations.
 
 namespace LeanCert.Engine
 
-open LeanBound.Core
+open LeanCert.Core
 -- open Core
 -- open Core.Dyadic
 

@@ -1,11 +1,11 @@
 /-
-Copyright (c) 2024 LeanBound Contributors. All rights reserved.
+Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: LeanBound Contributors
+Authors: LeanCert Contributors
 -/
-import LeanBound.Core.Expr
-import LeanBound.Core.IntervalReal
-import LeanBound.Core.IntervalRealEndpoints
+import LeanCert.Core.Expr
+import LeanCert.Core.IntervalReal
+import LeanCert.Core.IntervalRealEndpoints
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
@@ -14,7 +14,7 @@ import Mathlib.Analysis.Real.Pi.Bounds
 /-!
 # Interval Evaluation of Expressions
 
-This file implements interval evaluation for `LeanBound.Core.Expr`. Given an
+This file implements interval evaluation for `LeanCert.Core.Expr`. Given an
 expression and intervals for its variables, we compute an interval guaranteed
 to contain all possible values.
 
@@ -45,9 +45,9 @@ Not yet supported in `ExprSupportedCore`: inv (requires nonzero interval checks)
 log (requires positive interval checks); use `evalInterval?` for these.
 -/
 
-namespace LeanBound.Numerics
+namespace LeanCert.Numerics
 
-open LeanBound.Core
+open LeanCert.Core
 
 /-! ### Core supported expression subset (computable) -/
 
@@ -1218,4 +1218,4 @@ theorem expr_ge_of_mem_interval (e : Expr) (hsupp : ExprSupported e)
     c ≤ Expr.eval (fun _ => x) e :=
   expr_ge_of_interval_lo e hsupp I c hlo x hx
 
-end LeanBound.Numerics
+end LeanCert.Numerics
