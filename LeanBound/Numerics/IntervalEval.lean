@@ -45,7 +45,7 @@ Not yet supported in `ExprSupportedCore`: inv (requires nonzero interval checks)
 log (requires positive interval checks); use `evalInterval?` for these.
 -/
 
-namespace LeanCert.Numerics
+namespace LeanCert.Engine
 
 open LeanCert.Core
 
@@ -1218,4 +1218,4 @@ theorem expr_ge_of_mem_interval (e : Expr) (hsupp : ExprSupported e)
     c ≤ Expr.eval (fun _ => x) e :=
   expr_ge_of_interval_lo e hsupp I c hlo x hx
 
-end LeanCert.Numerics
+end LeanCert.Engine
