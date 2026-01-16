@@ -275,9 +275,33 @@ partial def toLeanBoundExpr (e : Lean.Expr) : TranslateM Lean.Expr := do
     if unfolded != e then
       toLeanBoundExpr unfolded
     else
-      throwError "Unsupported expression for LeanBound: {e}"
+      let eTy ← inferType e
+      let ePP ← Meta.ppExpr e
+      let eTyPP ← Meta.ppExpr eTy
+      throwError "Unsupported expression for LeanBound: {ePP}\n\n\
+                  Expression type: {eTyPP}\n\n\
+                  Supported operations:\n\
+                  • Arithmetic: +, -, *, /, ^ (with constant exponent)\n\
+                  • Transcendentals: Real.sin, Real.cos, Real.exp, Real.log\n\
+                  • Constants: rational numbers, Real.pi\n\n\
+                  Suggestions:\n\
+                  • If using a custom definition, try unfolding it first with `simp only [myDef]`\n\
+                  • Check that all functions are from the Real namespace\n\
+                  • Complex expressions may need manual rewriting"
   | none =>
-    throwError "Unsupported expression for LeanBound: {e}"
+    let eTy ← inferType e
+    let ePP ← Meta.ppExpr e
+    let eTyPP ← Meta.ppExpr eTy
+    throwError "Unsupported expression for LeanBound: {ePP}\n\n\
+                Expression type: {eTyPP}\n\n\
+                Supported operations:\n\
+                • Arithmetic: +, -, *, /, ^ (with constant exponent)\n\
+                • Transcendentals: Real.sin, Real.cos, Real.exp, Real.log\n\
+                • Constants: rational numbers, Real.pi\n\n\
+                Suggestions:\n\
+                • If using a custom definition, try unfolding it first with `simp only [myDef]`\n\
+                • Check that all functions are from the Real namespace\n\
+                • Complex expressions may need manual rewriting"
 
 where
   /-- Try to match the expression against known patterns. -/

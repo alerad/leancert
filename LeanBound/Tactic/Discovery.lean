@@ -355,7 +355,13 @@ unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
   let goalType ← goal.getType
 
   let some (.minimize _varName varType domainExpr funcExpr) ← parseExistentialGoal goalType
-    | throwError "interval_minimize: Goal must be of form `∃ m, ∀ x ∈ I, f(x) ≥ m`"
+    | let diagReport ← LeanBound.Tactic.Auto.mkDiagnosticReport "interval_minimize" goalType "parse"
+        (some m!"Expected form: ∃ m, ∀ x ∈ I, f(x) ≥ m\n\n\
+                 Where:\n\
+                 • m is a rational bound variable\n\
+                 • x is the quantified variable over interval I\n\
+                 • f(x) is an expression supported by LeanBound")
+      throwError "interval_minimize: Could not parse goal.\n\n{diagReport}"
 
   trace[LeanBound.discovery] "Parsing goal: ∃ m, ∀ x ∈ I, f(x) ≥ m"
   trace[LeanBound.discovery] "Function expression: {funcExpr}"
@@ -447,7 +453,13 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
   let goalType ← goal.getType
 
   let some (.maximize _varName varType domainExpr funcExpr) ← parseExistentialGoal goalType
-    | throwError "interval_maximize: Goal must be of form `∃ M, ∀ x ∈ I, f(x) ≤ M`"
+    | let diagReport ← LeanBound.Tactic.Auto.mkDiagnosticReport "interval_maximize" goalType "parse"
+        (some m!"Expected form: ∃ M, ∀ x ∈ I, f(x) ≤ M\n\n\
+                 Where:\n\
+                 • M is a rational bound variable\n\
+                 • x is the quantified variable over interval I\n\
+                 • f(x) is an expression supported by LeanBound")
+      throwError "interval_maximize: Could not parse goal.\n\n{diagReport}"
 
   trace[LeanBound.discovery] "Parsing goal: ∃ M, ∀ x ∈ I, f(x) ≤ M"
   trace[LeanBound.discovery] "Function expression: {funcExpr}"
@@ -584,7 +596,10 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
   let goalType ← goal.getType
 
   let some (.argmax _varName domainExpr funcExpr) ← parseArgmaxGoal goalType
-    | throwError "interval_argmax: Goal must be of form `∃ x ∈ I, ∀ y ∈ I, f(y) ≤ f(x)`"
+    | let diagReport ← LeanBound.Tactic.Auto.mkDiagnosticReport "interval_argmax" goalType "parse"
+        (some m!"Expected form: ∃ x ∈ I, ∀ y ∈ I, f(y) ≤ f(x)\n\n\
+                 This proves existence of a maximizer point x in I.")
+      throwError "interval_argmax: Could not parse goal.\n\n{diagReport}"
 
   trace[LeanBound.discovery] "Parsing argmax goal: ∃ x ∈ I, ∀ y ∈ I, f(y) ≤ f(x)"
   trace[LeanBound.discovery] "Function expression: {funcExpr}"
@@ -1045,7 +1060,11 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
 
   -- 1. Parse the goal
   let some (.existsRoot _varName interval func) ← parseRootExistsGoal goalType
-    | throwError "interval_roots: Goal must be of form `∃ x ∈ I, f(x) = 0`"
+    | let diagReport ← LeanBound.Tactic.Auto.mkDiagnosticReport "interval_roots" goalType "parse"
+        (some m!"Expected form: ∃ x ∈ I, f(x) = 0\n\n\
+                 The function f must be continuous on interval I.\n\
+                 Uses intermediate value theorem to find roots.")
+      throwError "interval_roots: Could not parse goal.\n\n{diagReport}"
 
   goal.withContext do
     let mut fromSetIcc := false

@@ -44,6 +44,16 @@ open Lean Meta Elab Tactic Term
 -- Debug trace option for interval_decide
 initialize registerTraceClass `interval_decide
 
+-- Unified debug option for all interval tactics
+register_option leanbound.debug : Bool := {
+  defValue := false
+  descr := "Enable detailed diagnostic output for all LeanBound interval tactics"
+}
+
+/-- Check if LeanBound debug mode is enabled -/
+def isLeanBoundDebugEnabled : CoreM Bool :=
+  return (← getOptions).getBool `leanbound.debug false
+
 namespace LeanBound.Tactic.Auto
 
 open LeanBound.Meta
@@ -777,6 +787,97 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
                   (Could not extract rational from bound for comparison)"
     catch e =>
       return m!"(Diagnostic computation failed: {e.toMessageData})"
+
+/-! ## Shared Diagnostic Helpers -/
+
+/-- Format goal context for diagnostic output, showing both normal and detailed forms -/
+def formatGoalContext (goalType : Lean.Expr) : MetaM MessageData := do
+  let goalNormal ← Meta.ppExpr goalType
+  let goalAll ← withOptions (fun opts => opts.setBool `pp.all true) (Meta.ppExpr goalType)
+  return m!"Goal: {goalNormal}\n\nGoal (detailed): {goalAll}"
+
+/-- Count foralls in an expression (for diagnostics) -/
+private partial def countForallsAux (e : Lean.Expr) (depth : Nat) : MetaM (Nat × Option String) := do
+  if depth > 20 then return (0, some "too deeply nested")
+  if e.isForall then
+    let .forallE name ty body _ := e | return (0, none)
+    withLocalDeclD name ty fun x => do
+      let (n, issue) ← countForallsAux (body.instantiate1 x) (depth + 1)
+      return (n + 1, issue)
+  else
+    return (0, none)
+
+/-- Find comparison operator at the body of a goal (for diagnostics) -/
+private partial def findComparisonAux (e : Lean.Expr) (depth : Nat) : MetaM (Option String) := do
+  if depth > 20 then return none
+  let e ← whnf e
+  if e.isForall then
+    let .forallE name ty body _ := e | return none
+    withLocalDeclD name ty fun x =>
+      findComparisonAux (body.instantiate1 x) (depth + 1)
+  else
+    match_expr e with
+    | LE.le _ _ _ _ => return some "≤"
+    | GE.ge _ _ _ _ => return some "≥"
+    | LT.lt _ _ _ _ => return some "<"
+    | GT.gt _ _ _ _ => return some ">"
+    | Eq _ _ _ => return some "="
+    | Ne _ _ _ => return some "≠"
+    | _ => return none
+
+/-- Analyze goal structure and report what was found vs expected -/
+def analyzeGoalStructure (goalType : Lean.Expr) : MetaM MessageData := do
+  let goalType ← whnf goalType
+  let mut findings := #[]
+
+  let (numForalls, nestIssue) ← countForallsAux goalType 0
+  findings := findings.push m!"• Found {numForalls} quantifier(s)"
+
+  if let some issue := nestIssue then
+    findings := findings.push m!"• Warning: {issue}"
+
+  if let some comp ← findComparisonAux goalType 0 then
+    findings := findings.push m!"• Found comparison: {comp}"
+  else
+    findings := findings.push m!"• No comparison operator found at goal body"
+
+  return MessageData.joinSep findings.toList "\n"
+
+/-- Suggest next actions based on failure type -/
+def suggestNextActions (failureType : String) : MessageData :=
+  match failureType with
+  | "parse" => m!"Suggestions:\n\
+      • Ensure goal has form: ∀ x ∈ I, f(x) ≤ c (or ≥, <, >)\n\
+      • Try `interval_norm` to normalize the goal first\n\
+      • Check that bounds are rational (not Real.pi, Real.sqrt, etc.)"
+  | "precision" => m!"Suggestions:\n\
+      • Try increasing Taylor depth: `interval_bound 50`\n\
+      • Try subdivision: `interval_bound_subdiv 20 5`\n\
+      • The bound may be too tight for automatic verification"
+  | "reify" => m!"Suggestions:\n\
+      • Check that all functions are supported (sin, cos, exp, log, pow, etc.)\n\
+      • Try unfolding custom definitions with `simp only [myDef]`\n\
+      • See LeanBound documentation for supported expressions"
+  | "domain" => m!"Suggestions:\n\
+      • Ensure domain is Set.Icc, IntervalRat, or arrow/And bounds\n\
+      • Try rewriting with `simp only [Set.mem_Icc]`"
+  | _ => m!"Suggestions:\n\
+      • Check the error message above for specific guidance\n\
+      • Try `set_option leanbound.debug true` for detailed traces"
+
+/-- Create a full diagnostic report for a failed tactic -/
+def mkDiagnosticReport (tacticName : String) (goalType : Lean.Expr)
+    (failureType : String) (additionalInfo : Option MessageData := none) : MetaM MessageData := do
+  let goalCtx ← formatGoalContext goalType
+  let analysis ← analyzeGoalStructure goalType
+  let suggestions := suggestNextActions failureType
+  let extra := match additionalInfo with
+    | some info => m!"\n\nAdditional Info:\n{info}"
+    | none => m!""
+  return m!"─── {tacticName} Diagnostic ───\n\n\
+            {goalCtx}\n\n\
+            Structure Analysis:\n{analysis}\n\n\
+            {suggestions}{extra}"
 
 /-! ## Main Tactic Implementation -/
 
@@ -1793,11 +1894,15 @@ def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : 
   -- Parse the multivariate goal
   let parsed ← parseMultivariateBoundGoal goalType
   let some boundGoal := parsed
-    | let fmt ← withOptions (fun opts => opts.setBool `pp.all true) (Meta.ppExpr goalType)
-      trace[LeanBound.discovery] "multivariate_bound goal (pp.all): {fmt}"
-      throwError "multivariate_bound: Could not parse goal as multivariate bound. Expected:\n\
-                  • ∀ x ∈ I, ∀ y ∈ J, ... f(x,y,...) ≤ c\n\
-                  • ∀ x ∈ I, ∀ y ∈ J, ... c ≤ f(x,y,...)"
+    | let diagReport ← mkDiagnosticReport "multivariate_bound" goalType "parse"
+        (some m!"Expected forms:\n\
+                 • ∀ x ∈ I, ∀ y ∈ J, ... f(x,y,...) ≤ c\n\
+                 • ∀ x ∈ I, ∀ y ∈ J, ... c ≤ f(x,y,...)\n\n\
+                 Domain formats accepted:\n\
+                 • x ∈ Set.Icc a b\n\
+                 • a ≤ x ∧ x ≤ b\n\
+                 • a ≤ x → x ≤ b → ...")
+      throwError "multivariate_bound: Could not parse goal as multivariate bound.\n\n{diagReport}"
 
   match boundGoal with
   | .forallLe vars func bound =>
@@ -2324,12 +2429,11 @@ def rootBoundCore (taylorDepth : Nat) : TacticM Unit := do
 
   -- Parse the goal
   let some rootGoal ← parseRootGoal goalType
-    | do
-      let goalWhnf ← whnf goalType
-      throwError "root_bound: Could not parse goal as a root goal. Expected:\n\
-                  • ∀ x ∈ I, f x ≠ 0\n\
-                  \nGoal type: {goalType}\n\
-                  Goal (whnf): {goalWhnf}"
+    | let diagReport ← mkDiagnosticReport "root_bound" goalType "parse"
+        (some m!"Expected form: ∀ x ∈ I, f x ≠ 0\n\n\
+                 The function f must be continuous and supported by LeanBound.\n\
+                 The interval I must be Set.Icc or equivalent.")
+      throwError "root_bound: Could not parse goal as a root goal.\n\n{diagReport}"
 
   match rootGoal with
   | .forallNeZero _name interval func =>
@@ -2820,7 +2924,12 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
   trace[interval_decide] "intervalDecideCore: goal type = {goalType}"
 
   let some (lhs, rhs, _isStrict, isReversed) ← parsePointIneq goalType
-    | throwError "interval_decide: Expected a point inequality (≤, <, ≥, >)"
+    | let diagReport ← mkDiagnosticReport "interval_decide" goalType "parse"
+        (some m!"Expected a point inequality of form:\n\
+                 • expr ≤ bound  (or <, ≥, >)\n\
+                 • e.g., Real.exp 1 ≤ 3\n\n\
+                 For universally quantified goals, use `interval_bound` instead.")
+      throwError "interval_decide: Could not parse as point inequality.\n\n{diagReport}"
 
   -- Determine which side has the transcendental function by checking where we find rational constants
   -- If lhs has only rational constants and rhs doesn't (or vice versa), swap appropriately
@@ -2924,8 +3033,17 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
 
   -- Provide helpful error message with manual workaround
   let cStr := if c.den == 1 then s!"{c.num}" else s!"{c.num}/{c.den}"
+  let funcStr ← Meta.ppExpr funcExpr
+  let boundStr ← Meta.ppExpr boundExpr
   throwError "interval_decide: Could not automatically prove this inequality.\n\n\
-              Use the manual workaround pattern:\n\
+              Detected:\n\
+              • Function: {funcStr}\n\
+              • Bound: {boundStr}\n\
+              • Evaluation point: {cStr}\n\n\
+              Suggestions:\n\
+              • Try increasing depth: `interval_decide 30`\n\
+              • Check if the bound is mathematically correct\n\n\
+              Manual workaround pattern:\n\
               ```lean\n\
               have h : ∀ x ∈ Set.Icc ({cStr}:ℝ) {cStr}, f x ≤ bound := by interval_bound\n\
               exact h {cStr} ⟨le_refl {cStr}, le_refl {cStr}⟩\n\
