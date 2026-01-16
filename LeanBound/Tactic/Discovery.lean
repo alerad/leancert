@@ -77,8 +77,8 @@ unsafe def parseDomainToBox (domainExpr : Lean.Expr) : MetaM Box := do
 
 /-- Check if the goal is an existential bound: `∃ m, ∀ x ∈ I, f(x) ≥ m` or `≤ m` -/
 inductive ExistentialBoundGoal where
-  | minimize (varName : Name) (domain : Lean.Expr) (func : Lean.Expr)
-  | maximize (varName : Name) (domain : Lean.Expr) (func : Lean.Expr)
+  | minimize (varName : Name) (varType : Lean.Expr) (domain : Lean.Expr) (func : Lean.Expr)
+  | maximize (varName : Name) (varType : Lean.Expr) (domain : Lean.Expr) (func : Lean.Expr)
 
 /-- Parse an existential bound goal.
     Supports goals of the form:
@@ -108,13 +108,13 @@ def parseExistentialGoal (goalType : Lean.Expr) : MetaM (Option ExistentialBound
              -- The bound might be a coercion of m, so check if it contains m
              let boundContainsM := bound.containsFVar m.fvarId!
              if boundContainsM then
-               return some (.minimize _name intervalInfo.intervalRat func)
+               return some (.minimize _name mTy intervalInfo.intervalRat func)
              else return none
           | .forallLe _name intervalInfo func bound =>
              -- f(x) ≤ c where c is m
              let boundContainsM := bound.containsFVar m.fvarId!
              if boundContainsM then
-               return some (.maximize _name intervalInfo.intervalRat func)
+               return some (.maximize _name mTy intervalInfo.intervalRat func)
              else return none
           | _ => return none
         else return none
@@ -155,6 +155,197 @@ def getAstFromFunc (func : Lean.Expr) : TacticM Lean.Expr := do
                       Supported operations: +, -, *, /, sin, cos, exp, log, sqrt, π, ...\n\
                       Tip: Unfold custom definitions with 'simp only [myDef]' first."
 
+/-! ### Domain normalization helpers -/
+
+private def extractNatLit (e : Lean.Expr) : MetaM (Option ℕ) := do
+  if let some n := e.rawNatLit? then
+    return some n
+  let e ← whnf e
+  if let some n := e.rawNatLit? then
+    return some n
+  else return none
+
+private def extractIntLit (e : Lean.Expr) : MetaM (Option ℤ) := do
+  let e ← whnf e
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  if fn.isConstOf ``Int.ofNat then
+    if args.size > 0 then
+      if let some n ← extractNatLit args[0]! then
+        return some (n : ℤ)
+    return none
+  else if fn.isConstOf ``Int.negSucc then
+    if args.size > 0 then
+      if let some n ← extractNatLit args[0]! then
+        return some (-(n + 1 : ℤ))
+    return none
+  else
+    return none
+
+private def extractRatFromRat (e : Lean.Expr) : MetaM (Option ℚ) := do
+  let e ← whnf e
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  if fn.isConstOf ``Rat.ofInt then
+    if args.size > 0 then
+      if let some i ← extractIntLit args[0]! then
+        return some (i : ℚ)
+    return none
+  else if fn.isConstOf ``OfNat.ofNat then
+    if args.size >= 2 then
+      if let some n ← extractNatLit args[1]! then
+        return some (n : ℚ)
+    return none
+  else if fn.isConstOf ``Rat.mk' then
+    return none
+  else
+    return none
+
+/-- Try to extract a rational value from a Lean expression that represents a real number.
+    Handles: Rat.cast, OfNat.ofNat, Nat.cast, Int.cast, negations, and divisions. -/
+partial def extractRatFromReal (e : Lean.Expr) : MetaM (Option ℚ) := do
+  -- First try without whnf (preserves structure like OfNat.ofNat)
+  if let some q ← tryExtract e then
+    return some q
+  -- Then try with whnf
+  let e ← whnf e
+  tryExtract e
+where
+  tryExtract (e : Lean.Expr) : MetaM (Option ℚ) := do
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+
+    -- Case 1: Rat.cast q or RatCast.ratCast q
+    if fn.isConstOf ``Rat.cast || fn.isConstOf ``RatCast.ratCast then
+      if args.size > 0 then
+        return ← extractRatFromRat args.back!
+      else return none
+
+    -- Case 2: OfNat.ofNat (for numeric literals like 2 : ℝ)
+    else if fn.isConstOf ``OfNat.ofNat then
+      if args.size >= 2 then
+        if let some n ← extractNatLit args[1]! then
+          return some (n : ℚ)
+      return none
+
+    -- Case 3: Nat.cast n
+    else if fn.isConstOf ``Nat.cast || fn.isConstOf ``NatCast.natCast then
+      if args.size > 0 then
+        if let some n ← extractNatLit args.back! then
+          return some (n : ℚ)
+      return none
+
+    -- Case 4: Int.cast i
+    else if fn.isConstOf ``Int.cast || fn.isConstOf ``IntCast.intCast then
+      if args.size > 0 then
+        if let some i ← extractIntLit args.back! then
+          return some (i : ℚ)
+      return none
+
+    -- Case 5: Neg.neg x (for negative numbers)
+    else if fn.isConstOf ``Neg.neg then
+      if args.size > 0 then
+        if let some q ← extractRatFromReal args.back! then
+          return some (-q)
+      return none
+
+    -- Case 6: HDiv.hDiv a b (for fractions like 1/2)
+    else if fn.isConstOf ``HDiv.hDiv then
+      if args.size >= 6 then
+        if let some a ← extractRatFromReal args[4]! then
+          if let some b ← extractRatFromReal args[5]! then
+            if b ≠ 0 then
+              return some (a / b)
+      return none
+
+    -- Case 7: OfScientific.ofScientific (for decimal literals like 2.72)
+    else if fn.isConstOf ``OfScientific.ofScientific then
+      if args.size >= 5 then
+        if let some mantissa ← extractNatLit args[2]! then
+          let isNegExp := args[3]!.isConstOf ``Bool.true
+          if let some exp ← extractNatLit args[4]! then
+            let base : ℚ := 10
+            if isNegExp then
+              return some ((mantissa : ℚ) / (base ^ exp))
+            else
+              return some ((mantissa : ℚ) * (base ^ exp))
+      return none
+
+    else
+      return none
+
+private def tryConvertSetIcc (interval : Lean.Expr) : MetaM (Option Lean.Expr) := do
+  let getLeArgs (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+    if fn.isConstOf ``LE.le && args.size >= 4 then
+      return some (args[2]!, args[3]!)
+    return none
+
+  let extractLowerBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some (a, b) ← getLeArgs e then
+      if ← isDefEq b x then
+        return some a
+    return none
+
+  let extractUpperBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some (a, b) ← getLeArgs e then
+      if ← isDefEq a x then
+        return some b
+    return none
+
+  let parseSetIccBounds (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+    if fn.isConstOf ``Set.Icc && args.size >= 4 then
+      return some (args[2]!, args[3]!)
+    return none
+
+  let parseSetIccLambda (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    match e with
+    | Lean.Expr.lam name ty body _ =>
+      withLocalDeclD name ty fun x => do
+        let bodyInst := body.instantiate1 x
+        let fn := bodyInst.getAppFn
+        let args := bodyInst.getAppArgs
+        if fn.isConstOf ``And && args.size >= 2 then
+          let left := args[0]!
+          let right := args[1]!
+          if let some lo ← extractLowerBound left x then
+            if let some hi ← extractUpperBound right x then
+              return some (lo, hi)
+          if let some lo ← extractLowerBound right x then
+            if let some hi ← extractUpperBound left x then
+              return some (lo, hi)
+        return none
+    | _ => return none
+
+  let parseBounds (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    if let some bounds ← parseSetIccBounds e then
+      return some bounds
+    parseSetIccLambda e
+
+  let mkIntervalRatFromBounds (loExpr hiExpr : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some lo ← extractRatFromReal loExpr then
+      if let some hi ← extractRatFromReal hiExpr then
+        let loRatExpr := toExpr lo
+        let hiRatExpr := toExpr hi
+        let leProofTy ← mkAppM ``LE.le #[loRatExpr, hiRatExpr]
+        let leProof ← mkDecideProof leProofTy
+        let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
+        return some intervalRat
+    return none
+
+  if let some (loExpr, hiExpr) ← parseBounds interval then
+    if let some intervalRat ← mkIntervalRatFromBounds loExpr hiExpr then
+      return some intervalRat
+  let intervalWhnf ← withTransparency TransparencyMode.all <| whnf interval
+  if intervalWhnf == interval then
+    return none
+  if let some (loExpr, hiExpr) ← parseBounds intervalWhnf then
+    return ← mkIntervalRatFromBounds loExpr hiExpr
+  return none
+
 /-! ## Minimization Tactic -/
 
 /-- The interval_minimize tactic implementation -/
@@ -162,7 +353,7 @@ unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
-  let some (.minimize _varName domainExpr funcExpr) ← parseExistentialGoal goalType
+  let some (.minimize _varName varType domainExpr funcExpr) ← parseExistentialGoal goalType
     | throwError "interval_minimize: Goal must be of form `∃ m, ∀ x ∈ I, f(x) ≥ m`"
 
   trace[LeanBound.discovery] "Parsing goal: ∃ m, ∀ x ∈ I, f(x) ≥ m"
@@ -185,6 +376,10 @@ unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
   }
 
   -- Note: safely evaluating the domain expression from syntax to a value
+  let domainExpr ←
+    match ← tryConvertSetIcc domainExpr with
+    | some intervalRat => pure intervalRat
+    | none => pure domainExpr
   let domainVal ← evalExpr IntervalRat (mkConst ``IntervalRat) domainExpr
   let boxVal : Box := [domainVal]
   trace[LeanBound.discovery] "Domain: [{domainVal.lo}, {domainVal.hi}]"
@@ -208,9 +403,18 @@ unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
   -- 4. Provide witness and prove the bound
   -- Note: Coerce to ℝ since Expr.eval returns ℝ
   let boundRatExpr := toExpr boundVal
-  let boundSyntax ← Term.exprToSyntax boundRatExpr
+  let boundTerm ←
+    match (← whnf varType) with
+    | ty =>
+      if ty.isConstOf ``Rat then
+        pure boundRatExpr
+      else if ty.isConstOf ``Real then
+        mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
+      else
+        throwError "interval_minimize: Unsupported bound type. Use ℚ or ℝ."
+  let boundSyntax ← Term.exprToSyntax boundTerm
   trace[LeanBound.discovery] "Providing witness: m = {boundVal}"
-  evalTactic (← `(tactic| refine ⟨(($boundSyntax : ℚ) : ℝ), ?_⟩))
+  evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
 
   -- 5. Now we have a goal `∀ x ∈ I, f(x) ≥ bound`
   trace[LeanBound.discovery] "Proving universal bound with interval_bound..."
@@ -240,7 +444,7 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
-  let some (.maximize _varName domainExpr funcExpr) ← parseExistentialGoal goalType
+  let some (.maximize _varName varType domainExpr funcExpr) ← parseExistentialGoal goalType
     | throwError "interval_maximize: Goal must be of form `∃ M, ∀ x ∈ I, f(x) ≤ M`"
 
   trace[LeanBound.discovery] "Parsing goal: ∃ M, ∀ x ∈ I, f(x) ≤ M"
@@ -261,6 +465,10 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
     gridPointsPerDim := 10
   }
 
+  let domainExpr ←
+    match ← tryConvertSetIcc domainExpr with
+    | some intervalRat => pure intervalRat
+    | none => pure domainExpr
   let domainVal ← evalExpr IntervalRat (mkConst ``IntervalRat) domainExpr
   let boxVal : Box := [domainVal]
   trace[LeanBound.discovery] "Domain: [{domainVal.lo}, {domainVal.hi}]"
@@ -281,9 +489,18 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
                   Consider increasing maxIterations or taylorDepth."
 
   let boundRatExpr := toExpr boundVal
-  let boundSyntax ← Term.exprToSyntax boundRatExpr
+  let boundTerm ←
+    match (← whnf varType) with
+    | ty =>
+      if ty.isConstOf ``Rat then
+        pure boundRatExpr
+      else if ty.isConstOf ``Real then
+        mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
+      else
+        throwError "interval_maximize: Unsupported bound type. Use ℚ or ℝ."
+  let boundSyntax ← Term.exprToSyntax boundTerm
   trace[LeanBound.discovery] "Providing witness: M = {boundVal}"
-  evalTactic (← `(tactic| refine ⟨(($boundSyntax : ℚ) : ℝ), ?_⟩))
+  evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
 
   -- Now prove the bound using intervalBoundCore
   trace[LeanBound.discovery] "Proving universal bound with interval_bound..."
@@ -385,6 +602,10 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
     gridPointsPerDim := 10
   }
 
+  let domainExpr ←
+    match ← tryConvertSetIcc domainExpr with
+    | some intervalRat => pure intervalRat
+    | none => pure domainExpr
   let domainVal ← evalExpr IntervalRat (mkConst ``IntervalRat) domainExpr
   let boxVal : Box := [domainVal]
   trace[LeanBound.discovery] "Domain: [{domainVal.lo}, {domainVal.hi}]"
@@ -414,7 +635,31 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanBound.discovery] "Proving membership..."
   let _memGoal ← getMainGoal
   try
-    evalTactic (← `(tactic| simp only [Set.mem_Icc]; constructor <;> native_decide))
+    let memGoal ← getMainGoal
+    let memType ← memGoal.getType
+    let memTypeWhnf ← whnf memType
+    match_expr memTypeWhnf with
+    | And _ _ =>
+      let memTypeWhnfSyntax ← Term.exprToSyntax memTypeWhnf
+      evalTactic (← `(tactic| change $memTypeWhnfSyntax))
+      evalTactic (← `(tactic| constructor <;> norm_cast))
+    | _ =>
+      match_expr memType with
+      | Membership.mem _ _ _ interval _xExpr =>
+        let intervalSyntax ← Term.exprToSyntax interval
+        evalTactic (← `(tactic| simp [($intervalSyntax:term), Set.mem_Icc]))
+      | _ =>
+        evalTactic (← `(tactic| simp [Set.mem_Icc]))
+      if (← getGoals).isEmpty then
+        pure ()
+      else
+        let memGoal ← getMainGoal
+        let memType ← memGoal.getType
+        match_expr memType with
+        | And _ _ =>
+          evalTactic (← `(tactic| constructor <;> norm_cast))
+        | _ =>
+          evalTactic (← `(tactic| norm_cast))
   catch _ =>
     try
       evalTactic (← `(tactic| decide))
@@ -472,9 +717,9 @@ unsafe def elabIntervalArgmin : Tactic := fun stx => do
 /-- Result of analyzing a multivariate existential bound goal -/
 inductive MultivariateExistentialGoal where
   /-- ∃ m, ∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≥ m (minimize) -/
-  | minimize (vars : Array LeanBound.Tactic.Auto.VarIntervalInfo) (func : Lean.Expr)
+  | minimize (varType : Lean.Expr) (vars : Array LeanBound.Tactic.Auto.VarIntervalInfo) (func : Lean.Expr)
   /-- ∃ M, ∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≤ M (maximize) -/
-  | maximize (vars : Array LeanBound.Tactic.Auto.VarIntervalInfo) (func : Lean.Expr)
+  | maximize (varType : Lean.Expr) (vars : Array LeanBound.Tactic.Auto.VarIntervalInfo) (func : Lean.Expr)
 
 /-- Parse a multivariate existential bound goal.
     Supports goals of the form:
@@ -495,13 +740,13 @@ def parseMultivariateExistentialGoal (goalType : Lean.Expr) :
             -- c ≤ f(...) where c should be our existential variable m
             let boundContainsM := bound.containsFVar m.fvarId!
             if boundContainsM then
-              return some (.minimize vars func)
+              return some (.minimize mTy vars func)
             else return none
           | .forallLe vars func bound =>
             -- f(...) ≤ c where c should be our existential variable m
             let boundContainsM := bound.containsFVar m.fvarId!
             if boundContainsM then
-              return some (.maximize vars func)
+              return some (.maximize mTy vars func)
             else return none
         else return none
     else return none
@@ -512,7 +757,7 @@ unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
-  let some (.minimize vars funcExpr) ← parseMultivariateExistentialGoal goalType
+  let some (.minimize varType vars funcExpr) ← parseMultivariateExistentialGoal goalType
     | throwError "interval_minimize_mv: Goal must be of form `∃ m, ∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≥ m`"
 
   trace[LeanBound.discovery] "Parsing multivariate goal: ∃ m, ∀ vars ∈ domains, f(...) ≥ m"
@@ -563,13 +808,22 @@ unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   -- 5. Provide witness and prove the bound
   -- Note: Coerce to ℝ since Expr.eval returns ℝ
   let boundRatExpr := toExpr boundVal
-  let boundSyntax ← Term.exprToSyntax boundRatExpr
+  let boundTerm ←
+    match (← whnf varType) with
+    | ty =>
+      if ty.isConstOf ``Rat then
+        pure boundRatExpr
+      else if ty.isConstOf ``Real then
+        mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
+      else
+        throwError "interval_minimize_mv: Unsupported bound type. Use ℚ or ℝ."
+  let boundSyntax ← Term.exprToSyntax boundTerm
   trace[LeanBound.discovery] "Providing witness: m = {boundVal}"
-  evalTactic (← `(tactic| refine ⟨(($boundSyntax : ℚ) : ℝ), ?_⟩))
+  evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
 
   -- 6. Now we have a multivariate goal `∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≥ bound`
   trace[LeanBound.discovery] "Proving multivariate universal bound with interval_bound..."
-  LeanBound.Tactic.Auto.intervalBoundCore taylorDepth
+  LeanBound.Tactic.Auto.multivariateBoundCore cfg.maxIterations cfg.tolerance cfg.useMonotonicity taylorDepth
   trace[LeanBound.discovery] "✓ Proof complete"
 
 /-- The interval_minimize_mv tactic.
@@ -593,7 +847,7 @@ unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
-  let some (.maximize vars funcExpr) ← parseMultivariateExistentialGoal goalType
+  let some (.maximize varType vars funcExpr) ← parseMultivariateExistentialGoal goalType
     | throwError "interval_maximize_mv: Goal must be of form `∃ M, ∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≤ M`"
 
   trace[LeanBound.discovery] "Parsing multivariate goal: ∃ M, ∀ vars ∈ domains, f(...) ≤ M"
@@ -644,13 +898,22 @@ unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   -- 5. Provide witness
   -- Note: Coerce to ℝ since Expr.eval returns ℝ
   let boundRatExpr := toExpr boundVal
-  let boundSyntax ← Term.exprToSyntax boundRatExpr
+  let boundTerm ←
+    match (← whnf varType) with
+    | ty =>
+      if ty.isConstOf ``Rat then
+        pure boundRatExpr
+      else if ty.isConstOf ``Real then
+        mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
+      else
+        throwError "interval_maximize_mv: Unsupported bound type. Use ℚ or ℝ."
+  let boundSyntax ← Term.exprToSyntax boundTerm
   trace[LeanBound.discovery] "Providing witness: M = {boundVal}"
-  evalTactic (← `(tactic| refine ⟨(($boundSyntax : ℚ) : ℝ), ?_⟩))
+  evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
 
   -- 6. Prove the multivariate bound
   trace[LeanBound.discovery] "Proving multivariate universal bound with interval_bound..."
-  LeanBound.Tactic.Auto.intervalBoundCore taylorDepth
+  LeanBound.Tactic.Auto.multivariateBoundCore cfg.maxIterations cfg.tolerance cfg.useMonotonicity taylorDepth
   trace[LeanBound.discovery] "✓ Proof complete"
 
 /-- The interval_maximize_mv tactic.
@@ -736,6 +999,19 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
     | throwError "interval_roots: Goal must be of form `∃ x ∈ I, f(x) = 0`"
 
   goal.withContext do
+    let mut fromSetIcc := false
+    let intervalExpr ←
+      match ← tryConvertSetIcc interval with
+      | some intervalRat =>
+          fromSetIcc := true
+          pure intervalRat
+      | none =>
+          let intervalTy ← inferType interval
+          if intervalTy.isConstOf ``IntervalRat then
+            pure interval
+          else
+            throwError "interval_roots: Only IntervalRat or literal Set.Icc intervals are supported"
+
     -- 2. Get AST (either from Expr.eval or by reifying)
     let ast ← getAstFromFunc func
 
@@ -743,7 +1019,7 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
     let supportProof ← mkSupportedCoreProof ast
 
     -- 4. Generate ContinuousOn proof
-    let contProof ← mkContinuousOnProof ast interval
+    let contProof ← mkContinuousOnProof ast intervalExpr
 
     -- 5. Build config expression
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -751,16 +1027,22 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
     -- 6. Apply verify_sign_change theorem
     -- verify_sign_change : ExprSupportedCore e → ContinuousOn ... → checkSignChange e I cfg = true → ∃ x ∈ I, f(x) = 0
     let proof ← mkAppM ``LeanBound.Numerics.Certificate.RootFinding.verify_sign_change
-      #[ast, supportProof, interval, cfgExpr, contProof]
+      #[ast, supportProof, intervalExpr, cfgExpr, contProof]
 
-    -- 7. Apply the proof - this leaves the certificate check as a goal
-    let newGoals ← goal.apply proof
-    setGoals newGoals
+    if fromSetIcc then
+      let proofSyntax ← Term.exprToSyntax proof
+      evalTactic (← `(tactic| refine (by
+        have h := $proofSyntax (by native_decide)
+        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg] using h)))
+    else
+      -- 7. Apply the proof - this leaves the certificate check as a goal
+      let newGoals ← goal.apply proof
+      setGoals newGoals
 
-    -- 8. Solve remaining goals with native_decide
-    for g in newGoals do
-      setGoals [g]
-      evalTactic (← `(tactic| native_decide))
+      -- 8. Solve remaining goals with native_decide
+      for g in newGoals do
+        setGoals [g]
+        evalTactic (← `(tactic| native_decide))
 
 /-- The interval_roots tactic.
 
@@ -849,6 +1131,19 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
   let some (_varName, interval, func) ← parseUniqueRootGoal goalType
     | throwError "interval_unique_root: Goal must be of form `∃! x, x ∈ I ∧ f(x) = 0`"
 
+  let mut fromSetIcc := false
+  let intervalExpr ←
+    match ← tryConvertSetIcc interval with
+    | some intervalRat =>
+        fromSetIcc := true
+        pure intervalRat
+    | none =>
+        let intervalTy ← inferType interval
+        if intervalTy.isConstOf ``IntervalRat then
+          pure interval
+        else
+          throwError "interval_unique_root: Only IntervalRat or literal Set.Icc intervals are supported"
+
   -- Extract AST
   let ast ← getAstFromFunc func
 
@@ -859,7 +1154,7 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
   let var0Proof ← mkUsesOnlyVar0Proof ast
 
   -- Generate ContinuousOn proof
-  let contProof ← LeanBound.Meta.mkContinuousOnProof ast interval
+  let contProof ← LeanBound.Meta.mkContinuousOnProof ast intervalExpr
 
   -- Build EvalConfig (for the computable core check)
   let evalCfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -867,17 +1162,23 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
   -- Apply verify_unique_root_computable (fully computable version)
   -- Args: e, hsupp, hvar0, I, cfg, hCont
   let proof ← mkAppM ``Certificate.RootFinding.verify_unique_root_computable
-    #[ast, supportProof, var0Proof, interval, evalCfgExpr, contProof]
+    #[ast, supportProof, var0Proof, intervalExpr, evalCfgExpr, contProof]
 
-  -- Apply the proof (leaves one certificate check goal)
-  let newGoals ← goal.apply proof
-  setGoals newGoals
+    if fromSetIcc then
+      let proofSyntax ← Term.exprToSyntax proof
+      evalTactic (← `(tactic| refine (by
+        have h := $proofSyntax (by native_decide)
+        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg] using h)))
+  else
+    -- Apply the proof (leaves one certificate check goal)
+    let newGoals ← goal.apply proof
+    setGoals newGoals
 
-  -- Solve certificate check: checkNewtonContractsCore e I cfg = true
-  -- This is computable, so native_decide works
-  for g in newGoals do
-    setGoals [g]
-    evalTactic (← `(tactic| native_decide))
+    -- Solve certificate check: checkNewtonContractsCore e I cfg = true
+    -- This is computable, so native_decide works
+    for g in newGoals do
+      setGoals [g]
+      evalTactic (← `(tactic| native_decide))
 
 /-- The interval_unique_root tactic.
 

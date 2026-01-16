@@ -246,43 +246,24 @@ def parseBoundGoal (goal : Lean.Expr) : MetaM (Option BoundGoal) := do
       if body.isForall then
         let .forallE _ memTy innerBody _ := body | return none
 
-        -- memTy should be x ∈ I (Membership.mem x I)
-        -- Don't reduce with whnf as it will expand the membership definition
-
-        -- Try to extract interval from membership
-        let interval? ← extractInterval memTy x
-        let some interval := interval? | return none
-
-        -- innerBody is the comparison
-        withLocalDeclD `hx memTy fun _hx => do
-          let comparison := innerBody.instantiate1 _hx
-          -- Don't use whnf here as it reduces LE.le to instance-specific versions
-
-          -- Try to match LE.le, GE.ge, LT.lt, GT.gt
-          -- We need to figure out which side is the function and which is the bound
+        let parseComparison (comparison : Lean.Expr) (interval : IntervalInfo) :
+            MetaM (Option BoundGoal) := do
           match_expr comparison with
           | LE.le _ _ lhs rhs =>
-            -- lhs ≤ rhs
-            -- Check which side contains the function application (depends on x)
             let lhsHasX := lhs.containsFVar x.fvarId!
             let rhsHasX := rhs.containsFVar x.fvarId!
             if lhsHasX && !rhsHasX then
-              -- f(x) ≤ c → upper bound
               return some (.forallLe name interval (← mkLambdaFVars #[x] lhs) rhs)
             else if rhsHasX && !lhsHasX then
-              -- c ≤ f(x) → lower bound
               return some (.forallGe name interval (← mkLambdaFVars #[x] rhs) lhs)
             else
-              return none  -- Ambiguous or neither depends on x
+              return none
           | GE.ge _ _ lhs rhs =>
-            -- lhs ≥ rhs means rhs ≤ lhs
             let lhsHasX := lhs.containsFVar x.fvarId!
             let rhsHasX := rhs.containsFVar x.fvarId!
             if lhsHasX && !rhsHasX then
-              -- f(x) ≥ c → lower bound on f
               return some (.forallGe name interval (← mkLambdaFVars #[x] lhs) rhs)
             else if rhsHasX && !lhsHasX then
-              -- c ≥ f(x) → upper bound on f
               return some (.forallLe name interval (← mkLambdaFVars #[x] rhs) lhs)
             else
               return none
@@ -290,10 +271,8 @@ def parseBoundGoal (goal : Lean.Expr) : MetaM (Option BoundGoal) := do
             let lhsHasX := lhs.containsFVar x.fvarId!
             let rhsHasX := rhs.containsFVar x.fvarId!
             if lhsHasX && !rhsHasX then
-              -- f(x) < c → strict upper bound
               return some (.forallLt name interval (← mkLambdaFVars #[x] lhs) rhs)
             else if rhsHasX && !lhsHasX then
-              -- c < f(x) → strict lower bound
               return some (.forallGt name interval (← mkLambdaFVars #[x] rhs) lhs)
             else
               return none
@@ -301,20 +280,82 @@ def parseBoundGoal (goal : Lean.Expr) : MetaM (Option BoundGoal) := do
             let lhsHasX := lhs.containsFVar x.fvarId!
             let rhsHasX := rhs.containsFVar x.fvarId!
             if lhsHasX && !rhsHasX then
-              -- f(x) > c → strict lower bound
               return some (.forallGt name interval (← mkLambdaFVars #[x] lhs) rhs)
             else if rhsHasX && !lhsHasX then
-              -- c > f(x) → strict upper bound
               return some (.forallLt name interval (← mkLambdaFVars #[x] rhs) lhs)
             else
               return none
           | _ => return none
+
+        -- memTy should be x ∈ I (Membership.mem x I)
+        -- Don't reduce with whnf as it will expand the membership definition
+
+        -- Try to extract interval from membership
+        let interval? ← extractInterval memTy x
+        if let some interval := interval? then
+          -- innerBody is the comparison
+          return ← withLocalDeclD `hx memTy fun _hx => do
+            let comparison := innerBody.instantiate1 _hx
+            parseComparison comparison interval
+
+        return none
       else
         return none
   else
     return none
 
 where
+  /-- Extract (lhs, rhs) from an LE.le application. -/
+  getLeArgs (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+    if fn.isConstOf ``LE.le && args.size >= 4 then
+      return some (args[2]!, args[3]!)
+    return none
+
+  /-- Extract lower bound lo from lo ≤ x. -/
+  extractLowerBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some (a, b) ← getLeArgs e then
+      if ← isDefEq b x then
+        return some a
+    return none
+
+  /-- Extract upper bound hi from x ≤ hi. -/
+  extractUpperBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    if let some (a, b) ← getLeArgs e then
+      if ← isDefEq a x then
+        return some b
+    return none
+
+  /-- Extract bounds from conjunction form lo ≤ x ∧ x ≤ hi. -/
+  extractBoundsFromAnd (memTy : Lean.Expr) (x : Lean.Expr) :
+      MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    match_expr memTy with
+    | And a b =>
+      if let some lo ← extractLowerBound a x then
+        if let some hi ← extractUpperBound b x then
+          return some (lo, hi)
+      if let some lo ← extractLowerBound b x then
+        if let some hi ← extractUpperBound a x then
+          return some (lo, hi)
+      return none
+    | _ => return none
+
+  /-- Build IntervalInfo from explicit lo/hi bounds. -/
+  mkIntervalInfoFromBounds (loExpr hiExpr : Lean.Expr) : MetaM (Option IntervalInfo) := do
+    if let some lo ← extractRatFromReal loExpr then
+      if let some hi ← extractRatFromReal hiExpr then
+        let loRatExpr := toExpr lo
+        let hiRatExpr := toExpr hi
+        let leProofTy ← mkAppM ``LE.le #[loRatExpr, hiRatExpr]
+        let leProof ← mkDecideProof leProofTy
+        let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
+        return some {
+          intervalRat := intervalRat
+          fromSetIcc := some (lo, hi, loRatExpr, hiRatExpr, leProof, loExpr, hiExpr)
+        }
+    return none
+
   /-- Extract the interval from a membership expression -/
   extractInterval (memTy : Lean.Expr) (x : Lean.Expr) : MetaM (Option IntervalInfo) := do
     -- Try direct Membership.mem match
@@ -336,35 +377,87 @@ where
       else return none
     | _ =>
       -- The memTy might be definitionally expanded - check if it's a conjunction
-      -- For IntervalRat: x ∈ I unfolds to (I.lo : ℝ) ≤ x ∧ x ≤ (I.hi : ℝ)
-      -- This is tricky to reverse, so let's try looking at the original unexpanded form
+      let memTyWhnf ← withTransparency TransparencyMode.all <| whnf memTy
+      if let some (loExpr, hiExpr) ← extractBoundsFromAnd memTyWhnf x then
+        return ← mkIntervalInfoFromBounds loExpr hiExpr
       return none
 
   /-- Try to convert a Set.Icc expression to an IntervalRat with full info -/
   tryConvertSetIcc (interval : Lean.Expr) : MetaM (Option IntervalInfo) := do
-    -- Don't use whnf here as it may destroy the Set.Icc structure
-    let fn := interval.getAppFn
-    let args := interval.getAppArgs
-    -- Set.Icc : {α : Type*} → [Preorder α] → α → α → Set α
-    -- So args are: [α, inst, lo, hi]
-    if fn.isConstOf ``Set.Icc then
-      if args.size >= 4 then
-        let loExpr := args[2]!
-        let hiExpr := args[3]!
-        -- Try to extract rational values
-        if let some lo ← extractRatFromReal loExpr then
-          if let some hi ← extractRatFromReal hiExpr then
-            -- Build the IntervalRat
-            let loRatExpr := toExpr lo
-            let hiRatExpr := toExpr hi
-            -- Build proof that lo ≤ hi
-            let leProofTy ← mkAppM ``LE.le #[loRatExpr, hiRatExpr]
-            let leProof ← mkDecideProof leProofTy
-            let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-            return some {
-              intervalRat := intervalRat
-              fromSetIcc := some (lo, hi, loRatExpr, hiRatExpr, leProof, loExpr, hiExpr)
-            }
+    let getLeArgs (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+      let fn := e.getAppFn
+      let args := e.getAppArgs
+      if fn.isConstOf ``LE.le && args.size >= 4 then
+        return some (args[2]!, args[3]!)
+      return none
+
+    let extractLowerBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+      if let some (a, b) ← getLeArgs e then
+        if ← isDefEq b x then
+          return some a
+      return none
+
+    let extractUpperBound (e x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+      if let some (a, b) ← getLeArgs e then
+        if ← isDefEq a x then
+          return some b
+      return none
+
+    let parseSetIccBounds (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+      let fn := e.getAppFn
+      let args := e.getAppArgs
+      -- Set.Icc : {α : Type*} → [Preorder α] → α → α → Set α
+      -- So args are: [α, inst, lo, hi]
+      if fn.isConstOf ``Set.Icc && args.size >= 4 then
+        return some (args[2]!, args[3]!)
+      return none
+
+    let parseSetIccLambda (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+      match e with
+      | Lean.Expr.lam name ty body _ =>
+        withLocalDeclD name ty fun x => do
+          let bodyInst := body.instantiate1 x
+          let fn := bodyInst.getAppFn
+          let args := bodyInst.getAppArgs
+          if fn.isConstOf ``And && args.size >= 2 then
+            let left := args[0]!
+            let right := args[1]!
+            if let some lo ← extractLowerBound left x then
+              if let some hi ← extractUpperBound right x then
+                return some (lo, hi)
+            if let some lo ← extractLowerBound right x then
+              if let some hi ← extractUpperBound left x then
+                return some (lo, hi)
+          return none
+      | _ => return none
+
+    let parseBounds (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+      if let some bounds ← parseSetIccBounds e then
+        return some bounds
+      parseSetIccLambda e
+
+    let mkIntervalFromBounds (loExpr hiExpr : Lean.Expr) : MetaM (Option IntervalInfo) := do
+      if let some lo ← extractRatFromReal loExpr then
+        if let some hi ← extractRatFromReal hiExpr then
+          let loRatExpr := toExpr lo
+          let hiRatExpr := toExpr hi
+          let leProofTy ← mkAppM ``LE.le #[loRatExpr, hiRatExpr]
+          let leProof ← mkDecideProof leProofTy
+          let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
+          return some {
+            intervalRat := intervalRat
+            fromSetIcc := some (lo, hi, loRatExpr, hiRatExpr, leProof, loExpr, hiExpr)
+          }
+      return none
+
+    if let some (loExpr, hiExpr) ← parseBounds interval then
+      if let some info ← mkIntervalFromBounds loExpr hiExpr then
+        return some info
+    let intervalWhnf ← withTransparency TransparencyMode.all <| whnf interval
+    if intervalWhnf == interval then
+      return none
+    if let some (loExpr, hiExpr) ← parseBounds intervalWhnf then
+      return ← mkIntervalFromBounds loExpr hiExpr
     return none
 
 /-! ## Diagnostic Helpers for Shadow Computation -/
@@ -647,6 +740,15 @@ where
             setGoals newGoals
             for g in newGoals do
               setGoals [g]
+              let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                try
+                  tac
+                  let goalsEmpty := (← getGoals).isEmpty
+                  return goalsEmpty
+                catch _ =>
+                  return false
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then
+                continue
               evalTactic (← `(tactic| native_decide))
           catch _ =>
             -- Apply failed, so we need to use convert
@@ -685,11 +787,8 @@ where
                 try
                   tac
                   -- Check if goal is now assigned/closed
-                  let isAssigned ← g.isAssigned
                   let goalsEmpty := (← getGoals).isEmpty
-                  if isAssigned || goalsEmpty then
-                    return true
-                  return false
+                  return goalsEmpty
                 catch _ =>
                   return false
               -- Try decimal-specific tactic first for efficiency
@@ -699,6 +798,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               -- For Set.Icc equality, use congr_arg with norm_num
               if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
               -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
@@ -751,6 +851,15 @@ where
             setGoals newGoals
             for g in newGoals do
               setGoals [g]
+              let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                try
+                  tac
+                  let goalsEmpty := (← getGoals).isEmpty
+                  return goalsEmpty
+                catch _ =>
+                  return false
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then
+                continue
               evalTactic (← `(tactic| native_decide))
           catch _ =>
             -- Apply failed, use convert
@@ -783,7 +892,6 @@ where
                 try
                   tac
                   -- Check if goal is now assigned/closed
-                  if ← g.isAssigned then return true
                   if (← getGoals).isEmpty then return true
                   return false
                 catch _ => return false
@@ -793,6 +901,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
               -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
@@ -842,6 +951,15 @@ where
             setGoals newGoals
             for g in newGoals do
               setGoals [g]
+              let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                try
+                  tac
+                  let goalsEmpty := (← getGoals).isEmpty
+                  return goalsEmpty
+                catch _ =>
+                  return false
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then
+                continue
               evalTactic (← `(tactic| native_decide))
           catch _ =>
             -- Apply failed, use convert
@@ -874,7 +992,6 @@ where
                 try
                   tac
                   -- Check if goal is now assigned/closed
-                  if ← g.isAssigned then return true
                   if (← getGoals).isEmpty then return true
                   return false
                 catch _ => return false
@@ -884,6 +1001,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
               -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
@@ -939,6 +1057,15 @@ where
             setGoals newGoals
             for g in newGoals do
               setGoals [g]
+              let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                try
+                  tac
+                  let goalsEmpty := (← getGoals).isEmpty
+                  return goalsEmpty
+                catch _ =>
+                  return false
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then
+                continue
               evalTactic (← `(tactic| native_decide))
           catch _ =>
             -- Apply failed, use convert
@@ -971,7 +1098,6 @@ where
                 try
                   tac
                   -- Check if goal is now assigned/closed
-                  if ← g.isAssigned then return true
                   if (← getGoals).isEmpty then return true
                   return false
                 catch _ => return false
@@ -981,6 +1107,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+              if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
               -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
@@ -1184,6 +1311,64 @@ private def extractIntervalFromIntervalRat (memTy : Lean.Expr) (x : Lean.Expr) :
 partial def parseMultivariateBoundGoal (goal : Lean.Expr) : MetaM (Option MultivariateBoundGoal) := do
   -- We need to work within the withLocalDeclD scopes, so we'll return a function that
   -- builds the result while fvars are still valid.
+  let goal ← if goal.isForall then
+    pure goal
+  else
+    whnf goal
+  let extractLowerBound (memTy : Lean.Expr) (x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    match_expr memTy with
+    | LE.le _ _ lo xExpr =>
+      if ← isDefEq xExpr x then
+        return some lo
+      return none
+    | _ => return none
+
+  let extractUpperBound (memTy : Lean.Expr) (x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+    match_expr memTy with
+    | LE.le _ _ xExpr hi =>
+      if ← isDefEq xExpr x then
+        return some hi
+      return none
+    | _ => return none
+
+  let extractBoundsFromAnd (memTy : Lean.Expr) (x : Lean.Expr) :
+      MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    match_expr memTy with
+    | And a b =>
+      if let some lo ← extractLowerBound a x then
+        if let some hi ← extractUpperBound b x then
+          return some (lo, hi)
+      if let some lo ← extractLowerBound b x then
+        if let some hi ← extractUpperBound a x then
+          return some (lo, hi)
+      return none
+    | _ => return none
+
+  let mkVarIntervalInfoFromBounds (x : Lean.Expr) (loExpr hiExpr : Lean.Expr) :
+      MetaM (Option VarIntervalInfo) := do
+    if let some lo ← extractRatFromReal loExpr then
+      if let some hi ← extractRatFromReal hiExpr then
+        let xTy ← inferType x
+        let varName ← do
+          match x with
+          | .fvar fv => pure (← fv.getDecl).userName
+          | _ => pure `x
+        let loRatExpr := toExpr lo
+        let hiRatExpr := toExpr hi
+        let leProofTy ← mkAppM ``LE.le #[loRatExpr, hiRatExpr]
+        let leProof ← mkDecideProof leProofTy
+        let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
+        return some {
+          varName := varName
+          varType := xTy
+          intervalRat := intervalRat
+          loExpr := loExpr
+          hiExpr := hiExpr
+          lo := lo
+          hi := hi
+        }
+    return none
+
   let rec collect (e : Lean.Expr) (acc : Array VarIntervalInfo) (fvars : Array Lean.Expr) :
       MetaM (Option MultivariateBoundGoal) := do
     -- Don't use whnf at the top level - it might destroy the forall structure
@@ -1230,21 +1415,24 @@ partial def parseMultivariateBoundGoal (goal : Lean.Expr) : MetaM (Option Multiv
         let .forallE _ memTy innerBody _ := body | return none
 
         -- Try to extract interval from membership (don't whnf memTy)
-        let intervalInfo? ← (do
-          if let some info ← extractIntervalFromSetIcc memTy x then
-            pure (some info)
-          else
-            extractIntervalFromIntervalRat memTy x : MetaM (Option VarIntervalInfo))
-
-        match intervalInfo? with
-        | some info =>
-          -- It's a membership quantifier, continue collecting within this scope
+        if let some info ← extractIntervalFromSetIcc memTy x then
           withLocalDeclD `_ memTy fun _hx => do
             let nextBody := innerBody.instantiate1 _hx
             collect nextBody (acc.push info) (fvars.push x)
-        | none =>
+        else if let some info ← extractIntervalFromIntervalRat memTy x then
+          withLocalDeclD `_ memTy fun _hx => do
+            let nextBody := innerBody.instantiate1 _hx
+            collect nextBody (acc.push info) (fvars.push x)
+        else
+          let memTyWhnf ← withTransparency TransparencyMode.all <| whnf memTy
+          let memTyToParse := if memTyWhnf == memTy then memTy else memTyWhnf
+          -- Handle conjunction form: (lo ≤ x ∧ x ≤ hi) → ...
+          if let some (loExpr, hiExpr) ← extractBoundsFromAnd memTyToParse x then
+            if let some info ← mkVarIntervalInfoFromBounds x loExpr hiExpr then
+              return ← withLocalDeclD `_ memTy fun _hx => do
+                let nextBody := innerBody.instantiate1 _hx
+                collect nextBody (acc.push info) (fvars.push x)
           -- Not a membership quantifier, treat as the inner body
-          -- Process comparison within current scope
           if acc.isEmpty then
             return none
           match_expr body with
@@ -1314,10 +1502,14 @@ open LeanBound.Numerics.Certificate.GlobalOpt in
 def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
   let goal ← getMainGoal
   let goalType ← goal.getType
+  trace[LeanBound.discovery] "multivariate_bound goal: {goalType}"
 
   -- Parse the multivariate goal
-  let some boundGoal ← parseMultivariateBoundGoal goalType
-    | throwError "multivariate_bound: Could not parse goal as multivariate bound. Expected:\n\
+  let parsed ← parseMultivariateBoundGoal goalType
+  let some boundGoal := parsed
+    | let fmt ← withOptions (fun opts => opts.setBool `pp.all true) (Meta.ppExpr goalType)
+      trace[LeanBound.discovery] "multivariate_bound goal (pp.all): {fmt}"
+      throwError "multivariate_bound: Could not parse goal as multivariate bound. Expected:\n\
                   • ∀ x ∈ I, ∀ y ∈ J, ... f(x,y,...) ≤ c\n\
                   • ∀ x ∈ I, ∀ y ∈ J, ... c ≤ f(x,y,...)"
 
@@ -1363,6 +1555,24 @@ where
                         Suggestions:\n\
                         • Use a rational approximation\n\
                         • Use interval_decide for point inequalities with transcendentals"
+
+  /-- Fetch local variable expressions in the order of VarIntervalInfo. -/
+  getVarExprs (vars : Array VarIntervalInfo) : TacticM (Array Lean.Expr) := do
+    let lctx ← getLCtx
+    let mut out : Array Lean.Expr := #[]
+    for info in vars do
+      match lctx.findFromUserName? info.varName with
+      | some decl => out := out.push (Lean.mkFVar decl.fvarId)
+      | none => throwError m!"multivariate_bound: missing local {info.varName}"
+    return out
+
+  /-- Build an environment function ρ from a list of variables. -/
+  mkEnvExpr (varsListExpr : Lean.Expr) : TacticM Lean.Expr := do
+    withLocalDeclD `i (Lean.mkConst ``Nat) fun i => do
+      let zeroRat := toExpr (0 : ℚ)
+      let zeroReal ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, zeroRat]
+      let body ← mkAppM ``List.getD #[varsListExpr, i, zeroReal]
+      mkLambdaFVars #[i] body
 
   /-- Prove ∀ x₁ ∈ I₁, ..., ∀ xₙ ∈ Iₙ, f(x) ≤ c using verify_global_upper_bound -/
   proveMultivariateLe (goal : MVarId) (vars : Array VarIntervalInfo) (func bound : Lean.Expr)
@@ -1413,6 +1623,17 @@ where
           evalTactic (← `(tactic| intro $ident:ident))
       catch _ => pure ()
 
+      let mainGoalAfterIntro ← getMainGoal
+
+      let (rhoSyntax, varsListSyntax, boxSyntax) ← withMainContext do
+        let varExprs ← getVarExprs vars
+        let varsListExpr ← mkListLit (Lean.mkConst ``Real) varExprs.toList
+        let rhoExpr ← mkEnvExpr varsListExpr
+        let rhoSyntax ← Lean.Elab.Term.exprToSyntax rhoExpr
+        let varsListSyntax ← Lean.Elab.Term.exprToSyntax varsListExpr
+        let boxSyntax ← Lean.Elab.Term.exprToSyntax boxExpr
+        return (rhoSyntax, varsListSyntax, boxSyntax)
+
       -- Now build the environment function and proofs
       -- We need to prove Box.envMem ρ B and ∀ i ≥ B.length, ρ i = 0
       -- where ρ i = x_i for i < n and ρ i = 0 for i ≥ n
@@ -1429,33 +1650,23 @@ where
         throwError "multivariate_bound: Certificate check failed. The bound may be too tight.\n{e.toMessageData}"
 
       let conclusionProof ← mkAppM' proof #[certGoal]
-
-      -- Now we need to apply this to our current context
-      -- The proof gives us: ∀ ρ, Box.envMem ρ B → (∀ i ≥ B.length, ρ i = 0) → Expr.eval ρ e ≤ c
-      -- We have variables x₀, x₁, ... and membership proofs h0, h1, ...
-      -- We need to construct ρ = fun i => if i = 0 then x₀ else if i = 1 then x₁ else ... else 0
-
-      -- For now, use convert to close the goal
       let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
-      let mainGoal ← getMainGoal
-      setGoals [mainGoal]
-      evalTactic (← `(tactic| refine ?_))
 
-      -- Build the environment function
-      let goals ← getGoals
-      for g in goals do
-        setGoals [g]
-        try
-          -- Try various approaches to close remaining goals
-          evalTactic (← `(tactic| exact $conclusionTerm _ (by simp [Box.envMem]; intro ⟨i, hi⟩; fin_cases i <;> assumption) (by intro i hi; simp at hi; omega)))
-        catch _ =>
-          try
-            evalTactic (← `(tactic| native_decide))
-          catch _ =>
-            try
-              evalTactic (← `(tactic| simp [Box.envMem, *]))
-            catch _ =>
-              logWarning m!"multivariate_bound: Could not close subgoal: {← g.getType}"
+      setGoals [mainGoalAfterIntro]
+      evalTactic (← `(tactic| exact (by
+        have hmem : Box.envMem $rhoSyntax $boxSyntax := by
+          intro i
+          fin_cases i <;> simp [Box.envMem, IntervalRat.mem_iff_mem_Icc] <;> assumption
+        have hzero : ∀ i, i ≥ ($boxSyntax).length → $rhoSyntax i = 0 := by
+          intro i hi
+          have hnot : ¬ i < ($boxSyntax).length := by exact not_lt.mpr hi
+          have hnot' : ¬ i < ($varsListSyntax).length := by
+            simpa using hnot
+          have hge' : ($varsListSyntax).length ≤ i := by
+            exact not_lt.mp hnot'
+          simp [List.getD, List.getElem?_eq_none hge', Option.getD]
+        exact $conclusionTerm $rhoSyntax hmem hzero
+      )))
 
   /-- Prove ∀ x₁ ∈ I₁, ..., ∀ xₙ ∈ Iₙ, c ≤ f(x) using verify_global_lower_bound -/
   proveMultivariateGe (goal : MVarId) (vars : Array VarIntervalInfo) (func bound : Lean.Expr)
@@ -1484,6 +1695,17 @@ where
           evalTactic (← `(tactic| intro $ident:ident))
       catch _ => pure ()
 
+      let mainGoalAfterIntro ← getMainGoal
+
+      let (rhoSyntax, varsListSyntax, boxSyntax) ← withMainContext do
+        let varExprs ← getVarExprs vars
+        let varsListExpr ← mkListLit (Lean.mkConst ``Real) varExprs.toList
+        let rhoExpr ← mkEnvExpr varsListExpr
+        let rhoSyntax ← Lean.Elab.Term.exprToSyntax rhoExpr
+        let varsListSyntax ← Lean.Elab.Term.exprToSyntax varsListExpr
+        let boxSyntax ← Lean.Elab.Term.exprToSyntax boxExpr
+        return (rhoSyntax, varsListSyntax, boxSyntax)
+
       let checkExpr ← mkAppM ``checkGlobalLowerBound #[ast, boxExpr, boundRat, cfgExpr]
       let certTy ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
       let certGoal ← mkFreshExprMVar certTy
@@ -1496,23 +1718,22 @@ where
 
       let conclusionProof ← mkAppM' proof #[certGoal]
       let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
-      let mainGoal ← getMainGoal
-      setGoals [mainGoal]
-      evalTactic (← `(tactic| refine ?_))
 
-      let goals ← getGoals
-      for g in goals do
-        setGoals [g]
-        try
-          evalTactic (← `(tactic| exact $conclusionTerm _ (by simp [Box.envMem]; intro ⟨i, hi⟩; fin_cases i <;> assumption) (by intro i hi; simp at hi; omega)))
-        catch _ =>
-          try
-            evalTactic (← `(tactic| native_decide))
-          catch _ =>
-            try
-              evalTactic (← `(tactic| simp [Box.envMem, *]))
-            catch _ =>
-              logWarning m!"multivariate_bound: Could not close subgoal: {← g.getType}"
+      setGoals [mainGoalAfterIntro]
+      evalTactic (← `(tactic| exact (by
+        have hmem : Box.envMem $rhoSyntax $boxSyntax := by
+          intro i
+          fin_cases i <;> simp [Box.envMem, IntervalRat.mem_iff_mem_Icc] <;> assumption
+        have hzero : ∀ i, i ≥ ($boxSyntax).length → $rhoSyntax i = 0 := by
+          intro i hi
+          have hnot : ¬ i < ($boxSyntax).length := by exact not_lt.mpr hi
+          have hnot' : ¬ i < ($varsListSyntax).length := by
+            simpa using hnot
+          have hge' : ($varsListSyntax).length ≤ i := by
+            exact not_lt.mp hnot'
+          simp [List.getD, List.getElem?_eq_none hge', Option.getD]
+        exact $conclusionTerm $rhoSyntax hmem hzero
+      )))
 
 /-- The multivariate_bound tactic.
 
@@ -2527,6 +2748,24 @@ where
     catch _ =>
       return none
 
+private def getSubdivBounds (intervalInfo : IntervalInfo) :
+    TacticM (Option (ℚ × ℚ × Lean.Expr × Lean.Expr × Lean.Expr × Bool)) := do
+  match intervalInfo.fromSetIcc with
+  | some (lo, hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
+    return some (lo, hi, loRatExpr, hiRatExpr, leProof, true)
+  | none =>
+    try
+      let intervalVal ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) intervalInfo.intervalRat
+      let lo := intervalVal.lo
+      let hi := intervalVal.hi
+      let loRatExpr := toExpr lo
+      let hiRatExpr := toExpr hi
+      let leProofTy ← mkAppM ``LE.le #[loRatExpr, hiRatExpr]
+      let leProof ← mkDecideProof leProofTy
+      return some (lo, hi, loRatExpr, hiRatExpr, leProof, false)
+    catch _ =>
+      return none
+
 /-- Prove ∀ x ∈ I, f x ≤ c using subdivision as fallback -/
 private def proveForallLeSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
     (func bound : Lean.Expr) (taylorDepth maxSubdiv : Nat) : TacticM Unit := do
@@ -2536,47 +2775,46 @@ private def proveForallLeSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
     let (supportProof, _useWithInv) ← intervalBoundCore.getSupportProof ast
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
-    match intervalInfo.fromSetIcc with
-    | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
-      -- Save the current goal state
-      let savedGoals ← getGoals
+    let some bounds ← getSubdivBounds intervalInfo
+      | throwError "interval_bound_subdiv: Only literal Set.Icc or IntervalRat intervals supported for subdivision"
+    let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
 
-      -- Try with subdivision
-      let some proof ← proveUpperBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
-          leProof boundRat cfgExpr taylorDepth maxSubdiv
-        | throwError "interval_bound_subdiv: Failed even with subdivision"
+    -- Save the current goal state
+    let savedGoals ← getGoals
 
+    -- Try with subdivision
+    let some proof ← proveUpperBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
+        leProof boundRat cfgExpr taylorDepth maxSubdiv
+      | throwError "interval_bound_subdiv: Failed even with subdivision"
+
+    setGoals savedGoals
+    let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof
+    if fromSetIcc then
       -- The proof has type: ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e ≤ c
       -- But goal has type: ∀ x ∈ Set.Icc lo hi, f x ≤ bound
-      -- Use convert to bridge the gap
-      setGoals savedGoals
-      let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof
       evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+    else
+      -- IntervalRat goal: bridge via mem_iff_mem_Icc
+      evalTactic (← `(tactic| simpa [IntervalRat.mem_iff_mem_Icc] using $conclusionTerm))
 
-      -- Close side goals (equality goals for Set.Icc, bounds, and expressions)
-      let goals ← getGoals
-      for g in goals do
-        setGoals [g]
-        -- Try various closing tactics
-        let tryClose (tac : TacticM Unit) : TacticM Bool := do
-          try
-            tac
-            let isAssigned ← g.isAssigned
-            let goalsEmpty := (← getGoals).isEmpty
-            if isAssigned || goalsEmpty then return true
-            return false
-          catch _ => return false
-        if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
-        logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
-
-    | none =>
-      throwError "interval_bound_subdiv: Only Set.Icc intervals supported for subdivision"
+    -- Close side goals (equality goals for Set.Icc, bounds, and expressions)
+    let goals ← getGoals
+    for g in goals do
+      setGoals [g]
+      let tryClose (tac : TacticM Unit) : TacticM Bool := do
+        try
+          tac
+          let goalsEmpty := (← getGoals).isEmpty
+          return goalsEmpty
+        catch _ => return false
+      if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+      logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
 
 /-- Try to prove lower bound with subdivision.
     Returns a proof term if successful, or none if it fails. -/
@@ -2687,47 +2925,45 @@ private def proveForallGeSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
     let (supportProof, _useWithInv) ← intervalBoundCore.getSupportProof ast
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
-    match intervalInfo.fromSetIcc with
-    | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
-      -- Save the current goal state
-      let savedGoals ← getGoals
+    let some bounds ← getSubdivBounds intervalInfo
+      | throwError "interval_bound_subdiv: Only literal Set.Icc or IntervalRat intervals supported for subdivision"
+    let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
 
-      -- Try with subdivision
-      let some proof ← proveLowerBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
-          leProof boundRat cfgExpr taylorDepth maxSubdiv
-        | throwError "interval_bound_subdiv: Failed even with subdivision (lower bound)"
+    -- Save the current goal state
+    let savedGoals ← getGoals
 
+    -- Try with subdivision
+    let some proof ← proveLowerBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
+        leProof boundRat cfgExpr taylorDepth maxSubdiv
+      | throwError "interval_bound_subdiv: Failed even with subdivision (lower bound)"
+
+    setGoals savedGoals
+    let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof
+    if fromSetIcc then
       -- The proof has type: ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c ≤ Expr.eval (fun _ => x) e
       -- But goal has type: ∀ x ∈ Set.Icc lo hi, bound ≤ f x
-      -- Use convert to bridge the gap
-      setGoals savedGoals
-      let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof
       evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+    else
+      evalTactic (← `(tactic| simpa [IntervalRat.mem_iff_mem_Icc] using $conclusionTerm))
 
-      -- Close side goals (equality goals for Set.Icc, bounds, and expressions)
-      let goals ← getGoals
-      for g in goals do
-        setGoals [g]
-        -- Try various closing tactics
-        let tryClose (tac : TacticM Unit) : TacticM Bool := do
-          try
-            tac
-            let isAssigned ← g.isAssigned
-            let goalsEmpty := (← getGoals).isEmpty
-            if isAssigned || goalsEmpty then return true
-            return false
-          catch _ => return false
-        if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
-        logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
-
-    | none =>
-      throwError "interval_bound_subdiv: Only Set.Icc intervals supported for subdivision"
+    -- Close side goals (equality goals for Set.Icc, bounds, and expressions)
+    let goals ← getGoals
+    for g in goals do
+      setGoals [g]
+      let tryClose (tac : TacticM Unit) : TacticM Bool := do
+        try
+          tac
+          let goalsEmpty := (← getGoals).isEmpty
+          return goalsEmpty
+        catch _ => return false
+      if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+      logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
 
 /-- Try to prove strict upper bound with subdivision.
     Returns a proof term if successful, or none if it fails. -/
@@ -2934,43 +3170,43 @@ private def proveForallLtSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
     let (supportProof, _useWithInv) ← intervalBoundCore.getSupportProof ast
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
-    match intervalInfo.fromSetIcc with
-    | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
-      let savedGoals ← getGoals
+    let some bounds ← getSubdivBounds intervalInfo
+      | throwError "interval_bound_subdiv: Only literal Set.Icc or IntervalRat intervals supported for subdivision"
+    let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
 
-      let some proof ← proveStrictUpperBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
-          leProof boundRat cfgExpr taylorDepth maxSubdiv
-        | throwError "interval_bound_subdiv: Failed even with subdivision (strict upper bound)"
+    let savedGoals ← getGoals
 
-      setGoals savedGoals
-      let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof
+    let some proof ← proveStrictUpperBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
+        leProof boundRat cfgExpr taylorDepth maxSubdiv
+      | throwError "interval_bound_subdiv: Failed even with subdivision (strict upper bound)"
+
+    setGoals savedGoals
+    let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof
+    if fromSetIcc then
       evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+    else
+      evalTactic (← `(tactic| simpa [IntervalRat.mem_iff_mem_Icc] using $conclusionTerm))
 
-      -- Close side goals
-      let goals ← getGoals
-      for g in goals do
-        setGoals [g]
-        let tryClose (tac : TacticM Unit) : TacticM Bool := do
-          try
-            tac
-            let isAssigned ← g.isAssigned
-            let goalsEmpty := (← getGoals).isEmpty
-            if isAssigned || goalsEmpty then return true
-            return false
-          catch _ => return false
-        if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
-        if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
-        if ← tryClose (evalTactic (← `(tactic| field_simp; ring))) then continue
-        logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
-
-    | none =>
-      throwError "interval_bound_subdiv: Only Set.Icc intervals supported for subdivision"
+    -- Close side goals
+    let goals ← getGoals
+    for g in goals do
+      setGoals [g]
+      let tryClose (tac : TacticM Unit) : TacticM Bool := do
+        try
+          tac
+          let goalsEmpty := (← getGoals).isEmpty
+          return goalsEmpty
+        catch _ => return false
+      if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+      if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+      if ← tryClose (evalTactic (← `(tactic| field_simp; ring))) then continue
+      logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
 
 /-- Prove ∀ x ∈ I, c < f x using subdivision as fallback -/
 private def proveForallGtSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
@@ -2981,41 +3217,41 @@ private def proveForallGtSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
     let (supportProof, _useWithInv) ← intervalBoundCore.getSupportProof ast
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
-    match intervalInfo.fromSetIcc with
-    | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
-      let savedGoals ← getGoals
+    let some bounds ← getSubdivBounds intervalInfo
+      | throwError "interval_bound_subdiv: Only literal Set.Icc or IntervalRat intervals supported for subdivision"
+    let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
 
-      let some proof ← proveStrictLowerBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
-          leProof boundRat cfgExpr taylorDepth maxSubdiv
-        | throwError "interval_bound_subdiv: Failed even with subdivision (strict lower bound)"
+    let savedGoals ← getGoals
 
-      setGoals savedGoals
-      let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof
+    let some proof ← proveStrictLowerBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
+        leProof boundRat cfgExpr taylorDepth maxSubdiv
+      | throwError "interval_bound_subdiv: Failed even with subdivision (strict lower bound)"
+
+    setGoals savedGoals
+    let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof
+    if fromSetIcc then
       evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+    else
+      evalTactic (← `(tactic| simpa [IntervalRat.mem_iff_mem_Icc] using $conclusionTerm))
 
-      -- Close side goals
-      let goals ← getGoals
-      for g in goals do
-        setGoals [g]
-        let tryClose (tac : TacticM Unit) : TacticM Bool := do
-          try
-            tac
-            let isAssigned ← g.isAssigned
-            let goalsEmpty := (← getGoals).isEmpty
-            if isAssigned || goalsEmpty then return true
-            return false
-          catch _ => return false
-        if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
-        if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-        if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
-        if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
-        logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
-
-    | none =>
-      throwError "interval_bound_subdiv: Only Set.Icc intervals supported for subdivision"
+    -- Close side goals
+    let goals ← getGoals
+    for g in goals do
+      setGoals [g]
+      let tryClose (tac : TacticM Unit) : TacticM Bool := do
+        try
+          tac
+          let goalsEmpty := (← getGoals).isEmpty
+          return goalsEmpty
+        catch _ => return false
+      if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
+      if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
+      if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+      logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
 
 /-- The interval_bound_subdiv tactic.
 
@@ -3028,12 +3264,12 @@ private def proveForallGtSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
     - `interval_bound_subdiv 20 5` - uses Taylor depth 20 and max subdivision depth 5
 -/
 elab "interval_bound_subdiv" depth:(num)? subdivDepth:(num)? : tactic => do
-  let taylorDepth := match depth with
-    | some n => n.getNat
-    | none => 10
   let maxSubdiv := match subdivDepth with
     | some n => n.getNat
     | none => 3
+  let depths : List Nat := match depth with
+    | some n => [n.getNat]
+    | none => [10, 15, 20, 25]
 
   -- Pre-process like intervalBoundCore
   try
@@ -3046,20 +3282,27 @@ elab "interval_bound_subdiv" depth:(num)? subdivDepth:(num)? : tactic => do
     evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one] at *))
   catch _ => pure ()
 
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-
-  let some boundGoal ← parseBoundGoal goalType
-    | throwError "interval_bound_subdiv: Could not parse goal"
-
-  match boundGoal with
-  | .forallLe _name interval func bound =>
-    proveForallLeSubdiv goal interval func bound taylorDepth maxSubdiv
-  | .forallGe _name interval func bound =>
-    proveForallGeSubdiv goal interval func bound taylorDepth maxSubdiv
-  | .forallLt _name interval func bound =>
-    proveForallLtSubdiv goal interval func bound taylorDepth maxSubdiv
-  | .forallGt _name interval func bound =>
-    proveForallGtSubdiv goal interval func bound taylorDepth maxSubdiv
+  let savedState ← saveState
+  let mut lastErr : Option MessageData := none
+  for taylorDepth in depths do
+    restoreState savedState
+    let goal ← getMainGoal
+    let goalType ← goal.getType
+    let some boundGoal ← parseBoundGoal goalType
+      | throwError "interval_bound_subdiv: Could not parse goal"
+    try
+      match boundGoal with
+      | .forallLe _name interval func bound =>
+        proveForallLeSubdiv goal interval func bound taylorDepth maxSubdiv
+      | .forallGe _name interval func bound =>
+        proveForallGeSubdiv goal interval func bound taylorDepth maxSubdiv
+      | .forallLt _name interval func bound =>
+        proveForallLtSubdiv goal interval func bound taylorDepth maxSubdiv
+      | .forallGt _name interval func bound =>
+        proveForallGtSubdiv goal interval func bound taylorDepth maxSubdiv
+      return
+    catch e =>
+      lastErr := some e.toMessageData
+  throwError m!"interval_bound_subdiv: All precision levels failed\n{lastErr.getD ""}"
 
 end LeanBound.Tactic.Auto

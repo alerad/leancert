@@ -73,8 +73,11 @@ private def extractIntervalBounds (info : IntervalInfo) : TacticM (ℚ × ℚ) :
   match info.fromSetIcc with
   | some (lo, hi, _, _, _, _, _) => return (lo, hi)
   | none =>
-    -- Try to evaluate the IntervalRat expression
-    throwError "interval_refute: Cannot extract bounds from non-Icc interval"
+    try
+      let intervalVal ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) info.intervalRat
+      return (intervalVal.lo, intervalVal.hi)
+    catch _ =>
+      throwError "interval_refute: Only literal Set.Icc or IntervalRat intervals are supported"
 
 /-- Build a Box from interval bounds -/
 private def mkBox (lo hi : ℚ) : Box :=
