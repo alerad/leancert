@@ -10,6 +10,10 @@ import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 import Mathlib.Analysis.Calculus.Deriv.Slope
 import Mathlib.Analysis.Calculus.ContDiff.Defs
 import Mathlib.Analysis.Calculus.MeanValue
+import Mathlib.Analysis.Calculus.ParametricIntegral
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
+import Mathlib.Analysis.Analytic.Order
 
 /-!
 # Differentiability of sinc and dslope
@@ -268,5 +272,140 @@ theorem deriv_sinc_mem_Icc (x : ℝ) : deriv sinc x ∈ Set.Icc (-1) 1 := by
   have h := abs_deriv_sinc_le_one x
   rw [abs_le] at h
   exact h
+
+/-!
+## Integral representation and smoothness of sinc
+
+The sinc function is smooth (C^∞). The key insight is the integral representation:
+  sinc(x) = ∫ t in 0..1, cos(t * x) dt
+
+This works because:
+- For x ≠ 0: ∫₀¹ cos(tx) dt = [sin(tx)/x]₀¹ = sin(x)/x = sinc(x)
+- For x = 0: ∫₀¹ cos(0) dt = ∫₀¹ 1 dt = 1 = sinc(0)
+
+Smoothness follows from differentiation under the integral sign (Leibniz rule):
+since cos(t*x) is C^∞ in x and the domain [0,1] is compact, the integral is C^∞.
+-/
+
+open MeasureTheory intervalIntegral in
+/-- The integral representation of sinc: sinc(x) = ∫ t in 0..1, cos(t * x) -/
+theorem sinc_eq_integral (x : ℝ) : sinc x = ∫ t in (0 : ℝ)..1, cos (t * x) := by
+  rcases eq_or_ne x 0 with rfl | hx
+  · -- Case x = 0: both sides equal 1
+    simp only [sinc_zero, mul_zero, cos_zero]
+    rw [intervalIntegral.integral_const, sub_zero, smul_eq_mul, mul_one]
+  · -- Case x ≠ 0: use fundamental theorem of calculus
+    have hcont : Continuous (fun t => cos (t * x)) := continuous_cos.comp (continuous_mul_right x)
+    have hderiv : ∀ t, HasDerivAt (fun u => sin (u * x) / x) (cos (t * x)) t := by
+      intro t
+      have : HasDerivAt (fun u => sin (u * x)) (x * cos (t * x)) t := by
+        have := Real.hasDerivAt_sin (t * x)
+        convert HasDerivAt.comp t this (hasDerivAt_mul_const x) using 1
+        ring
+      convert this.div_const x using 1
+      field_simp
+    -- The antiderivative is sin(tx)/x, which is continuous
+    have hcont_anti : ContinuousOn (fun t => sin (t * x) / x) (Set.Icc 0 1) :=
+      (continuous_sin.comp (continuous_mul_right x)).continuousOn.div_const x
+    -- cos(tx) is interval integrable since it's continuous
+    have hint : IntervalIntegrable (fun t => cos (t * x)) volume 0 1 :=
+      hcont.intervalIntegrable 0 1
+    rw [integral_eq_sub_of_hasDerivAt_of_le (by norm_num : (0 : ℝ) ≤ 1)
+        hcont_anti (fun t _ => hderiv t) hint]
+    simp only [one_mul, zero_mul, sin_zero, zero_div, sub_zero]
+    rw [sinc_of_ne_zero hx]
+
+/-- The derivative of sinc equals dslope (cos - sinc) at 0.
+
+For x ≠ 0:
+  dslope (cos - sinc) 0 x = (cos x - sinc x) / x = (x cos x - sin x) / x² = deriv sinc x
+
+For x = 0:
+  dslope (cos - sinc) 0 0 = deriv (cos - sinc) 0 = -sin 0 - deriv sinc 0 = 0 = deriv sinc 0
+-/
+theorem deriv_sinc_eq_dslope : deriv sinc = dslope (cos - sinc) 0 := by
+  ext x
+  by_cases hx : x = 0
+  · -- At x = 0
+    simp only [hx, dslope_same, deriv_sinc_zero]
+    simp only [deriv_sub, differentiableAt_cos, differentiableAt_sinc_zero, deriv_cos, sin_zero,
+      deriv_sinc_zero, sub_zero, neg_zero]
+  · -- At x ≠ 0
+    rw [dslope_of_ne _ hx, slope, vsub_eq_sub]
+    simp only [Pi.sub_apply, cos_zero, sinc_zero, sub_self, sub_zero]
+    rw [(hasDerivAt_sinc_of_ne_zero hx).deriv]
+    rw [sinc_of_ne_zero hx, smul_eq_mul]
+    field_simp
+
+/-- sinc is smooth at every nonzero point. -/
+theorem contDiffAt_sinc_of_ne_zero {x : ℝ} (hx : x ≠ 0) : ContDiffAt ℝ ⊤ sinc x := by
+  have heq : sinc =ᶠ[𝓝 x] fun y => sin y / y := by
+    filter_upwards [eventually_ne_nhds hx] with y hy
+    exact sinc_of_ne_zero hy
+  exact (contDiff_sin.contDiffAt.div contDiff_id.contDiffAt hx).congr_of_eventuallyEq heq
+
+/-- sinc is analytic at 0.
+
+The proof uses the order theory of analytic functions. Since sin is analytic at 0
+with order ≥ 1 (because sin(0) = 0), there exists an analytic function g such that
+sin(z) = z • g(z) near 0. This g must equal sinc away from 0, and by continuity
+of both functions at 0, g = sinc everywhere near 0. Therefore sinc is analytic at 0. -/
+theorem analyticAt_sinc_zero : AnalyticAt ℝ sinc 0 := by
+  -- sin has order ≥ 1 at 0 because sin(0) = 0 and sin is analytic
+  have hsin_an : AnalyticAt ℝ sin 0 := analyticAt_sin
+  -- sin(0) = 0 implies order ≠ 0, hence order ≥ 1
+  have horder_ne_zero : analyticOrderAt sin (0 : ℝ) ≠ 0 :=
+    hsin_an.analyticOrderAt_ne_zero.mpr sin_zero
+  -- From the order, we get an analytic g with sin(z) = z * g(z) near 0
+  have horder : (1 : ℕ) ≤ analyticOrderAt sin (0 : ℝ) := ENat.one_le_iff_ne_zero.mpr horder_ne_zero
+  rw [natCast_le_analyticOrderAt hsin_an] at horder
+  simp only [pow_one, sub_zero] at horder
+  obtain ⟨g, hg_an, hg_eq⟩ := horder
+  -- g equals sinc away from 0: from sin z = z • g z, we get g z = sin z / z = sinc z
+  have hg_eq_sinc : g =ᶠ[𝓝[≠] 0] sinc := by
+    filter_upwards [hg_eq.filter_mono nhdsWithin_le_nhds,
+                    self_mem_nhdsWithin] with z hsin_eq hz
+    simp only [smul_eq_mul] at hsin_eq
+    have hz' : z ≠ 0 := Set.mem_compl_singleton_iff.mp hz
+    rw [sinc_of_ne_zero hz']
+    field_simp [hz']
+    linarith [hsin_eq]
+  -- Since g is continuous at 0 and sinc is continuous at 0,
+  -- and they agree on the punctured neighborhood, they agree at 0
+  have hg_zero : g 0 = sinc 0 := by
+    have hg_cont : ContinuousAt g 0 := hg_an.continuousAt
+    have hsinc_cont : ContinuousAt sinc 0 := continuous_sinc.continuousAt
+    -- g → g(0) as x → 0, and sinc(x) → sinc(0) as x → 0
+    -- Since g(x) = sinc(x) for x ≠ 0 near 0, limits must be equal
+    have h : Tendsto g (𝓝[≠] 0) (𝓝 (sinc 0)) := by
+      have := hsinc_cont.tendsto.mono_left (nhdsWithin_le_nhds (s := {0}ᶜ))
+      exact this.congr' hg_eq_sinc.symm
+    have h2 : Tendsto g (𝓝[≠] 0) (𝓝 (g 0)) :=
+      hg_cont.tendsto.mono_left (nhdsWithin_le_nhds (s := {0}ᶜ))
+    exact tendsto_nhds_unique h2 h
+  -- Now sinc = g near 0, so sinc is analytic at 0
+  exact hg_an.congr (hg_eq.mono fun z hsin_eq => by
+    simp only [smul_eq_mul] at hsin_eq
+    by_cases hz : z = 0
+    · simp [hz, hg_zero]
+    · rw [sinc_of_ne_zero hz]
+      field_simp [hz]
+      linarith [hsin_eq])
+
+/-- sinc is analytic at every point. -/
+theorem analyticAt_sinc (x : ℝ) : AnalyticAt ℝ sinc x := by
+  by_cases hx : x = 0
+  · exact hx ▸ analyticAt_sinc_zero
+  · exact contDiffAt_sinc_of_ne_zero hx |>.analyticAt
+
+/-- sinc is smooth (infinitely differentiable).
+
+The proof uses that sinc is analytic everywhere (analyticAt_sinc),
+and analytic functions are smooth. -/
+theorem contDiff_sinc : ContDiff ℝ ⊤ sinc :=
+  AnalyticOnNhd.contDiff (fun x _ => analyticAt_sinc x)
+
+/-- sinc is an analytic function. -/
+theorem analyticOnNhd_sinc : AnalyticOnNhd ℝ sinc Set.univ := fun x _ => analyticAt_sinc x
 
 end Real

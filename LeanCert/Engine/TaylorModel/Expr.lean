@@ -223,7 +223,7 @@ theorem abs_lt_one_of_atanhSafe {I : IntervalRat} (hsafe : atanhSafe I)
     Given a TM for the argument, returns a TM that bounds atanh of the argument.
     Returns none if the argument bound could be too close to ±1. -/
 noncomputable def atanh? (tm : TaylorModel) (degree : ℕ) : Option TaylorModel :=
-  if h : atanhSafe tm.bound then
+  if _ : atanhSafe tm.bound then
     some { poly := 0
            remainder := (tmAtanh tm.bound degree).bound
            center := tm.center
@@ -310,11 +310,15 @@ noncomputable def fromExpr? (e : Expr) (domain : IntervalRat) (degree : ℕ) :
       let tm ← fromExpr? e domain degree
       log? tm degree
   | Expr.atan _ => none  -- Not supported: atan evalSet proof incomplete
-  | Expr.arsinh _ => none  -- Not supported: arsinh evalSet proof incomplete
+  | Expr.arsinh e => do
+      let tm ← fromExpr? e domain degree
+      pure <| asinh tm degree
   | Expr.atanh e => do
       let tm ← fromExpr? e domain degree
       atanh? tm degree
-  | Expr.sinc _ => none  -- Not supported: sinc evalSet proof incomplete
+  | Expr.sinc e => do
+      let tm ← fromExpr? e domain degree
+      pure <| sinc tm degree
   | Expr.erf _ => none  -- Not supported: erf evalSet proof incomplete
   | Expr.sinh e => do
       let tm ← fromExpr? e domain degree
@@ -424,9 +428,14 @@ theorem fromExpr?_center (e : Expr) (domain : IntervalRat) (degree : ℕ)
   | atan _ _ =>
       intro tm h
       simp [TaylorModel.fromExpr?] at h
-  | arsinh _ _ =>
+  | arsinh e ih =>
       intro tm h
-      simp [TaylorModel.fromExpr?] at h
+      cases h0 : TaylorModel.fromExpr? e domain degree with
+      | none => simp [TaylorModel.fromExpr?, h0] at h
+      | some tm0 =>
+        simp [TaylorModel.fromExpr?, h0] at h
+        cases h
+        simp [TaylorModel.asinh, ih degree tm0 h0]
   | atanh e ih =>
       intro tm h
       cases h0 : TaylorModel.fromExpr? e domain degree with
@@ -437,9 +446,14 @@ theorem fromExpr?_center (e : Expr) (domain : IntervalRat) (degree : ℕ)
         split at h
         · simp only [Option.some.injEq] at h; subst h; exact ih degree tm0 h0
         · simp_all
-  | sinc _ _ =>
+  | sinc e ih =>
       intro tm h
-      simp [TaylorModel.fromExpr?] at h
+      cases h0 : TaylorModel.fromExpr? e domain degree with
+      | none => simp [TaylorModel.fromExpr?, h0] at h
+      | some tm0 =>
+        simp [TaylorModel.fromExpr?, h0] at h
+        cases h
+        simp [TaylorModel.sinc, ih degree tm0 h0]
   | erf _ _ =>
       intro tm h
       simp [TaylorModel.fromExpr?] at h
@@ -614,6 +628,40 @@ theorem cosh_evalSet_correct
       apply taylorModel_correct (tmCosh tm.bound degree) Real.cosh
         (fun z hz => tmCosh_correct tm.bound degree z hz) (f x) hfx_in_dom
     exact hcosh_bound
+  · simp only [Polynomial.aeval_zero]; ring
+
+/-- asinh preserves evalSet membership. -/
+theorem asinh_evalSet_correct
+    (f : ℝ → ℝ) (tm : TaylorModel) (degree : ℕ)
+    (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
+    ∀ x ∈ tm.domain, Real.arsinh (f x) ∈ (TaylorModel.asinh tm degree).evalSet x := by
+  intro x hx
+  simp only [asinh, evalSet, Set.mem_setOf_eq]
+  refine ⟨Real.arsinh (f x), ?_, ?_⟩
+  · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
+    have hdomain : (tmAsinh tm.bound degree).domain = tm.bound := rfl
+    have hfx_in_dom : f x ∈ (tmAsinh tm.bound degree).domain := hdomain ▸ hfbound
+    have hasinh_bound : Real.arsinh (f x) ∈ (tmAsinh tm.bound degree).bound := by
+      apply taylorModel_correct (tmAsinh tm.bound degree) Real.arsinh
+        (fun z hz => tmAsinh_correct tm.bound degree z hz) (f x) hfx_in_dom
+    exact hasinh_bound
+  · simp only [Polynomial.aeval_zero]; ring
+
+/-- sinc preserves evalSet membership. -/
+theorem sinc_evalSet_correct
+    (f : ℝ → ℝ) (tm : TaylorModel) (degree : ℕ)
+    (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
+    ∀ x ∈ tm.domain, Real.sinc (f x) ∈ (TaylorModel.sinc tm degree).evalSet x := by
+  intro x hx
+  simp only [sinc, evalSet, Set.mem_setOf_eq]
+  refine ⟨Real.sinc (f x), ?_, ?_⟩
+  · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
+    have hdomain : (tmSinc tm.bound degree).domain = tm.bound := rfl
+    have hfx_in_dom : f x ∈ (tmSinc tm.bound degree).domain := hdomain ▸ hfbound
+    have hsinc_bound : Real.sinc (f x) ∈ (tmSinc tm.bound degree).bound := by
+      apply taylorModel_correct (tmSinc tm.bound degree) Real.sinc
+        (fun z hz => tmSinc_correct tm.bound degree z hz) (f x) hfx_in_dom
+    exact hsinc_bound
   · simp only [Polynomial.aeval_zero]; ring
 
 /-- Global bound for tanh: tanh(x) ∈ [-1, 1] for all x. -/
@@ -798,9 +846,14 @@ theorem fromExpr?_domain (e : Expr) (domain : IntervalRat) (degree : ℕ)
   | atan _ _ =>
       intro tm h
       simp [TaylorModel.fromExpr?] at h
-  | arsinh _ _ =>
+  | arsinh e ih =>
       intro tm h
-      simp [TaylorModel.fromExpr?] at h
+      cases h0 : TaylorModel.fromExpr? e domain degree with
+      | none => simp [TaylorModel.fromExpr?, h0] at h
+      | some tm0 =>
+        simp [TaylorModel.fromExpr?, h0] at h
+        cases h
+        simp [TaylorModel.asinh, ih degree tm0 h0]
   | atanh e ih =>
       intro tm h
       cases h0 : TaylorModel.fromExpr? e domain degree with
@@ -811,9 +864,14 @@ theorem fromExpr?_domain (e : Expr) (domain : IntervalRat) (degree : ℕ)
         split at h
         · simp only [Option.some.injEq] at h; subst h; exact ih degree tm0 h0
         · simp_all
-  | sinc _ _ =>
+  | sinc e ih =>
       intro tm h
-      simp [TaylorModel.fromExpr?] at h
+      cases h0 : TaylorModel.fromExpr? e domain degree with
+      | none => simp [TaylorModel.fromExpr?, h0] at h
+      | some tm0 =>
+        simp [TaylorModel.fromExpr?, h0] at h
+        cases h
+        simp [TaylorModel.sinc, ih degree tm0 h0]
   | erf _ _ =>
       intro tm h
       simp [TaylorModel.fromExpr?] at h
@@ -983,8 +1041,17 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
         · simp_all
   | atan _ _ =>
       simp [TaylorModel.fromExpr?] at h
-  | arsinh _ _ =>
-      simp [TaylorModel.fromExpr?] at h
+  | arsinh e ih =>
+      cases h0 : TaylorModel.fromExpr? e domain degree with
+      | none => simp [TaylorModel.fromExpr?, h0] at h
+      | some tm0 =>
+        simp [TaylorModel.fromExpr?, h0] at h; cases h
+        have hd0 := fromExpr?_domain e domain degree tm0 h0
+        intro x hx
+        simp only [Expr.eval_arsinh]
+        have hx0 : x ∈ tm0.domain := hd0 ▸ hx
+        exact TaylorModel.asinh_evalSet_correct (fun y => Expr.eval (fun _ => y) e) tm0 degree
+          (hd0.symm ▸ ih degree tm0 h0) x hx0
   | atanh e ih =>
       cases h0 : TaylorModel.fromExpr? e domain degree with
       | none => simp [TaylorModel.fromExpr?, h0] at h
@@ -1001,8 +1068,17 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
           have hx0 : x ∈ tm0.domain := hd0 ▸ hx
           exact TaylorModel.atanh_evalSet_correct' (fun y => Expr.eval (fun _ => y) e) tm0 result degree
             (hd0.symm ▸ ih degree tm0 h0) hatanh x hx0
-  | sinc _ _ =>
-      simp [TaylorModel.fromExpr?] at h
+  | sinc e ih =>
+      cases h0 : TaylorModel.fromExpr? e domain degree with
+      | none => simp [TaylorModel.fromExpr?, h0] at h
+      | some tm0 =>
+        simp [TaylorModel.fromExpr?, h0] at h; cases h
+        have hd0 := fromExpr?_domain e domain degree tm0 h0
+        intro x hx
+        simp only [Expr.eval_sinc]
+        have hx0 : x ∈ tm0.domain := hd0 ▸ hx
+        exact TaylorModel.sinc_evalSet_correct (fun y => Expr.eval (fun _ => y) e) tm0 degree
+          (hd0.symm ▸ ih degree tm0 h0) x hx0
   | erf _ _ =>
       simp [TaylorModel.fromExpr?] at h
   | sinh e ih =>

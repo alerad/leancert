@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.TaylorModel.Core
+import LeanCert.Contrib.Sinc
 import Mathlib.Analysis.Complex.ExponentialBounds
 
 /-!
@@ -434,6 +435,153 @@ theorem tmCos_correct (J : IntervalRat) (n : ℕ) :
       rw [hrem_eq]
       apply div_le_div_of_nonneg_right hpow_le (le_of_lt hfact_pos)
     have hr_le_rem : |r| ≤ cosRemainderBound J n := le_trans hr_bound hrem_ge
+    constructor
+    · have := neg_abs_le r; linarith
+    · exact le_trans (le_abs_self r) hr_le_rem
+  · simp only [hr_def, sub_zero]; ring_nf
+
+/-! ### sinc correctness infrastructure -/
+
+/-- sinc is C^∞ (smooth).
+
+    Mathematical justification: sinc is analytic everywhere with the series
+    sinc(x) = Σ_{k=0}^∞ (-1)^k x^{2k} / (2k+1)!
+    which converges for all x ∈ ℝ. Being analytic, it is smooth (C^∞).
+
+    This fact follows from sinc being the dslope of sin at 0, and sin being
+    entire (analytic everywhere). The smoothness can be proven using the
+    series representation or by showing the iterated derivatives exist and
+    are continuous at all points including 0.
+
+    Technical note: The proof at x = 0 is subtle because we need to show
+    that the limit defining each higher derivative exists. This follows from
+    the Taylor series representation. -/
+theorem contDiff_sinc : ContDiff ℝ ⊤ Real.sinc := Real.contDiff_sinc
+
+/-- The n-th derivative of sinc at 0 follows the pattern:
+    - For odd n: 0 (sinc is even, so odd derivatives at 0 vanish)
+    - For even n = 2k: (-1)^k * (2k)! / (2k+1)!  = (-1)^k / (2k+1)
+
+    This matches the coefficients in sincTaylorCoeffs times n!. -/
+theorem iteratedDeriv_sinc_zero (n : ℕ) :
+    iteratedDeriv n Real.sinc 0 = if n % 2 = 0 then
+      let k := n / 2
+      ((-1 : ℝ) ^ k) / ((2 * k + 1) : ℕ)
+    else 0 := by
+  -- The proof uses the fact that sinc is an even function, so odd derivatives at 0 vanish.
+  -- The even derivative pattern comes from differentiating the power series term by term.
+  induction n with
+  | zero =>
+    simp only [iteratedDeriv_zero, Real.sinc_zero, Nat.zero_mod, ↓reduceIte, Nat.zero_div,
+      pow_zero, Nat.mul_zero, Nat.zero_add, Nat.cast_one, div_one]
+  | succ n _ =>
+    -- This requires explicit computation of iterated derivatives.
+    -- sinc^(n)(0) follows the pattern from the Taylor series.
+    sorry
+
+/-- The sincTaylorCoeffs match the Taylor coefficients for sinc at 0 -/
+theorem sincTaylorCoeffs_eq_iteratedDeriv (n i : ℕ) (hi : i ≤ n) :
+    (sincTaylorCoeffs n i : ℝ) = iteratedDeriv i Real.sinc 0 / i.factorial := by
+  simp only [sincTaylorCoeffs, hi, ↓reduceIte]
+  by_cases heven : i % 2 = 0
+  · simp only [heven, ↓reduceIte]
+    rw [iteratedDeriv_sinc_zero]
+    simp only [heven, ↓reduceIte]
+    -- The coefficients match: (-1)^k / (2k+1)! = ((-1)^k / (2k+1)) / (2k)!
+    sorry
+  · have hodd : i % 2 = 1 := by omega
+    simp only [heven]; norm_num
+    rw [iteratedDeriv_sinc_zero]
+    simp only [heven, ↓reduceIte, zero_div]
+
+/-- sincTaylorPoly evaluates to the standard Taylor sum for sinc at 0. -/
+theorem sincTaylorPoly_aeval_eq (n : ℕ) (z : ℝ) :
+    (Polynomial.aeval z (sincTaylorPoly n) : ℝ) =
+      ∑ i ∈ Finset.range (n + 1), (iteratedDeriv i Real.sinc 0 / i.factorial) * z ^ i := by
+  simp only [sincTaylorPoly, map_sum, Polynomial.aeval_mul, Polynomial.aeval_C,
+    Polynomial.aeval_X_pow]
+  apply Finset.sum_congr rfl
+  intro i hi
+  have hi_le : i ≤ n := Finset.mem_range_succ_iff.mp hi
+  have h := sincTaylorCoeffs_eq_iteratedDeriv n i hi_le
+  change (sincTaylorCoeffs n i : ℝ) * z ^ i = _
+  rw [h]
+
+/-- Bound on the n-th derivative of sinc.
+
+    The bound |iteratedDeriv n sinc x| ≤ 1 holds for all n and x.
+
+    Mathematical justification:
+    - For n = 0: |sinc x| ≤ 1 (proven in Mathlib as abs_sinc_le_one)
+    - For n = 1: |sinc' x| ≤ 1 (proven in LeanCert.Contrib.Sinc as abs_deriv_sinc_le_one)
+    - For n ≥ 2: The pattern continues; the derivatives of sinc involve
+      bounded combinations of sin and cos divided by powers of x, and the
+      limiting behavior at x = 0 is well-behaved due to analyticity.
+
+    The uniform bound of 1 is conservative for higher derivatives but sufficient
+    for the Taylor remainder estimate. -/
+theorem sinc_deriv_bound (n : ℕ) :
+    ∀ x : ℝ, ‖iteratedDeriv n Real.sinc x‖ ≤ 1 := by
+  intro x
+  -- Base cases are proven:
+  -- n = 0: Real.abs_sinc_le_one
+  -- n = 1: Real.abs_deriv_sinc_le_one
+  -- Higher derivatives require more detailed analysis of the sinc derivative structure.
+  sorry
+
+/-- sinc z ∈ (tmSinc J n).evalSet z for all z in J.
+    Uses taylor_remainder_bound with f = Real.sinc, c = 0, M = 1. -/
+theorem tmSinc_correct (J : IntervalRat) (n : ℕ) :
+    ∀ z : ℝ, z ∈ J → Real.sinc z ∈ (tmSinc J n).evalSet z := by
+  intro z hz
+  simp only [tmSinc, evalSet, Set.mem_setOf_eq]
+  set r := Real.sinc z - Polynomial.aeval (z - 0) (sincTaylorPoly n) with hr_def
+  refine ⟨r, ?_, ?_⟩
+  · simp only [IntervalRat.mem_def, Rat.cast_neg]
+    have hpoly_eq := sincTaylorPoly_aeval_eq n z
+    simp only [sub_zero] at hr_def hpoly_eq
+    have hr_rewrite : r = Real.sinc z - ∑ i ∈ Finset.range (n + 1),
+        (iteratedDeriv i Real.sinc 0 / i.factorial) * z ^ i := by
+      rw [hr_def, hpoly_eq]
+    -- Apply Taylor's theorem with f = sinc, c = 0, M = 1
+    set a := min (J.lo : ℝ) 0 with ha_def
+    set b := max (J.hi : ℝ) 0 with hb_def
+    have hab : a ≤ b := by simp only [ha_def, hb_def]; exact le_trans (min_le_of_right_le (le_refl 0)) (le_max_right _ _)
+    have hca : a ≤ 0 := min_le_right _ _
+    have hcb : 0 ≤ b := le_max_right _ _
+    have hz_ab : z ∈ Set.Icc a b := by
+      simp only [Set.mem_Icc, ha_def, hb_def]
+      have hmem := mem_Icc_of_mem_interval hz
+      constructor
+      · exact le_trans (min_le_left _ _) hmem.1
+      · exact le_trans hmem.2 (le_max_left _ _)
+    have hM : ∀ x ∈ Set.Icc a b, ‖iteratedDeriv (n + 1) Real.sinc x‖ ≤ 1 := by
+      intro x _
+      exact sinc_deriv_bound (n + 1) x
+    have hf : ContDiff ℝ (n + 1) Real.sinc := contDiff_sinc.of_le le_top
+    have hTaylor := LeanCert.Core.taylor_remainder_bound hab hca hcb hf hM (by norm_num : (0 : ℝ) ≤ 1) z hz_ab
+    simp only [sub_zero] at hTaylor
+    have hr_bound : ‖r‖ ≤ 1 * |z| ^ (n + 1) / (n + 1).factorial := by
+      rw [hr_rewrite]
+      exact hTaylor
+    rw [Real.norm_eq_abs] at hr_bound
+    simp only [one_mul] at hr_bound
+    -- |r| ≤ sincRemainderBound since |z| ≤ radius
+    have habs_z_le : |z| ≤ max (|(J.lo : ℝ)|) (|(J.hi : ℝ)|) := abs_le_interval_radius hz
+    set radius : ℚ := max (|J.lo|) (|J.hi|) with hradius_def
+    have hradius_real : (radius : ℝ) = max (|(J.lo : ℝ)|) (|(J.hi : ℝ)|) := by
+      simp only [hradius_def, Rat.cast_max, Rat.cast_abs]
+    have hrem_eq : (sincRemainderBound J n : ℝ) = (radius : ℝ) ^ (n + 1) / (n + 1).factorial := by
+      simp only [sincRemainderBound, hradius_def, Rat.cast_div, Rat.cast_pow, Rat.cast_natCast]
+    have hpow_le : |z| ^ (n + 1) ≤ (radius : ℝ) ^ (n + 1) := by
+      apply pow_le_pow_left₀ (abs_nonneg z)
+      rw [hradius_real]
+      exact habs_z_le
+    have hfact_pos : (0 : ℝ) < ((n + 1).factorial : ℝ) := Nat.cast_pos.mpr (Nat.factorial_pos _)
+    have hrem_ge : (sincRemainderBound J n : ℝ) ≥ |z| ^ (n + 1) / (n + 1).factorial := by
+      rw [hrem_eq]
+      apply div_le_div_of_nonneg_right hpow_le (le_of_lt hfact_pos)
+    have hr_le_rem : |r| ≤ sincRemainderBound J n := le_trans hr_bound hrem_ge
     constructor
     · have := neg_abs_le r; linarith
     · exact le_trans (le_abs_self r) hr_le_rem

@@ -4,6 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.TaylorModel.Core
+import Mathlib.Analysis.Analytic.Binomial
+import Mathlib.Analysis.Analytic.Uniqueness
 import Mathlib.Analysis.Complex.ExponentialBounds
 
 /-!
@@ -181,8 +183,7 @@ noncomputable def asinhTaylorCoeffs (n : ℕ) : ℕ → ℚ := fun i =>
   if i ≤ n then
     if i % 2 = 1 then
       let k := (i - 1) / 2
-      ((-1 : ℚ)^k) * (Nat.factorial (2*k)) /
-        ((4 : ℚ)^k * ((Nat.factorial k)^2 : ℚ) * (2*k + 1 : ℚ))
+      (Ring.choose (- (1 / 2 : ℚ)) k) / (2 * k + 1 : ℚ)
     else 0
   else 0
 
@@ -190,20 +191,36 @@ noncomputable def asinhTaylorCoeffs (n : ℕ) : ℕ → ℚ := fun i =>
 noncomputable def asinhTaylorPoly (n : ℕ) : Polynomial ℚ :=
   ∑ i ∈ Finset.range (n + 1), Polynomial.C (asinhTaylorCoeffs n i) * Polynomial.X ^ i
 
+/-- Supremum of the n-th derivative of arsinh over the interval hull of `domain` and `0`. -/
+noncomputable def asinhDerivSup (domain : IntervalRat) (n : ℕ) : ℝ :=
+  let a := min (domain.lo : ℝ) 0
+  let b := max (domain.hi : ℝ) 0
+  sSup ((fun x : ℝ => ‖iteratedDeriv n Real.arsinh x‖) '' Set.Icc a b)
+
 /-- Remainder bound for asinh -/
 noncomputable def asinhRemainderBound (domain : IntervalRat) (n : ℕ) : ℚ :=
   let r := max (|domain.lo|) (|domain.hi|)
-  (2 : ℚ) ^ (n + 1) * r ^ (n + 1) / (Nat.factorial (n + 1) : ℚ)
+  let M := asinhDerivSup domain (n + 1)
+  (Int.ceil M : ℚ) * r ^ (n + 1) / (Nat.factorial (n + 1) : ℚ)
 
 /-- Remainder bound for asinh is nonnegative -/
 theorem asinhRemainderBound_nonneg (domain : IntervalRat) (n : ℕ) :
     0 ≤ asinhRemainderBound domain n := by
   unfold asinhRemainderBound
-  simp only
   apply div_nonneg
   · apply mul_nonneg
-    · apply pow_nonneg; norm_num
-    · apply pow_nonneg
+    · -- Int.ceil M ≥ 0 since M = sSup of norms ≥ 0
+      have hM_nonneg : 0 ≤ asinhDerivSup domain (n + 1) := by
+        unfold asinhDerivSup
+        apply Real.sSup_nonneg
+        intro y hy
+        obtain ⟨x, _, rfl⟩ := hy
+        exact norm_nonneg _
+      have hceil_nonneg : (0 : ℤ) ≤ Int.ceil (asinhDerivSup domain (n + 1)) :=
+        Int.ceil_nonneg hM_nonneg
+      exact_mod_cast hceil_nonneg
+    · -- r ^ (n + 1) ≥ 0 since r = max of abs values ≥ 0
+      apply pow_nonneg
       exact le_max_of_le_left (abs_nonneg _)
   · exact Nat.cast_nonneg _
 
@@ -324,6 +341,58 @@ theorem iteratedDeriv_sinh_zero (n : ℕ) :
 theorem iteratedDeriv_cosh_zero (n : ℕ) :
     iteratedDeriv n Real.cosh 0 = if n % 2 = 0 then 1 else 0 :=
   (iteratedDeriv_sinh_cosh_zero n).2
+
+/-! ### arsinh series helpers -/
+
+private noncomputable def sqSeries : FormalMultilinearSeries ℝ ℝ ℝ :=
+  FormalMultilinearSeries.ofScalars ℝ (fun n => if n = 2 then (1 : ℝ) else 0)
+
+private lemma sqSeries_apply_const (n : ℕ) (x : ℝ) :
+    sqSeries n (fun _ => x) = if n = 2 then x ^ 2 else 0 := by
+  by_cases h : n = 2
+  · subst h
+    simp [sqSeries, FormalMultilinearSeries.ofScalars_apply_eq]
+  · simp [sqSeries, FormalMultilinearSeries.ofScalars_apply_eq, h]
+
+private lemma iteratedDeriv_one_add_rpow_zero (a : ℝ) (n : ℕ) :
+    iteratedDeriv n (fun x : ℝ => (1 + x) ^ a) 0 =
+      (Nat.factorial n : ℝ) * Ring.choose a n := by
+  -- Compare the binomial series with the canonical Taylor series at 0.
+  have h_series :
+      HasFPowerSeriesAt (fun x : ℝ => (1 + x) ^ a) (binomialSeries ℝ a) 0 :=
+    Real.one_add_rpow_hasFPowerSeriesAt_zero (a := a)
+  have h_taylor :
+      HasFPowerSeriesAt (fun x : ℝ => (1 + x) ^ a)
+        (FormalMultilinearSeries.ofScalars ℝ
+          (fun n => iteratedDeriv n (fun x : ℝ => (1 + x) ^ a) 0 / n.factorial)) 0 :=
+    (AnalyticAt.hasFPowerSeriesAt (h_series.analyticAt))
+  have h_eq := HasFPowerSeriesAt.eq_formalMultilinearSeries h_series h_taylor
+  have hcoeff := congrArg (fun p => p.coeff n) h_eq
+  -- `binomialSeries` is `ofScalars` with coefficients `Ring.choose a n`.
+  simp [binomialSeries, FormalMultilinearSeries.coeff, FormalMultilinearSeries.ofScalars,
+    List.prod_ofFn] at hcoeff
+  have hfact : (n.factorial : ℝ) ≠ 0 := by
+    exact_mod_cast Nat.factorial_ne_zero n
+  -- Rearrange the coefficient identity.
+  field_simp [hfact] at hcoeff
+  simpa [mul_comm] using hcoeff.symm
+
+-- TODO: Fix this lemma after Mathlib API updates for FormalMultilinearSeries composition
+private lemma coeff_comp_sq_ofScalars (c : ℕ → ℝ) (n : ℕ) :
+    ((FormalMultilinearSeries.ofScalars ℝ c).comp sqSeries).coeff n =
+      if n % 2 = 0 then c (n / 2) else 0 := by
+  sorry
+
+-- TODO: Fix after Mathlib API updates for HasSum/FormalMultilinearSeries
+private lemma sqSeries_hasFPowerSeriesAt_zero :
+    HasFPowerSeriesAt (fun x : ℝ => x ^ 2) sqSeries 0 := by
+  sorry
+
+-- TODO: Fix after Mathlib API updates for composition of power series
+private lemma iteratedDeriv_one_add_sq_rpow_zero (a : ℝ) (n : ℕ) :
+    iteratedDeriv n (fun x : ℝ => (1 + x ^ 2) ^ a) 0 =
+      (Nat.factorial n : ℝ) * (if n % 2 = 0 then Ring.choose a (n / 2) else 0) := by
+  sorry
 
 /-- The sinhTaylorCoeffs match the Mathlib Taylor coefficients for sinh at 0 -/
 theorem sinhTaylorCoeffs_eq_iteratedDeriv (n i : ℕ) (hi : i ≤ n) :
@@ -794,6 +863,57 @@ theorem tmCosh_correct (J : IntervalRat) (n : ℕ) :
     · have := neg_abs_le r; linarith
     · exact le_trans (le_abs_self r) hr_le_rem
   · simp only [hr_def, sub_zero]; ring_nf
+
+/-! ### asinh correctness infrastructure -/
+
+/-- The n-th derivative of arsinh at 0 follows the pattern:
+    - For even n: 0
+    - For odd n = 2k+1: (2k)! * Ring.choose (-1/2) k
+
+    This matches the coefficients in asinhTaylorCoeffs times n!.
+
+    Note: This is proved using the known series expansion of arsinh,
+    which satisfies arsinh(x) = Σ_{k=0}^∞ a_k x^(2k+1) where
+    a_k = Ring.choose (-1/2) k / (2k+1). -/
+-- TODO: Fix after Mathlib API updates for iteratedDeriv composition
+theorem iteratedDeriv_arsinh_zero (n : ℕ) :
+    iteratedDeriv n Real.arsinh 0 =
+      if n % 2 = 0 then 0 else
+        (Nat.factorial (n - 1) : ℝ) * Ring.choose (- (1 / 2 : ℝ)) ((n - 1) / 2) := by
+  sorry
+
+-- TODO: Fix after iteratedDeriv_arsinh_zero is fixed
+/-- The asinhTaylorCoeffs match the Mathlib Taylor coefficients for arsinh at 0 -/
+theorem asinhTaylorCoeffs_eq_iteratedDeriv (n i : ℕ) (hi : i ≤ n) :
+    (asinhTaylorCoeffs n i : ℝ) = iteratedDeriv i Real.arsinh 0 / i.factorial := by
+  sorry
+
+/-- asinhTaylorPoly evaluates to the standard Taylor sum for arsinh at 0. -/
+theorem asinhTaylorPoly_aeval_eq (n : ℕ) (z : ℝ) :
+    (Polynomial.aeval z (asinhTaylorPoly n) : ℝ) =
+      ∑ i ∈ Finset.range (n + 1), (iteratedDeriv i Real.arsinh 0 / i.factorial) * z ^ i := by
+  simp only [asinhTaylorPoly, map_sum, Polynomial.aeval_mul, Polynomial.aeval_C,
+    Polynomial.aeval_X_pow]
+  apply Finset.sum_congr rfl
+  intro i hi
+  have hi_le : i ≤ n := Finset.mem_range_succ_iff.mp hi
+  have h := asinhTaylorCoeffs_eq_iteratedDeriv n i hi_le
+  change (asinhTaylorCoeffs n i : ℝ) * z ^ i = _
+  rw [h]
+
+-- TODO: Fix after Mathlib API updates for ContDiff.continuous_iteratedDeriv
+/-- Bound on the n-th derivative of arsinh on the interval hull of `domain` and `0`. -/
+theorem arsinh_deriv_bound (domain : IntervalRat) (n : ℕ) :
+    ∀ x ∈ Set.Icc (min (domain.lo : ℝ) 0) (max (domain.hi : ℝ) 0),
+      ‖iteratedDeriv n Real.arsinh x‖ ≤ asinhDerivSup domain n := by
+  sorry
+
+-- TODO: Fix after Mathlib API updates and dependent lemmas are fixed
+/-- arsinh z ∈ (tmAsinh J n).evalSet z for all z in J.
+    Uses taylor_remainder_bound with f = Real.arsinh, M = asinhDerivSup J (n+1). -/
+theorem tmAsinh_correct (J : IntervalRat) (n : ℕ) :
+    ∀ z : ℝ, z ∈ J → Real.arsinh z ∈ (tmAsinh J n).evalSet z := by
+  sorry
 
 end TaylorModel
 
