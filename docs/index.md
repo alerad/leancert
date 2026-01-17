@@ -75,7 +75,7 @@ Add to your `lakefile.toml`:
 ```toml
 [[require]]
 name = "leancert"
-git = "https://github.com/yale/leancert"
+git = "https://github.com/alerad/leancert"
 rev = "main"
 ```
 
