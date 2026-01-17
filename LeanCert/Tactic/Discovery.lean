@@ -1075,9 +1075,35 @@ where
         return none
     | _ => return none
 
+/-- Check if a root goal needs normalization (f = c where c ≠ 0) -/
+private def needsRootNormalization (goalType : Lean.Expr) : MetaM Bool := do
+  let goalType ← whnf goalType
+  match_expr goalType with
+  | Exists _ body =>
+    if let .lam _ _ innerBody _ := body then
+      let innerBody ← whnf innerBody
+      match_expr innerBody with
+      | And _ eqExpr =>
+        match_expr eqExpr with
+        | Eq _ _ rhs =>
+          let zero ← mkAppOptM ``OfNat.ofNat #[mkConst ``Real, mkRawNatLit 0, none]
+          let rhs ← whnf rhs
+          let isZero ← isDefEq rhs zero
+          return !isZero
+        | _ => return false
+      | _ => return false
+    else return false
+  | _ => return false
+
 /-- The interval_roots tactic implementation -/
 def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
   LeanCert.Tactic.Auto.intervalNormCore
+  -- Normalize f = c to f - c = 0 form only if needed
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  if ← needsRootNormalization goalType then
+    try evalTactic (← `(tactic| conv => arg 1; ext x; arg 2; rw [← sub_eq_zero]))
+    catch _ => pure ()
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -1124,7 +1150,7 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
       let proofSyntax ← Term.exprToSyntax proof
       evalTactic (← `(tactic| refine (by
         have h := $proofSyntax (by native_decide)
-        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg] using h)))
+        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
     else
       -- 7. Apply the proof - this leaves the certificate check as a goal
       let newGoals ← goal.apply proof

@@ -24,8 +24,10 @@ import LeanCert.Core.IntervalRat.Taylor
   pure ()
 
 -- Test 4: Debug the condition
-#eval do
-  for i in List.range 11 do
+#eval
+  let results := (List.range 11).map fun i =>
     let cond := i % 2 == 1  -- Use == for Bool instead of = for Prop
     let val : ℚ := if cond then 1 / (i : ℚ) else 0
-    IO.println s!"i={i}, i % 2 = {i % 2}, cond={cond}, val={val}"
+    s!"i={i}, i % 2 = {i % 2}, cond={cond}, val={val}"
+  dbg_trace "Condition debug:\n{String.intercalate "\n" results}"
+  pure ()

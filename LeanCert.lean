@@ -46,6 +46,11 @@ import LeanCert.Engine.Extended
 -- Search + Certify APIs
 import LeanCert.Engine.SearchAPI
 
+-- Meta (metaprogramming utilities)
+import LeanCert.Meta.ProveContinuous
+import LeanCert.Meta.ProveSupported
+import LeanCert.Meta.ToExpr
+
 -- Tactics
 import LeanCert.Tactic.Interval
 import LeanCert.Tactic.Discovery
@@ -53,6 +58,10 @@ import LeanCert.Tactic.Discovery
 import LeanCert.Tactic.DyadicAuto
 -- Counter-example hunting
 import LeanCert.Tactic.Refute
+-- Additional tactics
+import LeanCert.Tactic.Bound
+import LeanCert.Tactic.TestAuto
+import LeanCert.Tactic.TestDiscovery
 
 -- Discovery Mode
 import LeanCert.Discovery
@@ -66,10 +75,17 @@ import LeanCert.ML.Symbolic.Sigmoid
 import LeanCert.ML.Transformer
 import LeanCert.ML.Softmax
 import LeanCert.ML.Attention
+import LeanCert.ML.LayerNormAffine
+import LeanCert.ML.Optimized
+import LeanCert.ML.Optimized.IntervalArray
+import LeanCert.ML.Optimized.Matrix
+import LeanCert.ML.Optimized.QuantizedLayer
 import LeanCert.ML.Optimized.MatrixNetwork
 
 -- ML Examples
 import LeanCert.Examples.ML.Distillation
+import LeanCert.Examples.ML.SineApprox
+import LeanCert.Examples.ML.SineNetWeights
 
 -- Examples
 import LeanCert.Examples.Basic
@@ -78,6 +94,12 @@ import LeanCert.Examples.Numerics
 import LeanCert.Examples.Tactics
 import LeanCert.Examples.Certificate
 import LeanCert.Examples.GlobalOptimization
+import LeanCert.Examples.EdgeCases
+import LeanCert.Examples.NeuralNet
+import LeanCert.Examples.Showcase
+
+-- Contrib (community contributions)
+import LeanCert.Contrib.Sinc
 
 /-! ## Public API
 

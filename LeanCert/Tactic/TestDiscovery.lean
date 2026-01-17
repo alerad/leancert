@@ -38,7 +38,7 @@ def defaultCfg : EvalConfig := { taylorDepth := 10 }
 -- This is a direct application of verify_sign_change
 theorem test_x_root : ∃ x ∈ I_neg1_1, Expr.eval (fun _ => x) (Expr.var 0) = 0 := by
   -- Manual application to verify the theorem works
-  refine Certificate.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
+  refine LeanCert.Validity.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
   · exact ExprSupportedCore.var 0
   · exact LeanCert.Meta.exprSupportedCore_continuousOn (Expr.var 0) (ExprSupportedCore.var 0)
   · native_decide
@@ -47,7 +47,7 @@ theorem test_x_root : ∃ x ∈ I_neg1_1, Expr.eval (fun _ => x) (Expr.var 0) = 
 -- This proves √2 exists!
 theorem test_sqrt2_exists : ∃ x ∈ I_1_2,
     Expr.eval (fun _ => x) (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))) = 0 := by
-  refine Certificate.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
+  refine LeanCert.Validity.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
   · exact ExprSupportedCore.add (ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0))
       (ExprSupportedCore.neg (ExprSupportedCore.const 2))
   · exact LeanCert.Meta.exprSupportedCore_continuousOn _ (ExprSupportedCore.add
@@ -58,7 +58,7 @@ theorem test_sqrt2_exists : ∃ x ∈ I_1_2,
 -- Test 3: sin(x) = 0 has a root near π
 -- sin(3) ≈ 0.14 > 0, sin(4) ≈ -0.76 < 0
 theorem test_sin_root : ∃ x ∈ I_3_4, Expr.eval (fun _ => x) (Expr.sin (Expr.var 0)) = 0 := by
-  refine Certificate.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
+  refine LeanCert.Validity.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
   · exact ExprSupportedCore.sin (ExprSupportedCore.var 0)
   · exact LeanCert.Meta.exprSupportedCore_continuousOn _ (ExprSupportedCore.sin (ExprSupportedCore.var 0))
   · native_decide
@@ -67,7 +67,7 @@ theorem test_sin_root : ∃ x ∈ I_3_4, Expr.eval (fun _ => x) (Expr.sin (Expr.
 -- f(0) = 1 - 2 = -1 < 0, f(1) = e - 2 ≈ 0.718 > 0
 theorem test_exp_root : ∃ x ∈ I_0_1,
     Expr.eval (fun _ => x) (Expr.add (Expr.exp (Expr.var 0)) (Expr.neg (Expr.const 2))) = 0 := by
-  refine Certificate.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
+  refine LeanCert.Validity.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
   · exact ExprSupportedCore.add (ExprSupportedCore.exp (ExprSupportedCore.var 0))
       (ExprSupportedCore.neg (ExprSupportedCore.const 2))
   · exact LeanCert.Meta.exprSupportedCore_continuousOn _ (ExprSupportedCore.add
@@ -78,7 +78,7 @@ theorem test_exp_root : ∃ x ∈ I_0_1,
 -- Test 5: cos(x) = 0 has a root (π/2 ≈ 1.57)
 -- cos(1) ≈ 0.54 > 0, cos(2) ≈ -0.42 < 0
 theorem test_cos_root : ∃ x ∈ I_1_2, Expr.eval (fun _ => x) (Expr.cos (Expr.var 0)) = 0 := by
-  refine Certificate.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
+  refine LeanCert.Validity.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
   · exact ExprSupportedCore.cos (ExprSupportedCore.var 0)
   · exact LeanCert.Meta.exprSupportedCore_continuousOn _ (ExprSupportedCore.cos (ExprSupportedCore.var 0))
   · native_decide
@@ -214,31 +214,31 @@ where the bound is computed via interval arithmetic.
 -- Test 1: ∫_0^1 x dx = 1/2, should be in [0, 1] (conservative bound)
 theorem test_integrate_x : ∫ x in (I_0_1.lo : ℝ)..(I_0_1.hi : ℝ),
     Expr.eval (fun _ => x) (Expr.var 0) ∈
-    Certificate.Integration.integrateInterval1Core (Expr.var 0) I_0_1 defaultCfg := by
+    LeanCert.Validity.Integration.integrateInterval1Core (Expr.var 0) I_0_1 defaultCfg := by
   interval_integrate
 
 -- Test 2: ∫_0^1 1 dx = 1, should be in [1, 1]
 theorem test_integrate_const : ∫ x in (I_0_1.lo : ℝ)..(I_0_1.hi : ℝ),
     Expr.eval (fun _ => x) (Expr.const 1) ∈
-    Certificate.Integration.integrateInterval1Core (Expr.const 1) I_0_1 defaultCfg := by
+    LeanCert.Validity.Integration.integrateInterval1Core (Expr.const 1) I_0_1 defaultCfg := by
   interval_integrate
 
 -- Test 3: ∫_0^1 x² dx = 1/3, should be bounded
 theorem test_integrate_x2 : ∫ x in (I_0_1.lo : ℝ)..(I_0_1.hi : ℝ),
     Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ∈
-    Certificate.Integration.integrateInterval1Core (Expr.mul (Expr.var 0) (Expr.var 0)) I_0_1 defaultCfg := by
+    LeanCert.Validity.Integration.integrateInterval1Core (Expr.mul (Expr.var 0) (Expr.var 0)) I_0_1 defaultCfg := by
   interval_integrate
 
 -- Test 4: ∫_0^1 exp(x) dx = e - 1 ≈ 1.718, should be bounded
 theorem test_integrate_exp : ∫ x in (I_0_1.lo : ℝ)..(I_0_1.hi : ℝ),
     Expr.eval (fun _ => x) (Expr.exp (Expr.var 0)) ∈
-    Certificate.Integration.integrateInterval1Core (Expr.exp (Expr.var 0)) I_0_1 defaultCfg := by
+    LeanCert.Validity.Integration.integrateInterval1Core (Expr.exp (Expr.var 0)) I_0_1 defaultCfg := by
   interval_integrate
 
 -- Test 5: ∫_0^1 sin(x) dx = 1 - cos(1) ≈ 0.46, should be bounded
 theorem test_integrate_sin : ∫ x in (I_0_1.lo : ℝ)..(I_0_1.hi : ℝ),
     Expr.eval (fun _ => x) (Expr.sin (Expr.var 0)) ∈
-    Certificate.Integration.integrateInterval1Core (Expr.sin (Expr.var 0)) I_0_1 defaultCfg := by
+    LeanCert.Validity.Integration.integrateInterval1Core (Expr.sin (Expr.var 0)) I_0_1 defaultCfg := by
   interval_integrate
 
 end LeanCert.Tactic.TestDiscovery
