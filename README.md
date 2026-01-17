@@ -1,16 +1,24 @@
 # LeanCert
 
-Verified numerical computation and bound certification for Lean 4.
+**Numerical computation produces suggestions. LeanCert produces theorems.**
 
-LeanCert automates proofs of inequalities, global extrema, root existence, and integration bounds using rigorous interval arithmetic and Taylor models. Unlike standard numerical libraries that provide approximations, LeanCert produces formal proofs.
+LeanCert transforms numerical insights into formal certificates—proof terms verified by the Lean kernel. Write `by certify_bound` and get a real theorem: `∀ x ∈ I, f(x) ≤ c`, not just a floating-point approximation.
 
-## Overview
+## Why LeanCert?
+
+- **Certification is the product.** Tactics produce theorems, not numbers.
+- **Golden Theorem architecture.** Fast boolean checks (`checkUpperBound(...) = true`) bridge to mathematical properties (`∀ x ∈ I, f(x) ≤ c`).
+- **Trust hierarchy.** Kernel-only (`certify_kernel`), compiler-trusted (`certify_bound`), or Python as an untrusted oracle.
+
+Discovery commands like `#find_min` help *explore*; tactics like `certify_bound` *prove*.
+
+## Architecture
 
 LeanCert operates on a certificate-driven architecture:
 
 1. **Reification**: Mathematical expressions are converted to an AST (`LeanCert.Core.Expr`)
-2. **Computation**: Algorithms run on the AST using rational interval arithmetic
-3. **Certification**: Golden theorems lift boolean results to semantic proofs about real numbers
+2. **Computation**: The Engine runs algorithms using rational/dyadic interval arithmetic
+3. **Certification**: Golden Theorems lift boolean results to semantic proofs about real numbers
 
 This separation allows efficient computation while maintaining full formal verification.
 
@@ -306,11 +314,10 @@ Open an issue before starting major work.
 
 ## License
 
-**Dual Licensed:**
+**FSL-1.1-Apache-2.0** (Functional Source License)
 
-- **AGPL-3.0** — Free for open source projects and non-commercial use
-- **Commercial License** — Required for proprietary/closed-source use
+- **Free** for personal use, research, education, and internal business operations
+- **Commercial license required** for offering verification to third parties
+- **Converts to Apache 2.0** on January 17, 2028
 
-If your organization uses LeanCert in production without releasing your code under AGPL, contact aleloid@proton.me for commercial licensing.
-
-See [LICENSE](LICENSE) for the full AGPL-3.0 text.
+See [LICENSE](LICENSE) for full terms and [COMMERCIAL.md](COMMERCIAL.md) for pricing.

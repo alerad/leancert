@@ -1,3 +1,4 @@
+PHILO*
 .idea/
 .atlas-cache/
 /.lake
@@ -14,3 +15,8 @@ __pycache__/
 
 # Scratch/debug files
 tmp_*.lean
+
+# CAS Bridge (private until BigCAS launch)
+python/leancert/bridge/
+python/leancert/tests/test_bridge.py
+python/leancert/tests/test_conditional.py
