@@ -367,6 +367,45 @@ private lemma iteratedDeriv_even_odd_zero {f : ℝ → ℝ} (heven : ∀ x, f (-
   simp only [hneg, neg_smul, one_smul] at h3
   linarith
 
+/-- Even derivatives of odd functions at 0 vanish.
+    For odd f where f(-x) = -f(x), at a = 0 we get (-1)^n * d = -d.
+    For even n, this means d = -d, hence d = 0. -/
+private lemma iteratedDeriv_odd_even_zero {f : ℝ → ℝ} (hodd : ∀ x, f (-x) = -f x)
+    {n : ℕ} (heven : n % 2 = 0) : iteratedDeriv n f 0 = 0 := by
+  have h1 : ∀ a, iteratedDeriv n (fun x => f (-x)) a = (-1 : ℝ) ^ n • iteratedDeriv n f (-a) :=
+    fun a => iteratedDeriv_comp_neg n f a
+  have h2 : (fun x => f (-x)) = -f := by ext x; simp [hodd]
+  have h3 : (-1 : ℝ) ^ n • iteratedDeriv n f 0 = -iteratedDeriv n f 0 := by
+    calc (-1 : ℝ) ^ n • iteratedDeriv n f 0
+        = iteratedDeriv n (fun x => f (-x)) 0 := by rw [h1 0]; simp
+      _ = iteratedDeriv n (-f) 0 := by rw [h2]
+      _ = -iteratedDeriv n f 0 := iteratedDeriv_neg n f 0
+  have hpos : (-1 : ℝ) ^ n = 1 := Even.neg_one_pow (Nat.even_iff.mpr heven)
+  simp only [hpos, one_smul] at h3
+  linarith
+
+/-- deriv arsinh x = (1 + x²)^(-1/2) -/
+private lemma arsinh_continuous_iteratedDeriv (n : ℕ) :
+    Continuous (iteratedDeriv n Real.arsinh) := by
+  have h : ContDiff ℝ (n : ℕ∞) Real.arsinh := Real.contDiff_arsinh
+  exact h.continuous_iteratedDeriv n le_rfl
+
+private lemma deriv_arsinh_eq (x : ℝ) : deriv Real.arsinh x = (1 + x ^ 2) ^ (-(1/2 : ℝ)) := by
+  have h : 1 + x^2 > 0 := by nlinarith [sq_nonneg x]
+  have hd := Real.hasDerivAt_arsinh x
+  rw [hd.deriv]
+  rw [Real.sqrt_eq_rpow, ← Real.rpow_neg (le_of_lt h)]
+
+private lemma deriv_arsinh : deriv Real.arsinh = fun x => (1 + x ^ 2) ^ (-(1/2 : ℝ)) := by
+  ext x; exact deriv_arsinh_eq x
+
+/-- Key relationship: iteratedDeriv (n+1) arsinh = iteratedDeriv n ((1+x²)^(-1/2)) -/
+private lemma iteratedDeriv_arsinh_succ (n : ℕ) :
+    iteratedDeriv (n + 1) Real.arsinh = iteratedDeriv n (fun x => (1 + x ^ 2) ^ (-(1/2 : ℝ))) := by
+  rw [iteratedDeriv_succ']
+  congr 1
+  exact deriv_arsinh
+
 private noncomputable def sqSeries : FormalMultilinearSeries ℝ ℝ ℝ :=
   FormalMultilinearSeries.ofScalars ℝ (fun n => if n = 2 then (1 : ℝ) else 0)
 
@@ -1098,18 +1137,62 @@ theorem tmCosh_correct (J : IntervalRat) (n : ℕ) :
     Note: This is proved using the known series expansion of arsinh,
     which satisfies arsinh(x) = Σ_{k=0}^∞ a_k x^(2k+1) where
     a_k = Ring.choose (-1/2) k / (2k+1). -/
--- TODO: Fix after Mathlib API updates for iteratedDeriv composition
 theorem iteratedDeriv_arsinh_zero (n : ℕ) :
     iteratedDeriv n Real.arsinh 0 =
       if n % 2 = 0 then 0 else
         (Nat.factorial (n - 1) : ℝ) * Ring.choose (- (1 / 2 : ℝ)) ((n - 1) / 2) := by
-  sorry
+  rcases n with _ | m
+  -- Case n = 0
+  · simp [Real.arsinh_zero]
+  -- Case n = m + 1 ≥ 1
+  · -- iteratedDeriv (m+1) arsinh 0 = iteratedDeriv m ((1+x²)^(-1/2)) 0
+    rw [iteratedDeriv_arsinh_succ]
+    -- Use iteratedDeriv_one_add_sq_rpow_zero with a = -1/2
+    rw [iteratedDeriv_one_add_sq_rpow_zero (-(1/2 : ℝ)) m]
+    -- Now simplify based on parity
+    by_cases hm : m % 2 = 0
+    · -- m is even, so m+1 is odd
+      have hodd : (m + 1) % 2 = 1 := by omega
+      simp only [hm, hodd, ↓reduceIte]
+      -- (m+1-1) = m, (m+1-1)/2 = m/2
+      congr 1 <;> omega
+    · -- m is odd, so m+1 is even
+      have heven : (m + 1) % 2 = 0 := by omega
+      simp only [hm, heven, ↓reduceIte, mul_zero]
 
--- TODO: Fix after iteratedDeriv_arsinh_zero is fixed
 /-- The asinhTaylorCoeffs match the Mathlib Taylor coefficients for arsinh at 0 -/
 theorem asinhTaylorCoeffs_eq_iteratedDeriv (n i : ℕ) (hi : i ≤ n) :
     (asinhTaylorCoeffs n i : ℝ) = iteratedDeriv i Real.arsinh 0 / i.factorial := by
-  sorry
+  simp only [asinhTaylorCoeffs, hi, ↓reduceIte]
+  rw [iteratedDeriv_arsinh_zero]
+  by_cases hodd : i % 2 = 1
+  · -- Odd i = 2k+1: coefficient is Ring.choose(-1/2, k) / (2k+1) where k = (i-1)/2
+    simp only [hodd, ↓reduceIte]
+    -- Set k = (i-1)/2, so i = 2k+1 and i-1 = 2k
+    set k := (i - 1) / 2 with hk_def
+    have hk : i = 2 * k + 1 := by omega
+    have hk' : i - 1 = 2 * k := by omega
+    -- LHS: Ring.choose(-1/2, k) / (2k+1) : ℚ cast to ℝ
+    -- RHS: ((2k)! * Ring.choose(-1/2, k)) / (2k+1)!
+    -- Use: (2k+1)! = (2k+1) * (2k)!
+    have hfact : i.factorial = (2 * k + 1) * (2 * k).factorial := by
+      rw [hk]
+      exact Nat.factorial_succ (2 * k)
+    rw [hk', hfact]
+    push_cast
+    have hne : (2 * (k : ℝ) + 1) ≠ 0 := by linarith
+    have hfact_ne : ((2 * k).factorial : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero _)
+    -- Convert Ring.choose from ℚ to ℝ using Ring.map_choose
+    have h_choose_cast : ((Ring.choose (-(1 / 2 : ℚ)) k : ℚ) : ℝ) = Ring.choose (-(1 / 2 : ℝ)) k := by
+      have h := Ring.map_choose (algebraMap ℚ ℝ) (-(1/2 : ℚ)) k
+      simp only [map_neg, map_div₀, map_one, map_ofNat] at h
+      exact h
+    rw [h_choose_cast]
+    field_simp
+  · -- Even i: coefficient is 0
+    have heven : i % 2 = 0 := by omega
+    simp only [heven, ↓reduceIte, zero_div]
+    norm_cast
 
 /-- asinhTaylorPoly evaluates to the standard Taylor sum for arsinh at 0. -/
 theorem asinhTaylorPoly_aeval_eq (n : ℕ) (z : ℝ) :
@@ -1124,19 +1207,95 @@ theorem asinhTaylorPoly_aeval_eq (n : ℕ) (z : ℝ) :
   change (asinhTaylorCoeffs n i : ℝ) * z ^ i = _
   rw [h]
 
--- TODO: Fix after Mathlib API updates for ContDiff.continuous_iteratedDeriv
 /-- Bound on the n-th derivative of arsinh on the interval hull of `domain` and `0`. -/
 theorem arsinh_deriv_bound (domain : IntervalRat) (n : ℕ) :
     ∀ x ∈ Set.Icc (min (domain.lo : ℝ) 0) (max (domain.hi : ℝ) 0),
       ‖iteratedDeriv n Real.arsinh x‖ ≤ asinhDerivSup domain n := by
-  sorry
+  intro x hx
+  unfold asinhDerivSup
+  apply le_csSup
+  · -- BddAbove: the image is bounded because the function is continuous on a compact set
+    have hcompact : IsCompact (Set.Icc (min (domain.lo : ℝ) 0) (max (domain.hi : ℝ) 0)) := isCompact_Icc
+    have hcont : ContinuousOn (fun x => ‖iteratedDeriv n Real.arsinh x‖)
+        (Set.Icc (min (domain.lo : ℝ) 0) (max (domain.hi : ℝ) 0)) := by
+      apply Continuous.continuousOn
+      exact continuous_norm.comp (arsinh_continuous_iteratedDeriv n)
+    exact hcompact.bddAbove_image hcont
+  · -- x is in the image
+    exact Set.mem_image_of_mem _ hx
 
--- TODO: Fix after Mathlib API updates and dependent lemmas are fixed
 /-- arsinh z ∈ (tmAsinh J n).evalSet z for all z in J.
     Uses taylor_remainder_bound with f = Real.arsinh, M = asinhDerivSup J (n+1). -/
 theorem tmAsinh_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.arsinh z ∈ (tmAsinh J n).evalSet z := by
-  sorry
+  intro z hz
+  simp only [tmAsinh, evalSet, Set.mem_setOf_eq]
+  set r := Real.arsinh z - Polynomial.aeval (z - 0) (asinhTaylorPoly n) with hr_def
+  refine ⟨r, ?_, ?_⟩
+  · simp only [IntervalRat.mem_def, Rat.cast_neg]
+    have hpoly_eq := asinhTaylorPoly_aeval_eq n z
+    simp only [sub_zero] at hr_def hpoly_eq
+    have hr_rewrite : r = Real.arsinh z - ∑ i ∈ Finset.range (n + 1),
+        (iteratedDeriv i Real.arsinh 0 / i.factorial) * z ^ i := by
+      rw [hr_def, hpoly_eq]
+    set a := min (J.lo : ℝ) 0 with ha_def
+    set b := max (J.hi : ℝ) 0 with hb_def
+    have hab : a ≤ b := by simp only [ha_def, hb_def]; exact le_trans (min_le_of_right_le (le_refl 0)) (le_max_right _ _)
+    have hca : a ≤ 0 := min_le_right _ _
+    have hcb : 0 ≤ b := le_max_right _ _
+    have hz_ab : z ∈ Set.Icc a b := by
+      simp only [Set.mem_Icc, ha_def, hb_def]
+      have hmem := mem_Icc_of_mem_interval hz
+      constructor
+      · exact le_trans (min_le_left _ _) hmem.1
+      · exact le_trans hmem.2 (le_max_left _ _)
+    set M := asinhDerivSup J (n + 1) with hM_def
+    have hM_nonneg : 0 ≤ M := by
+      rw [hM_def]
+      unfold asinhDerivSup
+      apply Real.sSup_nonneg
+      intro y hy
+      obtain ⟨x, _, rfl⟩ := hy
+      exact norm_nonneg _
+    have hM : ∀ x ∈ Set.Icc a b, ‖iteratedDeriv (n + 1) Real.arsinh x‖ ≤ M := by
+      intro x hx
+      exact arsinh_deriv_bound J (n + 1) x hx
+    have hf : ContDiff ℝ (n + 1) Real.arsinh := by
+      have h : ContDiff ℝ ((n + 1) : ℕ∞) Real.arsinh := Real.contDiff_arsinh
+      exact h
+    have hTaylor := LeanCert.Core.taylor_remainder_bound hab hca hcb hf hM hM_nonneg z hz_ab
+    simp only [sub_zero] at hTaylor
+    have hr_bound : ‖r‖ ≤ M * |z| ^ (n + 1) / (n + 1).factorial := by
+      rw [hr_rewrite]
+      exact hTaylor
+    rw [Real.norm_eq_abs] at hr_bound
+    have habs_z_le : |z| ≤ max (|(J.lo : ℝ)|) (|(J.hi : ℝ)|) := abs_le_interval_radius hz
+    set radius : ℚ := max (|J.lo|) (|J.hi|) with hradius_def
+    have hradius_real : (radius : ℝ) = max (|(J.lo : ℝ)|) (|(J.hi : ℝ)|) := by
+      simp only [hradius_def, Rat.cast_max, Rat.cast_abs]
+    have hpow_le : |z| ^ (n + 1) ≤ (radius : ℝ) ^ (n + 1) := by
+      apply pow_le_pow_left₀ (abs_nonneg z)
+      rw [hradius_real]; exact habs_z_le
+    have hfact_pos : (0 : ℝ) < ((n + 1).factorial : ℝ) := Nat.cast_pos.mpr (Nat.factorial_pos _)
+    -- M ≤ ceil(M)
+    have hM_ceil : M ≤ Int.ceil M := Int.le_ceil M
+    have hceil_nonneg : 0 ≤ (Int.ceil M : ℝ) := by
+      have hceil_int : (0 : ℤ) ≤ Int.ceil M := Int.ceil_nonneg hM_nonneg
+      exact_mod_cast hceil_int
+    have hrem_ge : (asinhRemainderBound J n : ℝ) ≥ M * |z| ^ (n + 1) / (n + 1).factorial := by
+      have h1 : M * |z| ^ (n + 1) ≤ (Int.ceil M : ℝ) * (radius : ℝ) ^ (n + 1) :=
+        mul_le_mul hM_ceil hpow_le (pow_nonneg (abs_nonneg z) _) hceil_nonneg
+      calc (asinhRemainderBound J n : ℝ)
+          = (Int.ceil M : ℝ) * (radius : ℝ) ^ (n + 1) / (n + 1).factorial := by
+            simp only [asinhRemainderBound, hM_def, hradius_def, Rat.cast_div, Rat.cast_mul,
+              Rat.cast_pow, Rat.cast_natCast, Rat.cast_intCast]
+        _ ≥ M * |z| ^ (n + 1) / (n + 1).factorial :=
+            div_le_div_of_nonneg_right h1 (le_of_lt hfact_pos)
+    have hr_le_rem : |r| ≤ asinhRemainderBound J n := le_trans hr_bound hrem_ge
+    constructor
+    · have := neg_abs_le r; linarith
+    · exact le_trans (le_abs_self r) hr_le_rem
+  · simp only [hr_def, sub_zero]; ring_nf
 
 end TaylorModel
 
