@@ -88,7 +88,7 @@ theorem exp_bounded : ∀ x ∈ I01, Expr.eval (fun _ => x) exprExp ≤ (3 : ℚ
 Interactive commands for exploration (use in editor, not in proofs):
 
 ```lean
-import LeanCert.Discovery
+import LeanCert.Discovery.Commands
 
 -- Find global minimum
 #find_min (fun x => x^2 + Real.sin x) on [-2, 2]
