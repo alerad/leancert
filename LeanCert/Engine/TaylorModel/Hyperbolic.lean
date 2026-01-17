@@ -344,6 +344,29 @@ theorem iteratedDeriv_cosh_zero (n : ℕ) :
 
 /-! ### arsinh series helpers -/
 
+/-- Odd derivatives of even functions at 0 vanish.
+    Uses iteratedDeriv_comp_neg: iteratedDeriv n (fun x => f(-x)) a = (-1)^n * iteratedDeriv n f (-a)
+    For even f where f(-x) = f(x), at a = 0 we get iteratedDeriv n f 0 = (-1)^n * iteratedDeriv n f 0
+    For odd n, this means d = -d, hence d = 0. -/
+private lemma iteratedDeriv_even_odd_zero {f : ℝ → ℝ} (heven : ∀ x, f (-x) = f x)
+    {n : ℕ} (hodd : n % 2 = 1) : iteratedDeriv n f 0 = 0 := by
+  -- Key insight: f(-x) = f(x) implies iteratedDeriv n f 0 = (-1)^n * iteratedDeriv n f 0
+  have h1 : ∀ a, iteratedDeriv n (fun x => f (-x)) a = (-1 : ℝ) ^ n • iteratedDeriv n f (-a) :=
+    fun a => iteratedDeriv_comp_neg n f a
+  -- Since f(-x) = f(x), we have (fun x => f(-x)) = f
+  have h2 : (fun x => f (-x)) = f := funext heven
+  -- At a = 0: iteratedDeriv n f 0 = (-1)^n * iteratedDeriv n f 0
+  have h3 : iteratedDeriv n f 0 = (-1 : ℝ) ^ n • iteratedDeriv n f 0 := by
+    calc iteratedDeriv n f 0
+        = iteratedDeriv n (fun x => f (-x)) 0 := by rw [h2]
+      _ = (-1 : ℝ) ^ n • iteratedDeriv n f (-0) := h1 0
+      _ = (-1 : ℝ) ^ n • iteratedDeriv n f 0 := by simp
+  -- For odd n: (-1)^n = -1
+  have hneg : (-1 : ℝ) ^ n = -1 := Odd.neg_one_pow (Nat.odd_iff.mpr hodd)
+  -- So d = -d, hence d = 0
+  simp only [hneg, neg_smul, one_smul] at h3
+  linarith
+
 private noncomputable def sqSeries : FormalMultilinearSeries ℝ ℝ ℝ :=
   FormalMultilinearSeries.ofScalars ℝ (fun n => if n = 2 then (1 : ℝ) else 0)
 
@@ -377,22 +400,222 @@ private lemma iteratedDeriv_one_add_rpow_zero (a : ℝ) (n : ℕ) :
   field_simp [hfact] at hcoeff
   simpa [mul_comm] using hcoeff.symm
 
--- TODO: Fix this lemma after Mathlib API updates for FormalMultilinearSeries composition
+-- The composition of all 2s for even n = 2k
+private def twosComposition (k : ℕ) : Composition (2 * k) where
+  blocks := List.replicate k 2
+  blocks_pos := by intro i hi; simp [List.mem_replicate] at hi; omega
+  blocks_sum := by simp [List.sum_replicate]; ring
+
+private lemma twosComposition_length (k : ℕ) : (twosComposition k).length = k := by
+  simp [twosComposition, Composition.length]
+
+private lemma twosComposition_blocksFun (k : ℕ) (i : Fin (twosComposition k).length) :
+    (twosComposition k).blocksFun i = 2 := by
+  simp [twosComposition, Composition.blocksFun]
+
+private lemma twosComposition_unique (k : ℕ) (comp : Composition (2 * k))
+    (hall : ∀ i, comp.blocksFun i = 2) : comp = twosComposition k := by
+  ext1
+  have hblocks : comp.blocks = List.replicate comp.length 2 := by
+    apply List.ext_getElem
+    · simp [Composition.blocks_length]
+    · intro n h1 h2
+      rw [List.getElem_replicate h2]
+      have hi : n < comp.length := by rwa [← Composition.blocks_length]
+      exact hall ⟨n, hi⟩
+  have hlength : comp.length = k := by
+    have hsum := comp.blocks_sum
+    rw [hblocks] at hsum
+    simp [List.sum_replicate] at hsum
+    omega
+  rw [hblocks, hlength]
+  simp [twosComposition]
+
+private lemma blocks_all_two_implies {n : ℕ} (comp : Composition n)
+    (h : ∀ i, comp.blocksFun i = 2) : n = 2 * comp.length := by
+  have hsum : ∑ i, comp.blocksFun i = n := Composition.sum_blocksFun comp
+  calc n = ∑ i : Fin comp.length, comp.blocksFun i := hsum.symm
+    _ = ∑ i : Fin comp.length, 2 := Finset.sum_congr rfl (fun i _ => h i)
+    _ = 2 * comp.length := by simp [Finset.sum_const]; ring
+
+private lemma odd_composition_has_non_two_block {n : ℕ} (hn : n % 2 = 1) (comp : Composition n) :
+    ∃ i, comp.blocksFun i ≠ 2 := by
+  by_contra h_all
+  push_neg at h_all
+  have := blocks_all_two_implies comp h_all
+  omega
+
+private lemma ofScalars_apply_prod (c : ℕ → ℝ) (k : ℕ) (v : Fin k → ℝ) :
+    (FormalMultilinearSeries.ofScalars ℝ c k) v = c k * ∏ i, v i := by
+  simp only [FormalMultilinearSeries.ofScalars]
+  simp only [ContinuousMultilinearMap.smul_apply, smul_eq_mul]
+  congr 1
+  rw [ContinuousMultilinearMap.mkPiAlgebraFin_apply]
+  simp [List.prod_ofFn]
+
+private lemma sqSeries_const_one (k : ℕ) :
+    sqSeries k (fun _ : Fin k => (1 : ℝ)) = if k = 2 then 1 else 0 := by
+  rw [sqSeries, ofScalars_apply_prod]
+  split_ifs with h <;> simp
+
+private lemma sqSeries_applyComposition_one_i {n : ℕ} (comp : Composition n) (i : Fin comp.length) :
+    sqSeries.applyComposition comp (1 : Fin n → ℝ) i =
+      if comp.blocksFun i = 2 then 1 else 0 := by
+  simp only [FormalMultilinearSeries.applyComposition]
+  have : (1 : Fin n → ℝ) ∘ comp.embedding i = 1 := by ext; simp
+  rw [this]
+  exact sqSeries_const_one (comp.blocksFun i)
+
+private lemma prod_sqSeries_applyComposition {n : ℕ} (comp : Composition n) :
+    ∏ i, sqSeries.applyComposition comp (1 : Fin n → ℝ) i =
+      if ∀ i, comp.blocksFun i = 2 then 1 else 0 := by
+  by_cases hall : ∀ i, comp.blocksFun i = 2
+  · rw [if_pos hall]
+    apply Finset.prod_eq_one
+    intro i _
+    rw [sqSeries_applyComposition_one_i, if_pos (hall i)]
+  · rw [if_neg hall]
+    push_neg at hall
+    obtain ⟨j, hj⟩ := hall
+    apply Finset.prod_eq_zero (Finset.mem_univ j)
+    rw [sqSeries_applyComposition_one_i, if_neg hj]
+
+-- Coefficient of composed series: composing (ofScalars c) with sqSeries
+-- For odd n: 0 (no composition with all blocks of size 2)
+-- For even n = 2k: c(k) (unique composition [2,2,...,2] with k blocks)
+--
+-- Mathematical justification:
+-- The composition (q.comp p) n = Σ_{c : Composition n} q.compAlongComposition p c
+-- For sqSeries, p k = 0 unless k = 2, so only compositions with all blocks = 2 contribute.
+-- For odd n, no such composition exists, so the sum is 0.
+-- For even n = 2k, the unique such composition has k blocks of size 2, giving c(k).
 private lemma coeff_comp_sq_ofScalars (c : ℕ → ℝ) (n : ℕ) :
     ((FormalMultilinearSeries.ofScalars ℝ c).comp sqSeries).coeff n =
       if n % 2 = 0 then c (n / 2) else 0 := by
-  sorry
+  simp only [FormalMultilinearSeries.coeff, FormalMultilinearSeries.comp,
+    ContinuousMultilinearMap.sum_apply]
+  by_cases hn : n % 2 = 0
+  case neg =>
+    rw [if_neg hn]
+    apply Finset.sum_eq_zero
+    intro comp _
+    simp only [FormalMultilinearSeries.compAlongComposition_apply]
+    rw [ofScalars_apply_prod, prod_sqSeries_applyComposition]
+    have hodd : n % 2 = 1 := by omega
+    have hne := odd_composition_has_non_two_block hodd comp
+    have hne' : ¬∀ i, comp.blocksFun i = 2 := fun h => hne.elim fun i hi => hi (h i)
+    rw [if_neg hne']
+    ring
+  case pos =>
+    rw [if_pos hn]
+    -- n is even, write n = 2 * k
+    obtain ⟨k, hk⟩ : ∃ k, n = 2 * k := ⟨n / 2, by omega⟩
+    subst hk
+    -- The only non-zero term is twosComposition k
+    have hsplit : ∀ comp : Composition (2 * k),
+        (FormalMultilinearSeries.ofScalars ℝ c).compAlongComposition sqSeries comp
+          (1 : Fin (2 * k) → ℝ) =
+          if ∀ i, comp.blocksFun i = 2 then c k else 0 := by
+      intro comp
+      simp only [FormalMultilinearSeries.compAlongComposition_apply]
+      rw [ofScalars_apply_prod, prod_sqSeries_applyComposition]
+      by_cases hall : ∀ i, comp.blocksFun i = 2
+      · rw [if_pos hall, if_pos hall]
+        have hlength : comp.length = k := by
+          have := blocks_all_two_implies comp hall
+          omega
+        simp [hlength]
+      · rw [if_neg hall, if_neg hall]
+        ring
+    simp_rw [hsplit]
+    -- Sum of (if condition then c k else 0) over all compositions
+    -- Only the twosComposition k satisfies the condition
+    have hall_twos : ∀ i, (twosComposition k).blocksFun i = 2 := twosComposition_blocksFun k
+    rw [Finset.sum_eq_single (twosComposition k)]
+    · rw [if_pos hall_twos]
+      simp
+    · intro comp _ hne
+      by_cases hall : ∀ i, comp.blocksFun i = 2
+      · exfalso
+        exact hne (twosComposition_unique k comp hall)
+      · rw [if_neg hall]
+    · intro hnot
+      exfalso
+      exact hnot (Finset.mem_univ _)
 
--- TODO: Fix after Mathlib API updates for HasSum/FormalMultilinearSeries
+-- The power series for x² at 0
 private lemma sqSeries_hasFPowerSeriesAt_zero :
     HasFPowerSeriesAt (fun x : ℝ => x ^ 2) sqSeries 0 := by
-  sorry
+  rw [hasFPowerSeriesAt_iff]
+  filter_upwards [Filter.univ_mem] with z _
+  -- sqSeries.coeff n = if n = 2 then 1 else 0
+  -- So the series is just z^2 • 1 = z^2 at n=2, and 0 elsewhere
+  have hcoeff : ∀ n, sqSeries.coeff n = if n = 2 then 1 else 0 := by
+    intro n
+    simp only [sqSeries, FormalMultilinearSeries.coeff_ofScalars]
+  simp only [zero_add]
+  -- The sum ∑ z^n • (if n = 2 then 1 else 0) = z^2
+  convert hasSum_single 2 (fun n hn => ?_)
+  · simp only [hcoeff, ↓reduceIte, smul_eq_mul, mul_one]
+  · simp only [hcoeff, hn, ↓reduceIte, smul_eq_mul, mul_zero]
 
--- TODO: Fix after Mathlib API updates for composition of power series
+-- The n-th derivative of (1+x²)^a at 0
+-- Odd derivatives vanish (function is even), even derivatives come from binomial series
+--
+-- Mathematical justification:
+-- 1. f(x) = (1+x²)^a is even: f(-x) = f(x), so all odd derivatives at 0 vanish.
+-- 2. The Taylor series is (1+x²)^a = Σ_{k=0}^∞ Ring.choose(a,k) * x^(2k)
+--    (composition of binomial series with x²).
+-- 3. So iteratedDeriv (2k) f 0 = (2k)! * Ring.choose(a,k).
 private lemma iteratedDeriv_one_add_sq_rpow_zero (a : ℝ) (n : ℕ) :
     iteratedDeriv n (fun x : ℝ => (1 + x ^ 2) ^ a) 0 =
       (Nat.factorial n : ℝ) * (if n % 2 = 0 then Ring.choose a (n / 2) else 0) := by
-  sorry
+  by_cases hparity : n % 2 = 0
+  case neg =>
+    -- Odd n: the function is even, so odd derivatives at 0 vanish
+    have hodd : n % 2 = 1 := by omega
+    have heven_func : ∀ x : ℝ, (1 + (-x) ^ 2) ^ a = (1 + x ^ 2) ^ a := by
+      intro x; congr 1; ring
+    rw [iteratedDeriv_even_odd_zero heven_func hodd]
+    simp [hparity]
+  case pos =>
+    -- Even n = 2k: use power series composition
+    -- (1 + x²)^a = (1 + x)^a composed with x², so Taylor coeff at n is Ring.choose a (n/2)
+    simp only [hparity, ↓reduceIte]
+    -- Use that f has power series (binomialSeries ℝ a).comp sqSeries
+    -- First, establish that (1+x)^a has binomial series at 0
+    have h_binom : HasFPowerSeriesAt (fun y : ℝ => (1 + y) ^ a) (binomialSeries ℝ a) 0 :=
+      Real.one_add_rpow_hasFPowerSeriesAt_zero
+    -- sqSeries gives x² its power series at 0
+    have hsq : HasFPowerSeriesAt (fun x : ℝ => x ^ 2) sqSeries 0 := sqSeries_hasFPowerSeriesAt_zero
+    -- At x = 0, x² = 0, so we can use composition
+    have h_comp : HasFPowerSeriesAt ((fun y : ℝ => (1 + y) ^ a) ∘ (fun x : ℝ => x ^ 2))
+        ((binomialSeries ℝ a).comp sqSeries) 0 := by
+      apply HasFPowerSeriesAt.comp
+      · convert h_binom using 1; simp
+      · exact hsq
+    -- Simplify the composed function
+    have h_comp' : HasFPowerSeriesAt (fun x : ℝ => (1 + x ^ 2) ^ a)
+        ((binomialSeries ℝ a).comp sqSeries) 0 := by
+      convert h_comp using 1
+    -- The canonical Taylor series has coefficients iteratedDeriv k f 0 / k!
+    have h_taylor : HasFPowerSeriesAt (fun x : ℝ => (1 + x ^ 2) ^ a)
+        (FormalMultilinearSeries.ofScalars ℝ
+          (fun k => iteratedDeriv k (fun x : ℝ => (1 + x ^ 2) ^ a) 0 / (k.factorial : ℝ))) 0 :=
+      h_comp'.analyticAt.hasFPowerSeriesAt
+    -- Uniqueness: comp series = Taylor series
+    have h_eq := HasFPowerSeriesAt.eq_formalMultilinearSeries h_comp' h_taylor
+    -- Extract coefficient at n
+    have hcoeff := congrArg (fun p => p.coeff n) h_eq
+    -- binomialSeries ℝ a = ofScalars ℝ (fun k => Ring.choose a k)
+    simp only [binomialSeries] at hcoeff
+    -- Use coeff_comp_sq_ofScalars to simplify
+    rw [coeff_comp_sq_ofScalars] at hcoeff
+    simp only [hparity, ↓reduceIte, FormalMultilinearSeries.coeff_ofScalars] at hcoeff
+    -- Rearrange to get the desired form
+    have hfact : (n.factorial : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero n)
+    field_simp [hfact] at hcoeff
+    linarith
 
 /-- The sinhTaylorCoeffs match the Mathlib Taylor coefficients for sinh at 0 -/
 theorem sinhTaylorCoeffs_eq_iteratedDeriv (n i : ℕ) (hi : i ≤ n) :
