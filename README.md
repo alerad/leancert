@@ -6,9 +6,13 @@ LeanCert transforms numerical insights into formal certificates—proof terms ve
 
 ## Why LeanCert?
 
-- **Certification is the product.** Tactics produce theorems, not numbers.
-- **Golden Theorem architecture.** Fast boolean checks (`checkUpperBound(...) = true`) bridge to mathematical properties (`∀ x ∈ I, f(x) ≤ c`).
-- **Trust hierarchy.** Kernel-only (`certify_kernel`), compiler-trusted (`certify_bound`), or Python as an untrusted oracle.
+- **Certification is the product.** Tactics produce theorems, not numbers. The output isn't `-0.232`; it's `∃ m, ∀ x, f(x) ≥ m` with a rigorous rational bound.
+- **Golden Theorem architecture.** Every algorithm is designed around a theorem connecting a fast boolean check (`checkUpperBound(...) = true`) to a deep mathematical property (`∀ x ∈ I, f(x) ≤ c`). This makes every result auditable.
+- **Trust hierarchy.** Choose your trade-off:
+  - *Kernel-only* (`decide`): Proofs verified by reduction alone—no trust in the compiler
+  - *Compiler-trusted* (`native_decide`): Orders of magnitude faster for complex arithmetic
+  - *External oracle* (Python SDK): Fast exploration, with Lean independently verifying results
+- **Focus on the goal, not the guts.** Write `by certify_bound` without understanding Taylor remainder bounds or dyadic rounding modes.
 
 Discovery commands like `#find_min` help *explore*; tactics like `certify_bound` *prove*.
 
@@ -244,9 +248,10 @@ If every real input is in its interval, every real output is in its output inter
 The following have complete proofs with no `sorry`:
 
 - Interval arithmetic (FTIA) for `+`, `-`, `*`, `/`, `^`
-- Transcendental bounds: `exp`, `sin`, `cos`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`, `log`
+- Transcendental bounds: `exp`, `sin`, `cos`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`, `log`, `sqrt`
 - Taylor series remainder bounds for `exp`, `sin`, `cos`, `log` (Lagrange form)
 - Forward-mode AD for core functions (exp, sin, cos, etc.)
+- Affine arithmetic engine (`evalIntervalAffine_correct`)
 - Global optimization (`globalMinimize_lo_correct`, `globalMaximize_hi_correct`)
 - Root finding: bisection (existence) and Newton (uniqueness)
 - Integration bounds (`integrateInterval_correct`)
@@ -300,6 +305,12 @@ To find all `sorry` occurrences:
 ```bash
 grep -rn "sorry" --include="*.lean" LeanCert/ | grep -v "no sorry"
 ```
+
+## What LeanCert is Not
+
+- **Not just another numerical library.** NumPy and SciPy produce floating-point approximations. LeanCert produces theorems.
+- **Not a black-box solver.** Results are auditable proof terms. The `decide` pathway produces proofs reducible by the kernel alone.
+- **Not limited to interval arithmetic.** While interval methods are the core engine today, the framework certifies results from any numerical method that can produce evidence for a Golden Theorem.
 
 ## Contributing
 
