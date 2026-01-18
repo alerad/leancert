@@ -1727,8 +1727,21 @@ unsafe def intervalIntegrateCore (_taylorDepth : Nat) : TacticM Unit := do
   -- Build domain validity type: evalDomainValid1 e I cfg
   let domValidType ← mkAppM ``LeanCert.Engine.evalDomainValid1 #[ast, interval, cfg]
 
-  -- For now, use sorry for domain validity (ExprSupportedCore includes log)
-  let domValidProof ← mkSorry domValidType (synthetic := true)
+  -- Try to generate domain validity proof using native_decide (since it's decidable)
+  -- Fall back to sorry if that fails (e.g., for expressions with log that need positivity)
+  let domValidProof ← try
+    -- evalDomainValid1 is decidable, so we can use native_decide
+    let domValidDecide ← mkAppM ``of_decide_eq_true #[domValidType]
+    let rflProof ← mkAppM ``Eq.refl #[mkConst ``Bool.true]
+    mkAppM' domValidDecide #[rflProof]
+  catch _ =>
+    -- If native_decide fails, try generating ExprSupported proof and use domainValid theorem
+    try
+      let suppProof ← mkSupportedProof ast
+      mkAppM ``LeanCert.Engine.exprSupported_domainValid1 #[suppProof, interval, cfg]
+    catch _ =>
+      -- Last resort: use sorry
+      mkSorry domValidType (synthetic := true)
 
   -- Build continuity domain validity type
   -- We need to get the interval bounds for the Set.Icc as reals
@@ -1742,8 +1755,15 @@ unsafe def intervalIntegrateCore (_taylorDepth : Nat) : TacticM Unit := do
   let setIccExpr ← mkAppM ``Set.Icc #[loRealExpr, hiRealExpr]
   let contDomValidType ← mkAppM ``LeanCert.Meta.exprContinuousDomainValid #[ast, setIccExpr]
 
-  -- For now, use sorry for continuity domain validity
-  let contDomValidProof ← mkSorry contDomValidType (synthetic := true)
+  -- Try to generate continuity domain validity proof using ExprSupported
+  -- ExprSupported expressions (no log) have trivial domain validity
+  let contDomValidProof ← try
+    let suppProof ← mkSupportedProof ast
+    -- Need to instantiate the implicit {s : Set ℝ} parameter with setIccExpr
+    mkAppOptM ``LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported #[some ast, some suppProof, some setIccExpr]
+  catch _ =>
+    -- Fall back to sorry for expressions with log (need positivity proof)
+    mkSorry contDomValidType (synthetic := true)
 
   -- Build the proof term: integrateInterval1Core_correct e supportProof I cfg hdom hcontdom
   let proof ← mkAppM ``Validity.Integration.integrateInterval1Core_correct

@@ -62,7 +62,7 @@ def result := findGlobalMin expr support domain cfg
 -- result.is_lower_bound is the proof
 ```
 -/
-def findGlobalMin (expr : Expr) (hsupp : ExprSupportedCore expr)
+def findGlobalMin (expr : Expr) (hsupp : ExprSupported expr)
     (domain : Box) (cfg : DiscoveryConfig := {}) : VerifiedGlobalMin expr domain :=
   -- Run the optimization algorithm
   let optCfg := cfg.toGlobalOptConfig
@@ -72,11 +72,13 @@ def findGlobalMin (expr : Expr) (hsupp : ExprSupportedCore expr)
   let hi := result.bound.hi
   let bestBox := result.bound.bestBox
   let iters := result.bound.iterations
-  -- Build the proof using the correctness theorem
+  -- Build the proof using the correctness theorem (with automatic domain validity)
+  let hdom : ∀ (B' : Box), B'.length = domain.length → evalDomainValid expr B'.toEnv { taylorDepth := optCfg.taylorDepth } :=
+    fun B' _ => ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
   let proof : ∀ (ρ : Nat → ℝ), Box.envMem ρ domain →
               (∀ i, i ≥ domain.length → ρ i = 0) →
               (lo : ℝ) ≤ Expr.eval ρ expr :=
-    globalMinimizeCore_lo_correct expr hsupp domain optCfg
+    globalMinimizeCore_lo_correct expr hsupp.toCore domain optCfg hdom
   -- Assemble the result
   { bound := lo
     upperBound := hi
@@ -88,7 +90,7 @@ def findGlobalMin (expr : Expr) (hsupp : ExprSupportedCore expr)
 
 Symmetric to `findGlobalMin`, using maximization instead.
 -/
-def findGlobalMax (expr : Expr) (hsupp : ExprSupportedCore expr)
+def findGlobalMax (expr : Expr) (hsupp : ExprSupported expr)
     (domain : Box) (cfg : DiscoveryConfig := {}) : VerifiedGlobalMax expr domain :=
   -- Run the optimization algorithm
   let optCfg := cfg.toGlobalOptConfig
@@ -98,27 +100,19 @@ def findGlobalMax (expr : Expr) (hsupp : ExprSupportedCore expr)
   let lo := result.bound.lo
   let bestBox := result.bound.bestBox
   let iters := result.bound.iterations
-  -- Build the proof using the negation trick
-  -- globalMaximizeCore(e) = -globalMinimizeCore(-e)
-  -- So bound.hi = -globalMinimizeCore(-e).bound.lo
-  let hsupp_neg : ExprSupportedCore (Expr.neg expr) := ExprSupportedCore.neg hsupp
+  -- Build the proof using the negation trick with domain validity
+  let hsupp_neg : ExprSupportedCore (Expr.neg expr) := ExprSupportedCore.neg hsupp.toCore
+  let hdom_neg : ∀ (B' : Box), B'.length = domain.length → evalDomainValid (Expr.neg expr) B'.toEnv { taylorDepth := optCfg.taylorDepth } :=
+    fun B' _ => by simp only [evalDomainValid]; exact ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
   -- Direct proof: globalMaximizeCore negates and flips, so hi = -min(-e).lo
   let proof : ∀ (ρ : Nat → ℝ), Box.envMem ρ domain →
               (∀ i, i ≥ domain.length → ρ i = 0) →
               Expr.eval ρ expr ≤ (hi : ℝ) := fun ρ hρ hzero => by
-    have hlo_neg := globalMinimizeCore_lo_correct (Expr.neg expr) hsupp_neg domain optCfg ρ hρ hzero
+    have hlo_neg := globalMinimizeCore_lo_correct (Expr.neg expr) hsupp_neg domain optCfg hdom_neg ρ hρ hzero
     simp only [Expr.eval_neg] at hlo_neg
-    -- hlo_neg : (globalMinimizeCore (-expr)).bound.lo ≤ -(Expr.eval ρ expr)
-    -- So: Expr.eval ρ expr ≤ -(globalMinimizeCore (-expr)).bound.lo
-    -- And: hi = -(globalMinimizeCore (-expr)).bound.lo by globalMaximizeCore definition
     have h1 : Expr.eval ρ expr ≤ -((globalMinimizeCore (Expr.neg expr) domain optCfg).bound.lo : ℝ) := by
       linarith
-    -- By definition of globalMaximizeCore, hi = -min(-e).lo
-    -- result = globalMaximizeCore expr domain optCfg
-    -- globalMaximizeCore produces bound.hi = -(globalMinimizeCore neg).bound.lo
     show Expr.eval ρ expr ≤ (hi : ℝ)
-    -- hi is defined as result.bound.hi where result = globalMaximizeCore ...
-    -- We use the definition that globalMaximizeCore.bound.hi = -globalMinimizeCore(neg).bound.lo
     have hhi : hi = -((globalMinimizeCore (Expr.neg expr) domain optCfg).bound.lo) := rfl
     rw [hhi]
     push_cast
@@ -210,7 +204,7 @@ def quickBounds (expr : Expr) (domain : IntervalRat)
   (result.lo, result.hi)
 
 /-- Quick global bounds: returns `(min, max)` bounds using optimization -/
-def quickGlobalBounds (expr : Expr) (hsupp : ExprSupportedCore expr)
+def quickGlobalBounds (expr : Expr) (hsupp : ExprSupported expr)
     (domain : Box) (cfg : DiscoveryConfig := {}) : ℚ × ℚ :=
   let minResult := findGlobalMin expr hsupp domain cfg
   let maxResult := findGlobalMax expr hsupp domain cfg

@@ -223,37 +223,45 @@ def OptSearchConfig.toGlobalOptConfig (cfg : OptSearchConfig) : GlobalOptConfig 
 /-- Find global minimum of `e` over box `B` with proof.
 
     This wraps `globalMinimizeCore` and bundles the result with
-    correctness proofs derived from `globalMinimizeCore_lo_correct`. -/
-noncomputable def findGlobalMin (e : Expr) (hsupp : ExprSupportedCore e)
+    correctness proofs derived from `globalMinimizeCore_lo_correct`.
+
+    Note: Uses ExprSupported (no log) for automatic domain validity. -/
+noncomputable def findGlobalMin (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (cfg : OptSearchConfig := {}) :
     GlobalMinResult e B :=
   let optCfg := cfg.toGlobalOptConfig
   let result := globalMinimizeCore e B optCfg
+  let hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := optCfg.taylorDepth } :=
+    fun B' _ => ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
   {
     minimizerBox := result.bound.bestBox
     minValue := { lo := result.bound.lo, hi := result.bound.hi,
-                  le := globalMinimizeCore_lo_le_hi e hsupp B optCfg }
+                  le := globalMinimizeCore_lo_le_hi e hsupp.toCore B optCfg hdom }
     lowerBoundProof := fun ρ hρ hzero =>
-      globalMinimizeCore_lo_correct e hsupp B optCfg ρ hρ hzero
-    upperBoundWitness := globalMinimizeCore_hi_achievable e hsupp B optCfg
+      globalMinimizeCore_lo_correct e hsupp.toCore B optCfg hdom ρ hρ hzero
+    upperBoundWitness := globalMinimizeCore_hi_achievable e hsupp.toCore B optCfg hdom
   }
 
 /-- Find global maximum of `e` over box `B` with proof.
 
     This wraps `globalMaximizeCore` and bundles the result with
-    correctness proofs. -/
-noncomputable def findGlobalMax (e : Expr) (hsupp : ExprSupportedCore e)
+    correctness proofs.
+
+    Note: Uses ExprSupported (no log) for automatic domain validity. -/
+noncomputable def findGlobalMax (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (cfg : OptSearchConfig := {}) :
     GlobalMaxResult e B :=
   let optCfg := cfg.toGlobalOptConfig
   let result := globalMaximizeCore e B optCfg
+  let hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := optCfg.taylorDepth } :=
+    fun B' _ => ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
   {
     maximizerBox := result.bound.bestBox
     maxValue := { lo := result.bound.lo, hi := result.bound.hi,
-                  le := globalMaximizeCore_lo_le_hi e hsupp B optCfg }
+                  le := globalMaximizeCore_lo_le_hi e hsupp.toCore B optCfg hdom }
     upperBoundProof := fun ρ hρ hzero =>
-      globalMaximizeCore_hi_correct e hsupp B optCfg ρ hρ hzero
-    lowerBoundWitness := globalMaximizeCore_lo_achievable e hsupp B optCfg
+      globalMaximizeCore_hi_correct e hsupp.toCore B optCfg hdom ρ hρ hzero
+    lowerBoundWitness := globalMaximizeCore_lo_achievable e hsupp.toCore B optCfg hdom
   }
 
 /-! ## 1D Optimization Convenience APIs -/
@@ -283,7 +291,7 @@ def intervalToBox (I : IntervalRat) : Box := [I]
 
     Specialized version for single-variable functions.
     Requires `e.usesOnlyVar0 = true` to ensure eval equivalence. -/
-noncomputable def findGlobalMin1D (e : Expr) (hsupp : ExprSupportedCore e)
+noncomputable def findGlobalMin1D (e : Expr) (hsupp : ExprSupported e)
     (he1d : e.usesOnlyVar0 = true)
     (I : IntervalRat) (cfg : OptSearchConfig := {}) :
     GlobalMin1DResult e I :=
@@ -319,7 +327,7 @@ noncomputable def findGlobalMin1D (e : Expr) (hsupp : ExprSupportedCore e)
 
     Specialized version for single-variable functions.
     Requires `e.usesOnlyVar0 = true` to ensure eval equivalence. -/
-noncomputable def findGlobalMax1D (e : Expr) (hsupp : ExprSupportedCore e)
+noncomputable def findGlobalMax1D (e : Expr) (hsupp : ExprSupported e)
     (he1d : e.usesOnlyVar0 = true)
     (I : IntervalRat) (cfg : OptSearchConfig := {}) :
     GlobalMax1DResult e I :=

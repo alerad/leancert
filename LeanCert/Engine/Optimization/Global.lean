@@ -191,25 +191,6 @@ noncomputable def globalMaximize (e : Expr) (B : Box) (cfg : GlobalOptConfig := 
 def evalOnBoxCore (e : Expr) (B : Box) (cfg : GlobalOptConfig) : IntervalRat :=
   evalIntervalCore e (Box.toEnv B) { taylorDepth := cfg.taylorDepth }
 
-/-- A trivially sound but useless bound for when domain validity fails.
-    This is large enough to contain any realistic evaluation result.
-    Note: Real.log on non-positive values is defined as 0 in mathlib,
-    so all Expr evaluations are finite for well-formed expressions.
-
-    We use 10^100 which exceeds any practical computation. -/
-def trivialBound : IntervalRat :=
-  ⟨-(10^100 : ℚ), 10^100, by norm_num⟩
-
-/-- Safe version of evalOnBoxCore that checks domain validity.
-    If domain is valid, returns tight bounds from interval evaluation.
-    If domain is invalid (e.g., log of non-positive), returns trivially sound wide bounds.
-
-    This allows unconditional correctness theorems without requiring domain validity proofs. -/
-def evalOnBoxCoreSafe (e : Expr) (B : Box) (cfg : GlobalOptConfig) : IntervalRat :=
-  if checkDomainValid e (Box.toEnv B) { taylorDepth := cfg.taylorDepth } then
-    evalIntervalCore e (Box.toEnv B) { taylorDepth := cfg.taylorDepth }
-  else
-    trivialBound
 
 /-- Evaluate expression on a box (computable version with division support).
     This is used by the Python bridge for applications where division is common.
@@ -235,8 +216,8 @@ def minimizeStepCore (e : Expr) (cfg : GlobalOptConfig)
           let grad := gradientIntervalCore e B { taylorDepth := cfg.taylorDepth }
           (pruneBoxForMin B grad).1
         else B
-      -- Step 2: Evaluate on (potentially pruned) box using safe evaluator
-      let I := evalOnBoxCoreSafe e B_curr cfg
+      -- Step 2: Evaluate on (potentially pruned) box
+      let I := evalOnBoxCore e B_curr cfg
       -- Update global lower bound: min of old and this box's local lower bound
       let newBestLB := min bestLB I.lo
       -- Possibly improve upper bound
@@ -248,8 +229,8 @@ def minimizeStepCore (e : Expr) (cfg : GlobalOptConfig)
       else
         -- Step 3: Split and add children
         let (B1, B2) := Box.splitWidest B_curr
-        let I1 := evalOnBoxCoreSafe e B1 cfg
-        let I2 := evalOnBoxCoreSafe e B2 cfg
+        let I1 := evalOnBoxCore e B1 cfg
+        let I2 := evalOnBoxCore e B2 cfg
         -- Insert children if they might improve the minimum
         let queue' := rest
         let queue' := if I1.lo ≤ newBestUB then insertByBound queue' I1.lo B1 else queue'
@@ -274,7 +255,7 @@ def minimizeLoopCore (e : Expr) (cfg : GlobalOptConfig)
 
 /-- Global minimization (computable version) -/
 def globalMinimizeCore (e : Expr) (B : Box) (cfg : GlobalOptConfig := {}) : GlobalResult :=
-  let I := evalOnBoxCoreSafe e B cfg
+  let I := evalOnBoxCore e B cfg
   let initialQueue : List (ℚ × Box) := [(I.lo, B)]
   let initialBestLB : ℚ := I.lo
   let initialBestUB : ℚ := I.hi
@@ -916,49 +897,11 @@ theorem evalOnBoxCore_hi_correct (e : Expr) (hsupp : ExprSupportedCore e)
   simp only [evalOnBoxCore]
   exact hmem.2
 
-/-! ### Safe evaluator correctness (unconditional) -/
+/-- minimizeStepCore preserves the lower bound invariant.
 
-/-- The lower bound from safe interval evaluation is correct (unconditionally).
-
-    This is the key theorem that eliminates sorry from optimization proofs:
-    - If domain is valid: uses tight bounds from interval arithmetic
-    - If domain is invalid: returns -10^100 which is ≤ any practical evaluation
-
-    ENGINEERING ASSUMPTION: Evaluations of well-formed expressions on bounded
-    domains stay within ±10^100. This holds for all practical optimization
-    problems (polynomials, trig, exp on bounded inputs, etc.). -/
-theorem evalOnBoxCoreSafe_lo_correct (e : Expr) (hsupp : ExprSupportedCore e)
-    (B : Box) (cfg : GlobalOptConfig) (ρ : Nat → ℝ) (hρ : Box.envMem ρ B)
-    (hzero : ∀ i, i ≥ B.length → ρ i = 0) :
-    (evalOnBoxCoreSafe e B cfg).lo ≤ Expr.eval ρ e := by
-  simp only [evalOnBoxCoreSafe]
-  split
-  · -- Domain is valid: use tight bound
-    have hdom := checkDomainValid_correct e (Box.toEnv B) { taylorDepth := cfg.taylorDepth } ‹_›
-    exact evalOnBoxCore_lo_correct e hsupp B cfg ρ hρ hzero hdom
-  · -- Domain is invalid: trivial bound -10^100 is very negative
-    -- ENGINEERING ASSUMPTION: evaluation ≥ -10^100 for practical expressions
-    simp only [trivialBound]
-    sorry
-
-/-- The upper bound from safe interval evaluation is correct (unconditionally).
-
-    ENGINEERING ASSUMPTION: Evaluations stay within ±10^100. -/
-theorem evalOnBoxCoreSafe_hi_correct (e : Expr) (hsupp : ExprSupportedCore e)
-    (B : Box) (cfg : GlobalOptConfig) (ρ : Nat → ℝ) (hρ : Box.envMem ρ B)
-    (hzero : ∀ i, i ≥ B.length → ρ i = 0) :
-    Expr.eval ρ e ≤ (evalOnBoxCoreSafe e B cfg).hi := by
-  simp only [evalOnBoxCoreSafe]
-  split
-  · -- Domain is valid: use tight bound
-    have hdom := checkDomainValid_correct e (Box.toEnv B) { taylorDepth := cfg.taylorDepth } ‹_›
-    exact evalOnBoxCore_hi_correct e hsupp B cfg ρ hρ hzero hdom
-  · -- Domain is invalid: trivial bound 10^100 is very positive
-    -- ENGINEERING ASSUMPTION: evaluation ≤ 10^100 for practical expressions
-    simp only [trivialBound]
-    sorry
-
-/-- minimizeStepCore preserves the lower bound invariant. -/
+    This version uses ExprSupportedCore with an explicit domain validity hypothesis
+    for all boxes of the same length as origB. This is necessary because the
+    branch-and-bound algorithm operates on sub-boxes that maintain the same length. -/
 theorem minimizeStepCore_preserves_LB (e : Expr) (hsupp : ExprSupportedCore e) (cfg : GlobalOptConfig)
     (origB : Box)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
@@ -967,7 +910,8 @@ theorem minimizeStepCore_preserves_LB (e : Expr) (hsupp : ExprSupportedCore e) (
     (hLB : ∀ ρ, Box.envMem ρ origB → (∀ i, i ≥ origB.length → ρ i = 0) → bestLB ≤ Expr.eval ρ e)
     (hUB : ∃ ρ, Box.envMem ρ origB ∧ (∀ i, i ≥ origB.length → ρ i = 0) ∧ Expr.eval ρ e ≤ bestUB)
     (hQueueSub : ∀ lb B', (lb, B') ∈ queue →
-        ∀ ρ, Box.envMem ρ B' → Box.envMem ρ origB ∧ B'.length = origB.length) :
+        ∀ ρ, Box.envMem ρ B' → Box.envMem ρ origB ∧ B'.length = origB.length)
+    (hdom : ∀ (B' : Box), B'.length = origB.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth }) :
     (∀ ρ, Box.envMem ρ origB → (∀ i, i ≥ origB.length → ρ i = 0) → bestLB' ≤ Expr.eval ρ e) ∧
     (∃ ρ, Box.envMem ρ origB ∧ (∀ i, i ≥ origB.length → ρ i = 0) ∧ Expr.eval ρ e ≤ bestUB') ∧
     (∀ lb B', (lb, B') ∈ queue' →
@@ -999,8 +943,8 @@ theorem minimizeStepCore_preserves_LB (e : Expr) (hsupp : ExprSupportedCore e) (
            · -- Lower bound: min bestLB I.lo ≤ f(ρ) for all ρ in origB
              intro ρ hρ hzero
              have hLB_old := hLB ρ hρ hzero
-             have hmin_le : bestLB ⊓ (evalOnBoxCoreSafe e B_curr cfg).lo ≤ bestLB := min_le_left _ _
-             calc ((bestLB ⊓ (evalOnBoxCoreSafe e B_curr cfg).lo : ℚ) : ℝ)
+             have hmin_le : bestLB ⊓ (evalOnBoxCore e B_curr cfg).lo ≤ bestLB := min_le_left _ _
+             calc ((bestLB ⊓ (evalOnBoxCore e B_curr cfg).lo : ℚ) : ℝ)
                ≤ bestLB := by exact_mod_cast hmin_le
                _ ≤ Expr.eval ρ e := hLB_old
            · -- Upper bound: witness exists
@@ -1013,8 +957,9 @@ theorem minimizeStepCore_preserves_LB (e : Expr) (hsupp : ExprSupportedCore e) (
                   use Box.midpointEnv hd.2
                   refine ⟨hOrig, ?_, ?_⟩
                   · intro i hi; exact Box.midpointEnv_zero hd.2 i (hLen ▸ hi)
-                  · exact evalOnBoxCoreSafe_hi_correct e hsupp hd.2 cfg (Box.midpointEnv hd.2)
-                      (Box.midpointEnv_mem hd.2) (Box.midpointEnv_zero hd.2))
+                  · have hLen_hd := (hQueueSub hd.1 hd.2 hmem_hd (Box.midpointEnv hd.2) (Box.midpointEnv_mem hd.2)).2
+                    exact evalOnBoxCore_hi_correct e hsupp hd.2 cfg (Box.midpointEnv hd.2)
+                      (Box.midpointEnv_mem hd.2) (Box.midpointEnv_zero hd.2) (hdom hd.2 hLen_hd))
            · -- Queue entries
              intro lb B' hmem ρ' hρ'
              have h : (lb, B') ∈ queue := by rw [hq]; exact List.mem_cons_of_mem hd hmem
@@ -1026,8 +971,8 @@ theorem minimizeStepCore_preserves_LB (e : Expr) (hsupp : ExprSupportedCore e) (
              intro ρ hρ hzero
              have hLB_old := hLB ρ hρ hzero
              rw [← hLB']
-             have hmin_le : bestLB ⊓ (evalOnBoxCoreSafe e B_curr cfg).lo ≤ bestLB := min_le_left _ _
-             calc ((bestLB ⊓ (evalOnBoxCoreSafe e B_curr cfg).lo : ℚ) : ℝ)
+             have hmin_le : bestLB ⊓ (evalOnBoxCore e B_curr cfg).lo ≤ bestLB := min_le_left _ _
+             calc ((bestLB ⊓ (evalOnBoxCore e B_curr cfg).lo : ℚ) : ℝ)
                ≤ bestLB := by exact_mod_cast hmin_le
                _ ≤ Expr.eval ρ e := hLB_old
            · -- Upper bound witness: two cases based on whether UB improved
@@ -1046,19 +991,18 @@ theorem minimizeStepCore_preserves_LB (e : Expr) (hsupp : ExprSupportedCore e) (
                     · exact hρ'
                   have ⟨hOrig, hLen⟩ := hQueueSub hd.1 hd.2 hmem_hd (Box.midpointEnv B_curr)
                     (hB_curr_sub (Box.midpointEnv B_curr) (Box.midpointEnv_mem B_curr))
+                  have hlen_B_curr : B_curr.length = hd.2.length := by
+                    simp only [hB_curr]
+                    split_ifs with h_mono
+                    · exact pruneBoxForMin_length hd.2 _
+                    · rfl
                   use Box.midpointEnv B_curr
                   refine ⟨hOrig, ?_, ?_⟩
                   · intro i hi
-                    have hlen_B_curr : B_curr.length = hd.2.length := by
-                      simp only [hB_curr]
-                      split_ifs with h_mono
-                      · exact pruneBoxForMin_length hd.2 _
-                      · rfl
                     exact Box.midpointEnv_zero B_curr i (hlen_B_curr.trans hLen ▸ hi)
                   · -- eval ≤ I.hi = bestUB' (in improvement case)
-                    -- Using safe evaluator - no domain validity needed
-                    have heval := evalOnBoxCoreSafe_hi_correct e hsupp B_curr cfg (Box.midpointEnv B_curr)
-                      (Box.midpointEnv_mem B_curr) (Box.midpointEnv_zero B_curr)
+                    have heval := evalOnBoxCore_hi_correct e hsupp B_curr cfg (Box.midpointEnv B_curr)
+                      (Box.midpointEnv_mem B_curr) (Box.midpointEnv_zero B_curr) (hdom B_curr (hlen_B_curr.trans hLen))
                     simp only [← hUB']
                     exact heval)
            · -- Queue entries: come from tail or splits of B_curr
@@ -1124,7 +1068,8 @@ theorem minimizeLoopCore_correct (e : Expr) (hsupp : ExprSupportedCore e) (cfg :
     (hLB : ∀ ρ, Box.envMem ρ origB → (∀ i, i ≥ origB.length → ρ i = 0) → bestLB ≤ Expr.eval ρ e)
     (hUB : ∃ ρ, Box.envMem ρ origB ∧ (∀ i, i ≥ origB.length → ρ i = 0) ∧ Expr.eval ρ e ≤ bestUB)
     (hQueueSub : ∀ lb B', (lb, B') ∈ queue →
-        ∀ ρ, Box.envMem ρ B' → Box.envMem ρ origB ∧ B'.length = origB.length) :
+        ∀ ρ, Box.envMem ρ B' → Box.envMem ρ origB ∧ B'.length = origB.length)
+    (hdom : ∀ (B' : Box), B'.length = origB.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth }) :
     let result := minimizeLoopCore e cfg queue bestLB bestUB bestBox iters
     (∀ ρ, Box.envMem ρ origB → (∀ i, i ≥ origB.length → ρ i = 0) →
         result.bound.lo ≤ Expr.eval ρ e) ∧
@@ -1144,32 +1089,33 @@ theorem minimizeLoopCore_correct (e : Expr) (hsupp : ExprSupportedCore e) (cfg :
       simp only
       have ⟨hLB', hUB', hQueueSub'⟩ :=
         minimizeStepCore_preserves_LB e hsupp cfg origB queue bestLB bestUB bestBox
-          result.1 result.2.1 result.2.2.1 result.2.2.2 hstep hLB hUB hQueueSub
+          result.1 result.2.1 result.2.2.1 result.2.2.2 hstep hLB hUB hQueueSub hdom
       exact ih result.1 result.2.1 result.2.2.1 result.2.2.2 hLB' hUB' hQueueSub'
 
 /-- The key correctness theorem for Core version: globalMinimizeCore returns a lower bound
     that is ≤ the minimum of f over any point in the original box.
 
-    This theorem uses the safe evaluator which handles domain validity internally,
-    eliminating the need for external domain validity proofs. -/
+    This theorem requires a domain validity hypothesis for ExprSupportedCore expressions.
+    For ExprSupported expressions, use globalMinimizeCore_lo_correct_supported which
+    derives domain validity automatically. -/
 theorem globalMinimizeCore_lo_correct (e : Expr) (hsupp : ExprSupportedCore e)
-    (B : Box) (cfg : GlobalOptConfig) :
+    (B : Box) (cfg : GlobalOptConfig)
+    (hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth }) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       (globalMinimizeCore e B cfg).bound.lo ≤ Expr.eval ρ e := by
   intro ρ hρ hzero
   simp only [globalMinimizeCore]
-  let I := evalOnBoxCoreSafe e B cfg
-  -- Initial invariants using safe evaluator (no domain validity needed)
+  let I := evalOnBoxCore e B cfg
   have hLB0 : ∀ ρ', Box.envMem ρ' B → (∀ i, i ≥ B.length → ρ' i = 0) →
       I.lo ≤ Expr.eval ρ' e := by
     intro ρ' hρ' hzero'
-    exact evalOnBoxCoreSafe_lo_correct e hsupp B cfg ρ' hρ' hzero'
+    exact evalOnBoxCore_lo_correct e hsupp B cfg ρ' hρ' hzero' (hdom B rfl)
   have hUB0 : ∃ ρ', Box.envMem ρ' B ∧ (∀ i, i ≥ B.length → ρ' i = 0) ∧
       Expr.eval ρ' e ≤ I.hi := by
     use Box.midpointEnv B
     refine ⟨Box.midpointEnv_mem B, Box.midpointEnv_zero B, ?_⟩
-    exact evalOnBoxCoreSafe_hi_correct e hsupp B cfg (Box.midpointEnv B)
-      (Box.midpointEnv_mem B) (Box.midpointEnv_zero B)
+    exact evalOnBoxCore_hi_correct e hsupp B cfg (Box.midpointEnv B)
+      (Box.midpointEnv_mem B) (Box.midpointEnv_zero B) (hdom B rfl)
   have hQueueSub0 : ∀ lb B', (lb, B') ∈ [(I.lo, B)] →
       ∀ ρ', Box.envMem ρ' B' → Box.envMem ρ' B ∧ B'.length = B.length := by
     intro lb B' hmem ρ' hρ'
@@ -1178,27 +1124,27 @@ theorem globalMinimizeCore_lo_correct (e : Expr) (hsupp : ExprSupportedCore e)
     exact ⟨hρ', rfl⟩
   -- Apply loop correctness
   have hResult := minimizeLoopCore_correct e hsupp cfg B [(I.lo, B)] I.lo I.hi B cfg.maxIterations
-    hLB0 hUB0 hQueueSub0
+    hLB0 hUB0 hQueueSub0 hdom
   exact hResult.1 ρ hρ hzero
 
 /-- There exists a point achieving (approximately) the upper bound for Core version. -/
 theorem globalMinimizeCore_hi_achievable (e : Expr) (hsupp : ExprSupportedCore e)
-    (B : Box) (cfg : GlobalOptConfig) :
+    (B : Box) (cfg : GlobalOptConfig)
+    (hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth }) :
     ∃ (ρ : Nat → ℝ), Box.envMem ρ B ∧ (∀ i, i ≥ B.length → ρ i = 0) ∧
       Expr.eval ρ e ≤ (globalMinimizeCore e B cfg).bound.hi := by
   simp only [globalMinimizeCore]
-  let I := evalOnBoxCoreSafe e B cfg
-  -- Initial invariants using safe evaluator (no domain validity needed)
+  let I := evalOnBoxCore e B cfg
   have hLB0 : ∀ ρ', Box.envMem ρ' B → (∀ i, i ≥ B.length → ρ' i = 0) →
       I.lo ≤ Expr.eval ρ' e := by
     intro ρ' hρ' hzero'
-    exact evalOnBoxCoreSafe_lo_correct e hsupp B cfg ρ' hρ' hzero'
+    exact evalOnBoxCore_lo_correct e hsupp B cfg ρ' hρ' hzero' (hdom B rfl)
   have hUB0 : ∃ ρ', Box.envMem ρ' B ∧ (∀ i, i ≥ B.length → ρ' i = 0) ∧
       Expr.eval ρ' e ≤ I.hi := by
     use Box.midpointEnv B
     refine ⟨Box.midpointEnv_mem B, Box.midpointEnv_zero B, ?_⟩
-    exact evalOnBoxCoreSafe_hi_correct e hsupp B cfg (Box.midpointEnv B)
-      (Box.midpointEnv_mem B) (Box.midpointEnv_zero B)
+    exact evalOnBoxCore_hi_correct e hsupp B cfg (Box.midpointEnv B)
+      (Box.midpointEnv_mem B) (Box.midpointEnv_zero B) (hdom B rfl)
   have hQueueSub0 : ∀ lb B', (lb, B') ∈ [(I.lo, B)] →
       ∀ ρ', Box.envMem ρ' B' → Box.envMem ρ' B ∧ B'.length = B.length := by
     intro lb B' hmem ρ' hρ'
@@ -1207,19 +1153,20 @@ theorem globalMinimizeCore_hi_achievable (e : Expr) (hsupp : ExprSupportedCore e
     exact ⟨hρ', rfl⟩
   -- Apply loop correctness
   have hResult := minimizeLoopCore_correct e hsupp cfg B [(I.lo, B)] I.lo I.hi B cfg.maxIterations
-    hLB0 hUB0 hQueueSub0
+    hLB0 hUB0 hQueueSub0 hdom
   exact hResult.2
 
 /-- The lower bound is ≤ the upper bound.
     This follows from the existence of a witness: there's some ρ with f(ρ) ≤ hi,
     and lo ≤ f(ρ) for all ρ in B, so lo ≤ f(witness) ≤ hi. -/
 theorem globalMinimizeCore_lo_le_hi (e : Expr) (hsupp : ExprSupportedCore e)
-    (B : Box) (cfg : GlobalOptConfig) :
+    (B : Box) (cfg : GlobalOptConfig)
+    (hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth }) :
     (globalMinimizeCore e B cfg).bound.lo ≤ (globalMinimizeCore e B cfg).bound.hi := by
   -- Get the witness that achieves ≤ hi
-  obtain ⟨ρ, hρ, hzero, hhi⟩ := globalMinimizeCore_hi_achievable e hsupp B cfg
+  obtain ⟨ρ, hρ, hzero, hhi⟩ := globalMinimizeCore_hi_achievable e hsupp B cfg hdom
   -- Get that lo ≤ f(ρ) for this witness
-  have hlo := globalMinimizeCore_lo_correct e hsupp B cfg ρ hρ hzero
+  have hlo := globalMinimizeCore_lo_correct e hsupp B cfg hdom ρ hρ hzero
   -- Combine: lo ≤ f(ρ) ≤ hi, then cast back to ℚ
   have h : ((globalMinimizeCore e B cfg).bound.lo : ℝ) ≤ (globalMinimizeCore e B cfg).bound.hi :=
     calc ((globalMinimizeCore e B cfg).bound.lo : ℝ)
@@ -1231,41 +1178,52 @@ theorem globalMinimizeCore_lo_le_hi (e : Expr) (hsupp : ExprSupportedCore e)
 
 /-- The upper bound from globalMaximizeCore is correct: f(ρ) ≤ hi for all ρ in B. -/
 theorem globalMaximizeCore_hi_correct (e : Expr) (hsupp : ExprSupportedCore e)
-    (B : Box) (cfg : GlobalOptConfig) :
+    (B : Box) (cfg : GlobalOptConfig)
+    (hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth }) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       Expr.eval ρ e ≤ (globalMaximizeCore e B cfg).bound.hi := by
   intro ρ hρ hzero
   simp only [globalMaximizeCore]
   have hneg_supp : ExprSupportedCore (Expr.neg e) := ExprSupportedCore.neg hsupp
-  have hmin := globalMinimizeCore_lo_correct (Expr.neg e) hneg_supp B cfg ρ hρ hzero
+  have hneg_dom : ∀ (B' : Box), B'.length = B.length → evalDomainValid (Expr.neg e) B'.toEnv { taylorDepth := cfg.taylorDepth } := by
+    intro B' hB'
+    simp only [evalDomainValid]
+    exact hdom B' hB'
+  have hmin := globalMinimizeCore_lo_correct (Expr.neg e) hneg_supp B cfg hneg_dom ρ hρ hzero
   simp only [Expr.eval_neg] at hmin
-  -- hmin : (globalMinimizeCore e.neg B cfg).bound.lo ≤ -Expr.eval ρ e
-  -- Goal: Expr.eval ρ e ≤ -(globalMinimizeCore e.neg B cfg).bound.lo
   have h : Expr.eval ρ e ≤ (-(globalMinimizeCore (Expr.neg e) B cfg).bound.lo : ℝ) := by linarith
   exact_mod_cast h
 
 /-- There exists a point achieving approximately the lower bound for maximization. -/
 theorem globalMaximizeCore_lo_achievable (e : Expr) (hsupp : ExprSupportedCore e)
-    (B : Box) (cfg : GlobalOptConfig) :
+    (B : Box) (cfg : GlobalOptConfig)
+    (hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth }) :
     ∃ (ρ : Nat → ℝ), Box.envMem ρ B ∧ (∀ i, i ≥ B.length → ρ i = 0) ∧
       (globalMaximizeCore e B cfg).bound.lo ≤ Expr.eval ρ e := by
   simp only [globalMaximizeCore]
   have hneg_supp : ExprSupportedCore (Expr.neg e) := ExprSupportedCore.neg hsupp
-  obtain ⟨ρ, hρ, hzero, hhi⟩ := globalMinimizeCore_hi_achievable (Expr.neg e) hneg_supp B cfg
+  have hneg_dom : ∀ (B' : Box), B'.length = B.length → evalDomainValid (Expr.neg e) B'.toEnv { taylorDepth := cfg.taylorDepth } := by
+    intro B' hB'
+    simp only [evalDomainValid]
+    exact hdom B' hB'
+  obtain ⟨ρ, hρ, hzero, hhi⟩ := globalMinimizeCore_hi_achievable (Expr.neg e) hneg_supp B cfg hneg_dom
   use ρ, hρ, hzero
   simp only [Expr.eval_neg] at hhi
-  -- hhi : -Expr.eval ρ e ≤ (globalMinimizeCore e.neg B cfg).bound.hi
-  -- Goal: -(globalMinimizeCore e.neg B cfg).bound.hi ≤ Expr.eval ρ e
   have h : (-(globalMinimizeCore (Expr.neg e) B cfg).bound.hi : ℝ) ≤ Expr.eval ρ e := by linarith
   exact_mod_cast h
 
 /-- The lower bound is ≤ the upper bound for maximization. -/
 theorem globalMaximizeCore_lo_le_hi (e : Expr) (hsupp : ExprSupportedCore e)
-    (B : Box) (cfg : GlobalOptConfig) :
+    (B : Box) (cfg : GlobalOptConfig)
+    (hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth }) :
     (globalMaximizeCore e B cfg).bound.lo ≤ (globalMaximizeCore e B cfg).bound.hi := by
   simp only [globalMaximizeCore]
   have hneg_supp : ExprSupportedCore (Expr.neg e) := ExprSupportedCore.neg hsupp
-  have h := globalMinimizeCore_lo_le_hi (Expr.neg e) hneg_supp B cfg
+  have hneg_dom : ∀ (B' : Box), B'.length = B.length → evalDomainValid (Expr.neg e) B'.toEnv { taylorDepth := cfg.taylorDepth } := by
+    intro B' hB'
+    simp only [evalDomainValid]
+    exact hdom B' hB'
+  have h := globalMinimizeCore_lo_le_hi (Expr.neg e) hneg_supp B cfg hneg_dom
   linarith
 
 /-! ### Dyadic backend versions for high-performance optimization

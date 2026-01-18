@@ -984,17 +984,20 @@ def checkGlobalBounds (e : Expr) (B : Box) (lo hi : ℚ) (cfg : GlobalOptConfig)
     This converts the boolean certificate into a semantic proof about all points
     in the box.
 
-    Note: This uses ExprSupportedCore (the computable subset) rather than ExprSupported,
-    since the checker uses globalMinimizeCore which uses evalIntervalCore. -/
-theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupportedCore e)
+    Note: This uses ExprSupported (no log) which guarantees domain validity automatically.
+    For expressions with log, use the Core version with explicit domain validity proofs. -/
+theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (c : ℚ) (cfg : GlobalOptConfig)
     (h_cert : checkGlobalLowerBound e B c cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       c ≤ Expr.eval ρ e := by
   simp only [checkGlobalLowerBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
   intro ρ hρ hzero
-  -- Use globalMinimizeCore correctness theorem directly
-  have hlo := globalMinimizeCore_lo_correct e hsupp B cfg ρ hρ hzero
+  -- Domain validity is automatic for ExprSupported expressions
+  have hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth } := by
+    intro B' _
+    exact ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := cfg.taylorDepth }
+  have hlo := globalMinimizeCore_lo_correct e hsupp.toCore B cfg hdom ρ hρ hzero
   calc (c : ℝ) ≤ (globalMinimizeCore e B cfg).bound.lo := by exact_mod_cast h_cert.2
     _ ≤ Expr.eval ρ e := hlo
 
@@ -1004,29 +1007,25 @@ theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupportedCore e)
 
     The maximization problem is reduced to minimization of -e.
 
-    Note: This uses ExprSupportedCore (the computable subset) rather than ExprSupported,
-    since the checker uses globalMaximizeCore which uses evalIntervalCore. -/
-theorem verify_global_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
+    Note: This uses ExprSupported (no log) which guarantees domain validity automatically.
+    For expressions with log, use the Core version with explicit domain validity proofs. -/
+theorem verify_global_upper_bound (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (c : ℚ) (cfg : GlobalOptConfig)
     (h_cert : checkGlobalUpperBound e B c cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       Expr.eval ρ e ≤ c := by
   simp only [checkGlobalUpperBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
   intro ρ hρ hzero
-  -- h_cert : globalMaximizeCore(e).bound.hi ≤ c
-  -- globalMaximizeCore(e).bound.hi = -globalMinimizeCore(-e).bound.lo
-  -- From globalMinimizeCore_lo_correct for -e:
-  --   globalMinimizeCore(-e).bound.lo ≤ -e(ρ) for all ρ
-  --   i.e., e(ρ) ≤ -globalMinimizeCore(-e).bound.lo = globalMaximizeCore(e).bound.hi
-  have hneg_supp : ExprSupportedCore (Expr.neg e) := ExprSupportedCore.neg hsupp
-  have hlo_neg := globalMinimizeCore_lo_correct (Expr.neg e) hneg_supp B cfg ρ hρ hzero
+  -- Domain validity is automatic for ExprSupported expressions
+  have hneg_supp : ExprSupportedCore (Expr.neg e) := ExprSupportedCore.neg hsupp.toCore
+  have hneg_dom : ∀ (B' : Box), B'.length = B.length → evalDomainValid (Expr.neg e) B'.toEnv { taylorDepth := cfg.taylorDepth } := by
+    intro B' _
+    simp only [evalDomainValid]
+    exact ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := cfg.taylorDepth }
+  have hlo_neg := globalMinimizeCore_lo_correct (Expr.neg e) hneg_supp B cfg hneg_dom ρ hρ hzero
   simp only [Expr.eval_neg] at hlo_neg
-  -- hlo_neg : globalMinimizeCore(-e).bound.lo ≤ -e(ρ)
-  -- i.e., e(ρ) ≤ -globalMinimizeCore(-e).bound.lo = globalMaximizeCore(e).bound.hi
-  -- From hlo_neg: (lo : ℝ) ≤ -Expr.eval ρ e, so Expr.eval ρ e ≤ -(lo : ℝ)
   have heval_bound : Expr.eval ρ e ≤ -((globalMinimizeCore (Expr.neg e) B cfg).bound.lo : ℝ) := by
     linarith
-  -- globalMaximizeCore(e).bound.hi = -(globalMinimizeCore(-e).bound.lo)
   have hhi_eq : ((globalMaximizeCore e B cfg).bound.hi : ℝ) =
                 -((globalMinimizeCore (Expr.neg e) B cfg).bound.lo : ℝ) := by
     simp only [globalMaximizeCore]
@@ -1038,7 +1037,7 @@ theorem verify_global_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
     _ ≤ c := by exact_mod_cast h_cert.2
 
 /-- Two-sided global bound verification -/
-theorem verify_global_bounds (e : Expr) (hsupp : ExprSupportedCore e)
+theorem verify_global_bounds (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (lo hi : ℚ) (cfg : GlobalOptConfig)
     (h_cert : checkGlobalBounds e B lo hi cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →

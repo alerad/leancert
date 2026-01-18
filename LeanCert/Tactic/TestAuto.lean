@@ -121,7 +121,7 @@ theorem test_opt_xsq_le_one : ∀ ρ, Box.envMem ρ B01 → (∀ i, i ≥ B01.le
     Expr.eval ρ (Expr.mul (Expr.var 0) (Expr.var 0)) ≤ (1 : ℚ) :=
   verify_global_upper_bound
     (Expr.mul (Expr.var 0) (Expr.var 0))
-    (ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0))
+    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
     B01 1 ⟨1000, 1/1000, false, 10⟩
     (by native_decide)
 
@@ -132,7 +132,7 @@ theorem test_opt_zero_le_xsq : ∀ ρ, Box.envMem ρ B01 → (∀ i, i ≥ B01.l
     (0 : ℚ) ≤ Expr.eval ρ (Expr.mul (Expr.var 0) (Expr.var 0)) :=
   verify_global_lower_bound
     (Expr.mul (Expr.var 0) (Expr.var 0))
-    (ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0))
+    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
     B01 0 ⟨1000, 1/1000, false, 10⟩
     (by native_decide)
 
@@ -144,9 +144,9 @@ theorem test_opt_2d_sum_sq : ∀ ρ, Box.envMem ρ B01_2D → (∀ i, i ≥ B01_
                           (Expr.mul (Expr.var 1) (Expr.var 1))) ≤ (2 : ℚ) :=
   verify_global_upper_bound
     (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.mul (Expr.var 1) (Expr.var 1)))
-    (ExprSupportedCore.add
-      (ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0))
-      (ExprSupportedCore.mul (ExprSupportedCore.var 1) (ExprSupportedCore.var 1)))
+    (ExprSupported.add
+      (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
+      (ExprSupported.mul (ExprSupported.var 1) (ExprSupported.var 1)))
     B01_2D 2 ⟨1000, 1/1000, false, 10⟩
     (by native_decide)
 

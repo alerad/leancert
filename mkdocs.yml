@@ -61,6 +61,8 @@ extra_javascript:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Choosing Tactics: choosing-tactics.md
+  - End-to-End Example: end-to-end-example.md
   - Lean Tactics:
     - Reference: tactics.md
     - Root Finding: architecture/root-finding.md
