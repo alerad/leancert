@@ -708,6 +708,87 @@ class Solver:
             verified=True,
         )
 
+    def forward_interval(
+        self,
+        network,  # SequentialNetwork or TwoLayerReLUNetwork
+        input_domain: Union[Box, dict, list],
+        precision: int = -53,
+    ) -> list[Interval]:
+        """
+        Propagate intervals through a neural network using verified arithmetic.
+
+        This runs verified interval arithmetic forward propagation through
+        the network, computing rigorous bounds on all possible outputs.
+
+        Args:
+            network: A SequentialNetwork or TwoLayerReLUNetwork from leancert.nn
+            input_domain: Input intervals as Box, dict, or list of tuples
+            precision: Dyadic precision (-53 = IEEE double precision)
+
+        Returns:
+            List of output intervals (one per output neuron)
+
+        Example:
+            >>> import leancert as lc
+            >>> from leancert.nn import SequentialNetwork, Layer
+            >>> layer = Layer.from_numpy(np.array([[1, -1]]), np.array([0]))
+            >>> net = SequentialNetwork([layer])
+            >>> outputs = lc.forward_interval(net, {"x0": (-1, 1), "x1": (-1, 1)})
+        """
+        # Import here to avoid circular dependency
+        from . import nn as nn_module
+
+        client = self._ensure_client()
+
+        # Convert network to SequentialNetwork if needed
+        if isinstance(network, nn_module.TwoLayerReLUNetwork):
+            network = nn_module.SequentialNetwork.from_two_layer(network)
+
+        # Convert input domain to list of intervals
+        if isinstance(input_domain, dict):
+            # Dict format: {"x0": (lo, hi), "x1": (lo, hi), ...}
+            intervals = []
+            for i in range(network.input_dim):
+                var_name = network.input_names[i] if i < len(network.input_names) else f"x{i}"
+                if var_name in input_domain:
+                    lo, hi = input_domain[var_name]
+                else:
+                    raise DomainError(f"Missing input variable: {var_name}")
+                intervals.append({"lo": {"n": int(Fraction(lo).numerator), "d": int(Fraction(lo).denominator)},
+                                  "hi": {"n": int(Fraction(hi).numerator), "d": int(Fraction(hi).denominator)}})
+        elif isinstance(input_domain, Box):
+            intervals = [input_domain[v].to_kernel() for v in input_domain.var_order()]
+        elif isinstance(input_domain, list):
+            # List of tuples: [(lo0, hi0), (lo1, hi1), ...]
+            intervals = []
+            for lo, hi in input_domain:
+                intervals.append({"lo": {"n": int(Fraction(lo).numerator), "d": int(Fraction(lo).denominator)},
+                                  "hi": {"n": int(Fraction(hi).numerator), "d": int(Fraction(hi).denominator)}})
+        else:
+            raise DomainError(f"Unsupported input_domain type: {type(input_domain)}")
+
+        # Convert layers to JSON format
+        layers_json = []
+        for layer in network.layers:
+            weights_json = [
+                [{"n": num, "d": denom} for num, denom in row]
+                for row in layer.weights
+            ]
+            bias_json = [{"n": num, "d": denom} for num, denom in layer.bias]
+            layers_json.append({"weights": weights_json, "bias": bias_json})
+
+        # Call bridge
+        result = client.forward_interval(layers_json, intervals, precision)
+
+        # Parse output intervals
+        outputs = []
+        for interval_data in result["output"]:
+            lo = _parse_rat(interval_data["lo"])
+            hi = _parse_rat(interval_data["hi"])
+            outputs.append(Interval(lo, hi))
+
+        return outputs
+
 
 # Global solver instance for convenience functions
 _global_solver: Optional[Solver] = None
@@ -825,3 +906,25 @@ def integrate(
 ) -> IntegralResult:
     """Compute rigorous integral bounds."""
     return _get_solver().integrate(expr, domain, partitions, config)
+
+
+def forward_interval(
+    network,  # SequentialNetwork or TwoLayerReLUNetwork
+    input_domain: Union[Box, dict, list],
+    precision: int = -53,
+) -> list[Interval]:
+    """
+    Propagate intervals through a neural network using verified arithmetic.
+
+    This runs verified interval arithmetic forward propagation through
+    the network, computing rigorous bounds on all possible outputs.
+
+    Args:
+        network: A SequentialNetwork or TwoLayerReLUNetwork from leancert.nn
+        input_domain: Input intervals as Box, dict, or list of tuples
+        precision: Dyadic precision (-53 = IEEE double precision)
+
+    Returns:
+        List of output intervals (one per output neuron)
+    """
+    return _get_solver().forward_interval(network, input_domain, precision)

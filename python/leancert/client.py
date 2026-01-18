@@ -468,6 +468,46 @@ class LeanClient:
             "taylorDepth": taylor_depth,
         })
 
+    def forward_interval(
+        self,
+        layers_json: list[dict],
+        input_json: list[dict],
+        precision: int = -53,
+    ) -> dict:
+        """
+        Propagate intervals through a neural network.
+
+        This runs verified interval arithmetic forward propagation through
+        a sequential neural network (list of layers with ReLU activations).
+
+        Args:
+            layers_json: List of layer dicts, each with:
+              - weights: List of rows, each row a list of rationals {n, d}
+              - bias: List of rationals {n, d}
+            input_json: List of interval dicts with lo/hi as rationals
+            precision: Dyadic precision for interval arithmetic (-53 = IEEE double)
+
+        Returns:
+            Dict with:
+              - output: List of interval dicts (lo/hi as rationals)
+              - numLayers: Number of layers
+              - outputDim: Output dimension
+
+        Example:
+            >>> client = LeanClient()
+            >>> layers = [
+            ...     {"weights": [[{"n": 1, "d": 1}]], "bias": [{"n": 0, "d": 1}]},
+            ... ]
+            >>> inputs = [{"lo": {"n": 0, "d": 1}, "hi": {"n": 1, "d": 1}}]
+            >>> result = client.forward_interval(layers, inputs)
+            >>> print(result["output"])
+        """
+        return self.call("forward_interval", {
+            "layers": layers_json,
+            "input": input_json,
+            "precision": precision,
+        })
+
     def close(self) -> None:
         """Close the subprocess."""
         if self._process is not None:

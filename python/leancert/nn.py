@@ -36,7 +36,9 @@ import numpy as np
 __all__ = [
     "Layer",
     "TwoLayerReLUNetwork",
+    "SequentialNetwork",
     "from_pytorch",
+    "from_pytorch_sequential",
     "float_to_rational",
     # Transformer components
     "LayerNormParams",
@@ -340,6 +342,292 @@ class TwoLayerReLUNetwork:
         lines.append(f"end {namespace}")
 
         return "\n".join(lines)
+
+
+@dataclass
+class SequentialNetwork:
+    """An N-layer ReLU network for verification.
+
+    Architecture: input -> [Linear -> ReLU]* -> Linear -> output
+
+    All intermediate layers use ReLU activation. The final layer has no activation.
+
+    Attributes:
+        layers: List of Layer objects
+        input_names: Names for input variables
+        description: Optional description for documentation
+    """
+    layers: List[Layer]
+    input_names: List[str] = field(default_factory=lambda: ["x"])
+    description: str = ""
+
+    @property
+    def input_dim(self) -> int:
+        """Input dimension."""
+        if not self.layers:
+            return 0
+        return self.layers[0].input_dim
+
+    @property
+    def output_dim(self) -> int:
+        """Output dimension."""
+        if not self.layers:
+            return 0
+        return self.layers[-1].output_dim
+
+    @property
+    def num_layers(self) -> int:
+        """Number of layers."""
+        return len(self.layers)
+
+    @property
+    def hidden_dims(self) -> List[int]:
+        """Hidden layer dimensions."""
+        return [layer.output_dim for layer in self.layers[:-1]]
+
+    def to_json(self) -> dict:
+        """Convert to JSON-serializable dict for bridge communication."""
+        return {
+            "weights": [
+                [[n / d for n, d in row] for row in layer.weights]
+                for layer in self.layers
+            ],
+            "biases": [
+                [n / d for n, d in layer.bias]
+                for layer in self.layers
+            ],
+        }
+
+    def export_lean(
+        self,
+        name: str = "network",
+        namespace: str = "LeanCert.Examples.ML",
+        input_domain: Optional[Dict[str, Tuple[float, float]]] = None,
+        precision: int = -53,
+        include_proofs: bool = True,
+    ) -> str:
+        """Export network to Lean code with verification scaffolding.
+
+        Args:
+            name: Name for the network definition
+            namespace: Lean namespace
+            input_domain: Dict mapping variable names to (lo, hi) bounds
+            precision: Dyadic precision for interval arithmetic
+            include_proofs: Whether to include well-formedness proofs
+
+        Returns:
+            Complete Lean source code as string
+        """
+        lines = []
+
+        # Header
+        lines.append("/-")
+        lines.append("Copyright (c) 2025 LeanCert Contributors. All rights reserved.")
+        lines.append("Released under AGPL-3.0 license as described in the file LICENSE.")
+        lines.append("Authors: LeanCert Contributors (auto-generated)")
+        lines.append("-/")
+        lines.append("import LeanCert.ML.Distillation")
+        lines.append("")
+        lines.append("set_option linter.unnecessarySeqFocus false")
+        lines.append("")
+
+        # Documentation
+        lines.append("/-!")
+        lines.append(f"# Neural Network: {name}")
+        lines.append("")
+        if self.description:
+            lines.append(self.description)
+            lines.append("")
+        lines.append("## Architecture")
+        lines.append("")
+        lines.append(f"- **Input**: {self.input_dim} dimensions")
+        for i, dim in enumerate(self.hidden_dims):
+            lines.append(f"- **Hidden {i+1}**: {dim} neurons with ReLU activation")
+        lines.append(f"- **Output**: {self.output_dim} dimensions")
+        lines.append("")
+        lines.append("## Verification")
+        lines.append("")
+        lines.append("This file provides formal verification that the network output")
+        lines.append("is bounded for all inputs in the specified domain.")
+        lines.append("-/")
+        lines.append("")
+
+        # Namespace
+        lines.append(f"namespace {namespace}")
+        lines.append("")
+        lines.append("open LeanCert.Core")
+        lines.append("open LeanCert.ML")
+        lines.append("open LeanCert.ML.Distillation")
+        lines.append("open IntervalVector")
+        lines.append("")
+
+        # Export each layer
+        for i, layer in enumerate(self.layers):
+            in_dim = layer.input_dim
+            out_dim = layer.output_dim
+            is_last = (i == len(self.layers) - 1)
+            activation = "none" if is_last else "ReLU"
+
+            lines.append(f"/-- Layer {i+1}: {in_dim} → {out_dim} ({activation}) -/")
+            lines.append(f"def {name}Layer{i+1}Weights : List (List ℚ) := [")
+            for j, row in enumerate(layer.weights):
+                row_strs = [_format_lean_rational(n, d) for (n, d) in row]
+                comma = "," if j < len(layer.weights) - 1 else ""
+                lines.append(f"  [{', '.join(row_strs)}]{comma}")
+            lines.append("]")
+            lines.append("")
+
+            bias_strs = [_format_lean_rational(n, d) for (n, d) in layer.bias]
+            lines.append(f"def {name}Layer{i+1}Bias : List ℚ := [{', '.join(bias_strs)}]")
+            lines.append("")
+
+            lines.append(f"def {name}Layer{i+1} : Layer where")
+            lines.append(f"  weights := {name}Layer{i+1}Weights")
+            lines.append(f"  bias := {name}Layer{i+1}Bias")
+            lines.append("")
+
+        # Network definition
+        layer_names = [f"{name}Layer{i+1}" for i in range(len(self.layers))]
+        lines.append(f"/-- The {name} network ({self.num_layers} layers) -/")
+        lines.append(f"def {name} : SequentialNet where")
+        lines.append(f"  layers := [{', '.join(layer_names)}]")
+        lines.append("")
+
+        if include_proofs:
+            # Well-formedness proofs for each layer
+            lines.append("/-! ## Well-formedness Proofs -/")
+            lines.append("")
+
+            for i, layer in enumerate(self.layers):
+                lines.append(f"theorem {name}Layer{i+1}_wf : {name}Layer{i+1}.WellFormed := by")
+                lines.append("  constructor")
+                lines.append("  · intro row hrow")
+                lines.append(f"    simp only [{name}Layer{i+1}, {name}Layer{i+1}Weights, Layer.inputDim] at *")
+                lines.append("    fin_cases hrow <;> rfl")
+                lines.append("  · rfl")
+                lines.append("")
+
+        if input_domain:
+            # Input domain and bounds
+            lines.append("/-! ## Input Domain and Output Bounds -/")
+            lines.append("")
+            lines.append(f"def mkInterval (lo hi : ℚ) (h : lo ≤ hi := by norm_num) (prec : Int := {precision}) : IntervalDyadic :=")
+            lines.append("  IntervalDyadic.ofIntervalRat ⟨lo, hi, h⟩ prec")
+            lines.append("")
+
+            # Build input domain
+            domain_parts = []
+            for var_name in self.input_names:
+                if var_name in input_domain:
+                    lo, hi = input_domain[var_name]
+                    lo_rat = float_to_rational(lo)
+                    hi_rat = float_to_rational(hi)
+                    lo_str = _format_lean_rational(*lo_rat, parens_for_neg_int=True)
+                    hi_str = _format_lean_rational(*hi_rat, parens_for_neg_int=True)
+                    domain_parts.append(f"mkInterval {lo_str} {hi_str}")
+
+            lines.append(f"/-- Input domain -/")
+            lines.append(f"def {name}InputDomain : IntervalVector := [{', '.join(domain_parts)}]")
+            lines.append("")
+
+            lines.append(f"/-- Computed output bounds for the entire input domain -/")
+            lines.append(f"def {name}OutputBounds : IntervalVector :=")
+            lines.append(f"  SequentialNet.forwardInterval {name} {name}InputDomain ({precision})")
+            lines.append("")
+            lines.append(f"#eval {name}OutputBounds.map (fun I => (I.lo.toRat, I.hi.toRat))")
+            lines.append("")
+
+        lines.append(f"end {namespace}")
+
+        return "\n".join(lines)
+
+    @classmethod
+    def from_two_layer(cls, net: "TwoLayerReLUNetwork") -> "SequentialNetwork":
+        """Convert a TwoLayerReLUNetwork to SequentialNetwork."""
+        return cls(
+            layers=[net.layer1, net.layer2],
+            input_names=net.input_names,
+            description=net.description,
+        )
+
+
+def from_pytorch_sequential(
+    model,
+    input_names: List[str] = None,
+    max_denom: int = 10000,
+    description: str = "",
+) -> SequentialNetwork:
+    """Create a SequentialNetwork from a PyTorch model with N linear layers.
+
+    The model should be a sequence of Linear layers with optional ReLU activations.
+    Supports nn.Sequential, or models with numbered layer attributes.
+
+    Args:
+        model: PyTorch nn.Module
+        input_names: Names for input variables (default: ['x0', 'x1', ...])
+        max_denom: Maximum denominator for rational conversion
+        description: Optional description for documentation
+
+    Returns:
+        SequentialNetwork ready for Lean export
+
+    Raises:
+        ImportError: If PyTorch is not available
+        ValueError: If no Linear layers found
+    """
+    try:
+        import torch
+        import torch.nn as nn
+    except ImportError:
+        raise ImportError(
+            "PyTorch is required for from_pytorch_sequential(). "
+            "Install with: pip install torch"
+        )
+
+    # Find all Linear layers
+    linear_layers = []
+
+    # Method 1: nn.Sequential or iterable
+    if hasattr(model, '__iter__'):
+        for module in model:
+            if isinstance(module, nn.Linear):
+                linear_layers.append(module)
+
+    # Method 2: Direct children
+    if not linear_layers:
+        for child in model.children():
+            if isinstance(child, nn.Linear):
+                linear_layers.append(child)
+
+    # Method 3: All modules (recursive)
+    if not linear_layers:
+        linear_layers = [m for m in model.modules() if isinstance(m, nn.Linear)]
+
+    if not linear_layers:
+        raise ValueError(
+            "Could not find any Linear layers in model. "
+            "Model should contain nn.Linear modules."
+        )
+
+    # Convert to Layer objects
+    layers = []
+    for i, linear in enumerate(linear_layers):
+        w = linear.weight.detach().cpu().numpy()
+        b = linear.bias.detach().cpu().numpy() if linear.bias is not None else np.zeros(linear.out_features)
+        # All layers except last use ReLU
+        activation = "none" if i == len(linear_layers) - 1 else "relu"
+        layers.append(Layer.from_numpy(w, b, activation=activation, max_denom=max_denom))
+
+    # Default input names
+    if input_names is None:
+        input_dim = layers[0].input_dim
+        input_names = [f"x{i}" for i in range(input_dim)]
+
+    return SequentialNetwork(
+        layers=layers,
+        input_names=input_names,
+        description=description,
+    )
 
 
 ###############################################################################

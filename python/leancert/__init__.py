@@ -88,6 +88,7 @@ from .solver import (
     find_unique_root,
     integrate,
     eval_interval,
+    forward_interval,
 )
 
 # Client (for advanced users)
@@ -114,6 +115,12 @@ from .exceptions import (
 # Neural network export
 from . import nn
 from .nn import (
+    # Core network types
+    Layer,
+    TwoLayerReLUNetwork,
+    SequentialNetwork,
+    from_pytorch,
+    from_pytorch_sequential,
     # Transformer components
     LayerNormParams,
     LinearLayer,
@@ -196,6 +203,7 @@ __all__ = [
     "find_unique_root",
     "integrate",
     "eval_interval",
+    "forward_interval",
     # Client
     "LeanClient",
     # Simplification
@@ -226,6 +234,12 @@ __all__ = [
     "verify_counterexample_concrete",
     # Neural network export
     "nn",
+    # Core network types
+    "Layer",
+    "TwoLayerReLUNetwork",
+    "SequentialNetwork",
+    "from_pytorch",
+    "from_pytorch_sequential",
     # Transformer components
     "LayerNormParams",
     "LinearLayer",
