@@ -297,7 +297,7 @@ theorem evalIntervalAffine_correct (e : Expr) (hsupp : ExprSupportedCore e)
       AffineForm.mem_toInterval_weak hvalid hmem_arg
     -- hdom.2 gives us the positivity condition
     have hpos : (evalIntervalAffine arg ρ_affine cfg).toInterval.lo > 0 := hdom.2
-    simp only [Expr.eval_log, evalIntervalAffine, hpos, ↓reduceIte]
+    simp only [Expr.eval_log, evalIntervalAffine, hpos]
     have hlog_in := IntervalRat.mem_logComputable hv_in_I hpos cfg.taylorDepth
     exact AffineForm.mem_affine_of_interval (eps := eps) hlog_in
   | pi =>

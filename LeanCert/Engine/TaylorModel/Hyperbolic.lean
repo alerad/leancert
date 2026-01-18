@@ -413,8 +413,8 @@ private lemma sqSeries_apply_const (n : ℕ) (x : ℝ) :
     sqSeries n (fun _ => x) = if n = 2 then x ^ 2 else 0 := by
   by_cases h : n = 2
   · subst h
-    simp [sqSeries, FormalMultilinearSeries.ofScalars_apply_eq]
-  · simp [sqSeries, FormalMultilinearSeries.ofScalars_apply_eq, h]
+    simp [sqSeries]
+  · simp [sqSeries, h]
 
 private lemma iteratedDeriv_one_add_rpow_zero (a : ℝ) (n : ℕ) :
     iteratedDeriv n (fun x : ℝ => (1 + x) ^ a) 0 =
@@ -1155,7 +1155,7 @@ theorem iteratedDeriv_arsinh_zero (n : ℕ) :
       have hodd : (m + 1) % 2 = 1 := by omega
       simp only [hm, hodd, ↓reduceIte]
       -- (m+1-1) = m, (m+1-1)/2 = m/2
-      congr 1 <;> omega
+      congr 1
     · -- m is odd, so m+1 is even
       have heven : (m + 1) % 2 = 0 := by omega
       simp only [hm, heven, ↓reduceIte, mul_zero]
