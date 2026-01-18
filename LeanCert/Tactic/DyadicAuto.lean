@@ -68,6 +68,8 @@ open LeanCert.Engine
 theorem verify_upper_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
+    (hdom : evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat ⟨lo, hi, hle⟩ prec)
+        { precision := prec, taylorDepth := depth })
     (h_check : (evalIntervalDyadic e
         (fun _ => IntervalDyadic.ofIntervalRat ⟨lo, hi, hle⟩ prec)
         { precision := prec, taylorDepth := depth }).upperBoundedBy c = true) :
@@ -84,7 +86,7 @@ theorem verify_upper_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
     rwa [IntervalRat.mem_iff_mem_Icc]
   -- Apply correctness of evaluator
   have h_eval := evalIntervalDyadic_correct e hsupp ρ_real ρ_dyad h_env
-    { precision := prec, taylorDepth := depth } h_prec
+    { precision := prec, taylorDepth := depth } h_prec hdom
   -- Extract upper bound from boolean check
   simp only [IntervalDyadic.upperBoundedBy, decide_eq_true_eq] at h_check
   -- Conclude: eval ≤ hi.toRat ≤ c
@@ -96,6 +98,8 @@ theorem verify_upper_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
 theorem verify_lower_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
+    (hdom : evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat ⟨lo, hi, hle⟩ prec)
+        { precision := prec, taylorDepth := depth })
     (h_check : (evalIntervalDyadic e
         (fun _ => IntervalDyadic.ofIntervalRat ⟨lo, hi, hle⟩ prec)
         { precision := prec, taylorDepth := depth }).lowerBoundedBy c = true) :
@@ -109,7 +113,7 @@ theorem verify_lower_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
     apply IntervalDyadic.mem_ofIntervalRat _ prec h_prec
     rwa [IntervalRat.mem_iff_mem_Icc]
   have h_eval := evalIntervalDyadic_correct e hsupp ρ_real ρ_dyad h_env
-    { precision := prec, taylorDepth := depth } h_prec
+    { precision := prec, taylorDepth := depth } h_prec hdom
   simp only [IntervalDyadic.lowerBoundedBy, decide_eq_true_eq] at h_check
   calc (c : ℝ)
       ≤ ((evalIntervalDyadic e ρ_dyad { precision := prec, taylorDepth := depth }).lo.toRat : ℝ) := by exact_mod_cast h_check
@@ -201,10 +205,17 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResul
       catch _ =>
         return .boundCheckFailed
 
+      -- 9b. Build domain validity proof (trivial for expressions without log)
+      let domTy ← mkAppM ``evalDomainValidDyadic #[ast, envExpr, cfgExpr]
+      let domProof ← try
+        mkDecideProof domTy  -- Works because evalDomainValidDyadic is decidable (True for non-log)
+      catch _ =>
+        return .boundCheckFailed  -- Log expressions not supported in kernel mode
+
       -- 10. Apply the bridge theorem
       let proof ← mkAppM ``verify_upper_bound_dyadic
         #[ast, supportProof, loRatExpr, hiRatExpr, leProof, cExpr,
-          precExpr, depthExpr, precLeZeroProof, checkProof]
+          precExpr, depthExpr, precLeZeroProof, domProof, checkProof]
 
       -- 11. Check if proof type matches goal type
       let proofTy ← inferType proof
@@ -256,9 +267,16 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResul
       catch _ =>
         return .boundCheckFailed
 
+      -- Build domain validity proof (trivial for expressions without log)
+      let domTy ← mkAppM ``evalDomainValidDyadic #[ast, envExpr, cfgExpr]
+      let domProof ← try
+        mkDecideProof domTy
+      catch _ =>
+        return .boundCheckFailed
+
       let proof ← mkAppM ``verify_lower_bound_dyadic
         #[ast, supportProof, loRatExpr, hiRatExpr, leProof, cExpr,
-          precExpr, depthExpr, precLeZeroProof, checkProof]
+          precExpr, depthExpr, precLeZeroProof, domProof, checkProof]
 
       let proofTy ← inferType proof
       let goalTy ← goal.getType

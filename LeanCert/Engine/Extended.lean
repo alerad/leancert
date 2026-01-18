@@ -114,7 +114,7 @@ theorem mem_singleton {x : ℝ} {I : IntervalRat} :
 
 /-- Helper: the foldl operation maintains the property that the accumulated interval
     has lo ≤ head.lo and hi ≥ head.hi -/
-private theorem foldl_contains_head (t : List IntervalRat) (h : IntervalRat) :
+theorem foldl_contains_head (t : List IntervalRat) (h : IntervalRat) :
     let result := t.foldl (fun acc I =>
       { lo := min acc.lo I.lo
         hi := max acc.hi I.hi
@@ -134,7 +134,7 @@ private theorem foldl_contains_head (t : List IntervalRat) (h : IntervalRat) :
 
 /-- Helper: the foldl operation maintains the property that the accumulated interval
     contains any element from the tail -/
-private theorem foldl_contains_tail (t : List IntervalRat) (h : IntervalRat) (I : IntervalRat)
+theorem foldl_contains_tail (t : List IntervalRat) (h : IntervalRat) (I : IntervalRat)
     (hI : I ∈ t) :
     let result := t.foldl (fun acc J =>
       { lo := min acc.lo J.lo
@@ -498,6 +498,45 @@ def evalExtendedHull (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) 
 def extendedEnvMem (ρ_real : Nat → ℝ) (ρ_ext : ExtendedEnv) : Prop :=
   ∀ i, ρ_real i ∈ ρ_ext i
 
+/-- Domain validity for Extended evaluation.
+    For log, we require the argument's hull to have positive lower bound,
+    ensuring all parts have positive lo and the filter keeps them. -/
+def evalDomainValidExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : Prop :=
+  match e with
+  | Expr.const _ => True
+  | Expr.var _ => True
+  | Expr.add e₁ e₂ => evalDomainValidExtended e₁ ρ cfg ∧ evalDomainValidExtended e₂ ρ cfg
+  | Expr.mul e₁ e₂ => evalDomainValidExtended e₁ ρ cfg ∧ evalDomainValidExtended e₂ ρ cfg
+  | Expr.neg e => evalDomainValidExtended e ρ cfg
+  | Expr.inv e => evalDomainValidExtended e ρ cfg
+  | Expr.exp e => evalDomainValidExtended e ρ cfg
+  | Expr.sin e => evalDomainValidExtended e ρ cfg
+  | Expr.cos e => evalDomainValidExtended e ρ cfg
+  | Expr.log e => evalDomainValidExtended e ρ cfg ∧ (evalExtended e ρ cfg).hull.lo > 0
+  | Expr.atan e => evalDomainValidExtended e ρ cfg
+  | Expr.arsinh e => evalDomainValidExtended e ρ cfg
+  | Expr.atanh e => evalDomainValidExtended e ρ cfg
+  | Expr.sinc e => evalDomainValidExtended e ρ cfg
+  | Expr.erf e => evalDomainValidExtended e ρ cfg
+  | Expr.sinh e => evalDomainValidExtended e ρ cfg
+  | Expr.cosh e => evalDomainValidExtended e ρ cfg
+  | Expr.tanh e => evalDomainValidExtended e ρ cfg
+  | Expr.sqrt e => evalDomainValidExtended e ρ cfg
+  | Expr.pi => True
+
+/-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
+theorem evalDomainValidExtended_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
+    (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : evalDomainValidExtended e ρ cfg := by
+  induction hsupp with
+  | const _ => trivial
+  | var _ => trivial
+  | add _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | mul _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | neg _ ih => exact ih
+  | sin _ ih => exact ih
+  | cos _ ih => exact ih
+  | exp _ ih => exact ih
+
 /-- Soundness of extended evaluation for the core expression subset.
 
     If all variables are in their respective extended intervals, and the expression
@@ -505,7 +544,8 @@ def extendedEnvMem (ρ_real : Nat → ℝ) (ρ_ext : ExtendedEnv) : Prop :=
     in the extended interval. -/
 theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
     (ρ_real : Nat → ℝ) (ρ_ext : ExtendedEnv) (hρ : extendedEnvMem ρ_real ρ_ext)
-    (cfg : ExtendedConfig := {}) :
+    (cfg : ExtendedConfig := {})
+    (hdom : evalDomainValidExtended e ρ_ext cfg) :
     Expr.eval ρ_real e ∈ evalExtended e ρ_ext cfg := by
   induction hsupp with
   | const q =>
@@ -516,35 +556,99 @@ theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [Expr.eval_var, evalExtended]
     exact hρ idx
   | add _ _ ih₁ ih₂ =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_add, evalExtended]
-    exact mem_liftBinary (fun x y I J hx hy => IntervalRat.mem_add hx hy) ih₁ ih₂
+    exact mem_liftBinary (fun x y I J hx hy => IntervalRat.mem_add hx hy) (ih₁ hdom.1) (ih₂ hdom.2)
   | mul _ _ ih₁ ih₂ =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_mul, evalExtended]
-    exact mem_liftBinary (fun x y I J hx hy => IntervalRat.mem_mul hx hy) ih₁ ih₂
+    exact mem_liftBinary (fun x y I J hx hy => IntervalRat.mem_mul hx hy) (ih₁ hdom.1) (ih₂ hdom.2)
   | neg _ ih =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_neg, evalExtended]
-    exact mem_liftUnary (fun x I hx => IntervalRat.mem_neg hx) ih
+    exact mem_liftUnary (fun x I hx => IntervalRat.mem_neg hx) (ih hdom)
   | sin _ ih =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_sin, evalExtended]
-    exact mem_liftUnary (fun x I hx => IntervalRat.mem_sinComputable hx cfg.taylorDepth) ih
+    exact mem_liftUnary (fun x I hx => IntervalRat.mem_sinComputable hx cfg.taylorDepth) (ih hdom)
   | cos _ ih =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_cos, evalExtended]
-    exact mem_liftUnary (fun x I hx => IntervalRat.mem_cosComputable hx cfg.taylorDepth) ih
+    exact mem_liftUnary (fun x I hx => IntervalRat.mem_cosComputable hx cfg.taylorDepth) (ih hdom)
   | exp _ ih =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_exp, evalExtended]
-    exact mem_liftUnary (fun x I hx => IntervalRat.mem_expComputable hx cfg.taylorDepth) ih
+    exact mem_liftUnary (fun x I hx => IntervalRat.mem_expComputable hx cfg.taylorDepth) (ih hdom)
   | sqrt _ ih =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_sqrt, evalExtended]
-    exact mem_liftUnary (fun x I hx => IntervalRat.mem_sqrtInterval' hx) ih
+    exact mem_liftUnary (fun x I hx => IntervalRat.mem_sqrtInterval' hx) (ih hdom)
   | sinh _ ih =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_sinh, evalExtended]
-    exact mem_liftUnary (fun x I hx => IntervalRat.mem_sinhComputable hx cfg.taylorDepth) ih
+    exact mem_liftUnary (fun x I hx => IntervalRat.mem_sinhComputable hx cfg.taylorDepth) (ih hdom)
   | cosh _ ih =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_cosh, evalExtended]
-    exact mem_liftUnary (fun x I hx => IntervalRat.mem_coshComputable hx cfg.taylorDepth) ih
+    exact mem_liftUnary (fun x I hx => IntervalRat.mem_coshComputable hx cfg.taylorDepth) (ih hdom)
   | tanh _ ih =>
+    simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_tanh, evalExtended]
-    exact mem_liftUnary (fun x I hx => mem_tanhInterval hx) ih
+    exact mem_liftUnary (fun x I hx => mem_tanhInterval hx) (ih hdom)
+  | @log arg _ ih =>
+    simp only [evalDomainValidExtended] at hdom
+    simp only [Expr.eval_log, evalExtended]
+    -- ih gives membership in evalExtended arg
+    have hmem := ih hdom.1
+    -- hdom.2 gives (evalExtended arg ρ_ext cfg).hull.lo > 0
+    have hpos := hdom.2
+    -- Since hull.lo > 0, all parts have lo > 0, so filter keeps everything
+    -- and the filtered list is non-empty
+    obtain ⟨I, hI_mem, hx_in_I⟩ := hmem
+    -- I is in the parts of evalExtended arg
+    -- Since hull.lo > 0 and hull.lo = min of all lo's, we have I.lo > 0
+    have hI_lo_pos : 0 < I.lo := by
+      have hparts_ne : (evalExtended arg ρ_ext cfg).parts ≠ [] := by
+        intro h
+        simp [h] at hI_mem
+      -- hull?.lo is the min of all lo's, so hull.lo ≤ I.lo
+      cases hparts_eq : (evalExtended arg ρ_ext cfg).parts with
+      | nil => exact absurd hparts_eq hparts_ne
+      | cons hd tl =>
+        have hI_in : I ∈ hd :: tl := hparts_eq ▸ hI_mem
+        cases List.mem_cons.mp hI_in with
+        | inl heq =>
+          subst heq
+          have hhead := ExtendedInterval.foldl_contains_head tl I
+          simp only [ExtendedInterval.hull, ExtendedInterval.hull?] at hpos
+          rw [hparts_eq] at hpos
+          simp only [Option.getD_some] at hpos
+          calc 0 < (tl.foldl _ I).lo := hpos
+               _ ≤ I.lo := hhead.1
+        | inr hmem_tl =>
+          have htail := ExtendedInterval.foldl_contains_tail tl hd I hmem_tl
+          simp only [ExtendedInterval.hull, ExtendedInterval.hull?] at hpos
+          rw [hparts_eq] at hpos
+          simp only [Option.getD_some] at hpos
+          calc 0 < (tl.foldl _ hd).lo := hpos
+               _ ≤ I.lo := htail.1
+    -- So I passes the filter
+    have hI_filter : I ∈ (evalExtended arg ρ_ext cfg).parts.filter (fun J => decide (0 < J.lo)) := by
+      simp only [List.mem_filter, decide_eq_true_eq]
+      exact ⟨hI_mem, hI_lo_pos⟩
+    -- filtered is not empty
+    have hfilter_ne : ¬((evalExtended arg ρ_ext cfg).parts.filter (fun J => decide (0 < J.lo))).isEmpty := by
+      simp only [List.isEmpty_iff]
+      intro h
+      simp [h] at hI_filter
+    simp only [hfilter_ne, ↓reduceIte]
+    -- Now show Real.log x ∈ the result
+    simp only [ExtendedInterval.mem_def]
+    use IntervalRat.logComputable I cfg.taylorDepth
+    constructor
+    · simp only [List.mem_map]
+      exact ⟨I, hI_filter, rfl⟩
+    · exact IntervalRat.mem_logComputable hx_in_I hI_lo_pos cfg.taylorDepth
   | pi =>
     simp only [Expr.eval_pi, evalExtended]
     rw [ExtendedInterval.mem_singleton]

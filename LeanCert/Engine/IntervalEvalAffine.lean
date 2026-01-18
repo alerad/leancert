@@ -176,6 +176,45 @@ def checkLowerBoundAffine (e : Expr) (ρ : AffineEnv) (bound : ℚ) (cfg : Affin
 def envMemAffine (ρ_real : Nat → ℝ) (ρ_affine : AffineEnv) (eps : AffineForm.NoiseAssignment) : Prop :=
   ∀ i, AffineForm.mem_affine (ρ_affine i) eps (ρ_real i)
 
+/-- Domain validity for Affine evaluation.
+    This is defined directly in terms of evalIntervalAffine to ensure compatibility.
+    For log, we require the argument's toInterval to have positive lower bound. -/
+def evalDomainValidAffine (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) : Prop :=
+  match e with
+  | Expr.const _ => True
+  | Expr.var _ => True
+  | Expr.add e₁ e₂ => evalDomainValidAffine e₁ ρ cfg ∧ evalDomainValidAffine e₂ ρ cfg
+  | Expr.mul e₁ e₂ => evalDomainValidAffine e₁ ρ cfg ∧ evalDomainValidAffine e₂ ρ cfg
+  | Expr.neg e => evalDomainValidAffine e ρ cfg
+  | Expr.inv e => evalDomainValidAffine e ρ cfg
+  | Expr.exp e => evalDomainValidAffine e ρ cfg
+  | Expr.sin e => evalDomainValidAffine e ρ cfg
+  | Expr.cos e => evalDomainValidAffine e ρ cfg
+  | Expr.log e => evalDomainValidAffine e ρ cfg ∧ (evalIntervalAffine e ρ cfg).toInterval.lo > 0
+  | Expr.atan e => evalDomainValidAffine e ρ cfg
+  | Expr.arsinh e => evalDomainValidAffine e ρ cfg
+  | Expr.atanh e => evalDomainValidAffine e ρ cfg
+  | Expr.sinc e => evalDomainValidAffine e ρ cfg
+  | Expr.erf e => evalDomainValidAffine e ρ cfg
+  | Expr.sinh e => evalDomainValidAffine e ρ cfg
+  | Expr.cosh e => evalDomainValidAffine e ρ cfg
+  | Expr.tanh e => evalDomainValidAffine e ρ cfg
+  | Expr.sqrt e => evalDomainValidAffine e ρ cfg
+  | Expr.pi => True
+
+/-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
+theorem evalDomainValidAffine_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
+    (ρ : AffineEnv) (cfg : AffineConfig := {}) : evalDomainValidAffine e ρ cfg := by
+  induction hsupp with
+  | const _ => trivial
+  | var _ => trivial
+  | add _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | mul _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | neg _ ih => exact ih
+  | sin _ ih => exact ih
+  | cos _ ih => exact ih
+  | exp _ ih => exact ih
+
 /-- Correctness theorem for Affine interval evaluation.
 
 If all input variables are represented by their affine forms (via noise assignment eps),
@@ -183,12 +222,14 @@ then the real evaluation of the expression is represented by the affine result.
 
 This proves soundness: the affine form always contains the true value.
 
-Note: Requires valid noise assignment. Some transcendental cases (sin, cos, pi)
-use interval fallback and have separate soundness via interval bounds. -/
+Note: Requires valid noise assignment and domain validity for log.
+Some transcendental cases (sin, cos, pi) use interval fallback and have
+separate soundness via interval bounds. -/
 theorem evalIntervalAffine_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (ρ_real : Nat → ℝ) (ρ_affine : AffineEnv) (eps : AffineForm.NoiseAssignment)
     (hvalid : AffineForm.validNoise eps)
-    (hρ : envMemAffine ρ_real ρ_affine eps) (cfg : AffineConfig := {}) :
+    (hρ : envMemAffine ρ_real ρ_affine eps) (cfg : AffineConfig := {})
+    (hdom : evalDomainValidAffine e ρ_affine cfg) :
     AffineForm.mem_affine (evalIntervalAffine e ρ_affine cfg) eps (Expr.eval ρ_real e) := by
   induction hsupp with
   | const q =>
@@ -198,46 +239,67 @@ theorem evalIntervalAffine_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [Expr.eval_var, evalIntervalAffine]
     exact hρ idx
   | add _ _ ih₁ ih₂ =>
+    simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_add, evalIntervalAffine]
-    exact AffineForm.mem_add ih₁ ih₂
+    exact AffineForm.mem_add (ih₁ hdom.1) (ih₂ hdom.2)
   | mul _ _ ih₁ ih₂ =>
+    simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_mul, evalIntervalAffine]
-    exact AffineForm.mem_mul hvalid ih₁ ih₂
+    exact AffineForm.mem_mul hvalid (ih₁ hdom.1) (ih₂ hdom.2)
   | neg _ ih =>
+    simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_neg, evalIntervalAffine]
-    exact AffineForm.mem_neg ih
+    exact AffineForm.mem_neg (ih hdom)
   | exp _ ih =>
+    simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_exp, evalIntervalAffine]
-    exact AffineForm.mem_exp hvalid ih cfg.taylorDepth
+    exact AffineForm.mem_exp hvalid (ih hdom) cfg.taylorDepth
   | tanh _ ih =>
+    simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_tanh, evalIntervalAffine]
-    exact AffineForm.mem_tanh hvalid ih
+    exact AffineForm.mem_tanh hvalid (ih hdom)
   | sqrt _ ih =>
+    simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_sqrt, evalIntervalAffine]
-    exact AffineForm.mem_sqrt' hvalid ih
+    exact AffineForm.mem_sqrt' hvalid (ih hdom)
   | @sin arg _ ih =>
+    simp only [evalDomainValidAffine] at hdom
     -- Interval fallback soundness
     set af := evalIntervalAffine arg ρ_affine cfg
     have hv_in_I : Expr.eval ρ_real arg ∈ af.toInterval :=
-      AffineForm.mem_toInterval_weak hvalid ih
+      AffineForm.mem_toInterval_weak hvalid (ih hdom)
     have hsin_in :=
       IntervalRat.mem_sinComputable hv_in_I cfg.taylorDepth
     simpa [Expr.eval_sin, evalIntervalAffine, af] using
       (AffineForm.mem_affine_of_interval (eps := eps) hsin_in)
   | @cos arg _ ih =>
+    simp only [evalDomainValidAffine] at hdom
     set af := evalIntervalAffine arg ρ_affine cfg
     have hv_in_I : Expr.eval ρ_real arg ∈ af.toInterval :=
-      AffineForm.mem_toInterval_weak hvalid ih
+      AffineForm.mem_toInterval_weak hvalid (ih hdom)
     have hcos_in :=
       IntervalRat.mem_cosComputable hv_in_I cfg.taylorDepth
     simpa [Expr.eval_cos, evalIntervalAffine, af] using
       (AffineForm.mem_affine_of_interval (eps := eps) hcos_in)
   | sinh _ ih =>
+    simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_sinh, evalIntervalAffine]
-    exact AffineForm.mem_sinh hvalid ih cfg.taylorDepth
+    exact AffineForm.mem_sinh hvalid (ih hdom) cfg.taylorDepth
   | cosh _ ih =>
+    simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_cosh, evalIntervalAffine]
-    exact AffineForm.mem_cosh hvalid ih cfg.taylorDepth
+    exact AffineForm.mem_cosh hvalid (ih hdom) cfg.taylorDepth
+  | @log arg _ ih =>
+    simp only [evalDomainValidAffine] at hdom
+    -- Interval fallback soundness for log
+    have hmem_arg := ih hdom.1
+    have hv_in_I : Expr.eval ρ_real arg ∈ (evalIntervalAffine arg ρ_affine cfg).toInterval :=
+      AffineForm.mem_toInterval_weak hvalid hmem_arg
+    -- hdom.2 gives us the positivity condition
+    have hpos : (evalIntervalAffine arg ρ_affine cfg).toInterval.lo > 0 := hdom.2
+    simp only [Expr.eval_log, evalIntervalAffine, hpos, ↓reduceIte]
+    have hlog_in := IntervalRat.mem_logComputable hv_in_I hpos cfg.taylorDepth
+    exact AffineForm.mem_affine_of_interval (eps := eps) hlog_in
   | pi =>
     simp only [Expr.eval_pi, evalIntervalAffine]
     simpa using (AffineForm.mem_affine_of_interval (eps := eps) mem_piInterval)
@@ -251,9 +313,10 @@ theorem evalIntervalAffine_toInterval_correct (e : Expr) (hsupp : ExprSupportedC
     (hvalid : AffineForm.validNoise eps)
     (hρ : envMemAffine ρ_real ρ_affine eps)
     (cfg : AffineConfig := {})
-    (hlen : eps.length = (evalIntervalAffine e ρ_affine cfg).coeffs.length) :
+    (hlen : eps.length = (evalIntervalAffine e ρ_affine cfg).coeffs.length)
+    (hdom : evalDomainValidAffine e ρ_affine cfg) :
     Expr.eval ρ_real e ∈ (evalIntervalAffine e ρ_affine cfg).toInterval := by
-  have hmem := evalIntervalAffine_correct e hsupp ρ_real ρ_affine eps hvalid hρ cfg
+  have hmem := evalIntervalAffine_correct e hsupp ρ_real ρ_affine eps hvalid hρ cfg hdom
   exact AffineForm.mem_toInterval hvalid hlen hmem
 
 end LeanCert.Engine

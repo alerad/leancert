@@ -218,6 +218,45 @@ def evalIntervalDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig :
 def envMemDyadic (ρ_real : Nat → ℝ) (ρ_dyad : IntervalDyadicEnv) : Prop :=
   ∀ i, ρ_real i ∈ ρ_dyad i
 
+/-- Domain validity for Dyadic evaluation.
+    This is defined directly in terms of evalIntervalDyadic to ensure compatibility.
+    For log, we require the argument interval (converted to Rat) to have positive lower bound. -/
+def evalDomainValidDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig := {}) : Prop :=
+  match e with
+  | Expr.const _ => True
+  | Expr.var _ => True
+  | Expr.add e₁ e₂ => evalDomainValidDyadic e₁ ρ cfg ∧ evalDomainValidDyadic e₂ ρ cfg
+  | Expr.mul e₁ e₂ => evalDomainValidDyadic e₁ ρ cfg ∧ evalDomainValidDyadic e₂ ρ cfg
+  | Expr.neg e => evalDomainValidDyadic e ρ cfg
+  | Expr.inv e => evalDomainValidDyadic e ρ cfg
+  | Expr.exp e => evalDomainValidDyadic e ρ cfg
+  | Expr.sin e => evalDomainValidDyadic e ρ cfg
+  | Expr.cos e => evalDomainValidDyadic e ρ cfg
+  | Expr.log e => evalDomainValidDyadic e ρ cfg ∧ (evalIntervalDyadic e ρ cfg).toIntervalRat.lo > 0
+  | Expr.atan e => evalDomainValidDyadic e ρ cfg
+  | Expr.arsinh e => evalDomainValidDyadic e ρ cfg
+  | Expr.atanh e => evalDomainValidDyadic e ρ cfg
+  | Expr.sinc e => evalDomainValidDyadic e ρ cfg
+  | Expr.erf e => evalDomainValidDyadic e ρ cfg
+  | Expr.sinh e => evalDomainValidDyadic e ρ cfg
+  | Expr.cosh e => evalDomainValidDyadic e ρ cfg
+  | Expr.tanh e => evalDomainValidDyadic e ρ cfg
+  | Expr.sqrt e => evalDomainValidDyadic e ρ cfg
+  | Expr.pi => True
+
+/-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
+theorem evalDomainValidDyadic_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
+    (ρ : IntervalDyadicEnv) (cfg : DyadicConfig := {}) : evalDomainValidDyadic e ρ cfg := by
+  induction hsupp with
+  | const _ => trivial
+  | var _ => trivial
+  | add _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | mul _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | neg _ ih => exact ih
+  | sin _ ih => exact ih
+  | cos _ ih => exact ih
+  | exp _ ih => exact ih
+
 /-- Fundamental correctness theorem for Dyadic evaluation.
 
 This theorem states that for any supported expression and any real values
@@ -226,11 +265,14 @@ contained in the computed Dyadic interval.
 
 The proof follows the same structure as `evalIntervalCore_correct`, but
 with additional steps for handling Dyadic ↔ Rat conversions and rounding.
-Requires cfg.precision ≤ 0 (the default -53 satisfies this). -/
+Requires cfg.precision ≤ 0 (the default -53 satisfies this).
+
+Note: Requires domain validity for log (positive argument interval). -/
 theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (ρ_real : Nat → ℝ) (ρ_dyad : IntervalDyadicEnv)
     (hρ : envMemDyadic ρ_real ρ_dyad) (cfg : DyadicConfig := {})
-    (hprec : cfg.precision ≤ 0 := by norm_num) :
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (hdom : evalDomainValidDyadic e ρ_dyad cfg) :
     Expr.eval ρ_real e ∈ evalIntervalDyadic e ρ_dyad cfg := by
   induction hsupp with
   | const q =>
@@ -242,47 +284,55 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [Expr.eval_var, evalIntervalDyadic]
     exact hρ idx
   | add _ _ ih₁ ih₂ =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_add, evalIntervalDyadic]
-    -- Use mem_add and roundOut_contains
-    have h := IntervalDyadic.mem_add ih₁ ih₂
+    have h := IntervalDyadic.mem_add (ih₁ hdom.1) (ih₂ hdom.2)
     exact IntervalDyadic.roundOut_contains h cfg.precision
   | mul _ _ ih₁ ih₂ =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_mul, evalIntervalDyadic]
-    have h := IntervalDyadic.mem_mul ih₁ ih₂
+    have h := IntervalDyadic.mem_mul (ih₁ hdom.1) (ih₂ hdom.2)
     exact IntervalDyadic.roundOut_contains h cfg.precision
   | neg _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_neg, evalIntervalDyadic]
-    exact IntervalDyadic.mem_neg ih
+    exact IntervalDyadic.mem_neg (ih hdom)
   | sin _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_sin, evalIntervalDyadic, sinIntervalDyadic]
-    -- Chain: ih gives Dyadic membership → convert to Rat → use sinComputable → convert back
-    have hrat := IntervalDyadic.mem_toIntervalRat.mp ih
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hsin := IntervalRat.mem_sinComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hsin cfg.precision hprec
   | cos _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_cos, evalIntervalDyadic, cosIntervalDyadic]
-    have hrat := IntervalDyadic.mem_toIntervalRat.mp ih
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hcos := IntervalRat.mem_cosComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hcos cfg.precision hprec
   | exp _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_exp, evalIntervalDyadic, expIntervalDyadic]
-    have hrat := IntervalDyadic.mem_toIntervalRat.mp ih
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hexp := IntervalRat.mem_expComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hexp cfg.precision hprec
   | sqrt _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_sqrt, evalIntervalDyadic, sqrtIntervalDyadic]
-    exact IntervalDyadic.mem_sqrt' ih cfg.precision
+    exact IntervalDyadic.mem_sqrt' (ih hdom) cfg.precision
   | sinh _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_sinh, evalIntervalDyadic, sinhIntervalDyadic]
-    have hrat := IntervalDyadic.mem_toIntervalRat.mp ih
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hsinh := IntervalRat.mem_sinhComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hsinh cfg.precision hprec
   | cosh _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_cosh, evalIntervalDyadic, coshIntervalDyadic]
-    have hrat := IntervalDyadic.mem_toIntervalRat.mp ih
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hcosh := IntervalRat.mem_coshComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hcosh cfg.precision hprec
   | @tanh e' _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_tanh, evalIntervalDyadic, tanhIntervalDyadic]
     -- tanh x ∈ [-1, 1] for all x
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
@@ -303,6 +353,16 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
       rw [Real.sinh_eq, Real.cosh_eq]
       have h2 : Real.exp (-x) > 0 := Real.exp_pos (-x)
       linarith
+  | log _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
+    simp only [Expr.eval_log, evalIntervalDyadic, logIntervalDyadic]
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom.1)
+    -- hdom.2 gives us the positivity condition: IRat.lo > 0
+    -- This makes the if-condition true, so we take the positive branch
+    have hpos : (evalIntervalDyadic _ ρ_dyad cfg).toIntervalRat.lo > 0 := hdom.2
+    simp only [hpos, ↓reduceIte]
+    have hlog := IntervalRat.mem_logComputable hrat hpos cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hlog cfg.precision hprec
   | pi =>
     simp only [Expr.eval_pi, evalIntervalDyadic]
     exact IntervalDyadic.mem_ofIntervalRat mem_piInterval cfg.precision hprec

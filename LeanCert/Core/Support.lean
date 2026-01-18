@@ -14,7 +14,7 @@ different interval evaluation strategies.
 ## Main definitions
 
 * `ExprSupportedCore` - Predicate for expressions in the computable subset
-  (const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh, pi)
+  (const, var, add, mul, neg, sin, cos, exp, log, sqrt, sinh, cosh, tanh, pi)
 
 * `ExprSupported` - Predicate for the noncomputable AD subset
   (const, var, add, mul, neg, sin, cos, exp)
@@ -39,8 +39,11 @@ open LeanCert.Core
 /-! ### Core supported expression subset (computable) -/
 
 /-- Predicate indicating an expression is in the computable core subset.
-    Supports: const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh, pi
-    Does NOT support: inv, log, atan, arsinh, atanh -/
+    Supports: const, var, add, mul, neg, sin, cos, exp, log, sqrt, sinh, cosh, tanh, pi
+
+    Note: log requires positive domain for correctness. The correctness theorem
+    `evalIntervalCore_correct` has an additional hypothesis `evalDomainValid`
+    that ensures log arguments evaluate to positive intervals. -/
 inductive ExprSupportedCore : Expr → Prop where
   | const (q : ℚ) : ExprSupportedCore (Expr.const q)
   | var (idx : Nat) : ExprSupportedCore (Expr.var idx)
@@ -52,6 +55,7 @@ inductive ExprSupportedCore : Expr → Prop where
   | sin {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.sin e)
   | cos {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.cos e)
   | exp {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.exp e)
+  | log {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.log e)
   | sqrt {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.sqrt e)
   | sinh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.sinh e)
   | cosh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.cosh e)

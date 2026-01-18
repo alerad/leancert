@@ -169,16 +169,72 @@ theorem exprContinuousCore_continuousOn_interval (e : LExpr) (hsupp : ExprContin
 /-! ### Backward Compatibility: ExprSupportedCore Continuity
 
 These theorems are provided for backward compatibility with code that uses
-`ExprSupportedCore`. Since `ExprSupportedCore` excludes `inv` and `log`, the proof is
-fully verified.
+`ExprSupportedCore`. For expressions with log, a domain validity condition is required.
 -/
 
-/-- All ExprSupportedCore expressions are continuous on any set.
+/-- Domain validity for continuity: ensures log arguments evaluate to positive values.
+    For expressions without log, this is always True. -/
+def exprContinuousDomainValid (e : LExpr) (s : Set ℝ) : Prop :=
+  match e with
+  | LeanCert.Core.Expr.const _ => True
+  | LeanCert.Core.Expr.var _ => True
+  | LeanCert.Core.Expr.add e₁ e₂ => exprContinuousDomainValid e₁ s ∧ exprContinuousDomainValid e₂ s
+  | LeanCert.Core.Expr.mul e₁ e₂ => exprContinuousDomainValid e₁ s ∧ exprContinuousDomainValid e₂ s
+  | LeanCert.Core.Expr.neg e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.inv e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.exp e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.sin e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.cos e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.log e => exprContinuousDomainValid e s ∧
+      ∀ x ∈ s, 0 < LeanCert.Core.Expr.eval (fun _ => x) e
+  | LeanCert.Core.Expr.atan e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.arsinh e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.atanh e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.sinc e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.erf e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.sinh e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.cosh e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.tanh e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.sqrt e => exprContinuousDomainValid e s
+  | LeanCert.Core.Expr.pi => True
+
+/-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
+theorem exprContinuousDomainValid_of_ExprSupported {e : LExpr}
+    (hsupp : LeanCert.Engine.ExprSupported e) {s : Set ℝ} : exprContinuousDomainValid e s := by
+  induction hsupp with
+  | const _ => trivial
+  | var _ => trivial
+  | add _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | mul _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | neg _ ih => exact ih
+  | sin _ ih => exact ih
+  | cos _ ih => exact ih
+  | exp _ ih => exact ih
+
+/-- Domain validity is trivially true for ExprContinuousCore expressions (no log). -/
+theorem exprContinuousDomainValid_of_ExprContinuousCore {e : LExpr} (hcont : ExprContinuousCore e)
+    {s : Set ℝ} : exprContinuousDomainValid e s := by
+  induction hcont with
+  | const _ => trivial
+  | var _ => trivial
+  | add _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | mul _ _ ih1 ih2 => exact ⟨ih1, ih2⟩
+  | neg _ ih => exact ih
+  | sin _ ih => exact ih
+  | cos _ ih => exact ih
+  | exp _ ih => exact ih
+  | sqrt _ ih => exact ih
+  | sinh _ ih => exact ih
+  | cosh _ ih => exact ih
+  | tanh _ ih => exact ih
+
+/-- All ExprSupportedCore expressions are continuous on sets where log arguments are positive.
 
 This theorem exists for backward compatibility with code that uses
-`ExprSupportedCore`. -/
+`ExprSupportedCore`. For expressions with log, the domain validity condition
+ensures the argument evaluates to positive values on s. -/
 theorem exprSupportedCore_continuousOn (e : LExpr) (hsupp : LeanCert.Engine.ExprSupportedCore e)
-    {s : Set ℝ} :
+    {s : Set ℝ} (hdom : exprContinuousDomainValid e s) :
     ContinuousOn (fun x => LeanCert.Core.Expr.eval (fun _ => x) e) s := by
   induction hsupp with
   | const c =>
@@ -188,40 +244,63 @@ theorem exprSupportedCore_continuousOn (e : LExpr) (hsupp : LeanCert.Engine.Expr
     simp only [LeanCert.Core.Expr.eval]
     exact continuous_id.continuousOn
   | add _ _ ih1 ih2 =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact ih1.add ih2
+    exact (ih1 hdom.1).add (ih2 hdom.2)
   | mul _ _ ih1 ih2 =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact ih1.mul ih2
+    exact (ih1 hdom.1).mul (ih2 hdom.2)
   | neg _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact ih.neg
+    exact (ih hdom).neg
   | sin _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact Real.continuous_sin.comp_continuousOn ih
+    exact Real.continuous_sin.comp_continuousOn (ih hdom)
   | cos _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact Real.continuous_cos.comp_continuousOn ih
+    exact Real.continuous_cos.comp_continuousOn (ih hdom)
   | exp _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact Real.continuous_exp.comp_continuousOn ih
+    exact Real.continuous_exp.comp_continuousOn (ih hdom)
   | sqrt _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact Real.continuous_sqrt.comp_continuousOn ih
+    exact Real.continuous_sqrt.comp_continuousOn (ih hdom)
   | sinh _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact Real.continuous_sinh.comp_continuousOn ih
+    exact Real.continuous_sinh.comp_continuousOn (ih hdom)
   | cosh _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
-    exact Real.continuous_cosh.comp_continuousOn ih
+    exact Real.continuous_cosh.comp_continuousOn (ih hdom)
   | tanh _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
     have hcont : Continuous Real.tanh := by
       have h : Real.tanh = fun x => Real.sinh x / Real.cosh x := by
         ext x; exact Real.tanh_eq_sinh_div_cosh x
       rw [h]
       exact Real.continuous_sinh.div Real.continuous_cosh (fun x => ne_of_gt (Real.cosh_pos x))
-    exact hcont.comp_continuousOn ih
+    exact hcont.comp_continuousOn (ih hdom)
+  | @log arg _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
+    simp only [LeanCert.Core.Expr.eval]
+    -- hdom.1: recursive domain validity for arg
+    -- hdom.2: ∀ x ∈ s, 0 < Expr.eval (fun _ => x) arg
+    have harg_cont := ih hdom.1
+    -- We need continuity of Real.log composed with the argument evaluation
+    -- Real.log is continuous on {0}ᶜ, and by hdom.2, arg maps s into positive reals ⊆ {0}ᶜ
+    have hs_maps : Set.MapsTo (fun x => LeanCert.Core.Expr.eval (fun _ => x) arg) s {0}ᶜ := by
+      intro x hx
+      simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
+      exact ne_of_gt (hdom.2 x hx)
+    exact Real.continuousOn_log.comp harg_cont hs_maps
   | pi =>
     simp only [LeanCert.Core.Expr.eval]
     exact continuousOn_const

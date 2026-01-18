@@ -118,10 +118,39 @@ def evalDualCore (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : DualInterv
 def derivIntervalCore (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
   (evalDualCore e (fun _ => DualInterval.varActive I) cfg).der
 
-/-- Correctness theorem for computable dual value component -/
+/-- Domain validity for dual evaluation.
+    This is defined directly in terms of evalDualCore to ensure compatibility.
+    For log, we require the argument interval to have positive lower bound. -/
+def evalDomainValidDual (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : Prop :=
+  match e with
+  | Expr.const _ => True
+  | Expr.var _ => True
+  | Expr.add e₁ e₂ => evalDomainValidDual e₁ ρ cfg ∧ evalDomainValidDual e₂ ρ cfg
+  | Expr.mul e₁ e₂ => evalDomainValidDual e₁ ρ cfg ∧ evalDomainValidDual e₂ ρ cfg
+  | Expr.neg e => evalDomainValidDual e ρ cfg
+  | Expr.inv e => evalDomainValidDual e ρ cfg
+  | Expr.exp e => evalDomainValidDual e ρ cfg
+  | Expr.sin e => evalDomainValidDual e ρ cfg
+  | Expr.cos e => evalDomainValidDual e ρ cfg
+  | Expr.log e => evalDomainValidDual e ρ cfg ∧ (evalDualCore e ρ cfg).val.lo > 0
+  | Expr.atan e => evalDomainValidDual e ρ cfg
+  | Expr.arsinh e => evalDomainValidDual e ρ cfg
+  | Expr.atanh e => evalDomainValidDual e ρ cfg
+  | Expr.sinc e => evalDomainValidDual e ρ cfg
+  | Expr.erf e => evalDomainValidDual e ρ cfg
+  | Expr.sinh e => evalDomainValidDual e ρ cfg
+  | Expr.cosh e => evalDomainValidDual e ρ cfg
+  | Expr.tanh e => evalDomainValidDual e ρ cfg
+  | Expr.sqrt e => evalDomainValidDual e ρ cfg
+  | Expr.pi => True
+
+/-- Correctness theorem for computable dual value component.
+
+    Note: Requires domain validity for log (positive argument interval). -/
 theorem evalDualCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (ρ_real : Nat → ℝ) (ρ_dual : DualEnv) (cfg : EvalConfig)
-    (hρ : ∀ i, ρ_real i ∈ (ρ_dual i).val) :
+    (hρ : ∀ i, ρ_real i ∈ (ρ_dual i).val)
+    (hdom : evalDomainValidDual e ρ_dual cfg) :
     Expr.eval ρ_real e ∈ (evalDualCore e ρ_dual cfg).val := by
   induction hsupp with
   | const q =>
@@ -131,38 +160,66 @@ theorem evalDualCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [Expr.eval_var, evalDualCore]
     exact hρ idx
   | add _ _ ih₁ ih₂ =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_add, evalDualCore, DualInterval.add]
-    exact IntervalRat.mem_add ih₁ ih₂
+    exact IntervalRat.mem_add (ih₁ hdom.1) (ih₂ hdom.2)
   | mul _ _ ih₁ ih₂ =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_mul, evalDualCore, DualInterval.mul]
-    exact IntervalRat.mem_mul ih₁ ih₂
+    exact IntervalRat.mem_mul (ih₁ hdom.1) (ih₂ hdom.2)
   | neg _ ih =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_neg, evalDualCore, DualInterval.neg]
-    exact IntervalRat.mem_neg ih
+    exact IntervalRat.mem_neg (ih hdom)
   | sin _ ih =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_sin, evalDualCore, DualInterval.sinCore]
-    exact IntervalRat.mem_sinComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_sinComputable (ih hdom) cfg.taylorDepth
   | cos _ ih =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_cos, evalDualCore, DualInterval.cosCore]
-    exact IntervalRat.mem_cosComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_cosComputable (ih hdom) cfg.taylorDepth
   | exp _ ih =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_exp, evalDualCore, DualInterval.expCore]
-    exact IntervalRat.mem_expComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_expComputable (ih hdom) cfg.taylorDepth
   | sqrt _ ih =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_sqrt, evalDualCore, DualInterval.sqrt]
-    exact IntervalRat.mem_sqrtInterval' ih
+    exact IntervalRat.mem_sqrtInterval' (ih hdom)
   | sinh _ ih =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_sinh, evalDualCore, DualInterval.sinhCore]
-    exact IntervalRat.mem_sinhComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_sinhComputable (ih hdom) cfg.taylorDepth
   | cosh _ ih =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_cosh, evalDualCore, DualInterval.coshCore]
-    exact IntervalRat.mem_coshComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_coshComputable (ih hdom) cfg.taylorDepth
   | tanh _ ih =>
+    simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_tanh, evalDualCore, DualInterval.tanhCore]
-    exact mem_tanhInterval ih
+    exact mem_tanhInterval (ih hdom)
+  | log _ ih =>
+    simp only [evalDomainValidDual] at hdom
+    simp only [Expr.eval_log, evalDualCore, DualInterval.logCore]
+    exact IntervalRat.mem_logComputable (ih hdom.1) hdom.2 cfg.taylorDepth
   | pi =>
     simp only [Expr.eval_pi, evalDualCore, DualInterval.piConst]
     exact mem_piInterval
+
+/-- For ExprSupported expressions (which exclude log), domain validity is trivially true.
+    This is because ExprSupported has no log constructor. -/
+theorem evalDomainValidDual_of_ExprSupported (e : Expr) (hsupp : ExprSupported e)
+    (ρ : DualEnv) (cfg : EvalConfig) : evalDomainValidDual e ρ cfg := by
+  induction hsupp with
+  | const _ => trivial
+  | var _ => trivial
+  | add _ _ ih₁ ih₂ => exact ⟨ih₁, ih₂⟩
+  | mul _ _ ih₁ ih₂ => exact ⟨ih₁, ih₂⟩
+  | neg _ ih => exact ih
+  | sin _ ih => exact ih
+  | cos _ ih => exact ih
+  | exp _ ih => exact ih
 
 /-- Correctness theorem for computable dual derivative component.
     Uses ExprSupported since derivative correctness requires differentiability. -/
@@ -188,10 +245,12 @@ theorem evalDualCore_der_correct (e : Expr) (hsupp : ExprSupported e)
     have hd₁ := evalFunc1_differentiable _ h₁
     have hd₂ := evalFunc1_differentiable _ h₂
     simp only [evalDualCore, DualInterval.mul, evalFunc1_mul_pi, deriv_mul (hd₁ x) (hd₂ x)]
+    have hdom₁ := evalDomainValidDual_of_ExprSupported _ h₁ (fun _ => DualInterval.varActive I) cfg
+    have hdom₂ := evalDomainValidDual_of_ExprSupported _ h₂ (fun _ => DualInterval.varActive I) cfg
     have hval₁ := evalDualCore_val_correct _ h₁.toCore (fun _ => x)
-      (fun _ => DualInterval.varActive I) cfg (fun _ => hx)
+      (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom₁
     have hval₂ := evalDualCore_val_correct _ h₂.toCore (fun _ => x)
-      (fun _ => DualInterval.varActive I) cfg (fun _ => hx)
+      (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom₂
     exact IntervalRat.mem_add (IntervalRat.mem_mul (ih₁ x hx) hval₂) (IntervalRat.mem_mul hval₁ (ih₂ x hx))
   | neg hs ih =>
     have hd := evalFunc1_differentiable _ hs
@@ -201,16 +260,18 @@ theorem evalDualCore_der_correct (e : Expr) (hsupp : ExprSupported e)
     have hd := evalFunc1_differentiable e' hs
     simp only [evalDualCore, DualInterval.sinCore, evalFunc1_sin]
     rw [deriv_sin (hd.differentiableAt)]
+    have hdom := evalDomainValidDual_of_ExprSupported e' hs (fun _ => DualInterval.varActive I) cfg
     have hval := evalDualCore_val_correct e' hs.toCore (fun _ => x)
-      (fun _ => DualInterval.varActive I) cfg (fun _ => hx)
+      (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom
     have hcos := IntervalRat.mem_cosComputable hval cfg.taylorDepth
     exact IntervalRat.mem_mul hcos (ih x hx)
   | @cos e' hs ih =>
     have hd := evalFunc1_differentiable e' hs
     simp only [evalDualCore, DualInterval.cosCore, evalFunc1_cos]
     rw [deriv_cos (hd.differentiableAt)]
+    have hdom := evalDomainValidDual_of_ExprSupported e' hs (fun _ => DualInterval.varActive I) cfg
     have hval := evalDualCore_val_correct e' hs.toCore (fun _ => x)
-      (fun _ => DualInterval.varActive I) cfg (fun _ => hx)
+      (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom
     have hsin := IntervalRat.mem_sinComputable hval cfg.taylorDepth
     have hnegsin := IntervalRat.mem_neg hsin
     exact IntervalRat.mem_mul hnegsin (ih x hx)
@@ -218,8 +279,9 @@ theorem evalDualCore_der_correct (e : Expr) (hsupp : ExprSupported e)
     have hd := evalFunc1_differentiable e' hs
     simp only [evalDualCore, DualInterval.expCore, evalFunc1_exp]
     rw [deriv_exp (hd.differentiableAt)]
+    have hdom := evalDomainValidDual_of_ExprSupported e' hs (fun _ => DualInterval.varActive I) cfg
     have hval := evalDualCore_val_correct e' hs.toCore (fun _ => x)
-      (fun _ => DualInterval.varActive I) cfg (fun _ => hx)
+      (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom
     have hexp := IntervalRat.mem_expComputable hval cfg.taylorDepth
     exact IntervalRat.mem_mul hexp (ih x hx)
 

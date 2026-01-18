@@ -43,52 +43,60 @@ open LeanCert.Core
 /-! ### Tactic-facing lemmas for interval bounds (core, computable) -/
 
 /-- Upper bound lemma for core expressions (computable).
-    FULLY PROVED - no sorry, no axioms. Accepts configurable Taylor depth. -/
+    FULLY PROVED - no sorry, no axioms. Accepts configurable Taylor depth.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem exprCore_le_of_interval_hi (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg)
     (hhi : (evalIntervalCore1 e I cfg).hi ≤ c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
-  have hmem := evalIntervalCore1_correct e hsupp x I hx cfg
+  have hmem := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at hmem
   have heval_le_hi : Expr.eval (fun _ => x) e ≤ (evalIntervalCore1 e I cfg).hi := hmem.2
   have hhi_le_c : ((evalIntervalCore1 e I cfg).hi : ℝ) ≤ c := by exact_mod_cast hhi
   exact le_trans heval_le_hi hhi_le_c
 
 /-- Lower bound lemma for core expressions (computable).
-    FULLY PROVED - no sorry, no axioms. Accepts configurable Taylor depth. -/
+    FULLY PROVED - no sorry, no axioms. Accepts configurable Taylor depth.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem exprCore_ge_of_interval_lo (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg)
     (hlo : c ≤ (evalIntervalCore1 e I cfg).lo) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
-  have hmem := evalIntervalCore1_correct e hsupp x I hx cfg
+  have hmem := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at hmem
   have hlo_le_eval : (evalIntervalCore1 e I cfg).lo ≤ Expr.eval (fun _ => x) e := hmem.1
   have hc_le_lo : (c : ℝ) ≤ (evalIntervalCore1 e I cfg).lo := by exact_mod_cast hlo
   exact le_trans hc_le_lo hlo_le_eval
 
 /-- Strict upper bound for core expressions (computable).
-    FULLY PROVED - no sorry, no axioms. Accepts configurable Taylor depth. -/
+    FULLY PROVED - no sorry, no axioms. Accepts configurable Taylor depth.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem exprCore_lt_of_interval_hi_lt (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg)
     (hhi : (evalIntervalCore1 e I cfg).hi < c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
   intro x hx
-  have hmem := evalIntervalCore1_correct e hsupp x I hx cfg
+  have hmem := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at hmem
   have heval_le_hi : Expr.eval (fun _ => x) e ≤ (evalIntervalCore1 e I cfg).hi := hmem.2
   have hhi_lt_c : ((evalIntervalCore1 e I cfg).hi : ℝ) < c := by exact_mod_cast hhi
   exact lt_of_le_of_lt heval_le_hi hhi_lt_c
 
 /-- Strict lower bound for core expressions (computable).
-    FULLY PROVED - no sorry, no axioms. Accepts configurable Taylor depth. -/
+    FULLY PROVED - no sorry, no axioms. Accepts configurable Taylor depth.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem exprCore_gt_of_interval_lo_gt (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg)
     (hlo : c < (evalIntervalCore1 e I cfg).lo) :
     ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
   intro x hx
-  have hmem := evalIntervalCore1_correct e hsupp x I hx cfg
+  have hmem := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at hmem
   have hlo_le_eval : (evalIntervalCore1 e I cfg).lo ≤ Expr.eval (fun _ => x) e := hmem.1
   have hc_lt_lo : (c : ℝ) < (evalIntervalCore1 e I cfg).lo := by exact_mod_cast hlo

@@ -84,6 +84,7 @@ structure RootIsolation (e : Expr) where
     This wraps `bisectRoot` to find intervals with sign changes, then
     constructs existence proofs using the IVT (via `verify_sign_change`). -/
 noncomputable def findRoots (e : Expr) (hsupp : ExprSupportedCore e)
+    (hdom : ∀ J : IntervalRat, LeanCert.Meta.exprContinuousDomainValid e (Set.Icc J.lo J.hi))
     (I : IntervalRat) (cfg : RootSearchConfig := {}) :
     List (RootIsolation e) :=
   let tol : ℚ := 1/1000  -- Use default tolerance
@@ -96,8 +97,7 @@ noncomputable def findRoots (e : Expr) (hsupp : ExprSupportedCore e)
     -- Check if we can verify sign change with the computable checker
     let evalCfg : EvalConfig := { taylorDepth := cfg.taylorDepth }
     if h : RootFinding.checkSignChange e J evalCfg = true then
-      let hCont := LeanCert.Meta.exprSupportedCore_continuousOn e hsupp
-                     (s := Set.Icc J.lo J.hi)
+      let hCont := LeanCert.Meta.exprSupportedCore_continuousOn e hsupp (hdom J)
       some {
         interval := J
         proof := {
@@ -135,7 +135,8 @@ noncomputable def findUniqueRoot (e : Expr) (hsupp : ExprSupported e)
     Option (UniqueRootResult e I) :=
   let evalCfg : EvalConfig := { taylorDepth := cfg.taylorDepth }
   let newtonCfg : RootFinding.NewtonConfig := {}  -- Default Newton config
-  let hCont := LeanCert.Meta.exprSupportedCore_continuousOn e hsupp.toCore (s := Set.Icc I.lo I.hi)
+  let hdomValid := LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported hsupp (s := Set.Icc I.lo I.hi)
+  let hCont := LeanCert.Meta.exprSupportedCore_continuousOn e hsupp.toCore hdomValid
   -- Try Newton contraction check - need both core (for search) and non-core (for proof)
   if h_core : RootFinding.checkNewtonContractsCore e I evalCfg = true then
     if h_newton : RootFinding.checkNewtonContracts e I newtonCfg = true then
@@ -374,13 +375,15 @@ structure IntegralResult (e : Expr) (I : IntervalRat) where
     This wraps `integrateInterval1Core` and bundles the result with
     the correctness proof from `integrateInterval1Core_correct`. -/
 noncomputable def findIntegral (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (cfg : IntegSearchConfig := {}) :
+    (I : IntervalRat) (cfg : IntegSearchConfig := {})
+    (hdom : evalDomainValid1 e I { taylorDepth := cfg.taylorDepth })
+    (hcontdom : LeanCert.Meta.exprContinuousDomainValid e (Set.Icc I.lo I.hi)) :
     IntegralResult e I :=
   let evalCfg : EvalConfig := { taylorDepth := cfg.taylorDepth }
   let bounds := Integration.integrateInterval1Core e I evalCfg
   {
     bounds := bounds
-    proof := Integration.integrateInterval1Core_correct e hsupp I evalCfg
+    proof := Integration.integrateInterval1Core_correct e hsupp I evalCfg hdom hcontdom
   }
 
 /-- Compute integral bounds with specified accuracy target.
@@ -388,8 +391,11 @@ noncomputable def findIntegral (e : Expr) (hsupp : ExprSupportedCore e)
     Automatically increases subdivision count until the bound width
     is below the target tolerance (or max subdivisions reached). -/
 noncomputable def findIntegralWithTolerance (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (_tol : ℚ) (_htol : 0 < _tol)
-    (_maxSubdiv : Nat := 100) (taylorDepth : Nat := 10) :
+    (I : IntervalRat) (taylorDepth : Nat := 10)
+    (hdom : evalDomainValid1 e I { taylorDepth := taylorDepth })
+    (hcontdom : LeanCert.Meta.exprContinuousDomainValid e (Set.Icc I.lo I.hi))
+    (_tol : ℚ) (_htol : 0 < _tol)
+    (_maxSubdiv : Nat := 100) :
     IntegralResult e I :=
   -- For now, just use single-interval integration
   -- A more sophisticated version would increase subdivisions adaptively
@@ -397,7 +403,7 @@ noncomputable def findIntegralWithTolerance (e : Expr) (hsupp : ExprSupportedCor
   let bounds := Integration.integrateInterval1Core e I evalCfg
   {
     bounds := bounds
-    proof := Integration.integrateInterval1Core_correct e hsupp I evalCfg
+    proof := Integration.integrateInterval1Core_correct e hsupp I evalCfg hdom hcontdom
   }
 
 /-! ## Convenience Functions for Common Cases -/

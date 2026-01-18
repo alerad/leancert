@@ -74,24 +74,24 @@ These are the functions `native_decide` will execute. They return `Bool`, not `P
 -/
 
 /-- Check if an expression is bounded above by `c` on interval `I`.
-    Returns `true` iff the computed upper bound of `evalIntervalCore1 e I cfg` is ≤ c. -/
+    Returns `true` iff domain validity holds AND the computed upper bound is ≤ c. -/
 def checkUpperBound (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig) : Bool :=
-  decide ((evalIntervalCore1 e I cfg).hi ≤ c)
+  checkDomainValid1 e I cfg && decide ((evalIntervalCore1 e I cfg).hi ≤ c)
 
 /-- Check if an expression is bounded below by `c` on interval `I`.
-    Returns `true` iff the computed lower bound of `evalIntervalCore1 e I cfg` is ≥ c. -/
+    Returns `true` iff domain validity holds AND the computed lower bound is ≥ c. -/
 def checkLowerBound (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig) : Bool :=
-  decide (c ≤ (evalIntervalCore1 e I cfg).lo)
+  checkDomainValid1 e I cfg && decide (c ≤ (evalIntervalCore1 e I cfg).lo)
 
 /-- Check if an expression is strictly bounded above by `c` on interval `I`.
-    Returns `true` iff the computed upper bound of `evalIntervalCore1 e I cfg` is < c. -/
+    Returns `true` iff domain validity holds AND the computed upper bound is < c. -/
 def checkStrictUpperBound (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig) : Bool :=
-  decide ((evalIntervalCore1 e I cfg).hi < c)
+  checkDomainValid1 e I cfg && decide ((evalIntervalCore1 e I cfg).hi < c)
 
 /-- Check if an expression is strictly bounded below by `c` on interval `I`.
-    Returns `true` iff the computed lower bound of `evalIntervalCore1 e I cfg` is > c. -/
+    Returns `true` iff domain validity holds AND the computed lower bound is > c. -/
 def checkStrictLowerBound (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig) : Bool :=
-  decide (c < (evalIntervalCore1 e I cfg).lo)
+  checkDomainValid1 e I cfg && decide (c < (evalIntervalCore1 e I cfg).lo)
 
 /-! ### Golden Theorems
 
@@ -112,10 +112,12 @@ theorem verify_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig)
     (h_cert : checkUpperBound e I c cfg = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
-  -- Unpack the boolean check
-  simp only [checkUpperBound, decide_eq_true_eq] at h_cert
+  -- Unpack the boolean check (domain validity AND bound)
+  simp only [checkUpperBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
+  have hdom := checkDomainValid1_correct e I cfg h_cert.1
+  have hhi := h_cert.2
   -- Apply the tactic-facing lemma which handles the FTIA + transitivity
-  exact exprCore_le_of_interval_hi e hsupp I c cfg h_cert
+  exact exprCore_le_of_interval_hi e hsupp I c cfg hdom hhi
 
 /-- **Golden Theorem for Lower Bounds**
 
@@ -130,8 +132,10 @@ theorem verify_lower_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig)
     (h_cert : checkLowerBound e I c cfg = true) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
-  simp only [checkLowerBound, decide_eq_true_eq] at h_cert
-  exact exprCore_ge_of_interval_lo e hsupp I c cfg h_cert
+  simp only [checkLowerBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
+  have hdom := checkDomainValid1_correct e I cfg h_cert.1
+  have hlo := h_cert.2
+  exact exprCore_ge_of_interval_lo e hsupp I c cfg hdom hlo
 
 /-- **Golden Theorem for Strict Upper Bounds**
 
@@ -140,8 +144,10 @@ theorem verify_strict_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig)
     (h_cert : checkStrictUpperBound e I c cfg = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
-  simp only [checkStrictUpperBound, decide_eq_true_eq] at h_cert
-  exact exprCore_lt_of_interval_hi_lt e hsupp I c cfg h_cert
+  simp only [checkStrictUpperBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
+  have hdom := checkDomainValid1_correct e I cfg h_cert.1
+  have hhi := h_cert.2
+  exact exprCore_lt_of_interval_hi_lt e hsupp I c cfg hdom hhi
 
 /-- **Golden Theorem for Strict Lower Bounds**
 
@@ -150,8 +156,10 @@ theorem verify_strict_lower_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig)
     (h_cert : checkStrictLowerBound e I c cfg = true) :
     ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
-  simp only [checkStrictLowerBound, decide_eq_true_eq] at h_cert
-  exact exprCore_gt_of_interval_lo_gt e hsupp I c cfg h_cert
+  simp only [checkStrictLowerBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
+  have hdom := checkDomainValid1_correct e I cfg h_cert.1
+  have hlo := h_cert.2
+  exact exprCore_gt_of_interval_lo_gt e hsupp I c cfg hdom hlo
 
 /-! ### Convenience lemmas for pointwise bounds -/
 
@@ -196,32 +204,36 @@ These theorems support proving `∀ y ∈ I, f(y) ≤ f(x)` (argmax) and
     This gives us c ≤ f(x) when x is rational. -/
 def checkPointLowerBound (e : Expr) (x c : ℚ) (cfg : EvalConfig) : Bool :=
   let Ipt : IntervalRat := ⟨x, x, le_refl x⟩
-  decide (c ≤ (evalIntervalCore1 e Ipt cfg).lo)
+  checkDomainValid1 e Ipt cfg && decide (c ≤ (evalIntervalCore1 e Ipt cfg).lo)
 
 /-- Check that evaluating f at a point x gives a value ≤ c. -/
 def checkPointUpperBound (e : Expr) (x c : ℚ) (cfg : EvalConfig) : Bool :=
   let Ipt : IntervalRat := ⟨x, x, le_refl x⟩
-  decide ((evalIntervalCore1 e Ipt cfg).hi ≤ c)
+  checkDomainValid1 e Ipt cfg && decide ((evalIntervalCore1 e Ipt cfg).hi ≤ c)
 
 /-- Verify that c ≤ f(x) at a specific point x. -/
 theorem verify_point_lower_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (x c : ℚ) (cfg : EvalConfig)
     (h_cert : checkPointLowerBound e x c cfg = true) :
     c ≤ Expr.eval (fun _ => (x : ℝ)) e := by
-  simp only [checkPointLowerBound, decide_eq_true_eq] at h_cert
+  simp only [checkPointLowerBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
   let Ipt : IntervalRat := ⟨x, x, le_refl x⟩
+  have hdom := checkDomainValid1_correct e Ipt cfg h_cert.1
+  have hlo := h_cert.2
   have hx_mem : (x : ℝ) ∈ Ipt := ⟨le_refl _, le_refl _⟩
-  exact exprCore_ge_of_interval_lo e hsupp Ipt c cfg h_cert (x : ℝ) hx_mem
+  exact exprCore_ge_of_interval_lo e hsupp Ipt c cfg hdom hlo (x : ℝ) hx_mem
 
 /-- Verify that f(x) ≤ c at a specific point x. -/
 theorem verify_point_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (x c : ℚ) (cfg : EvalConfig)
     (h_cert : checkPointUpperBound e x c cfg = true) :
     Expr.eval (fun _ => (x : ℝ)) e ≤ c := by
-  simp only [checkPointUpperBound, decide_eq_true_eq] at h_cert
+  simp only [checkPointUpperBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
   let Ipt : IntervalRat := ⟨x, x, le_refl x⟩
+  have hdom := checkDomainValid1_correct e Ipt cfg h_cert.1
+  have hhi := h_cert.2
   have hx_mem : (x : ℝ) ∈ Ipt := ⟨le_refl _, le_refl _⟩
-  exact exprCore_le_of_interval_hi e hsupp Ipt c cfg h_cert (x : ℝ) hx_mem
+  exact exprCore_le_of_interval_hi e hsupp Ipt c cfg hdom hhi (x : ℝ) hx_mem
 
 /-- **Argmax Verification Theorem**
 
@@ -411,11 +423,13 @@ def checkLowerBoundSmart (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfi
     let dI := derivIntervalCore e I cfg
     if 0 < dI.lo then
       -- Strictly increasing: minimum is at lo
-      -- Evaluate at singleton lo
-      c ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).lo
+      -- Evaluate at singleton lo (with domain validity check)
+      checkDomainValid1 e (IntervalRat.singleton I.lo) cfg &&
+        c ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).lo
     else if dI.hi < 0 then
-      -- Strictly decreasing: minimum is at hi
-      c ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).lo
+      -- Strictly decreasing: minimum is at hi (with domain validity check)
+      checkDomainValid1 e (IntervalRat.singleton I.hi) cfg &&
+        c ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).lo
     else
       false
 
@@ -429,11 +443,13 @@ def checkUpperBoundSmart (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfi
   else
     let dI := derivIntervalCore e I cfg
     if 0 < dI.lo then
-      -- Increasing: max at hi
-      (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).hi ≤ c
+      -- Increasing: max at hi (with domain validity check)
+      checkDomainValid1 e (IntervalRat.singleton I.hi) cfg &&
+        (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).hi ≤ c
     else if dI.hi < 0 then
-      -- Decreasing: max at lo
-      (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).hi ≤ c
+      -- Decreasing: max at lo (with domain validity check)
+      checkDomainValid1 e (IntervalRat.singleton I.lo) cfg &&
+        (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).hi ≤ c
     else
       false
 
@@ -537,11 +553,14 @@ theorem verify_lower_bound_smart (e : Expr) (hsupp : ExprSupported e)
       rename_i h_pos
       intro x hx
       have hlo_mem : (I.lo : ℝ) ∈ IntervalRat.singleton I.lo := IntervalRat.mem_singleton I.lo
-      have heval := evalIntervalCore1_correct e hsupp.toCore I.lo (IntervalRat.singleton I.lo) hlo_mem cfg
+      -- Extract domain validity and bound from the combined check
+      simp only [Bool.and_eq_true, decide_eq_true_eq] at h_cert
+      have hdom := checkDomainValid1_correct e (IntervalRat.singleton I.lo) cfg h_cert.1
+      have hbound := h_cert.2
+      have heval := evalIntervalCore1_correct e hsupp.toCore I.lo (IntervalRat.singleton I.lo) hlo_mem cfg hdom
       simp only [IntervalRat.mem_def] at heval
       have hmono := increasing_min_at_left_core e hsupp I cfg h_pos x hx
-      simp only [decide_eq_true_eq] at h_cert
-      calc (c : ℝ) ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).lo := by exact_mod_cast h_cert
+      calc (c : ℝ) ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).lo := by exact_mod_cast hbound
         _ ≤ Expr.eval (fun _ => I.lo) e := heval.1
         _ ≤ Expr.eval (fun _ => x) e := hmono
     · -- Not increasing, split on decreasing condition
@@ -551,11 +570,14 @@ theorem verify_lower_bound_smart (e : Expr) (hsupp : ExprSupported e)
         rename_i h_neg
         intro x hx
         have hhi_mem : (I.hi : ℝ) ∈ IntervalRat.singleton I.hi := IntervalRat.mem_singleton I.hi
-        have heval := evalIntervalCore1_correct e hsupp.toCore I.hi (IntervalRat.singleton I.hi) hhi_mem cfg
+        -- Extract domain validity and bound from the combined check
+        simp only [Bool.and_eq_true, decide_eq_true_eq] at h_cert
+        have hdom := checkDomainValid1_correct e (IntervalRat.singleton I.hi) cfg h_cert.1
+        have hbound := h_cert.2
+        have heval := evalIntervalCore1_correct e hsupp.toCore I.hi (IntervalRat.singleton I.hi) hhi_mem cfg hdom
         simp only [IntervalRat.mem_def] at heval
         have hmono := decreasing_min_at_right_core e hsupp I cfg h_neg x hx
-        simp only [decide_eq_true_eq] at h_cert
-        calc (c : ℝ) ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).lo := by exact_mod_cast h_cert
+        calc (c : ℝ) ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).lo := by exact_mod_cast hbound
           _ ≤ Expr.eval (fun _ => I.hi) e := heval.1
           _ ≤ Expr.eval (fun _ => x) e := hmono
       · -- Neither increasing nor decreasing => impossible since h_cert = true
@@ -652,13 +674,16 @@ theorem verify_upper_bound_smart (e : Expr) (hsupp : ExprSupported e)
       rename_i h_pos
       intro x hx
       have hhi_mem : (I.hi : ℝ) ∈ IntervalRat.singleton I.hi := IntervalRat.mem_singleton I.hi
-      have heval := evalIntervalCore1_correct e hsupp.toCore I.hi (IntervalRat.singleton I.hi) hhi_mem cfg
+      -- Extract domain validity and bound from the combined check
+      simp only [Bool.and_eq_true, decide_eq_true_eq] at h_cert
+      have hdom := checkDomainValid1_correct e (IntervalRat.singleton I.hi) cfg h_cert.1
+      have hbound := h_cert.2
+      have heval := evalIntervalCore1_correct e hsupp.toCore I.hi (IntervalRat.singleton I.hi) hhi_mem cfg hdom
       simp only [IntervalRat.mem_def] at heval
       have hmono := increasing_max_at_right_core e hsupp I cfg h_pos x hx
-      simp only [decide_eq_true_eq] at h_cert
       calc Expr.eval (fun _ => x) e ≤ Expr.eval (fun _ => I.hi) e := hmono
         _ ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).hi := heval.2
-        _ ≤ c := by exact_mod_cast h_cert
+        _ ≤ c := by exact_mod_cast hbound
     · -- Not increasing, split on decreasing condition
       rename_i h_pos_neg
       split at h_cert
@@ -666,13 +691,16 @@ theorem verify_upper_bound_smart (e : Expr) (hsupp : ExprSupported e)
         rename_i h_neg
         intro x hx
         have hlo_mem : (I.lo : ℝ) ∈ IntervalRat.singleton I.lo := IntervalRat.mem_singleton I.lo
-        have heval := evalIntervalCore1_correct e hsupp.toCore I.lo (IntervalRat.singleton I.lo) hlo_mem cfg
+        -- Extract domain validity and bound from the combined check
+        simp only [Bool.and_eq_true, decide_eq_true_eq] at h_cert
+        have hdom := checkDomainValid1_correct e (IntervalRat.singleton I.lo) cfg h_cert.1
+        have hbound := h_cert.2
+        have heval := evalIntervalCore1_correct e hsupp.toCore I.lo (IntervalRat.singleton I.lo) hlo_mem cfg hdom
         simp only [IntervalRat.mem_def] at heval
         have hmono := decreasing_max_at_left_core e hsupp I cfg h_neg x hx
-        simp only [decide_eq_true_eq] at h_cert
         calc Expr.eval (fun _ => x) e ≤ Expr.eval (fun _ => I.lo) e := hmono
           _ ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).hi := heval.2
-          _ ≤ c := by exact_mod_cast h_cert
+          _ ≤ c := by exact_mod_cast hbound
       · -- Neither increasing nor decreasing => impossible since h_cert = true
         exact absurd h_cert Bool.false_ne_true
 
@@ -930,6 +958,7 @@ open LeanCert.Engine.Optimization
 /-- Check if `c` is a lower bound for `e` over box `B`.
     Returns `true` iff `globalMinimizeCore(e, B, cfg).bound.lo ≥ c`. -/
 def checkGlobalLowerBound (e : Expr) (B : Box) (c : ℚ) (cfg : GlobalOptConfig) : Bool :=
+  checkDomainValid e B.toEnv { taylorDepth := cfg.taylorDepth } &&
   decide (c ≤ (globalMinimizeCore e B cfg).bound.lo)
 
 /-- Check if `c` is an upper bound for `e` over box `B`.
@@ -939,6 +968,7 @@ def checkGlobalLowerBound (e : Expr) (B : Box) (c : ℚ) (cfg : GlobalOptConfig)
     Note: bound.hi = -globalMinimizeCore(-e).bound.lo, and by correctness
     globalMinimizeCore(-e).bound.lo ≤ -e(ρ) for all ρ, so e(ρ) ≤ bound.hi. -/
 def checkGlobalUpperBound (e : Expr) (B : Box) (c : ℚ) (cfg : GlobalOptConfig) : Bool :=
+  checkDomainValid e B.toEnv { taylorDepth := cfg.taylorDepth } &&
   decide ((globalMaximizeCore e B cfg).bound.hi ≤ c)
 
 /-- Check both lower and upper bounds for global optimization -/
@@ -961,11 +991,11 @@ theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (h_cert : checkGlobalLowerBound e B c cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       c ≤ Expr.eval ρ e := by
-  simp only [checkGlobalLowerBound, decide_eq_true_eq] at h_cert
+  simp only [checkGlobalLowerBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
   intro ρ hρ hzero
   -- Use globalMinimizeCore correctness theorem directly
   have hlo := globalMinimizeCore_lo_correct e hsupp B cfg ρ hρ hzero
-  calc (c : ℝ) ≤ (globalMinimizeCore e B cfg).bound.lo := by exact_mod_cast h_cert
+  calc (c : ℝ) ≤ (globalMinimizeCore e B cfg).bound.lo := by exact_mod_cast h_cert.2
     _ ≤ Expr.eval ρ e := hlo
 
 /-- **Golden Theorem for Global Upper Bounds**
@@ -981,7 +1011,7 @@ theorem verify_global_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (h_cert : checkGlobalUpperBound e B c cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       Expr.eval ρ e ≤ c := by
-  simp only [checkGlobalUpperBound, decide_eq_true_eq] at h_cert
+  simp only [checkGlobalUpperBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
   intro ρ hρ hzero
   -- h_cert : globalMaximizeCore(e).bound.hi ≤ c
   -- globalMaximizeCore(e).bound.hi = -globalMinimizeCore(-e).bound.lo
@@ -1005,7 +1035,7 @@ theorem verify_global_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
   calc Expr.eval ρ e
       ≤ -((globalMinimizeCore (Expr.neg e) B cfg).bound.lo : ℝ) := heval_bound
     _ = ((globalMaximizeCore e B cfg).bound.hi : ℝ) := hhi_eq.symm
-    _ ≤ c := by exact_mod_cast h_cert
+    _ ≤ c := by exact_mod_cast h_cert.2
 
 /-- Two-sided global bound verification -/
 theorem verify_global_bounds (e : Expr) (hsupp : ExprSupportedCore e)
@@ -1054,17 +1084,19 @@ structure NewtonConfig where
 /-- Check if expression has a sign change on interval (indicating a root).
     Uses interval arithmetic to check if f(lo) and f(hi) have opposite signs. -/
 def checkSignChange (e : Expr) (I : IntervalRat) (cfg : EvalConfig) : Bool :=
+  -- Check domain validity at endpoints
+  checkDomainValid1 e (IntervalRat.singleton I.lo) cfg &&
+  checkDomainValid1 e (IntervalRat.singleton I.hi) cfg &&
   -- Evaluate f at endpoints
   let f_lo := evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg
   let f_hi := evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg
   -- Opposite signs: f_lo.hi < 0 and f_hi.lo > 0, or f_lo.lo > 0 and f_hi.hi < 0
-  (f_lo.hi < 0 && 0 < f_hi.lo) || (f_hi.hi < 0 && 0 < f_lo.lo)
+  ((f_lo.hi < 0 && 0 < f_hi.lo) || (f_hi.hi < 0 && 0 < f_lo.lo))
 
 /-- Check if interval definitely has no root (function has constant sign).
     Returns `true` if the function's interval evaluation doesn't contain 0. -/
 def checkNoRoot (e : Expr) (I : IntervalRat) (cfg : EvalConfig) : Bool :=
-  let fI := evalIntervalCore1 e I cfg
-  fI.hi < 0 || 0 < fI.lo
+  checkDomainValid1 e I cfg && (let fI := evalIntervalCore1 e I cfg; fI.hi < 0 || 0 < fI.lo)
 
 /-! ### Computable Newton Step for Unique Root Verification -/
 
@@ -1157,11 +1189,12 @@ theorem verify_no_root (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h_cert : checkNoRoot e I cfg = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≠ 0 := by
-  simp only [checkNoRoot, Bool.or_eq_true, decide_eq_true_eq] at h_cert
+  simp only [checkNoRoot, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq] at h_cert
   intro x hx hcontra
-  have heval := evalIntervalCore1_correct e hsupp x I hx cfg
+  have hdom := checkDomainValid1_correct e I cfg h_cert.1
+  have heval := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at heval
-  cases h_cert with
+  cases h_cert.2 with
   | inl hhi =>
     -- f's interval hi < 0, so f(x) ≤ hi < 0, contradiction with f(x) = 0
     have hhi_real : ((evalIntervalCore1 e I cfg).hi : ℝ) < 0 := by exact_mod_cast hhi
@@ -1310,7 +1343,7 @@ theorem newton_preserves_root_core (e : Expr) (hsupp : ExprSupported e) (hvar0 :
   -- 1. f(c) ∈ fc via evalIntervalCore1_correct
   have hfc_correct : evalFunc1 e c ∈ fc := by
     simp only [evalFunc1]
-    exact evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg
+    exact evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg)
 
   -- 2. f'(ξ) ∈ dI for all ξ ∈ I via derivIntervalCore_correct
   have hdI_correct : ∀ ξ ∈ I, deriv (evalFunc1 e) ξ ∈ dI := fun ξ hξ =>
@@ -1663,7 +1696,7 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
             have hMVT := mvt_fc_lower_bound_pos_increasing_core e hsupp I cfg hI_nonsingleton hdI_pos hCont hlo_pos
             -- Apply generic contraction contradiction
             exact generic_contraction_absurd_hi I c fc dI N rfl hdI_nonzero hdI_pos
-              (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg)
+              (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg))
               hN_lo hContract.1 hMVT
       · push_neg at hlo
         by_cases hhi : f I.hi ≤ 0
@@ -1681,7 +1714,7 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
             exfalso
             have hMVT := mvt_fc_upper_bound_pos_increasing_core e hsupp I cfg hI_nonsingleton hdI_pos hCont hhi_neg
             exact generic_contraction_absurd_lo I c fc dI N rfl hdI_nonzero hdI_pos
-              (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg)
+              (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg))
               hN_hi hContract.2 hMVT
         · -- f(lo) < 0 and f(hi) > 0: SIGN CHANGE! Apply IVT.
           push_neg at hhi
@@ -1740,7 +1773,7 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
             exfalso
             have hMVT := mvt_fc_upper_bound_neg_decreasing_core e hsupp I cfg hI_nonsingleton hdI_neg hCont hlo_neg
             exact generic_contraction_absurd_hi_neg I c fc dI N rfl hdI_nonzero hdI_neg
-              (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg)
+              (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg))
               hN_lo hContract.1 hMVT
       · push_neg at hlo
         by_cases hhi : f I.hi ≥ 0
@@ -1758,7 +1791,7 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
             exfalso
             have hMVT := mvt_fc_lower_bound_neg_decreasing_core e hsupp I cfg hI_nonsingleton hdI_neg hCont hhi_pos
             exact generic_contraction_absurd_lo_neg I c fc dI N rfl hdI_nonzero hdI_neg
-              (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg)
+              (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg))
               hN_hi hContract.2 hMVT
         · -- f(lo) > 0 and f(hi) < 0: SIGN CHANGE for decreasing function!
           push_neg at hhi
@@ -1787,20 +1820,25 @@ theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
     (h_cert : checkSignChange e I cfg = true) :
     ∃ x ∈ I, Expr.eval (fun _ => x) e = 0 := by
-  simp only [checkSignChange, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at h_cert
+  simp only [checkSignChange, Bool.and_eq_true, Bool.or_eq_true, decide_eq_true_eq] at h_cert
+  -- Extract domain validity from certificate
+  have hdom_lo := checkDomainValid1_correct e (IntervalRat.singleton I.lo) cfg h_cert.1.1
+  have hdom_hi := checkDomainValid1_correct e (IntervalRat.singleton I.hi) cfg h_cert.1.2
   -- Define f for convenience
   set f := fun x : ℝ => Expr.eval (fun _ => x) e with hf
   -- Get singleton memberships
   have hlo_sing : (I.lo : ℝ) ∈ IntervalRat.singleton I.lo := IntervalRat.mem_singleton I.lo
   have hhi_sing : (I.hi : ℝ) ∈ IntervalRat.singleton I.hi := IntervalRat.mem_singleton I.hi
   -- Apply evalIntervalCore1_correct to get bounds on f(lo) and f(hi)
-  have hflo := evalIntervalCore1_correct e hsupp I.lo (IntervalRat.singleton I.lo) hlo_sing cfg
-  have hfhi := evalIntervalCore1_correct e hsupp I.hi (IntervalRat.singleton I.hi) hhi_sing cfg
+  have hflo := evalIntervalCore1_correct e hsupp I.lo (IntervalRat.singleton I.lo) hlo_sing cfg hdom_lo
+  have hfhi := evalIntervalCore1_correct e hsupp I.hi (IntervalRat.singleton I.hi) hhi_sing cfg hdom_hi
   simp only [IntervalRat.mem_def] at hflo hfhi
   -- Get the interval bound
   have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
+  -- Extract sign change condition
+  have h_sign := h_cert.2
   -- Handle the two cases of signChange
-  cases h_cert with
+  cases h_sign with
   | inl hcase =>
     -- Case: f(lo).hi < 0 ∧ 0 < f(hi).lo, meaning f(lo) < 0 < f(hi)
     have hflo_neg : f I.lo < 0 := by
@@ -1971,11 +2009,14 @@ All `ExprSupportedCore` expressions are continuous, hence integrable on compact 
 /-- All ExprSupportedCore expressions are interval integrable on any compact interval.
 
 This follows because ExprSupportedCore expressions are continuous (see exprSupportedCore_continuousOn),
-and continuous functions on compact intervals are integrable. -/
+and continuous functions on compact intervals are integrable.
+
+Note: Requires domain validity for expressions with log. -/
 theorem exprSupportedCore_intervalIntegrable (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) :
+    (I : IntervalRat)
+    (hdom : LeanCert.Meta.exprContinuousDomainValid e (Set.Icc I.lo I.hi)) :
     IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi := by
-  have hCont := LeanCert.Meta.exprSupportedCore_continuousOn e hsupp (s := Set.Icc I.lo I.hi)
+  have hCont := LeanCert.Meta.exprSupportedCore_continuousOn e hsupp hdom
   -- Continuous functions on compact intervals are integrable
   have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
   exact hCont.intervalIntegrable_of_Icc hle
@@ -1985,21 +2026,25 @@ theorem exprSupportedCore_intervalIntegrable (e : Expr) (hsupp : ExprSupportedCo
 /-- Single-interval integration correctness for ExprSupportedCore.
 
 This is proved directly using the same structure as integrateInterval1_correct but
-with the computable evalIntervalCore1 instead of noncomputable evalInterval1. -/
+with the computable evalIntervalCore1 instead of noncomputable evalInterval1.
+
+The `hdom` hypothesis ensures evaluation domain validity (e.g., log arguments have positive interval bounds).
+The `hcontdom` hypothesis ensures continuity domain validity (e.g., log arguments are positive on the set). -/
 theorem integrateInterval1Core_correct (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (cfg : EvalConfig) :
+    (I : IntervalRat) (cfg : EvalConfig) (hdom : evalDomainValid1 e I cfg)
+    (hcontdom : LeanCert.Meta.exprContinuousDomainValid e (Set.Icc I.lo I.hi)) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ integrateInterval1Core e I cfg := by
   unfold integrateInterval1Core
   -- Get bounds from interval evaluation
   set fBound := evalIntervalCore1 e I cfg with hfBound_def
   have hbounds : ∀ x : ℝ, x ∈ I → Expr.eval (fun _ => x) e ∈ fBound := fun x hx =>
-    evalIntervalCore1_correct e hsupp x I hx cfg
+    evalIntervalCore1_correct e hsupp x I hx cfg hdom
   have hlo : ∀ x ∈ Set.Icc (I.lo : ℝ) (I.hi : ℝ), (fBound.lo : ℝ) ≤ Expr.eval (fun _ => x) e := by
     intro x hx; exact (hbounds x hx).1
   have hhi : ∀ x ∈ Set.Icc (I.lo : ℝ) (I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (fBound.hi : ℝ) := by
     intro x hx; exact (hbounds x hx).2
   have hIle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
-  have hInt := exprSupportedCore_intervalIntegrable e hsupp I
+  have hInt := exprSupportedCore_intervalIntegrable e hsupp I hcontdom
   have ⟨h_lower, h_upper⟩ := LeanCert.Engine.integral_bounds_of_bounds hIle hInt hlo hhi
   -- Show membership in the product interval
   have hwidth : (I.width : ℝ) = (I.hi : ℝ) - (I.lo : ℝ) := by
@@ -2039,9 +2084,10 @@ theorem integrateInterval1Core_correct (e : Expr) (hsupp : ExprSupportedCore e)
       _ = (↑I.width * ↑fBound.lo) ⊔ (↑I.width * ↑fBound.hi) := (max_eq_right h1).symm
 
 /-- Check if the integral bound contains a given rational value.
-    Returns true if the computed integral bound contains the target value. -/
+    Returns true if domain is valid and the computed integral bound contains the target value. -/
 def checkIntegralBoundsCore (e : Expr) (I : IntervalRat) (target : ℚ)
     (cfg : EvalConfig := default) : Bool :=
+  checkDomainValid1 e I cfg &&
   let bound := integrateInterval1Core e I cfg
   decide (bound.lo ≤ target && target ≤ bound.hi)
 
@@ -2054,23 +2100,31 @@ Note: The `target` parameter and `h_cert` hypothesis are used for the `native_de
 where we verify at compile time that target is in the computed interval. The actual proof
 of interval membership uses `integrateInterval1Core_correct` directly.
 
-This theorem allows proving statements like "∫_a^b f(x) dx ∈ [lo, hi]". -/
+This theorem allows proving statements like "∫_a^b f(x) dx ∈ [lo, hi]".
+
+Note: Requires continuity domain validity for expressions with log. -/
 theorem verify_integral_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (_target : ℚ) (cfg : EvalConfig)
-    (_h_cert : checkIntegralBoundsCore e I _target cfg = true) :
+    (h_cert : checkIntegralBoundsCore e I _target cfg = true)
+    (hcontdom : LeanCert.Meta.exprContinuousDomainValid e (Set.Icc I.lo I.hi)) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ integrateInterval1Core e I cfg := by
-  exact integrateInterval1Core_correct e hsupp I cfg
+  simp only [checkIntegralBoundsCore, Bool.and_eq_true] at h_cert
+  have hdom := checkDomainValid1_correct e I cfg h_cert.1
+  exact integrateInterval1Core_correct e hsupp I cfg hdom hcontdom
 
 /-- Extract the computed integral bound as an interval -/
 def getIntegralBound (e : Expr) (I : IntervalRat) (cfg : EvalConfig := default) : IntervalRat :=
   integrateInterval1Core e I cfg
 
-/-- The integral lies within the computed bound (computable version) -/
+/-- The integral lies within the computed bound (computable version)
+
+Note: Requires continuity domain validity for expressions with log. -/
 theorem integral_in_bound (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (cfg : EvalConfig) :
+    (I : IntervalRat) (cfg : EvalConfig) (hdom : evalDomainValid1 e I cfg)
+    (hcontdom : LeanCert.Meta.exprContinuousDomainValid e (Set.Icc I.lo I.hi)) :
     (getIntegralBound e I cfg).lo ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∧
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (getIntegralBound e I cfg).hi := by
-  have hmem := integrateInterval1Core_correct e hsupp I cfg
+  have hmem := integrateInterval1Core_correct e hsupp I cfg hdom hcontdom
   simp only [IntervalRat.mem_def, getIntegralBound] at hmem ⊢
   exact hmem
 

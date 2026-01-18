@@ -61,72 +61,88 @@ theorem intervalCore_lo_gt_decide (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : 
 /-! ### Combined lemmas for tactic use (core, computable) -/
 
 /-- Prove f(x) ≤ c by core interval arithmetic with decidable check.
-    This combines the correctness theorem with decidability and works with native_decide. -/
+    This combines the correctness theorem with decidability and works with native_decide.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem proveCore_le_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) (x : ℝ) (hx : x ∈ I)
+    (hdom : evalDomainValid1 e I cfg)
     (hdec : decide ((evalIntervalCore1 e I cfg).hi ≤ c) = true) :
     Expr.eval (fun _ => x) e ≤ c := by
   have hhi := (intervalCore_hi_le_decide e I c cfg).mpr hdec
-  exact exprCore_le_of_interval_hi e hsupp I c cfg hhi x hx
+  exact exprCore_le_of_interval_hi e hsupp I c cfg hdom hhi x hx
 
-/-- Prove c ≤ f(x) by core interval arithmetic with decidable check. -/
+/-- Prove c ≤ f(x) by core interval arithmetic with decidable check.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem proveCore_ge_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) (x : ℝ) (hx : x ∈ I)
+    (hdom : evalDomainValid1 e I cfg)
     (hdec : decide (c ≤ (evalIntervalCore1 e I cfg).lo) = true) :
     c ≤ Expr.eval (fun _ => x) e := by
   have hlo := (intervalCore_lo_ge_decide e I c cfg).mpr hdec
-  exact exprCore_ge_of_interval_lo e hsupp I c cfg hlo x hx
+  exact exprCore_ge_of_interval_lo e hsupp I c cfg hdom hlo x hx
 
-/-- Prove f(x) < c by core interval arithmetic with decidable check. -/
+/-- Prove f(x) < c by core interval arithmetic with decidable check.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem proveCore_lt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) (x : ℝ) (hx : x ∈ I)
+    (hdom : evalDomainValid1 e I cfg)
     (hdec : decide ((evalIntervalCore1 e I cfg).hi < c) = true) :
     Expr.eval (fun _ => x) e < c := by
   have hhi := (intervalCore_hi_lt_decide e I c cfg).mpr hdec
-  exact exprCore_lt_of_interval_hi_lt e hsupp I c cfg hhi x hx
+  exact exprCore_lt_of_interval_hi_lt e hsupp I c cfg hdom hhi x hx
 
-/-- Prove c < f(x) by core interval arithmetic with decidable check. -/
+/-- Prove c < f(x) by core interval arithmetic with decidable check.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem proveCore_gt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) (x : ℝ) (hx : x ∈ I)
+    (hdom : evalDomainValid1 e I cfg)
     (hdec : decide (c < (evalIntervalCore1 e I cfg).lo) = true) :
     c < Expr.eval (fun _ => x) e := by
   have hlo := (intervalCore_lo_gt_decide e I c cfg).mpr hdec
-  exact exprCore_gt_of_interval_lo_gt e hsupp I c cfg hlo x hx
+  exact exprCore_gt_of_interval_lo_gt e hsupp I c cfg hdom hlo x hx
 
 /-! ### Universal quantifier versions (core, computable) -/
 
 /-- Prove ∀ x ∈ I, f(x) ≤ c by core interval arithmetic.
-    Works with native_decide for expressions in ExprSupportedCore. -/
+    Works with native_decide for expressions in ExprSupportedCore.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem proveCore_forall_le_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg)
     (hdec : decide ((evalIntervalCore1 e I cfg).hi ≤ c) = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
-  exact proveCore_le_by_interval e hsupp I c cfg x hx hdec
+  exact proveCore_le_by_interval e hsupp I c cfg x hx hdom hdec
 
-/-- Prove ∀ x ∈ I, c ≤ f(x) by core interval arithmetic. -/
+/-- Prove ∀ x ∈ I, c ≤ f(x) by core interval arithmetic.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem proveCore_forall_ge_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg)
     (hdec : decide (c ≤ (evalIntervalCore1 e I cfg).lo) = true) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
-  exact proveCore_ge_by_interval e hsupp I c cfg x hx hdec
+  exact proveCore_ge_by_interval e hsupp I c cfg x hx hdom hdec
 
-/-- Prove ∀ x ∈ I, f(x) < c by core interval arithmetic. -/
+/-- Prove ∀ x ∈ I, f(x) < c by core interval arithmetic.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem proveCore_forall_lt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg)
     (hdec : decide ((evalIntervalCore1 e I cfg).hi < c) = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
   intro x hx
-  exact proveCore_lt_by_interval e hsupp I c cfg x hx hdec
+  exact proveCore_lt_by_interval e hsupp I c cfg x hx hdom hdec
 
-/-- Prove ∀ x ∈ I, c < f(x) by core interval arithmetic. -/
+/-- Prove ∀ x ∈ I, c < f(x) by core interval arithmetic.
+    Requires domain validity (e.g., log arguments must be positive). -/
 theorem proveCore_forall_gt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg)
     (hdec : decide (c < (evalIntervalCore1 e I cfg).lo) = true) :
     ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
   intro x hx
-  exact proveCore_gt_by_interval e hsupp I c cfg x hx hdec
+  exact proveCore_gt_by_interval e hsupp I c cfg x hx hdom hdec
 
 /-! ### Extended versions (noncomputable, for reference) -/
 

@@ -212,8 +212,8 @@ on the structure of `e : LeanCert.Core.Expr`.
     This function inspects the head constant of the AST expression and
     recursively builds the appropriate proof constructor.
 
-    Supported: const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh, pi
-    Not supported: inv, log, atan, arsinh, atanh -/
+    Supported: const, var, add, mul, neg, sin, cos, exp, log, sqrt, sinh, cosh, tanh, pi
+    Not supported: inv, atan, arsinh, atanh -/
 partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
   -- Get the head constant and arguments
   let fn := e_ast.getAppFn
@@ -271,7 +271,10 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     mkAppM ``LeanCert.Core.ExprSupportedCore.exp #[h]
 
   else if fn.isConstOf ``LeanCert.Core.Expr.log then
-    throwError "Expr.log is not supported in ExprSupportedCore; use mkSupportedWithInvProof."
+    -- Expr.log e => ExprSupportedCore.log h
+    let e := args[0]!
+    let h ← mkSupportedCoreProof e
+    mkAppM ``LeanCert.Core.ExprSupportedCore.log #[h]
 
   else if fn.isConstOf ``LeanCert.Core.Expr.sqrt then
     -- Expr.sqrt e => ExprSupportedCore.sqrt h
@@ -303,8 +306,8 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
 
   else
     throwError "Cannot generate ExprSupportedCore proof for: {e_ast}\n\
-                This expression contains unsupported operations (inv, log, atan, arsinh, or atanh).\n\
-                Use mkSupportedWithInvProof for expressions with inv or log."
+                This expression contains unsupported operations (inv, atan, arsinh, or atanh).\n\
+                Use mkSupportedWithInvProof for expressions with inv."
 
 /-! ## ExprSupportedWithInv Proof Generation
 

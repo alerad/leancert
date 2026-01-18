@@ -418,16 +418,16 @@ instance : Inhabited EvalConfig := ⟨{ taylorDepth := 10 }⟩
 /-- Computable interval evaluator for core expressions with configurable depth.
 
     For expressions in `ExprSupportedCore`, this computes correct interval
-    bounds with a fully-verified proof.
+    bounds with a fully-verified proof (given domain validity conditions).
 
     For inv: computes bounds using `invInterval`, but correctness is not
     covered by `evalIntervalCore_correct`. Use `evalInterval?` for inv.
 
-    For unsupported expressions (log), returns a default interval.
-    Do not rely on results for expressions containing log.
+    For log: uses `logComputable` with Taylor series. Correctness requires
+    that the argument interval is positive (see `evalDomainValid`).
 
     This evaluator is COMPUTABLE, allowing use of `native_decide` for
-    bound checking in tactics. The transcendental functions (exp, sin, cos)
+    bound checking in tactics. The transcendental functions (exp, sin, cos, log)
     use Taylor series with configurable depth for precision control. -/
 def evalIntervalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : IntervalRat :=
   match e with
@@ -440,7 +440,7 @@ def evalIntervalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : In
   | Expr.exp e => IntervalRat.expComputable (evalIntervalCore e ρ cfg) cfg.taylorDepth
   | Expr.sin e => IntervalRat.sinComputable (evalIntervalCore e ρ cfg) cfg.taylorDepth
   | Expr.cos e => IntervalRat.cosComputable (evalIntervalCore e ρ cfg) cfg.taylorDepth
-  | Expr.log _ => default  -- Not in ExprSupportedCore; use evalInterval? for log
+  | Expr.log e => IntervalRat.logComputable (evalIntervalCore e ρ cfg) cfg.taylorDepth
   | Expr.atan e => atanInterval (evalIntervalCore e ρ cfg)
   | Expr.arsinh e => arsinhInterval (evalIntervalCore e ρ cfg)
   | Expr.atanh _ => default  -- Not in ExprSupportedCore; use evalInterval? for atanh
@@ -509,14 +509,268 @@ def evalIntervalCoreWithDiv (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {
 def envMem (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) : Prop :=
   ∀ i, ρ_real i ∈ ρ_int i
 
+/-- Domain validity predicate for expressions with domain restrictions.
+
+    For log: requires the argument interval to be strictly positive.
+    This ensures that logComputable returns correct bounds.
+
+    For other expressions: always true (no domain restrictions). -/
+def evalDomainValid (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : Prop :=
+  match e with
+  | Expr.const _ => True
+  | Expr.var _ => True
+  | Expr.add e₁ e₂ => evalDomainValid e₁ ρ cfg ∧ evalDomainValid e₂ ρ cfg
+  | Expr.mul e₁ e₂ => evalDomainValid e₁ ρ cfg ∧ evalDomainValid e₂ ρ cfg
+  | Expr.neg e => evalDomainValid e ρ cfg
+  | Expr.inv e => evalDomainValid e ρ cfg  -- Note: inv correctness not covered anyway
+  | Expr.exp e => evalDomainValid e ρ cfg
+  | Expr.sin e => evalDomainValid e ρ cfg
+  | Expr.cos e => evalDomainValid e ρ cfg
+  | Expr.log e => evalDomainValid e ρ cfg ∧ (evalIntervalCore e ρ cfg).lo > 0
+  | Expr.atan e => evalDomainValid e ρ cfg
+  | Expr.arsinh e => evalDomainValid e ρ cfg
+  | Expr.atanh e => evalDomainValid e ρ cfg
+  | Expr.sinc e => evalDomainValid e ρ cfg
+  | Expr.erf e => evalDomainValid e ρ cfg
+  | Expr.sinh e => evalDomainValid e ρ cfg
+  | Expr.cosh e => evalDomainValid e ρ cfg
+  | Expr.tanh e => evalDomainValid e ρ cfg
+  | Expr.sqrt e => evalDomainValid e ρ cfg
+  | Expr.pi => True
+
+/-- Single-variable domain validity -/
+def evalDomainValid1 (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : Prop :=
+  evalDomainValid e (fun _ => I) cfg
+
+/-- Computable (decidable) check for domain validity -/
+def checkDomainValid (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : Bool :=
+  match e with
+  | Expr.const _ => true
+  | Expr.var _ => true
+  | Expr.add e₁ e₂ => checkDomainValid e₁ ρ cfg && checkDomainValid e₂ ρ cfg
+  | Expr.mul e₁ e₂ => checkDomainValid e₁ ρ cfg && checkDomainValid e₂ ρ cfg
+  | Expr.neg e => checkDomainValid e ρ cfg
+  | Expr.inv e => checkDomainValid e ρ cfg
+  | Expr.exp e => checkDomainValid e ρ cfg
+  | Expr.sin e => checkDomainValid e ρ cfg
+  | Expr.cos e => checkDomainValid e ρ cfg
+  | Expr.log e => checkDomainValid e ρ cfg && decide ((evalIntervalCore e ρ cfg).lo > 0)
+  | Expr.atan e => checkDomainValid e ρ cfg
+  | Expr.arsinh e => checkDomainValid e ρ cfg
+  | Expr.atanh e => checkDomainValid e ρ cfg
+  | Expr.sinc e => checkDomainValid e ρ cfg
+  | Expr.erf e => checkDomainValid e ρ cfg
+  | Expr.sinh e => checkDomainValid e ρ cfg
+  | Expr.cosh e => checkDomainValid e ρ cfg
+  | Expr.tanh e => checkDomainValid e ρ cfg
+  | Expr.sqrt e => checkDomainValid e ρ cfg
+  | Expr.pi => true
+
+/-- Single-variable domain check -/
+def checkDomainValid1 (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : Bool :=
+  checkDomainValid e (fun _ => I) cfg
+
+/-- checkDomainValid = true implies evalDomainValid -/
+theorem checkDomainValid_correct (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig)
+    (h : checkDomainValid e ρ cfg = true) : evalDomainValid e ρ cfg := by
+  induction e with
+  | const q => trivial
+  | var idx => trivial
+  | add e₁ e₂ ih₁ ih₂ =>
+    simp only [checkDomainValid, Bool.and_eq_true] at h
+    simp only [evalDomainValid]
+    exact ⟨ih₁ h.1, ih₂ h.2⟩
+  | mul e₁ e₂ ih₁ ih₂ =>
+    simp only [checkDomainValid, Bool.and_eq_true] at h
+    simp only [evalDomainValid]
+    exact ⟨ih₁ h.1, ih₂ h.2⟩
+  | neg e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | inv e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | exp e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | sin e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | cos e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | log e ih =>
+    simp only [checkDomainValid, Bool.and_eq_true, decide_eq_true_eq] at h
+    simp only [evalDomainValid]
+    exact ⟨ih h.1, h.2⟩
+  | atan e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | arsinh e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | atanh e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | sinc e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | erf e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | sinh e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | cosh e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | tanh e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | sqrt e ih =>
+    simp only [checkDomainValid] at h
+    simp only [evalDomainValid]
+    exact ih h
+  | pi => trivial
+
+/-- checkDomainValid1 = true implies evalDomainValid1 -/
+theorem checkDomainValid1_correct (e : Expr) (I : IntervalRat) (cfg : EvalConfig)
+    (h : checkDomainValid1 e I cfg = true) : evalDomainValid1 e I cfg :=
+  checkDomainValid_correct e (fun _ => I) cfg h
+
+/-- evalDomainValid is equivalent to checkDomainValid = true -/
+theorem evalDomainValid_iff_checkDomainValid (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig) :
+    evalDomainValid e ρ cfg ↔ checkDomainValid e ρ cfg = true := by
+  constructor
+  · -- evalDomainValid → checkDomainValid
+    intro h
+    induction e with
+    | const _ => rfl
+    | var _ => rfl
+    | add e₁ e₂ ih₁ ih₂ =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid, Bool.and_eq_true]
+      exact ⟨ih₁ h.1, ih₂ h.2⟩
+    | mul e₁ e₂ ih₁ ih₂ =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid, Bool.and_eq_true]
+      exact ⟨ih₁ h.1, ih₂ h.2⟩
+    | neg e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | inv e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | exp e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | sin e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | cos e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | log e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid, Bool.and_eq_true, decide_eq_true_eq]
+      exact ⟨ih h.1, h.2⟩
+    | atan e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | arsinh e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | atanh e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | sinc e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | erf e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | sinh e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | cosh e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | tanh e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | sqrt e ih =>
+      simp only [evalDomainValid] at h
+      simp only [checkDomainValid]
+      exact ih h
+    | pi => rfl
+  · -- checkDomainValid → evalDomainValid
+    exact checkDomainValid_correct e ρ cfg
+
+/-- Decidability instance for domain validity -/
+instance decidableEvalDomainValid (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig) :
+    Decidable (evalDomainValid e ρ cfg) :=
+  decidable_of_iff' _ (evalDomainValid_iff_checkDomainValid e ρ cfg)
+
+/-- Decidability instance for single-variable domain validity -/
+instance decidableEvalDomainValid1 (e : Expr) (I : IntervalRat) (cfg : EvalConfig) :
+    Decidable (evalDomainValid1 e I cfg) :=
+  decidableEvalDomainValid e (fun _ => I) cfg
+
+/-- ExprSupported expressions (which don't include log) always have valid domains.
+    This is because only log has domain restrictions (positive argument). -/
+theorem ExprSupported.domainValid {e : Expr} (hsupp : ExprSupported e)
+    (ρ : IntervalEnv) (cfg : EvalConfig) : evalDomainValid e ρ cfg := by
+  induction hsupp generalizing ρ cfg with
+  | const _ => trivial
+  | var _ => trivial
+  | add _ _ ih₁ ih₂ => exact ⟨ih₁ ρ cfg, ih₂ ρ cfg⟩
+  | mul _ _ ih₁ ih₂ => exact ⟨ih₁ ρ cfg, ih₂ ρ cfg⟩
+  | neg _ ih => exact ih ρ cfg
+  | sin _ ih => exact ih ρ cfg
+  | cos _ ih => exact ih ρ cfg
+  | exp _ ih => exact ih ρ cfg
+
+/-- Single-variable version of domainValid for ExprSupported -/
+theorem exprSupported_domainValid1 {e : Expr} (hsupp : ExprSupported e)
+    (I : IntervalRat) (cfg : EvalConfig) : evalDomainValid1 e I cfg :=
+  ExprSupported.domainValid hsupp (fun _ => I) cfg
+
 /-- Fundamental correctness theorem for core evaluation.
 
     This theorem is FULLY PROVED for core expressions (no sorry, no axioms).
     The `hsupp` hypothesis ensures we only consider expressions in the
-    computable verified subset. Works for any Taylor depth. -/
+    computable verified subset. The `hdom` hypothesis ensures domain validity
+    (e.g., log arguments are positive). Works for any Taylor depth. -/
 theorem evalIntervalCore_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (hρ : envMem ρ_real ρ_int)
-    (cfg : EvalConfig := {}) :
+    (cfg : EvalConfig := {})
+    (hdom : evalDomainValid e ρ_int cfg) :
     Expr.eval ρ_real e ∈ evalIntervalCore e ρ_int cfg := by
   induction hsupp with
   | const q =>
@@ -526,35 +780,49 @@ theorem evalIntervalCore_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [Expr.eval_var, evalIntervalCore]
     exact hρ idx
   | add h₁ h₂ ih₁ ih₂ =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_add, evalIntervalCore]
-    exact IntervalRat.mem_add ih₁ ih₂
+    exact IntervalRat.mem_add (ih₁ hdom.1) (ih₂ hdom.2)
   | mul h₁ h₂ ih₁ ih₂ =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_mul, evalIntervalCore]
-    exact IntervalRat.mem_mul ih₁ ih₂
+    exact IntervalRat.mem_mul (ih₁ hdom.1) (ih₂ hdom.2)
   | neg _ ih =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_neg, evalIntervalCore]
-    exact IntervalRat.mem_neg ih
+    exact IntervalRat.mem_neg (ih hdom)
   | sin _ ih =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_sin, evalIntervalCore]
-    exact IntervalRat.mem_sinComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_sinComputable (ih hdom) cfg.taylorDepth
   | cos _ ih =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_cos, evalIntervalCore]
-    exact IntervalRat.mem_cosComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_cosComputable (ih hdom) cfg.taylorDepth
   | exp _ ih =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_exp, evalIntervalCore]
-    exact IntervalRat.mem_expComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_expComputable (ih hdom) cfg.taylorDepth
+  | log _ ih =>
+    simp only [evalDomainValid] at hdom
+    simp only [Expr.eval_log, evalIntervalCore]
+    exact IntervalRat.mem_logComputable (ih hdom.1) hdom.2 cfg.taylorDepth
   | sqrt _ ih =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_sqrt, evalIntervalCore]
-    exact IntervalRat.mem_sqrtIntervalTightPrec' ih
+    exact IntervalRat.mem_sqrtIntervalTightPrec' (ih hdom)
   | sinh _ ih =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_sinh, evalIntervalCore, sinhInterval]
-    exact IntervalRat.mem_sinhComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_sinhComputable (ih hdom) cfg.taylorDepth
   | cosh _ ih =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_cosh, evalIntervalCore, coshInterval]
-    exact IntervalRat.mem_coshComputable ih cfg.taylorDepth
+    exact IntervalRat.mem_coshComputable (ih hdom) cfg.taylorDepth
   | tanh _ ih =>
+    simp only [evalDomainValid] at hdom
     simp only [Expr.eval_tanh, evalIntervalCore, tanhInterval]
-    exact mem_tanhInterval ih
+    exact mem_tanhInterval (ih hdom)
   | pi =>
     simp only [Expr.eval_pi, evalIntervalCore]
     exact mem_piInterval
@@ -567,9 +835,11 @@ def evalIntervalCore1 (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : In
 
 /-- Correctness for single-variable core evaluation -/
 theorem evalIntervalCore1_correct (e : Expr) (hsupp : ExprSupportedCore e)
-    (x : ℝ) (I : IntervalRat) (hx : x ∈ I) (cfg : EvalConfig := {}) :
+    (x : ℝ) (I : IntervalRat) (hx : x ∈ I)
+    (cfg : EvalConfig := {})
+    (hdom : evalDomainValid1 e I cfg) :
     Expr.eval (fun _ => x) e ∈ evalIntervalCore1 e I cfg :=
-  evalIntervalCore_correct e hsupp _ _ (fun _ => hx) cfg
+  evalIntervalCore_correct e hsupp _ _ (fun _ => hx) cfg hdom
 
 /-! ### Smart constructors for supported expressions -/
 
