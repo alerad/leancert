@@ -240,6 +240,63 @@ example : ∫ x in (I01.lo : ℝ)..(I01.hi : ℝ),
 
 ## Interactive Commands
 
+These commands are for **exploration in the editor**, not for proofs. Use them to discover bounds before writing theorems.
+
+### `#bounds`
+
+Find both minimum and maximum of a function on an interval.
+
+```lean
+import LeanCert.Discovery.Commands
+
+#bounds (fun x => x^2 + Real.sin x) on [-2, 2]
+```
+
+**Output:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#bounds Results
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  f(x) ∈ [-5, 5]
+
+  Minimum: -5 (± 4.77)
+  Maximum: 5 (± 0.91)
+
+  Total iterations: 32
+  Verified: ✓
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+### `#find_min` / `#find_max`
+
+Find the minimum or maximum separately, with optional precision control.
+
+```lean
+import LeanCert.Discovery.Commands
+
+-- Basic usage
+#find_min (fun x => x^2 + Real.sin x) on [-2, 2]
+#find_max (fun x => Real.exp x - x^2) on [0, 1]
+
+-- Higher precision for tighter bounds
+#find_max (fun x => Real.exp x) on [0, 1] precision 20
+```
+
+**Syntax:**
+```
+#find_min <function> on [<lo>, <hi>]
+#find_min <function> on [<lo>, <hi>] precision <n>
+```
+
+**Parameters:**
+- `function`: A lambda `(fun x => ...)` with the expression
+- `lo`, `hi`: Integer bounds (rationals not supported in syntax)
+- `precision`: Optional Taylor depth (default: 10)
+
+---
+
 ### `#explore`
 
 Interactive function analysis in the editor. Shows range, extrema, and roots.

@@ -86,6 +86,23 @@ cd python
 pip install -e .
 ```
 
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Quickstart](quickstart.md) | Get started with Python SDK and Lean tactics |
+| [Tactics Reference](tactics.md) | Complete reference for all tactics |
+| [Choosing Tactics](choosing-tactics.md) | Decision flowchart for picking the right tactic |
+| [Troubleshooting](troubleshooting.md) | Common errors and how to fix them |
+| [End-to-End Example](end-to-end-example.md) | Full workflow from exploration to proof |
+
+### Architecture
+
+| Document | Description |
+|----------|-------------|
+| [Golden Theorems](architecture/golden-theorems.md) | How computation connects to proofs |
+| [Verification Status](architecture/verification-status.md) | What's proven, what's WIP |
+
 ## What's Verified?
 
 The core interval arithmetic, Taylor series bounds, global optimization, root finding, and integration are **fully proved** with no `sorry`. See [Verification Status](architecture/verification-status.md) for details.

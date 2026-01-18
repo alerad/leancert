@@ -2,6 +2,8 @@
 
 Quick reference for picking the right LeanCert tactic for your goal.
 
+> **Having issues?** See the [Troubleshooting Guide](troubleshooting.md) for common errors and solutions.
+
 ## Decision Flowchart
 
 ```
@@ -121,13 +123,25 @@ theorem exp_bounded : ∀ x ∈ Set.Icc (0:ℝ) 1, 1 ≤ Real.exp x ∧ Real.exp
 
 ### "Native syntax vs Expr AST"
 
-Most tactics support both. Native is cleaner:
+Most tactics support native syntax, but some require Expr AST:
 
+| Tactic | Native Syntax | Expr AST |
+|--------|---------------|----------|
+| `certify_bound` | ✓ Recommended | ✓ Supported |
+| `multivariate_bound` | ✓ Recommended | ✓ Supported |
+| `interval_minimize/maximize` | ✓ Recommended | ✓ Supported |
+| `interval_roots` | ✓ Supported | ✓ Works well |
+| `root_bound` | ✓ Supported | ✓ Works well |
+| `interval_le/ge` (low-level) | ✗ | ✓ Required |
+
+**Native syntax (recommended when it works):**
 ```lean
--- Native syntax (recommended)
-example : ∀ x ∈ Set.Icc 0 1, x * x ≤ 1 := by certify_bound
+example : ∀ x ∈ Set.Icc (0:ℝ) 1, x * x ≤ 1 := by certify_bound
+example : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ 3 := by certify_bound 15
+```
 
--- Expr AST syntax (more control)
+**Expr AST syntax (more control, always works):**
+```lean
 open LeanCert.Core in
 def I01 : IntervalRat := ⟨0, 1, by norm_num⟩
 
@@ -135,3 +149,5 @@ open LeanCert.Core in
 example : ∀ x ∈ I01, Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ≤ (1 : ℚ) := by
   certify_bound
 ```
+
+**When native syntax fails:** If you get unification errors with complex expressions (especially with numeric coefficients like `2 * x * x`), switch to Expr AST. See [Troubleshooting](troubleshooting.md#could-not-unify--expreval--with-the-goal) for details.
