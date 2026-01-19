@@ -43,13 +43,13 @@ theorem verify_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
 | Goal | Theorem | Checker |
 |------|---------|---------|
 | Root existence | `verify_sign_change` | `checkSignChange` |
-| Root uniqueness | `verify_unique_root_core` | `checkNewtonContracts` |
+| Root uniqueness | `verify_unique_root_computable` | `checkNewtonContractsCore` |
 | No roots | `verify_no_root` | `checkNoRoot` |
 
 ```lean
 theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
-    (hcont : ContinuousOn (Expr.evalAlong e ρ 0) (Set.Icc I.lo I.hi))
     (I : IntervalRat) (cfg : EvalConfig)
+    (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
     (h_cert : checkSignChange e I cfg = true) :
     ∃ x ∈ I, Expr.eval (fun _ => x) e = 0
 ```
@@ -62,21 +62,26 @@ theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
 | Global upper bound | `verify_global_upper_bound` | `checkGlobalUpperBound` |
 
 ```lean
-theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupportedCore e)
-    (box : Box) (c : ℚ) (cfg : GlobalOptConfig)
-    (h_cert : (globalMinimizeCore e box cfg).lo ≥ c) :
-    ∀ x ∈ box, Expr.eval x e ≥ c
+theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupported e)
+    (B : Box) (c : ℚ) (cfg : GlobalOptConfig)
+    (h_cert : checkGlobalLowerBound e B c cfg = true) :
+    ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
+      c ≤ Expr.eval ρ e
 ```
+
+> **Note**: Global optimization uses `ExprSupported` (not `ExprSupportedCore`) and multivariate environments.
 
 ### Integration
 
 ```lean
 theorem verify_integral_bound (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (n : ℕ) (lo hi : ℚ)
-    (h_cert : checkIntegralBoundsCore e I n = some (lo, hi)) :
-    lo ≤ ∫ x in I.lo..I.hi, Expr.eval (fun _ => x) e ∧
-    ∫ x in I.lo..I.hi, Expr.eval (fun _ => x) e ≤ hi
+    (I : IntervalRat) (target : ℚ) (cfg : EvalConfig)
+    (h_cert : checkIntegralBoundsCore e I target cfg = true)
+    (hcontdom : exprContinuousDomainValid e (Set.Icc I.lo I.hi)) :
+    ∫ x in I.lo..I.hi, Expr.eval (fun _ => x) e ∈ integrateInterval1Core e I cfg
 ```
+
+The integral is proven to lie within the computed interval bounds.
 
 ### Monotonicity
 
@@ -155,14 +160,20 @@ Uses fixed-precision dyadic numbers (m · 2^e) to avoid denominator explosion:
 
 ```lean
 theorem verify_upper_bound_dyadic (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalDyadic) (c : Dyadic) (cfg : DyadicConfig)
-    (h_cert : checkUpperBoundDyadic e I c cfg = true) :
-    ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c
+    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+    (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
+    (hdom : evalDomainValidDyadic e ...)
+    (h_check : checkUpperBoundDyadic e lo hi hle c prec depth = true) :
+    ∀ x ∈ Set.Icc lo hi, Expr.eval (fun _ => x) e ≤ c
 ```
+
+> **Note**: The API takes rational bounds (`lo`, `hi`, `c : ℚ`) for user convenience, but internally converts to `IntervalDyadic` and runs `evalIntervalDyadic` — the actual computation uses Dyadic arithmetic for speed.
 
 Key parameters:
 - `prec : Int` - Precision (negative = more precision, must be ≤ 0)
 - `depth : Nat` - Taylor series depth for transcendentals
+
+The `'` variant (`verify_upper_bound_dyadic'`) uses `ExprSupported` and handles domain validity automatically.
 
 Essential for neural network verification and optimization loops where expression depth can be in the hundreds.
 
@@ -173,10 +184,12 @@ Solves the "dependency problem" in interval arithmetic by tracking linear correl
 ```lean
 theorem verify_upper_bound_affine1 (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : AffineConfig)
-    (h_cert : checkUpperBoundAffine1 e I c cfg = true)
-    (hvalid : domainValidAt e (fun _ => I)) :
+    (hdom : evalDomainValidAffine e (toAffineEnvConst I) cfg)
+    (h_check : checkUpperBoundAffine1 e I c cfg = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c
 ```
+
+The `'` variant (`verify_upper_bound_affine1'`) uses `ExprSupported` and handles domain validity automatically.
 
 Affine arithmetic represents values as `x̂ = c₀ + Σᵢ cᵢ·εᵢ + [-r, r]` where εᵢ ∈ [-1, 1] are noise symbols. This means:
 
