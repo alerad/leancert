@@ -46,7 +46,7 @@ def outputBounds := myNet.forwardInterval inputBox
 
 ### Layer Structure
 
-A dense layer computes \\( y = \text{ReLU}(Wx + b) \\):
+A dense layer computes $y = \text{ReLU}(Wx + b)$:
 
 ```lean
 structure Layer where
@@ -75,9 +75,9 @@ This says: if every real input is contained in its corresponding interval, then 
 
 ReLU interval propagation uses the simple rule:
 
-\\[
+$$
 \text{ReLU}([l, u]) = [\max(0, l), \max(0, u)]
-\\]
+$$
 
 ```lean
 def relu (I : IntervalDyadic) : IntervalDyadic where
@@ -90,7 +90,7 @@ theorem mem_relu {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
 
 ### Sigmoid
 
-Sigmoid uses the conservative bound \\( \sigma(x) \in (0, 1) \\):
+Sigmoid uses the conservative bound $\sigma(x) \in (0, 1)$:
 
 ```lean
 def sigmoid (_I : IntervalDyadic) : IntervalDyadic where
@@ -107,10 +107,10 @@ For tighter bounds, the module implements DeepPoly-style linear relaxations.
 
 ### ReLU Triangle Relaxation
 
-For the "crossing case" where \\( l < 0 < u \\), ReLU is bounded by:
+For the "crossing case" where $l < 0 < u$, ReLU is bounded by:
 
-- **Lower**: \\( y \geq 0 \\)
-- **Upper**: The line through \\( (l, 0) \\) and \\( (u, u) \\)
+- **Lower**: $y \geq 0$
+- **Upper**: The line through $(l, 0)$ and $(u, u)$
 
 ```lean
 theorem upper_bound_valid (l u : ℚ) (x : ℝ)
@@ -122,9 +122,9 @@ theorem upper_bound_valid (l u : ℚ) (x : ℝ)
 
 Since sigmoid is strictly monotone:
 
-\\[
+$$
 \sigma(l) \leq \sigma(x) \leq \sigma(u) \quad \text{for } x \in [l, u]
-\\]
+$$
 
 ```lean
 theorem sigmoid_relaxation_sound (l u x : ℝ) (h : l ≤ x ∧ x ≤ u) :
@@ -135,9 +135,9 @@ theorem sigmoid_relaxation_sound (l u x : ℝ) (h : l ≤ x ∧ x ≤ u) :
 
 GELU (Gaussian Error Linear Unit) is the standard activation for Transformers:
 
-\\[
+$$
 \text{GELU}(x) = 0.5 \cdot x \cdot (1 + \tanh(\sqrt{2/\pi} \cdot (x + 0.044715 \cdot x^3)))
-\\]
+$$
 
 ```lean
 def gelu (I : IntervalDyadic) : IntervalDyadic :=
@@ -156,9 +156,9 @@ theorem mem_geluInterval {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
 
 LeanCert verifies the scaled dot-product attention mechanism:
 
-\\[
+$$
 \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q \cdot K^T}{\sqrt{d_k}}\right) \cdot V
-\\]
+$$
 
 ```lean
 import LeanCert.ML.Attention

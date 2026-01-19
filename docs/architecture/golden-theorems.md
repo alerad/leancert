@@ -6,11 +6,11 @@ LeanCert operates on a **certificate-driven architecture**. The Python side disc
 
 A Golden Theorem bridges the gap between a computable boolean check (which `native_decide` can run) and a semantic proposition about real numbers.
 
-For example, to prove \\( f(x) \le c \\) for all \\( x \in I \\), we use:
+For example, to prove $f(x) \le c$ for all $x \in I$, we use:
 
-\\[
+$$
 \text{checkUpperBound}(e, I, c) = \text{true} \implies \forall x \in I,\ \text{eval}(x, e) \le c
-\\]
+$$
 
 The key insight is that the checker runs in the Lean kernel using computable rational arithmetic, while the conclusion is a statement about real numbers.
 
@@ -26,10 +26,10 @@ Golden Theorems are defined across multiple files:
 
 | Goal | Theorem | Checker |
 |------|---------|---------|
-| Upper bound \\( f(x) \le c \\) | `verify_upper_bound` | `checkUpperBound` |
-| Lower bound \\( c \le f(x) \\) | `verify_lower_bound` | `checkLowerBound` |
-| Strict upper \\( f(x) < c \\) | `verify_strict_upper_bound` | `checkStrictUpperBound` |
-| Strict lower \\( c < f(x) \\) | `verify_strict_lower_bound` | `checkStrictLowerBound` |
+| Upper bound $f(x) \le c$ | `verify_upper_bound` | `checkUpperBound` |
+| Lower bound $c \le f(x)$ | `verify_lower_bound` | `checkLowerBound` |
+| Strict upper $f(x) < c$ | `verify_strict_upper_bound` | `checkStrictUpperBound` |
+| Strict lower $c < f(x)$ | `verify_strict_lower_bound` | `checkStrictLowerBound` |
 
 ```lean
 theorem verify_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)

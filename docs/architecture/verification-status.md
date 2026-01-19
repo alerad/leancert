@@ -10,10 +10,10 @@ The following components have complete proofs with no `sorry`:
 
 The Fundamental Theorem of Interval Arithmetic is proved for all basic operations:
 
-- Addition, subtraction: \\( x \in I_1, y \in I_2 \implies x + y \in I_1 + I_2 \\)
-- Multiplication: \\( x \in I_1, y \in I_2 \implies x \cdot y \in I_1 \cdot I_2 \\)
-- Division: \\( x \in I_1, y \in I_2, 0 \notin I_2 \implies x / y \in I_1 / I_2 \\)
-- Power: \\( x \in I \implies x^n \in I^n \\)
+- Addition, subtraction: $x \in I_1, y \in I_2 \implies x + y \in I_1 + I_2$
+- Multiplication: $x \in I_1, y \in I_2 \implies x \cdot y \in I_1 \cdot I_2$
+- Division: $x \in I_1, y \in I_2, 0 \notin I_2 \implies x / y \in I_1 / I_2$
+- Power: $x \in I \implies x^n \in I^n$
 
 ### Transcendental Functions
 
@@ -21,19 +21,19 @@ Rigorous bounds via Taylor series with verified remainder terms:
 
 | Function | Theorem | Location |
 |----------|---------|----------|
-| \\( e^x \\) | `mem_expInterval` | `Core/IntervalReal.lean` |
-| \\( \sin x \\) | `mem_sinInterval` | `Core/IntervalReal.lean` |
-| \\( \cos x \\) | `mem_cosInterval` | `Core/IntervalReal.lean` |
-| \\( \log x \\) | `mem_logInterval` | `Core/IntervalReal.lean` |
-| \\( \sinh x \\) | `mem_sinhInterval` | `Core/IntervalReal.lean` |
-| \\( \cosh x \\) | `mem_coshInterval` | `Core/IntervalReal.lean` |
-| \\( \tanh x \\) | `mem_tanhInterval` | `Core/IntervalReal.lean` |
-| \\( \arctan x \\) | `mem_atanInterval` | `Engine/Eval/Core.lean` |
-| \\( \text{arsinh} x \\) | `mem_arsinhInterval` | `Engine/Eval/Core.lean` |
-| \\( \text{atanh} x \\) | `mem_atanhInterval` | `Engine/Eval/Core.lean` |
-| \\( \sqrt{x} \\) | `mem_sqrtIntervalTight` | `Core/IntervalRat/Transcendental.lean` |
-| \\( \text{erf}(x) \\) | `mem_erfInterval` | `Engine/Eval/Core.lean` |
-| \\( \text{sinc}(x) \\) | `sinc_evalSet_correct` | `Engine/TaylorModel/Trig.lean` |
+| $e^x$ | `mem_expInterval` | `Core/IntervalReal.lean` |
+| $\sin x$ | `mem_sinInterval` | `Core/IntervalReal.lean` |
+| $\cos x$ | `mem_cosInterval` | `Core/IntervalReal.lean` |
+| $\log x$ | `mem_logInterval` | `Core/IntervalReal.lean` |
+| $\sinh x$ | `mem_sinhInterval` | `Core/IntervalReal.lean` |
+| $\cosh x$ | `mem_coshInterval` | `Core/IntervalReal.lean` |
+| $\tanh x$ | `mem_tanhInterval` | `Core/IntervalReal.lean` |
+| $\arctan x$ | `mem_atanInterval` | `Engine/Eval/Core.lean` |
+| $\text{arsinh}(x)$ | `mem_arsinhInterval` | `Engine/Eval/Core.lean` |
+| $\text{atanh}(x)$ | `mem_atanhInterval` | `Engine/Eval/Core.lean` |
+| $\sqrt{x}$ | `mem_sqrtIntervalTight` | `Core/IntervalRat/Transcendental.lean` |
+| $\text{erf}(x)$ | `mem_erfInterval` | `Engine/Eval/Core.lean` |
+| $\text{sinc}(x)$ | `sinc_evalSet_correct` | `Engine/TaylorModel/Trig.lean` |
 
 ### Extended Interval Arithmetic
 

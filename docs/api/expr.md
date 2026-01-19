@@ -34,6 +34,7 @@ lc.sin(x)
 lc.cos(x)
 lc.exp(x)
 lc.log(x)
+lc.sqrt(x)
 lc.tan(x)
 lc.atan(x)
 lc.sinh(x)
@@ -41,6 +42,7 @@ lc.cosh(x)
 lc.tanh(x)
 lc.arsinh(x)
 lc.atanh(x)
+lc.abs(x)
 ```
 
 ### Special Functions

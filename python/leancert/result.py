@@ -119,20 +119,34 @@ class Certificate:
         """Generate Lean code for find_bounds operation."""
         lines = []
         expr_lean = self._expr_to_lean(self.expr_json)
-        domain_lean = self._domain_to_lean(self.domain_json)
         min_lo = self.result_json.get('min', {}).get('lo', {})
+        min_hi = self.result_json.get('min', {}).get('hi', {})
+        max_lo = self.result_json.get('max', {}).get('lo', {})
         max_hi = self.result_json.get('max', {}).get('hi', {})
         taylor_depth = self.metadata.get('taylor_depth', 10)
 
+        is_multivariate = len(self.domain_json) > 1
+
         lines.append(f"-- Expression: {expr_lean}")
-        lines.append(f"-- Domain: {domain_lean}")
+        lines.append(f"-- Domain: {self._domain_to_lean_comment(self.domain_json)}")
         lines.append("")
-        lines.append(f"-- Verified min ≥ {self._rat_to_float(min_lo):.6f}")
-        lines.append(f"-- Verified max ≤ {self._rat_to_float(max_hi):.6f}")
+        # Show full intervals so users see both the proven bound and the tight estimate
+        # min_lo is the proven lower bound, min_hi is the tight upper estimate of the minimum
+        lines.append(f"-- Min ∈ [{self._rat_to_float(min_lo):.6f}, {self._rat_to_float(min_hi):.6f}]")
+        lines.append(f"-- Max ∈ [{self._rat_to_float(max_lo):.6f}, {self._rat_to_float(max_hi):.6f}]")
         lines.append("")
         lines.append("theorem bounds_check :")
-        lines.append(f"    ∀ x ∈ {domain_lean}, {self._rat_to_float(min_lo):.6f} ≤ {expr_lean} ∧ {expr_lean} ≤ {self._rat_to_float(max_hi):.6f} := by")
-        lines.append(f"  interval_bound {taylor_depth}")
+
+        if is_multivariate:
+            # Generate proper nested forall syntax for multivariate
+            quantifiers = self._domain_to_lean_quantifiers(self.domain_json)
+            lines.append(f"    {quantifiers}")
+            lines.append(f"    {self._rat_to_float(min_lo):.6f} ≤ {expr_lean} ∧ {expr_lean} ≤ {self._rat_to_float(max_hi):.6f} := by")
+            lines.append(f"  multivariate_bound")
+        else:
+            domain_lean = self._domain_to_lean(self.domain_json)
+            lines.append(f"    ∀ x ∈ {domain_lean}, {self._rat_to_float(min_lo):.6f} ≤ {expr_lean} ∧ {expr_lean} ≤ {self._rat_to_float(max_hi):.6f} := by")
+            lines.append(f"  interval_bound {taylor_depth}")
 
         return lines
 
@@ -240,18 +254,52 @@ class Certificate:
             return f"<{kind}?>"
 
     def _domain_to_lean(self, domain: list) -> str:
-        """Convert domain JSON to Lean syntax."""
+        """Convert domain JSON to Lean syntax for single variable."""
+        if len(domain) == 1:
+            lo = self._rat_to_float(domain[0].get('lo', {}))
+            hi = self._rat_to_float(domain[0].get('hi', {}))
+            return f"Set.Icc {lo} {hi}"
+        else:
+            # For multivariate, use first interval (caller should use _domain_to_lean_quantifiers)
+            lo = self._rat_to_float(domain[0].get('lo', {}))
+            hi = self._rat_to_float(domain[0].get('hi', {}))
+            return f"Set.Icc {lo} {hi}"
+
+    def _domain_to_lean_comment(self, domain: list) -> str:
+        """Convert domain JSON to human-readable comment format."""
         if len(domain) == 1:
             lo = self._rat_to_float(domain[0].get('lo', {}))
             hi = self._rat_to_float(domain[0].get('hi', {}))
             return f"Set.Icc {lo} {hi}"
         else:
             intervals = []
+            var_names = self._get_var_names(len(domain))
             for i, d in enumerate(domain):
                 lo = self._rat_to_float(d.get('lo', {}))
                 hi = self._rat_to_float(d.get('hi', {}))
-                intervals.append(f"x{i} ∈ [{lo}, {hi}]")
+                intervals.append(f"{var_names[i]} ∈ [{lo}, {hi}]")
             return " × ".join(intervals)
+
+    def _domain_to_lean_quantifiers(self, domain: list) -> str:
+        """Convert domain JSON to nested forall quantifiers for Lean."""
+        var_names = self._get_var_names(len(domain))
+        parts = []
+        for i, d in enumerate(domain):
+            lo = self._rat_to_float(d.get('lo', {}))
+            hi = self._rat_to_float(d.get('hi', {}))
+            parts.append(f"∀ {var_names[i]} ∈ Set.Icc {lo} {hi},")
+        return " ".join(parts)
+
+    def _get_var_names(self, count: int) -> list[str]:
+        """Get variable names for the given count."""
+        if count == 1:
+            return ['x']
+        elif count == 2:
+            return ['x', 'y']
+        elif count == 3:
+            return ['x', 'y', 'z']
+        else:
+            return [f'x{i}' for i in range(count)]
 
     def _rat_to_float(self, rat: dict) -> float:
         """Convert rational JSON to float."""

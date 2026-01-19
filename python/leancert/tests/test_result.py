@@ -263,9 +263,79 @@ class TestCertificateToLeanTactic:
 
         lean_code = cert.to_lean_tactic()
 
-        # Should show multivariate domain format
-        assert 'x0' in lean_code
-        assert 'x1' in lean_code
+        # Should generate valid Lean multivariate syntax
+        # NOT: ∀ x ∈ x0 ∈ [0, 1] × x1 ∈ [0, 2]  (broken)
+        # YES: ∀ x ∈ Set.Icc 0 1, ∀ y ∈ Set.Icc 0 2, ...
+        assert 'Set.Icc' in lean_code
+        # Should NOT have the broken "x ∈ x0 ∈" pattern
+        assert 'x ∈ x0' not in lean_code
+        # Should use multivariate_bound for 2D
+        assert 'multivariate_bound' in lean_code
+
+    def test_to_lean_tactic_multivariate_domain_proper_syntax(self):
+        """Test that multivariate domains produce valid Lean theorem syntax."""
+        from leancert.result import Certificate
+
+        cert = Certificate(
+            operation='find_bounds',
+            expr_json={'kind': 'add',
+                      'e1': {'kind': 'pow', 'base': {'kind': 'var', 'idx': 0}, 'exp': 2},
+                      'e2': {'kind': 'pow', 'base': {'kind': 'var', 'idx': 1}, 'exp': 2}},
+            domain_json=[
+                {'lo': {'n': 0, 'd': 1}, 'hi': {'n': 1, 'd': 1}},
+                {'lo': {'n': 0, 'd': 1}, 'hi': {'n': 1, 'd': 1}}
+            ],
+            result_json={
+                'min': {'lo': {'n': 0, 'd': 1}, 'hi': {'n': 0, 'd': 1}},
+                'max': {'lo': {'n': 2, 'd': 1}, 'hi': {'n': 2, 'd': 1}}
+            },
+            verified=True,
+            lean_version='4.24.0',
+            leancert_version='0.2.0'
+        )
+
+        lean_code = cert.to_lean_tactic()
+
+        # The theorem should have proper nested forall structure
+        # e.g., ∀ x ∈ Set.Icc 0 1, ∀ y ∈ Set.Icc 0 1, ...
+        assert '∀ x ∈ Set.Icc' in lean_code
+        assert '∀ y ∈ Set.Icc' in lean_code
+
+    def test_to_lean_tactic_min_bounds_shows_interval(self):
+        """Test that min bounds display shows the full interval, not just lower bound.
+
+        Issue: For exp(x) on [-1, 1], the optimizer might return:
+        - min_bound = [-0.718, 0.368] where min_lo is loose but min_hi is tight
+        - Displaying "Verified min ≥ -0.718" is technically correct but misleading
+
+        The fix: Show "Min ∈ [-0.718, 0.368]" so users see the meaningful min_hi value.
+        """
+        from leancert.result import Certificate
+
+        # Simulate exp(x) on [-1, 1] with loose lower bound
+        cert = Certificate(
+            operation='find_bounds',
+            expr_json={'kind': 'exp', 'e': {'kind': 'var', 'idx': 0}},
+            domain_json=[{'lo': {'n': -1, 'd': 1}, 'hi': {'n': 1, 'd': 1}}],
+            result_json={
+                'min': {'lo': {'n': -718282, 'd': 1000000}, 'hi': {'n': 367880, 'd': 1000000}},  # [-0.718, 0.368]
+                'max': {'lo': {'n': 2718281, 'd': 1000000}, 'hi': {'n': 2718282, 'd': 1000000}}  # tight max
+            },
+            verified=True,
+            lean_version='4.24.0',
+            leancert_version='0.2.0'
+        )
+
+        lean_code = cert.to_lean_tactic()
+
+        # Should show interval for min, not just the loose lower bound
+        # Old (bad): "-- Verified min ≥ -0.718282"
+        # New (good): "-- Min ∈ [-0.718282, 0.367880]"
+        assert 'Min ∈ [' in lean_code or 'min ∈ [' in lean_code
+        # Should still show max bound
+        assert '2.718' in lean_code
+        # Should NOT show misleading "Verified min ≥ -0.718" without context
+        # (The interval format gives the full picture)
 
     def test_to_lean_tactic_verify_bound(self):
         """Test Lean code generation for verify_bound operation."""
