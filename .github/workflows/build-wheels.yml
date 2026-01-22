@@ -1,0 +1,261 @@
+# Build and publish Python wheels with bundled Lean binaries
+name: Build Wheels
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'python/**'
+      - '.github/workflows/build-wheels.yml'
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  LEAN_VERSION: "v4.16.0"  # Pin Lean version for reproducibility
+
+jobs:
+  # ============================================================
+  # Step 1: Build the Lean binary for each platform
+  # ============================================================
+  build-lean-binary:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            binary_name: lean_bridge
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: aarch64
+            binary_name: lean_bridge
+          - os: macos-13  # Intel
+            platform: macos
+            arch: x86_64
+            binary_name: lean_bridge
+          - os: macos-14  # Apple Silicon
+            platform: macos
+            arch: arm64
+            binary_name: lean_bridge
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+            binary_name: lean_bridge.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Elan (Lean toolchain manager)
+        uses: leanprover/lean4-action@v1
+        with:
+          lean-version: ${{ env.LEAN_VERSION }}
+
+      - name: Cache Lake packages
+        uses: actions/cache@v4
+        with:
+          path: .lake
+          key: lake-${{ matrix.platform }}-${{ matrix.arch }}-${{ hashFiles('lakefile.toml', 'lean-toolchain') }}
+          restore-keys: |
+            lake-${{ matrix.platform }}-${{ matrix.arch }}-
+
+      - name: Build lean_bridge
+        run: lake build lean_bridge
+        shell: bash
+
+      - name: Verify binary
+        run: |
+          ls -la .lake/build/bin/
+          file .lake/build/bin/${{ matrix.binary_name }} || true
+        shell: bash
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean_bridge-${{ matrix.platform }}-${{ matrix.arch }}
+          path: .lake/build/bin/${{ matrix.binary_name }}
+          retention-days: 7
+
+  # ============================================================
+  # Step 2: Build Python wheels with bundled binaries
+  # ============================================================
+  build-wheels:
+    needs: build-lean-binary
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+            cibw_arch: x86_64
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: aarch64
+            cibw_arch: aarch64
+          - os: macos-13
+            platform: macos
+            arch: x86_64
+            cibw_arch: x86_64
+          - os: macos-14
+            platform: macos
+            arch: arm64
+            cibw_arch: arm64
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+            cibw_arch: AMD64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download lean_bridge binary
+        uses: actions/download-artifact@v4
+        with:
+          name: lean_bridge-${{ matrix.platform }}-${{ matrix.arch }}
+          path: python/leancert/bin/
+
+      - name: Make binary executable (Unix)
+        if: matrix.platform != 'windows'
+        run: chmod +x python/leancert/bin/lean_bridge
+
+      - name: Verify binary in place
+        run: ls -la python/leancert/bin/
+        shell: bash
+
+      - name: Install build tools
+        run: pip install build wheel
+
+      - name: Build wheel
+        working-directory: python
+        run: python -m build --wheel
+
+      - name: List built wheels
+        run: ls -la python/dist/
+        shell: bash
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.platform }}-${{ matrix.arch }}
+          path: python/dist/*.whl
+          retention-days: 7
+
+  # ============================================================
+  # Step 3: Build source distribution (platform-independent)
+  # ============================================================
+  build-sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build sdist
+        working-directory: python
+        run: python -m build --sdist
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: python/dist/*.tar.gz
+
+  # ============================================================
+  # Step 4: Test wheels
+  # ============================================================
+  test-wheels:
+    needs: build-wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x86_64
+          - os: macos-14
+            platform: macos
+            arch: arm64
+          - os: windows-latest
+            platform: windows
+            arch: x86_64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout (for test files)
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download wheel
+        uses: actions/download-artifact@v4
+        with:
+          name: wheel-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/
+
+      - name: Install wheel
+        run: pip install dist/*.whl numpy
+        shell: bash
+
+      - name: Run smoke test
+        run: |
+          python -c "
+          import leancert as lc
+          x = lc.var('x')
+          result = lc.find_bounds(x**2, {'x': (0, 1)})
+          print(f'min: {result.min_bound}')
+          print(f'max: {result.max_bound}')
+          assert float(result.min_bound.lo) >= 0
+          assert float(result.max_bound.hi) <= 1.01
+          print('Smoke test passed!')
+          "
+        shell: bash
+
+  # ============================================================
+  # Step 5: Publish to PyPI (on tag push only)
+  # ============================================================
+  publish:
+    needs: [build-wheels, build-sdist, test-wheels]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write  # Required for trusted publishing
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List all packages
+        run: ls -la dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/

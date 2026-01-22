@@ -1,0 +1,7 @@
+# Ignore pre-built binaries (added during wheel build)
+lean_bridge
+lean_bridge.exe
+
+# Keep this directory
+!.gitkeep
+!.gitignore

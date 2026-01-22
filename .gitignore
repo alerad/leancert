@@ -1,3 +1,6 @@
+temp_tests/
+.astrolabe
+publish.sh
 PHILO*
 .idea/
 .atlas-cache/
@@ -15,6 +18,15 @@ __pycache__/
 
 # Scratch/debug files
 tmp_*.lean
+
+# Environment files (contains secrets)
+.env
+python/.env
+
+# Python build artifacts
+python/dist/
+python/build/
+python/*.egg-info/
 
 # CAS Bridge (private until BigCAS launch)
 python/leancert/bridge/

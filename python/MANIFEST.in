@@ -1,0 +1,16 @@
+# Include the pre-built Lean binary
+recursive-include leancert/bin *
+
+# Include license and readme
+include LICENSE
+include README.md
+
+# Include type stubs if present
+recursive-include leancert *.pyi
+include leancert/py.typed
+
+# Exclude test files and caches
+recursive-exclude tests *
+recursive-exclude * __pycache__
+recursive-exclude * *.pyc
+recursive-exclude * *.pyo

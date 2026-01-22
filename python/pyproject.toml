@@ -1,0 +1,110 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leancert"
+version = "0.3.0"
+description = "Formal verification for numerical Python code - powered by Lean4"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    {name = "LeanCert Contributors"}
+]
+keywords = [
+    "formal-verification",
+    "theorem-prover",
+    "interval-arithmetic",
+    "neural-network-verification",
+    "lean4",
+    "mathematical-proofs",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+]
+pytorch = [
+    "torch>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/leanbound/leancert"
+Documentation = "https://leancert.readthedocs.io"
+Repository = "https://github.com/leanbound/leancert"
+Issues = "https://github.com/leanbound/leancert/issues"
+
+[tool.setuptools]
+packages = ["leancert", "leancert.bridge"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+leancert = ["bin/*"]
+
+# Ruff configuration
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]  # line too long - handled by formatter
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --tb=short"
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+# cibuildwheel configuration
+[tool.cibuildwheel]
+# Skip 32-bit builds and PyPy
+skip = ["*-win32", "*-manylinux_i686", "pp*", "*-musllinux*"]
+
+# We don't build the wheel normally - we inject pre-built binaries
+build-frontend = "build"
+
+[tool.cibuildwheel.linux]
+# Use manylinux for compatibility
+manylinux-x86_64-image = "manylinux2014"
+manylinux-aarch64-image = "manylinux2014"
+
+before-build = "scripts/fetch_lean_binary.sh linux {arch}"
+environment = { LEANCERT_PLATFORM = "linux" }
+
+[tool.cibuildwheel.macos]
+before-build = "scripts/fetch_lean_binary.sh macos {arch}"
+environment = { LEANCERT_PLATFORM = "macos" }
+
+[tool.cibuildwheel.windows]
+before-build = "scripts\\fetch_lean_binary.bat windows {arch}"
+environment = { LEANCERT_PLATFORM = "windows" }

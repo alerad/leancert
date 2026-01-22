@@ -53,14 +53,24 @@ class LeanClient:
         if binary_path and os.path.isfile(binary_path):
             return binary_path
 
-        # Try relative to this file (development mode)
+        import sys
         module_dir = Path(__file__).parent
+
+        # Platform-specific binary name
+        binary_name = "lean_bridge.exe" if sys.platform == "win32" else "lean_bridge"
+
+        # Search order:
+        # 1. Bundled with package (pip install leancert)
+        # 2. Development mode (from repo checkout)
+        # 3. System PATH
         candidates = [
-            # From python/leancert -> .lake/build/bin
-            module_dir.parent.parent / ".lake" / "build" / "bin" / "lean_bridge",
-            module_dir.parent.parent.parent / ".lake" / "build" / "bin" / "lean_bridge",
+            # Bundled binary (installed via pip)
+            module_dir / "bin" / binary_name,
+            # Development: from python/leancert -> .lake/build/bin
+            module_dir.parent.parent / ".lake" / "build" / "bin" / binary_name,
+            module_dir.parent.parent.parent / ".lake" / "build" / "bin" / binary_name,
             # From current working directory
-            Path.cwd() / ".lake" / "build" / "bin" / "lean_bridge",
+            Path.cwd() / ".lake" / "build" / "bin" / binary_name,
         ]
 
         for candidate in candidates:
@@ -74,7 +84,8 @@ class LeanClient:
 
         raise FileNotFoundError(
             "Could not find lean_bridge binary. "
-            "Please build it with 'lake build lean_bridge' or specify binary_path."
+            "Install with 'pip install leancert' (includes pre-built binary) "
+            "or build from source with 'lake build lean_bridge'."
         )
 
     def _ensure_process(self) -> subprocess.Popen:
