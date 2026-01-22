@@ -11,9 +11,6 @@ on:
       - '.github/workflows/build-wheels.yml'
   workflow_dispatch:  # Allow manual trigger
 
-env:
-  LEAN_VERSION: "v4.16.0"  # Pin Lean version for reproducibility
-
 jobs:
   # ============================================================
   # Step 1: Build the Lean binary for each platform
@@ -26,10 +23,6 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             arch: x86_64
-            binary_name: lean_bridge
-          - os: ubuntu-24.04-arm
-            platform: linux
-            arch: aarch64
             binary_name: lean_bridge
           - os: macos-13  # Intel
             platform: macos
@@ -50,10 +43,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Elan (Lean toolchain manager)
-        uses: leanprover/lean4-action@v1
-        with:
-          lean-version: ${{ env.LEAN_VERSION }}
+      - name: Install Elan (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Install Elan (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          curl -sSL https://elan.lean-lang.org/elan-init.ps1 | powershell -Command -
+          echo "$env:USERPROFILE\.elan\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+        shell: pwsh
 
       - name: Cache Lake packages
         uses: actions/cache@v4
@@ -92,23 +93,15 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             arch: x86_64
-            cibw_arch: x86_64
-          - os: ubuntu-24.04-arm
-            platform: linux
-            arch: aarch64
-            cibw_arch: aarch64
           - os: macos-13
             platform: macos
             arch: x86_64
-            cibw_arch: x86_64
           - os: macos-14
             platform: macos
             arch: arm64
-            cibw_arch: arm64
           - os: windows-latest
             platform: windows
             arch: x86_64
-            cibw_arch: AMD64
 
     runs-on: ${{ matrix.os }}
 
