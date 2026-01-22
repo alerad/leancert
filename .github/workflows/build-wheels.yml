@@ -24,11 +24,11 @@ jobs:
             platform: linux
             arch: x86_64
             binary_name: lean_bridge
-          - os: macos-13  # Intel
+          - os: macos-15  # Intel
             platform: macos
             arch: x86_64
             binary_name: lean_bridge
-          - os: macos-14  # Apple Silicon
+          - os: macos-latest  # Apple Silicon
             platform: macos
             arch: arm64
             binary_name: lean_bridge
@@ -105,10 +105,10 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             arch: x86_64
-          - os: macos-13
+          - os: macos-15
             platform: macos
             arch: x86_64
-          - os: macos-14
+          - os: macos-latest
             platform: macos
             arch: arm64
           - os: windows-latest
@@ -197,7 +197,7 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             arch: x86_64
-          - os: macos-14
+          - os: macos-latest
             platform: macos
             arch: arm64
           - os: windows-latest
