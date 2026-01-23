@@ -28,7 +28,7 @@ model = MyNetwork()
 model.load_state_dict(torch.load("model.pt"))
 
 # Convert to LeanCert
-net = lf.nn.from_pytorch(model, input_names=['x1', 'x2'])
+net = lc.nn.from_pytorch(model, input_names=['x1', 'x2'])
 
 # Export to Lean code
 lean_code = net.export_lean(
@@ -63,7 +63,7 @@ end MyProject.Networks
 ### `from_pytorch`
 
 ```python
-lf.nn.from_pytorch(
+lc.nn.from_pytorch(
     model: nn.Module,
     input_names: List[str],
     max_denominator: int = 1000
@@ -111,7 +111,7 @@ import numpy as np
 weights = np.array([[1.0, -0.5], [0.25, 0.75]])
 bias = np.array([0.1, -0.2])
 
-layer = lf.nn.Layer.from_numpy(weights, bias, max_denominator=100)
+layer = lc.nn.Layer.from_numpy(weights, bias, max_denominator=100)
 ```
 
 ## Rational Approximation
@@ -137,7 +137,7 @@ The `max_denominator` parameter controls precision:
 
 ```python
 # 1. Export model
-net = lf.nn.from_pytorch(model, ['x'])
+net = lc.nn.from_pytorch(model, ['x'])
 lean_code = net.export_lean(name="classifier")
 
 # 2. Save to file
@@ -194,7 +194,7 @@ model = MNISTNet()
 model.load_state_dict(torch.load("mnist.pt"))
 
 # Export with reasonable precision
-net = lf.nn.from_pytorch(
+net = lc.nn.from_pytorch(
     model,
     input_names=[f'pixel_{i}' for i in range(784)],
     max_denominator=1000
