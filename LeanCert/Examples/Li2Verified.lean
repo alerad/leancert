@@ -24,7 +24,7 @@ using the symmetric combination form which makes the integral absolutely converg
 ## Mathematical Background
 
 The logarithmic integral li(x) = ∫₀ˣ dt/log(t) has a singularity at t=1.
-For li(2), we use Tao's trick: rewrite using the substitution u = t-1:
+For li(2), rewrite using the substitution u = t-1:
 
   li(2) = ∫₀² dt/log(t) = ∫₋₁¹ du/log(1+u)
 
@@ -38,7 +38,7 @@ absolutely convergent!
 
 ## References
 
-* Tao's Zulip discussion on li(2) computation (January 2026)
+* PNT+ blueprint for li(2) computation
 * PNT#759: Verify li(2) ≈ 1.0451
 -/
 

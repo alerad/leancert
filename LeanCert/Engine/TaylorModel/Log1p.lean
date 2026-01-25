@@ -20,7 +20,7 @@ integrals like li(x).
 * `tmLog1p` - Function-level Taylor model
 * `tmLog1p_correct` - Correctness theorem
 
-## Application: Tao's Bound for li(x)
+## Application: Bounds for the Logarithmic Integral li(x)
 
 The symmetric combination g(t) = 1/log(1+t) + 1/log(1-t) appears in the
 principal value integral for li(x). Despite each term having a singularity
@@ -328,7 +328,7 @@ theorem tmLog1p_correct (J : IntervalRat) (n : ℕ)
     rw [Polynomial.aeval_map_algebraMap]
     ring
 
-/-! ### Tao's symmetric combination bound
+/-! ### Symmetric combination bound for li(x)
 
 The key insight: g(t) = 1/log(1+t) + 1/log(1-t) is bounded for t ∈ (0, 1).
 
@@ -478,9 +478,9 @@ theorem symmetricLogCombination_tendsto_one :
     exact this
   exact hdiv
 
-/-- Tao's bound: |g(t)| ≤ C for t ∈ (0, δ) where δ < 1.
+/-- Symmetric combination bound: |g(t)| ≤ C for t ∈ (0, δ) where δ < 1.
 
-For small t, using the Taylor analysis:
+For small t, using Taylor analysis:
   g(t) = 1 + t²/2 · (1/log(1-t²) - 1/log(1+t) - 1/log(1-t)) + O(t⁴)
 
 A crude but sufficient bound: for t ∈ (0, 1/2), |g(t)| ≤ 2.
@@ -609,7 +609,7 @@ theorem symmetricLogCombination_bounded (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 
       _ = 2 * t / t := by ring
       _ = 2 := by field_simp
 
-/-! ### Summary of proven results for Tao's li(2) problem
+/-! ### Summary of proven results for the li(2) computation
 
 **All proofs complete (no sorry):**
 - `log1pTaylorPoly_aeval_eq_sum`: Polynomial evaluation equals Taylor sum
@@ -624,7 +624,7 @@ theorem symmetricLogCombination_bounded (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 
   - Case 1: near 0, uses continuity and limit → 1
   - Case 2: on [ε, 1/2], uses log bounds: log(1+t) ≥ t/(1+t), -log(1-t) ≤ t/(1-t)
 
-The key insight for Tao's problem is `symmetricLogCombination_tendsto_one`:
+The key insight for the li(2) computation is `symmetricLogCombination_tendsto_one`:
 the symmetric combination g(t) = 1/log(1+t) + 1/log(1-t) has a REMOVABLE
 SINGULARITY at t=0, with limit 1. This makes the principal value integral
 for li(2) = ∫₀¹ g(t) dt absolutely convergent.

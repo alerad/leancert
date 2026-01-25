@@ -22,7 +22,7 @@ numerical analysis and the Prime Number Theorem formalization.
 
 ## References
 
-* Tao's Prime Number Theorem formalization (PNT+)
+* Prime Number Theorem formalization (PNT+)
 * Blueprint: Sublemmas 9.1.2-9.1.5
 -/
 
