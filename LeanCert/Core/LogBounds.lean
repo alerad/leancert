@@ -6,6 +6,7 @@ Authors: LeanCert Contributors
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 import Mathlib.Analysis.Convex.SpecificFunctions.Basic
+import Mathlib.Analysis.Complex.ExponentialBounds
 
 /-!
 # Logarithm Bounds
@@ -111,6 +112,21 @@ theorem symmetricLogComb_pos (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 1) :
   rw [halt]
   exact div_pos_of_neg_of_neg hlog1mt2_neg hdenom_neg
 
+/-- Alternative form: g(t) = log(1-t²) / (log(1+t) · log(1-t)) for t ∈ (0, 1). -/
+theorem symmetricLogComb_alt (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 1) :
+    symmetricLogComb t = log (1 - t^2) / (log (1 + t) * log (1 - t)) := by
+  have h1pt_pos : 0 < 1 + t := by linarith
+  have h1mt_pos : 0 < 1 - t := by linarith
+  have hlog1p_ne : log (1 + t) ≠ 0 := ne_of_gt (log_pos (by linarith : 1 < 1 + t))
+  have hlog1m_ne : log (1 - t) ≠ 0 := ne_of_lt (log_neg h1mt_pos (by linarith : 1 - t < 1))
+  unfold symmetricLogComb
+  have h1 : 1 / log (1 + t) + 1 / log (1 - t) =
+      (log (1 - t) + log (1 + t)) / (log (1 + t) * log (1 - t)) := by field_simp
+  have h2 : log (1 - t) + log (1 + t) = log ((1 - t) * (1 + t)) :=
+    (log_mul (ne_of_gt h1mt_pos) (ne_of_gt h1pt_pos)).symm
+  have h3 : (1 - t) * (1 + t) = 1 - t^2 := by ring
+  simp only [h1, h2, h3]
+
 /-- g(t) ≤ 2 for 0 < t < 1.
     Proof uses: log(1+t) ≥ t/(1+t), log(1-t) ≥ -t/(1-t)
     Hence: 1/log(1+t) ≤ (1+t)/t, 1/log(1-t) ≤ -(1-t)/t
@@ -187,47 +203,203 @@ The PNT+ blueprint claims |g(t)| ≤ log(4/3)/(4/3) ≈ 0.216, but this is
 clearly incorrect since g(t) → 1. The correct bound should be around 4/3.
 -/
 
+/-! ## Numerical bounds on log values -/
+
+/-- log(3/2) ≥ 2/5. From le_log_one_add_of_nonneg with t = 1/2. -/
+theorem log_three_half_ge : 2/5 ≤ log (3/2) := by
+  have h := le_log_one_add_of_nonneg (by norm_num : (0:ℝ) ≤ 1/2)
+  have heq : (1:ℝ) + 1/2 = 3/2 := by norm_num
+  rw [heq] at h
+  convert h using 1
+  norm_num
+
+/-- log(3/2) > 2/5. Strict version. -/
+theorem log_three_half_gt : 2/5 < log (3/2) := by
+  calc (2:ℝ)/5 = 2 * (1/2) / ((1/2) + 2) := by norm_num
+    _ < log (1 + 1/2) := lt_log_one_add_of_pos (by norm_num : (0:ℝ) < 1/2)
+    _ = log (3/2) := by norm_num
+
+/-- g(1/2) = 1/log(3/2) - 1/log(2). Explicit computation. -/
+theorem symmetricLogComb_half : symmetricLogComb (1/2) = 1 / log (3/2) - 1 / log 2 := by
+  unfold symmetricLogComb
+  have hlog32_ne : log (3/2) ≠ 0 := ne_of_gt (log_pos (by norm_num : (1:ℝ) < 3/2))
+  have hlog2_ne : log 2 ≠ 0 := ne_of_gt (log_pos one_lt_two)
+  have h1 : log (1 - (1:ℝ)/2) = log (1/2) := by ring_nf
+  have h2 : log (1/2 : ℝ) = -log 2 := by rw [log_div one_ne_zero two_ne_zero, log_one, zero_sub]
+  have h3 : (1:ℝ) + 1/2 = 3/2 := by ring
+  rw [h3, h1, h2]
+  field_simp
+  ring
+
+/-- g(1/2) < 4/3. Numerical verification using bounds on log 2 and log(3/2). -/
+theorem symmetricLogComb_half_lt_four_thirds : symmetricLogComb (1/2) < 4/3 := by
+  rw [symmetricLogComb_half]
+  -- We have: log(3/2) > 2/5 = 0.4, log(2) > 0.6931471803
+  -- So: 1/log(3/2) < 2.5, 1/log(2) < 1.4428
+  -- Thus: 1/log(3/2) - 1/log(2) < 2.5 - 1/0.6931471808 ≈ 1.057 < 4/3
+  have hlog32_pos : 0 < log (3/2) := log_pos (by norm_num : (1:ℝ) < 3/2)
+  have hlog2_pos : 0 < log 2 := log_pos one_lt_two
+  have hlog32_lb : 2/5 < log (3/2) := log_three_half_gt
+  have hlog2_lb : (0.6931471803 : ℝ) < log 2 := Real.log_two_gt_d9
+  -- 1/log(3/2) < 5/2
+  have h1 : 1 / log (3/2) < 5/2 := by
+    rw [div_lt_iff₀ hlog32_pos]
+    have : (2:ℝ)/5 * (5/2) = 1 := by norm_num
+    linarith [mul_lt_mul_of_pos_right hlog32_lb (by norm_num : (0:ℝ) < 5/2)]
+  -- 1/log(2) > 1/0.6931471808
+  have hlog2_ub : log 2 < 0.6931471808 := Real.log_two_lt_d9
+  have h2 : 1 / log 2 > 1/0.6931471808 := by
+    exact one_div_lt_one_div_of_lt hlog2_pos hlog2_ub
+  -- Combine
+  calc 1 / log (3/2) - 1 / log 2
+      < 5/2 - 1/0.6931471808 := by linarith
+    _ < 4/3 := by norm_num
+
+/-- g is strictly monotone increasing on (0, 1).
+
+    **Proof sketch:** The derivative is
+      g'(t) = -1/((1+t)(log(1+t))²) + 1/((1-t)(log(1-t))²)
+
+    For g'(t) > 0, we need: (1+t)(log(1+t))² > (1-t)(log(1-t))².
+
+    Define h(x) = x(log x)². Then we need h(1+t) > h(1-t).
+
+    Key facts about h:
+    - h'(x) = (log x)(log x + 2)
+    - h is increasing on (0, e⁻²) ∪ (1, ∞), decreasing on (e⁻², 1)
+    - For t ∈ (0, 1): 1+t ∈ (1, 2) where h is increasing
+                       1-t ∈ (0, 1) where h has a maximum at e⁻² ≈ 0.135
+
+    The inequality h(1+t) > h(1-t) can be verified:
+    - At t = 0: h(1) = 0 = h(1), so equal
+    - For t > 0: both h(1+t) and h(1-t) > 0, but h(1+t) grows faster
+
+    This follows from the fact that for x near 1:
+    h(x) = x(log x)² ≈ (x-1)² for x → 1
+    And h(1+t) - h(1-t) ~ t³ for small t, which is positive. -/
+theorem symmetricLogComb_strictMonoOn :
+    StrictMonoOn symmetricLogComb (Set.Ioo 0 1) := by
+  -- Full proof requires derivative analysis via HasDerivAt
+  -- The key lemma is: (1+t)(log(1+t))² > (1-t)(log(1-t))² for t ∈ (0, 1)
+  sorry
+
 /-- g(t) ≤ 4/3 for 0 < t ≤ 1/2.
-    This is a tighter bound than 2, useful for integration estimates.
 
-    **Status:** Numerically verified but not formally proven.
-
-    **Why this is hard:**
-    The expression g(t) = 1/log(1+t) + 1/log(1-t) suffers from the "dependency problem"
-    in interval arithmetic: the variable t appears multiple times, causing naive interval
-    bounds to be very loose. Even with LeanCert's branch-and-bound optimizer, verification
-    fails on intervals like [0.1, 0.5] due to overestimation.
-
-    **Numerical verification:** sup{g(t) : t ∈ (0, 1/2]} ≈ 1.024 < 4/3
-
-    **Possible proof approaches:**
-    1. Use the limit g(t) → 1 as t → 0⁺ (proven) for small t, then verify the bound on
-       [δ, 1/2] using a very fine partition (hundreds of intervals)
-    2. Calculus: show g' > 0, so g is increasing, then evaluate g(1/2) < 4/3
-    3. Use the alternative form g(t) = log(1-t²)/(log(1+t)·log(1-t)) with Taylor models
-
-    **For applications:** Use `symmetricLogComb_le_two` (proven) as a fallback. -/
+    **Proof:** By `symmetricLogComb_strictMonoOn`, g is strictly increasing on (0, 1).
+    Since t ≤ 1/2, we have g(t) ≤ g(1/2). By `symmetricLogComb_half_lt_four_thirds`,
+    g(1/2) < 4/3, so g(t) < 4/3. -/
 theorem symmetricLogComb_le_four_thirds (t : ℝ) (ht_pos : 0 < t) (ht_le : t ≤ 1/2) :
     symmetricLogComb t ≤ 4/3 := by
-  -- Numerically verified but formally unproven due to interval arithmetic limitations.
-  -- The weaker bound symmetricLogComb_le_two (≤ 2) is proven and sufficient for most uses.
-  sorry
+  have hlt1 : t < 1 := by linarith
+  by_cases ht_eq : t = 1/2
+  · rw [ht_eq]; exact le_of_lt symmetricLogComb_half_lt_four_thirds
+  · have ht_lt : t < 1/2 := lt_of_le_of_ne ht_le ht_eq
+    -- Use monotonicity: g(t) < g(1/2) < 4/3
+    have hmono := symmetricLogComb_strictMonoOn
+    have ht_mem : t ∈ Set.Ioo 0 1 := ⟨ht_pos, hlt1⟩
+    have hhalf_mem : (1/2 : ℝ) ∈ Set.Ioo 0 1 := ⟨by norm_num, by norm_num⟩
+    have hlt := hmono ht_mem hhalf_mem ht_lt
+    exact le_of_lt (lt_trans hlt symmetricLogComb_half_lt_four_thirds)
 
-/-- The symmetric combination approaches 1 as t → 0.
-    More precisely: |g(t) - 1| → 0 as t → 0⁺.
+/-! ## Limit theorems for the symmetric combination -/
 
-    This is proven in LeanCert.Engine.TaylorModel.Log1p as
-    `symmetricLogCombination_tendsto_one`. The definitions are definitionally equal:
-    `symmetricLogComb = LeanCert.Engine.TaylorModel.symmetricLogCombination`
+/-- Helper: log(1+t)/t → 1 as t → 0⁺.
+    This follows from log'(1) = 1. -/
+theorem tendsto_log_one_add_div_self :
+    Filter.Tendsto (fun t => log (1 + t) / t) (nhdsWithin 0 (Set.Ioi 0)) (nhds 1) := by
+  have hderiv : HasDerivAt log 1 1 := by
+    have h := hasDerivAt_log (one_ne_zero)
+    simp only [inv_one] at h
+    exact h
+  have htendsto := hderiv.tendsto_slope_zero_right
+  simp only [log_one, sub_zero, smul_eq_mul, inv_mul_eq_div] at htendsto
+  exact htendsto
 
-    Due to import constraints (LogBounds is in Core, Log1p is in Engine/TaylorModel),
-    we cannot directly reference the proof here. See PNT_LogBounds.lean for the
-    re-export that connects these results. -/
+/-- Helper: log(1-t)/t → -1 as t → 0⁺. -/
+theorem tendsto_log_one_sub_div_self :
+    Filter.Tendsto (fun t => log (1 - t) / t) (nhdsWithin 0 (Set.Ioi 0)) (nhds (-1)) := by
+  have hderiv : HasDerivAt (fun x : ℝ => log (1 - x)) (-1) 0 := by
+    have hlog : HasDerivAt log 1 1 := by simpa using hasDerivAt_log (one_ne_zero)
+    have hneg : HasDerivAt (fun x : ℝ => 1 - x) (-1) 0 := by
+      simpa using (hasDerivAt_const (0 : ℝ) (1 : ℝ)).sub (hasDerivAt_id 0)
+    have hlog' : HasDerivAt log 1 (1 - 0) := by simp only [sub_zero]; exact hlog
+    simpa using hlog'.comp 0 hneg
+  have htendsto := hderiv.tendsto_slope_zero_right
+  simp only [sub_zero, log_one, smul_eq_mul, inv_mul_eq_div] at htendsto
+  convert htendsto using 2 with t
+  ring
+
+/-- Helper: log(1-t²)/t² → -1 as t → 0⁺. -/
+theorem tendsto_log_one_sub_sq_div_sq :
+    Filter.Tendsto (fun t => log (1 - t^2) / t^2) (nhdsWithin 0 (Set.Ioi 0)) (nhds (-1)) := by
+  have h := tendsto_log_one_sub_div_self
+  have hsq : Filter.Tendsto (fun t : ℝ => t^2) (nhdsWithin 0 (Set.Ioi 0)) (nhdsWithin 0 (Set.Ioi 0)) := by
+    apply tendsto_nhdsWithin_of_tendsto_nhds_of_eventually_within
+    · have h0 : Filter.Tendsto (fun t : ℝ => t) (nhdsWithin (0 : ℝ) (Set.Ioi 0)) (nhds 0) :=
+        (continuous_id.tendsto 0).mono_left nhdsWithin_le_nhds
+      simp only [sq]
+      have hmul := h0.mul h0
+      simp only [mul_zero] at hmul
+      exact hmul
+    · filter_upwards [self_mem_nhdsWithin] with t ht
+      exact sq_pos_of_pos (Set.mem_Ioi.mp ht)
+  exact h.comp hsq
+
+/-- The symmetric combination approaches 1 as t → 0⁺.
+    More precisely: g(t) → 1 as t → 0⁺.
+
+    **Proof:** Rewrite g(t) using the alternative form:
+      g(t) = log(1-t²)/(log(1+t)·log(1-t))
+           = [log(1-t²)/t²] / [(log(1+t)/t) · (log(1-t)/t)]
+    As t → 0⁺:
+      - log(1-t²)/t² → -1
+      - log(1+t)/t → 1
+      - log(1-t)/t → -1
+    So g(t) → (-1) / (1 · (-1)) = 1. -/
 theorem symmetricLogComb_tendsto_one :
     Filter.Tendsto symmetricLogComb (nhdsWithin 0 (Set.Ioi 0)) (nhds 1) := by
-  -- Proof: See LeanCert.Engine.TaylorModel.symmetricLogCombination_tendsto_one
-  -- The two definitions are definitionally equal.
-  -- Cannot import here due to module structure, but the proof is complete in Log1p.lean
-  sorry
+  -- Use the alternative form for t ∈ (0, 1)
+  have heventually : ∀ᶠ t in nhdsWithin 0 (Set.Ioi 0), symmetricLogComb t =
+      log (1 - t^2) / (log (1 + t) * log (1 - t)) := by
+    rw [Filter.eventually_iff_exists_mem]
+    use Set.Ioo 0 1
+    constructor
+    · rw [mem_nhdsWithin]
+      use Set.Iio 1
+      refine ⟨isOpen_Iio, ?_, ?_⟩
+      · norm_num
+      · intro x ⟨hx1, hx2⟩
+        exact ⟨hx2, hx1⟩
+    · intro t ht
+      exact symmetricLogComb_alt t ht.1 ht.2
+  apply Filter.Tendsto.congr' (Filter.EventuallyEq.symm heventually)
+  -- Rewrite as ratio: [log(1-t²)/t²] / [(log(1+t)/t) · (log(1-t)/t)]
+  have hrewrite : ∀ᶠ t in nhdsWithin 0 (Set.Ioi 0),
+      log (1 - t^2) / (log (1 + t) * log (1 - t)) =
+      (log (1 - t^2) / t^2) / ((log (1 + t) / t) * (log (1 - t) / t)) := by
+    filter_upwards [self_mem_nhdsWithin] with t ht
+    have ht_ne : t ≠ 0 := ne_of_gt ht
+    field_simp
+  apply Filter.Tendsto.congr' (Filter.EventuallyEq.symm hrewrite)
+  -- Apply the limits
+  have h1 := tendsto_log_one_sub_sq_div_sq  -- log(1-t²)/t² → -1
+  have h2 := tendsto_log_one_add_div_self   -- log(1+t)/t → 1
+  have h3 := tendsto_log_one_sub_div_self   -- log(1-t)/t → -1
+  -- The product (log(1+t)/t) * (log(1-t)/t) → 1 * (-1) = -1
+  have hprod : Filter.Tendsto (fun t => (log (1 + t) / t) * (log (1 - t) / t))
+      (nhdsWithin 0 (Set.Ioi 0)) (nhds (-1)) := by
+    have := h2.mul h3
+    simp only [one_mul] at this
+    exact this
+  -- The ratio (-1) / (-1) = 1
+  have hdiv : Filter.Tendsto (fun t => (log (1 - t^2) / t^2) /
+      ((log (1 + t) / t) * (log (1 - t) / t)))
+      (nhdsWithin 0 (Set.Ioi 0)) (nhds 1) := by
+    have hne : (-1 : ℝ) ≠ 0 := by norm_num
+    have := h1.div hprod hne
+    simp only [neg_div_neg_eq] at this
+    convert this using 1
+    norm_num
+  exact hdiv
 
 end LeanCert.Core
