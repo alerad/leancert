@@ -335,10 +335,8 @@ Open an issue before starting major work.
 
 ## License
 
-**FSL-1.1-Apache-2.0** (Functional Source License)
+**Apache 2.0**
 
-- **Free** for personal use, research, education, and internal business operations
-- **Commercial license required** for offering verification to third parties
-- **Converts to Apache 2.0** on January 17, 2028
+LeanCert is open source software licensed under the Apache License, Version 2.0.
 
-See [LICENSE](LICENSE) for full terms and [COMMERCIAL.md](COMMERCIAL.md) for pricing.
+See [LICENSE](LICENSE) for full terms.
