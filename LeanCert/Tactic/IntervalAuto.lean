@@ -8,6 +8,9 @@ import LeanCert.Meta.ProveSupported
 import LeanCert.Meta.ToExpr
 import LeanCert.Validity.Bounds
 import LeanCert.Engine.Optimization.BoundVerify
+-- The modular structure is available via:
+-- import LeanCert.Tactic.IntervalAuto.Basic
+-- (contains Types, Norm, Extract, Parse, Diagnostic, ProveCommon)
 
 /-!
 # Automated Interval Arithmetic Tactics
@@ -20,6 +23,23 @@ This file provides smart tactics that automatically:
 ## Main tactics
 
 * `interval_bound` - Automatically prove bounds using interval arithmetic
+* `interval_decide` - Prove point inequalities
+* `interval_auto` - Unified entry point (recommended)
+* `multivariate_bound` - Prove bounds on multivariate expressions
+* `opt_bound` - Prove bounds using global optimization
+* `root_bound` - Prove non-existence of roots
+* `interval_bound_subdiv` - Prove bounds with subdivision
+* `interval_bound_adaptive` - Prove bounds with adaptive branch-and-bound
+
+## Modular Structure
+
+The tactic infrastructure is split across several modules:
+- `IntervalAuto/Types.lean` - Core data structures
+- `IntervalAuto/Norm.lean` - Goal normalization
+- `IntervalAuto/Extract.lean` - Rational extraction
+- `IntervalAuto/Parse.lean` - Goal parsing
+- `IntervalAuto/Diagnostic.lean` - Error reporting
+- `IntervalAuto/ProveCommon.lean` - Shared proving utilities
 
 ## Usage
 
@@ -41,19 +61,6 @@ The tactic detects the goal structure:
 -/
 
 open Lean Meta Elab Tactic Term
-
--- Debug trace option for interval_decide
-initialize registerTraceClass `interval_decide
-
--- Unified debug option for all interval tactics
-register_option leancert.debug : Bool := {
-  defValue := false
-  descr := "Enable detailed diagnostic output for all LeanCert interval tactics"
-}
-
-/-- Check if LeanCert debug mode is enabled -/
-def isLeanCertDebugEnabled : CoreM Bool :=
-  return (← getOptions).getBool `leancert.debug false
 
 namespace LeanCert.Tactic.Auto
 
