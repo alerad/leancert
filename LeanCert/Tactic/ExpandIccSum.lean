@@ -8,7 +8,7 @@ import Mathlib.Order.Interval.Finset.Nat
 import Mathlib.Tactic.Simproc.FinsetInterval
 
 /-!
-# expand_Icc_sum: Expand Finset.Icc sums to explicit additions
+# expand_Icc_sum: Expand Finset interval sums to explicit additions
 
 ## Problem
 
@@ -96,12 +96,20 @@ lemma sum_pair_insert {α : Type*} [AddCommMonoid α] {a b : ℕ} (f : ℕ → �
 
 end ExpandIccSum
 
-/-- Tactic that expands `∑ k ∈ Finset.Icc a b, f k` to `f a + f (a+1) + ... + f b`.
+/-- Tactic that expands finite interval sums to explicit additions.
 
-**Fully automated** - works for any concrete natural number bounds.
+Supports all Finset interval types:
+- `Icc a b` (closed-closed): `[a, b]`
+- `Ico a b` (closed-open): `[a, b)`
+- `Ioc a b` (open-closed): `(a, b]`
+- `Ioo a b` (open-open): `(a, b)`
+- `Iic b` (unbounded below, closed): `[0, b]` for ℕ
+- `Iio b` (unbounded below, open): `[0, b)` for ℕ
+
+**Fully automated** - works for any concrete natural number or integer bounds.
 
 ## Algorithm
-1. Convert `Finset.Icc a b` to explicit set `{a, a+1, ..., b}` using Mathlib's simproc
+1. Convert interval to explicit set using Mathlib's simprocs
 2. Repeatedly apply `Finset.sum_insert` with `native_decide` proving membership
 3. Terminate with `Finset.sum_singleton` or `rfl`
 
@@ -110,15 +118,19 @@ end ExpandIccSum
 example (f : ℕ → ℝ) : ∑ k ∈ Finset.Icc 1 3, f k = f 1 + f 2 + f 3 := by
   expand_Icc_sum
 
--- Works for any concrete bounds:
-example (f : ℕ → ℝ) : ∑ k ∈ Finset.Icc 10 15, f k = f 10 + f 11 + f 12 + f 13 + f 14 + f 15 := by
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 1 4, f k = f 1 + f 2 + f 3 := by
+  expand_Icc_sum
+
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iic 2, f k = f 0 + f 1 + f 2 := by
   expand_Icc_sum
 ```
 -/
 macro "expand_Icc_sum" : tactic =>
   `(tactic| (
-    -- Step 1: Use Mathlib's simproc to compute Finset.Icc to explicit set
-    simp only [Finset.Icc_ofNat_ofNat, Finset.Ico_ofNat_ofNat]
+    -- Step 1: Use Mathlib's simprocs to compute Finset intervals to explicit sets
+    simp only [Finset.Icc_ofNat_ofNat, Finset.Ico_ofNat_ofNat,
+               Finset.Ioc_ofNat_ofNat, Finset.Ioo_ofNat_ofNat,
+               Finset.Iic_ofNat, Finset.Iio_ofNat]
     -- Step 2: Repeatedly expand using sum_insert with native_decide for membership
     repeat (first
       | rfl
@@ -133,7 +145,9 @@ simplifications.
 -/
 macro "expand_Icc_sum!" : tactic =>
   `(tactic| (
-    simp only [Finset.Icc_ofNat_ofNat, Finset.Ico_ofNat_ofNat]
+    simp only [Finset.Icc_ofNat_ofNat, Finset.Ico_ofNat_ofNat,
+               Finset.Ioc_ofNat_ofNat, Finset.Ioo_ofNat_ofNat,
+               Finset.Iic_ofNat, Finset.Iio_ofNat]
     repeat (first
       | rfl
       | simp only [Finset.sum_singleton]

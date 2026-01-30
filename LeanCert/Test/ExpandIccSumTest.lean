@@ -10,16 +10,55 @@ import Mathlib.Tactic.Ring
 /-!
 # Tests for expand_Icc_sum tactic
 
-These tests verify that `expand_Icc_sum` correctly expands Finset.Icc sums
+These tests verify that `expand_Icc_sum` correctly expands Finset interval sums
 to explicit additions for **any** concrete bounds.
+
+Supported interval types:
+- `Icc` (closed-closed): `[a, b]`
+- `Ico` (closed-open): `[a, b)`
+- `Ioc` (open-closed): `(a, b]`
+- `Ioo` (open-open): `(a, b)`
+- `Iic` (unbounded below, closed): `[0, b]` for ℕ
+- `Iio` (unbounded below, open): `[0, b)` for ℕ
 
 ## Key Feature: Fully Automated
 
 Unlike a precomputed lemma library, `expand_Icc_sum` works for ANY concrete
-natural number bounds - no need to enumerate cases upfront.
+natural number or integer bounds - no need to enumerate cases upfront.
 -/
 
 namespace ExpandIccSum.Test
+
+/-! ### Direct simproc tests (intervals without sums)
+
+These tests verify that the Mathlib simprocs work directly on intervals.
+-/
+
+section SimprocTests
+
+-- Icc simproc (should work)
+example : Finset.Icc 1 3 = {1, 2, 3} := by simp only [Finset.Icc_ofNat_ofNat]
+
+-- Ico simproc (should work)
+example : Finset.Ico 1 4 = {1, 2, 3} := by simp only [Finset.Ico_ofNat_ofNat]
+
+-- Ioc simproc (test if it works directly)
+example : Finset.Ioc 1 3 = {2, 3} := by simp only [Finset.Ioc_ofNat_ofNat]
+
+-- Test Ioc inside a sum - does simp reach it?
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioc 1 3, f k = ∑ k ∈ ({2, 3} : Finset ℕ), f k := by
+  simp only [Finset.Ioc_ofNat_ofNat]
+
+-- Ioo simproc (test if it works directly)
+example : Finset.Ioo 1 4 = {2, 3} := by simp only [Finset.Ioo_ofNat_ofNat]
+
+-- Iic simproc (test if it works directly)
+example : Finset.Iic 2 = {0, 1, 2} := by simp only [Finset.Iic_ofNat]
+
+-- Iio simproc (test if it works directly)
+example : Finset.Iio 3 = {0, 1, 2} := by simp only [Finset.Iio_ofNat]
+
+end SimprocTests
 
 /-! ### Basic functionality tests -/
 
@@ -45,6 +84,86 @@ example (f : ℕ → ℝ) : ∑ k ∈ Finset.Icc 0 4, f k = f 0 + f 1 + f 2 + f 
 example (f : ℕ → ℝ) : ∑ k ∈ Finset.Icc 1 5, f k = f 1 + f 2 + f 3 + f 4 + f 5 := by expand_Icc_sum
 
 end BasicTests
+
+/-! ### Ico (closed-open) interval tests -/
+
+section IcoTests
+
+-- Ico excludes the upper bound
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 1 3, f k = f 1 + f 2 := by expand_Icc_sum
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 0 4, f k = f 0 + f 1 + f 2 + f 3 := by expand_Icc_sum
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 5 8, f k = f 5 + f 6 + f 7 := by expand_Icc_sum
+
+-- Single element (upper = lower + 1)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 3 4, f k = f 3 := by expand_Icc_sum
+
+-- Empty (upper = lower)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 5 5, f k = 0 := by expand_Icc_sum!
+
+end IcoTests
+
+/-! ### Ioc (open-closed) interval tests -/
+
+section IocTests
+
+-- Ioc excludes the lower bound
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioc 1 3, f k = f 2 + f 3 := by expand_Icc_sum
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioc 0 4, f k = f 1 + f 2 + f 3 + f 4 := by expand_Icc_sum
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioc 5 8, f k = f 6 + f 7 + f 8 := by expand_Icc_sum
+
+-- Single element (upper = lower + 1)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioc 3 4, f k = f 4 := by expand_Icc_sum
+
+-- Empty (upper = lower)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioc 5 5, f k = 0 := by expand_Icc_sum!
+
+end IocTests
+
+/-! ### Ioo (open-open) interval tests -/
+
+section IooTests
+
+-- Ioo excludes both bounds
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioo 1 4, f k = f 2 + f 3 := by expand_Icc_sum
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioo 0 5, f k = f 1 + f 2 + f 3 + f 4 := by expand_Icc_sum
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioo 5 9, f k = f 6 + f 7 + f 8 := by expand_Icc_sum
+
+-- Single element
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioo 3 5, f k = f 4 := by expand_Icc_sum
+
+-- Empty (upper = lower + 1)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioo 5 6, f k = 0 := by expand_Icc_sum!
+
+end IooTests
+
+/-! ### Iic (unbounded below, closed) interval tests -/
+
+section IicTests
+
+-- Iic n = [0, n] for ℕ
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iic 2, f k = f 0 + f 1 + f 2 := by expand_Icc_sum
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iic 4, f k = f 0 + f 1 + f 2 + f 3 + f 4 := by expand_Icc_sum
+
+-- Single element
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iic 0, f k = f 0 := by expand_Icc_sum
+
+end IicTests
+
+/-! ### Iio (unbounded below, open) interval tests -/
+
+section IioTests
+
+-- Iio n = [0, n) for ℕ
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iio 3, f k = f 0 + f 1 + f 2 := by expand_Icc_sum
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iio 5, f k = f 0 + f 1 + f 2 + f 3 + f 4 := by expand_Icc_sum
+
+-- Single element
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iio 1, f k = f 0 := by expand_Icc_sum
+
+-- Empty
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iio 0, f k = 0 := by expand_Icc_sum!
+
+end IioTests
 
 /-! ### Automation showcase: arbitrary bounds
 
