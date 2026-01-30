@@ -49,17 +49,39 @@ open scoped ENNReal
 
 /-! ### Helper definitions for certified integral bounds via native_decide -/
 
-/-- Boolean checker for integral lower bounds using `integratePartitionWithInv`. -/
+/-- Boolean checker for integral lower bounds using `integratePartitionWithInv`.
+    Uses uniform partitioning - slower but simpler. -/
 def checkIntegralLowerBound (e : Expr) (I : IntervalRat) (n : ℕ) (c : ℚ) : Bool :=
   match integratePartitionWithInv e I n with
   | some J => decide (c ≤ J.lo)
   | none => false
 
-/-- Boolean checker for integral upper bounds using `integratePartitionWithInv`. -/
+/-- Boolean checker for integral upper bounds using `integratePartitionWithInv`.
+    Uses uniform partitioning - slower but simpler. -/
 def checkIntegralUpperBound (e : Expr) (I : IntervalRat) (n : ℕ) (c : ℚ) : Bool :=
   match integratePartitionWithInv e I n with
   | some J => decide (J.hi ≤ c)
   | none => false
+
+/-! ### Adaptive integration checkers for better performance
+
+Adaptive integration concentrates partitions where the error is high,
+dramatically reducing computation time for functions with varying smoothness.
+For g(t) = 1/log(1+t) + 1/log(1-t), which has large derivatives near t=0 and t=1,
+adaptive integration can achieve the same precision with ~10x fewer evaluations. -/
+
+/-- Boolean checker for adaptive integral lower bounds.
+    Uses tolerance-based adaptive bisection instead of uniform partitioning.
+    Parameters: tol = error tolerance, maxDepth = recursion limit -/
+def checkIntegralAdaptiveLowerBoundLocal (e : Expr) (I : IntervalRat) (tol : ℚ)
+    (maxDepth : ℕ) (c : ℚ) : Bool :=
+  checkIntegralAdaptiveLowerBound e I tol maxDepth c
+
+/-- Boolean checker for adaptive integral upper bounds.
+    Uses tolerance-based adaptive bisection instead of uniform partitioning. -/
+def checkIntegralAdaptiveUpperBoundLocal (e : Expr) (I : IntervalRat) (tol : ℚ)
+    (maxDepth : ℕ) (c : ℚ) : Bool :=
+  checkIntegralAdaptiveUpperBound e I tol maxDepth c
 
 /-- Bridge theorem: if `checkIntegralLowerBound` returns true, the integral is ≥ c. -/
 theorem integral_lower_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
@@ -974,11 +996,8 @@ theorem g_alt_intervalIntegrable_main :
 
 set_option maxHeartbeats 4000000 in
 /-- Verified lower bound on ∫[1/1000, 999/1000] g(t) dt.
-    Computed via integratePartitionWithInv with 3000 partitions using g_alt_expr.
-
-    The computation `integratePartitionWithInv g_alt_expr g_mid_interval_main 3000`
-    returns `some I` where `I.lo ≥ 103775/100000` and `I.hi ≤ 104840/100000`.
-    This was verified in temp_tests/CheckAltFinal2.lean. -/
+    Uses uniform partitioning with N=3000 partitions.
+    TODO: Optimize with Bernstein bounds or better partition selection. -/
 theorem g_mid_integral_lower :
     (103775:ℚ)/100000 ≤ ∫ t in (1/1000:ℝ)..(999/1000), g t := by
   -- Use g_alt_integral_eq to transfer from g to g_alt_expr
@@ -986,7 +1005,7 @@ theorem g_mid_integral_lower :
   -- Normalize the rational cast
   have hcast : ((103775:ℚ)/100000 : ℝ) = ((103775/100000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  -- Apply the certified bound theorem
+  -- Apply the certified bound theorem with uniform partitioning
   have hcheck : checkIntegralLowerBound g_alt_expr g_mid_interval_main 3000 (103775/100000) = true := by
     native_decide
   have hsupp := g_alt_expr_supported
@@ -998,7 +1017,8 @@ theorem g_mid_integral_lower :
     (103775/100000) hcheck hInt
 
 set_option maxHeartbeats 4000000 in
-/-- Verified upper bound on ∫[1/1000, 999/1000] g(t) dt. -/
+/-- Verified upper bound on ∫[1/1000, 999/1000] g(t) dt.
+    Uses uniform partitioning with N=3000 partitions. -/
 theorem g_mid_integral_upper :
     ∫ t in (1/1000:ℝ)..(999/1000), g t ≤ (104840:ℚ)/100000 := by
   rw [← g_alt_integral_eq]
