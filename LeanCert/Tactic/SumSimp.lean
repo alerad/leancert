@@ -8,7 +8,7 @@ import Mathlib.Order.Interval.Finset.Nat
 import Mathlib.Tactic.Simproc.FinsetInterval
 
 /-!
-# expand_Icc_sum: Expand Finset interval sums to explicit additions
+# sum_simp: Expand Finset interval sums to explicit additions
 
 ## Problem
 
@@ -27,7 +27,7 @@ This is tedious and error-prone.
 
 ## Solution
 
-This file provides the `expand_Icc_sum` tactic that **automatically** expands
+This file provides the `sum_simp` tactic that **automatically** expands
 `∑ k ∈ Finset.Icc a b, f k` to `f a + f (a+1) + ... + f b` for **any** concrete bounds.
 
 ## Design Journey & Failed Approaches
@@ -82,11 +82,11 @@ The tactic leverages:
 
 ## Main definitions
 
-* `expand_Icc_sum` - tactic that expands Finset.Icc sums to explicit additions
-* `expand_Icc_sum!` - extended version with additional normalization
+* `sum_simp` - tactic that expands Finset interval sums to explicit additions
+* `sum_simp!` - extended version with additional normalization
 -/
 
-namespace ExpandIccSum
+namespace SumSimp
 
 /-- Sum over a two-element set (helper lemma, not strictly needed but useful) -/
 @[simp]
@@ -94,7 +94,7 @@ lemma sum_pair_insert {α : Type*} [AddCommMonoid α] {a b : ℕ} (f : ℕ → �
     ∑ x ∈ ({a, b} : Finset ℕ), f x = f a + f b := by
   rw [Finset.sum_insert (Finset.notMem_singleton.mpr h), Finset.sum_singleton]
 
-end ExpandIccSum
+end SumSimp
 
 /-- Tactic that expands finite interval sums to explicit additions.
 
@@ -116,16 +116,16 @@ Supports all Finset interval types:
 ## Example
 ```lean
 example (f : ℕ → ℝ) : ∑ k ∈ Finset.Icc 1 3, f k = f 1 + f 2 + f 3 := by
-  expand_Icc_sum
+  sum_simp
 
 example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 1 4, f k = f 1 + f 2 + f 3 := by
-  expand_Icc_sum
+  sum_simp
 
 example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iic 2, f k = f 0 + f 1 + f 2 := by
-  expand_Icc_sum
+  sum_simp
 ```
 -/
-macro "expand_Icc_sum" : tactic =>
+macro "sum_simp" : tactic =>
   `(tactic| (
     -- Step 1: Use Mathlib's simprocs to compute Finset intervals to explicit sets
     simp only [Finset.Icc_ofNat_ofNat, Finset.Ico_ofNat_ofNat,
@@ -143,7 +143,7 @@ macro "expand_Icc_sum" : tactic =>
 Use this when the sum might be empty (b < a) or when you need `add_zero`/`zero_add`
 simplifications.
 -/
-macro "expand_Icc_sum!" : tactic =>
+macro "sum_simp!" : tactic =>
   `(tactic| (
     simp only [Finset.Icc_ofNat_ofNat, Finset.Ico_ofNat_ofNat,
                Finset.Ioc_ofNat_ofNat, Finset.Ioo_ofNat_ofNat,
