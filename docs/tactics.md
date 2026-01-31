@@ -337,6 +337,8 @@ import LeanCert.Tactic.Discovery
 | `interval_bound_subdiv` | Tight bounds via subdivision | `native_decide` | Slow |
 | `interval_argmax` | Find maximizer point | `native_decide` | Slow |
 | `interval_argmin` | Find minimizer point | `native_decide` | Slow |
+| `vec_simp` | Simplify vector indexing | `dsimp` | Fast |
+| `finsum_expand` | Expand finite sums | `native_decide` | Fast |
 
 ---
 
@@ -545,6 +547,98 @@ example : ∀ x ∈ I01, (0 : ℚ) ≤ Expr.eval (fun _ => x) xSq := by
 `interval_ext_le`, `interval_ext_ge`, `interval_ext_lt`, `interval_ext_gt`
 
 These reduce the goal to a rational inequality that must be proved manually.
+
+---
+
+## Simplification Tactics
+
+### `vec_simp`
+
+Simplifies vector indexing expressions with explicit `Fin.mk` constructors.
+
+```lean
+import LeanCert.Tactic.VecSimp
+
+-- Basic indexing: reduces ![a, b, c] ⟨i, proof⟩ to the i-th element
+example : (![1, 2, 3] : Fin 3 → ℕ) ⟨0, by omega⟩ = 1 := by vec_simp
+example : (![1, 2, 3] : Fin 3 → ℕ) ⟨1, by omega⟩ = 2 := by vec_simp
+example : (![1, 2, 3] : Fin 3 → ℕ) ⟨2, by omega⟩ = 3 := by vec_simp
+
+-- Symbolic elements
+example (a b c : ℝ) : (![a, b, c] : Fin 3 → ℝ) ⟨1, by omega⟩ = b := by vec_simp
+
+-- Longer vectors
+example : (![1, 2, 3, 4, 5] : Fin 5 → ℕ) ⟨3, by omega⟩ = 4 := by vec_simp
+
+-- In expressions (simplifies all vector indexing)
+example (a b c : ℝ) : (![a, b, c] : Fin 3 → ℝ) ⟨0, by omega⟩ + 1 = a + 1 := by vec_simp
+
+-- Combines well with ring for algebraic manipulation
+example (a₀ a₁ : ℝ) :
+    (![a₀, a₁] : Fin 2 → ℝ) ⟨0, by omega⟩ * (![a₀, a₁] : Fin 2 → ℝ) ⟨1, by omega⟩ +
+    (![a₀, a₁] : Fin 2 → ℝ) ⟨1, by omega⟩ * (![a₀, a₁] : Fin 2 → ℝ) ⟨0, by omega⟩ = 2 * a₀ * a₁ := by
+  vec_simp; ring
+```
+
+**Why this exists:** Mathlib's `cons_val` simproc only matches numeric literals like `0`, `1`, `2`. It doesn't match explicit `Fin.mk` applications like `⟨0, by omega⟩`, which commonly appear in proofs. This tactic fills that gap.
+
+---
+
+### `finsum_expand`
+
+Expands finite sums over Finsets into explicit additions.
+
+```lean
+import LeanCert.Tactic.FinSumExpand
+
+-- Interval finsets (Icc = closed-closed)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Icc 1 3, f k = f 1 + f 2 + f 3 := by finsum_expand
+
+-- Single element
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Icc 5 5, f k = f 5 := by finsum_expand
+
+-- Ico (closed-open)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 1 4, f k = f 1 + f 2 + f 3 := by finsum_expand
+
+-- Ioc (open-closed)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioc 1 3, f k = f 2 + f 3 := by finsum_expand
+
+-- Ioo (open-open)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioo 1 4, f k = f 2 + f 3 := by finsum_expand
+
+-- Iic (unbounded below, closed) - for ℕ, means [0, n]
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iic 2, f k = f 0 + f 1 + f 2 := by finsum_expand
+
+-- Iio (unbounded below, open) - for ℕ, means [0, n)
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Iio 3, f k = f 0 + f 1 + f 2 := by finsum_expand
+
+-- Empty intervals
+example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ico 5 5, f k = 0 := by finsum_expand
+
+-- Explicit finsets
+example (f : ℕ → ℝ) : ∑ k ∈ ({1, 3, 7} : Finset ℕ), f k = f 1 + f 3 + f 7 := by finsum_expand
+
+-- Combines with ring for evaluation
+example : ∑ k ∈ Finset.Icc 1 4, (fun n : ℕ => (n : ℝ)) k = 10 := by finsum_expand; ring
+
+-- Power series patterns
+example (a : ℕ → ℝ) (r : ℝ) : ∑ n ∈ Finset.Icc 1 3, |a n| * r ^ n =
+    |a 1| * r ^ 1 + |a 2| * r ^ 2 + |a 3| * r ^ 3 := by finsum_expand
+```
+
+**Supported interval types:**
+
+| Interval | Meaning | Example |
+|----------|---------|---------|
+| `Finset.Icc a b` | [a, b] closed-closed | `Icc 1 3` → {1, 2, 3} |
+| `Finset.Ico a b` | [a, b) closed-open | `Ico 1 4` → {1, 2, 3} |
+| `Finset.Ioc a b` | (a, b] open-closed | `Ioc 1 3` → {2, 3} |
+| `Finset.Ioo a b` | (a, b) open-open | `Ioo 1 4` → {2, 3} |
+| `Finset.Iic n` | [0, n] for ℕ | `Iic 2` → {0, 1, 2} |
+| `Finset.Iio n` | [0, n) for ℕ | `Iio 3` → {0, 1, 2} |
+| `{a, b, ...}` | Explicit set | `{1, 3, 7}` |
+
+**Why this exists:** When proving bounds involving finite sums, you often need to expand them for arithmetic simplification. Without this tactic, you'd need to manually define "bridge lemmas" for each specific range.
 
 ---
 

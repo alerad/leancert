@@ -13,5 +13,3 @@ jobs:
 
       - name: Update Mathlib
         uses: leanprover-community/mathlib-update-action@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
