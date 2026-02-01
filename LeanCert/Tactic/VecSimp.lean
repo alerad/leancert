@@ -4,6 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Mathlib.Data.Fin.VecNotation
+import Mathlib.Algebra.Order.Group.Abs
+import Mathlib.Tactic.NormNum
 
 /-!
 # vec_simp & dite_simp: Simplification for vectors and dependent if-then-else
@@ -87,8 +89,10 @@ simp (config := { decide := true }) only [dite_true, dite_false]
 ## Main definitions
 
 * `VecSimp.vecConsFinMk` - dsimproc for reducing `vecCons` with `Fin.mk` indices
-* `vec_simp` - tactic macro combining the simproc with standard vector lemmas
-* `vec_simp!` - aggressive variant that also simplifies `dite` conditions and abs
+* `vec_simp` - basic tactic for vector indexing with `Fin.mk` indices
+* `vec_simp!` - **all-in-one tactic** for vectors, matrices, dite, abs, and norm_num
+  - Use `vec_simp!` for simple cases
+  - Use `vec_simp! [M]` for matrices with definition M
 * `dite_simp` - standalone tactic for simplifying dite with decidable literal conditions
 -/
 
@@ -101,48 +105,60 @@ open Lean Meta Elab Tactic
 def getFinMkVal? (e : Expr) : MetaM (Option Nat) := do
   -- Try to match Fin.mk _ val _
   let e ← whnfR e
-  match e.getAppFnArgs with
-  | (``Fin.mk, #[_, val, _]) =>
-    -- val should be a natural number literal
-    let val ← whnfR val
+  let args := e.getAppArgs
+  -- Fin.mk has 3 args: n (bound), val, proof
+  if e.getAppFn.constName? == some ``Fin.mk && args.size == 3 then
+    let val ← whnfR args[1]!
     match val.nat? with
     | some n => return some n
     | none => return none
-  | _ => return none
+  else
+    return none
 
 /-- Recursively traverse a vecCons chain to extract the element at index `idx`.
     Returns `some elem` if successful, `none` otherwise. -/
 partial def getVecElem (idx : Nat) (e : Expr) : MetaM (Option Expr) := do
   let e ← whnfR e
-  match e.getAppFnArgs with
-  | (``Matrix.vecCons, #[_, _, head, tail]) =>
+  let args := e.getAppArgs
+  -- Matrix.vecCons has 4 args when not applied to an index: α, n, head, tail
+  if e.getAppFn.constName? == some ``Matrix.vecCons && args.size >= 4 then
+    let head := args[2]!
+    let tail := args[3]!
     if idx == 0 then
       return some head
     else
       getVecElem (idx - 1) tail
-  | _ => return none
+  else
+    return none
 
 /-- Simproc: Reduce `![a, b, c, ...] ⟨n, proof⟩` to the n-th element.
 
     This handles the case where the index is an explicit `Fin.mk` application
-    rather than a numeric literal (which Mathlib's `cons_val` handles). -/
+    rather than a numeric literal (which Mathlib's `cons_val` handles).
+
+    The expression structure is: `App (Matrix.vecCons α n head tail) idx`
+    which gives 5 args total to the vecCons function. -/
 dsimproc vecConsFinMk (Matrix.vecCons _ _ _) := fun e => do
   let e ← whnfR e
-  match e.getAppFnArgs with
-  | (``Matrix.vecCons, #[_α, _en, x, xs, ei]) =>
-    -- First check if it's a standard numeric literal - let Mathlib handle those
-    let ei ← whnfR ei
-    if ei.int?.isSome then
-      return .continue
-    -- Try to extract index from Fin.mk
-    let some i ← getFinMkVal? ei | return .continue
-    -- Get the element at index i
-    if i == 0 then
-      return .done x
-    else
-      let some result ← getVecElem (i - 1) xs | return .continue
-      return .done result
-  | _ => return .continue
+  let args := e.getAppArgs
+  -- When vecCons is applied to an index, we have 5 args: α, n, head, tail, idx
+  if e.getAppFn.constName? != some ``Matrix.vecCons || args.size != 5 then
+    return .continue
+  let x := args[2]!   -- head
+  let xs := args[3]!  -- tail
+  let ei := args[4]!  -- index
+  -- First check if it's a standard numeric literal - let Mathlib handle those
+  let ei ← whnfR ei
+  if ei.int?.isSome then
+    return .continue
+  -- Try to extract index from Fin.mk
+  let some i ← getFinMkVal? ei | return .continue
+  -- Get the element at index i
+  if i == 0 then
+    return .done x
+  else
+    let some result ← getVecElem (i - 1) xs | return .continue
+    return .done result
 
 end VecSimp
 
@@ -161,16 +177,15 @@ macro "vec_simp" : tactic =>
   `(tactic| simp only [VecSimp.vecConsFinMk, Matrix.cons_val_zero, Matrix.cons_val_zero',
                        Matrix.cons_val_one, Matrix.head_cons])
 
-/-- Aggressive variant of `vec_simp` that also simplifies `dite` conditions
-    and absolute values of positive literals.
+/-- Aggressive variant of `vec_simp` for simple vector/dite expressions.
 
-    Combines vector indexing simplification with `dite_simp` to handle
-    patterns like bounds checking in vector access and absolute value simplification.
+    Simplifies vector indexing with `Fin.mk` indices, evaluates decidable `dite`
+    conditions, handles absolute values, and tries `norm_num` to close numeric goals.
+
+    For matrices with named definitions, use `vec_simp! [M]` instead.
 
     Example:
     ```lean
-    -- Simplifies vector indexing, dite conditions, AND absolute values
-    example : |4321 / 432| = (4321 : ℝ) / 432 := by simp [abs_of_pos]
     example (f : (1 : ℕ) ≤ 2 → ℕ) :
         (if h : (1 : ℕ) ≤ 2 then (![1, 2, 3] : Fin 3 → ℕ) ⟨1, by omega⟩ else 0)
         = 2 := by
@@ -184,6 +199,31 @@ macro "vec_simp!" : tactic =>
       Matrix.cons_val_one, Matrix.head_cons, dite_true, dite_false,
       abs_of_pos, abs_of_nonneg
     ]
+    try norm_num
+  ))
+
+/-- Version of `vec_simp!` for matrices with named definitions.
+
+    Disables Mathlib simprocs (to avoid PANIC with `fin_cases`), unfolds the
+    given definitions, then applies vector simplification, dite evaluation,
+    abs simplification, and `norm_num`.
+
+    Example:
+    ```lean
+    def M : Fin 3 → Fin 3 → ℝ := ![![1, 2, 3], ![4, 5, 6], ![7, 8, 9]]
+    example : ∀ i j : Fin 3, |M i j| ≤ 9 := by
+      intro i j
+      fin_cases i <;> fin_cases j
+      all_goals vec_simp! [M]
+    ```
+-/
+macro "vec_simp!" "[" defs:Lean.Parser.Tactic.simpLemma,* "]" : tactic =>
+  `(tactic| (
+    set_option simprocs false in simp [$defs,*]
+    try simp only [VecSimp.vecConsFinMk]
+    try simp (config := { decide := true }) only [dite_true, dite_false]
+    try simp only [abs_of_pos, abs_of_nonneg]
+    try norm_num
   ))
 
 /-- Tactic that simplifies `dite` expressions with decidable literal conditions.
@@ -232,3 +272,5 @@ macro "vec_simp!" : tactic =>
 -/
 macro "dite_simp" : tactic =>
   `(tactic| simp (config := { decide := true }) only [dite_true, dite_false])
+
+-- Note: matrix_simp and matrix_simp! are deprecated; use vec_simp! [defs] instead

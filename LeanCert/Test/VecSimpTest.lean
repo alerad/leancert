@@ -5,7 +5,11 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.VecSimp
 import Mathlib.Data.Real.Basic
+import Mathlib.Data.Fin.Basic
+import Mathlib.Data.Fintype.Basic
 import Mathlib.Tactic.Ring
+import Mathlib.Tactic.FinCases
+import Mathlib.Tactic.NormNum
 
 /-!
 # Tests for vec_simp, vec_simp!, and dite_simp tactics
@@ -112,3 +116,82 @@ example :
   vec_simp!
 
 end VecSimpBang.Test
+
+/-! ## Tests for vec_simp! with matrices -/
+
+namespace MatrixSimp.Test
+
+open Matrix in
+def testMatrix : Fin 3 → Fin 3 → ℝ :=
+  ![![1, 2, 3], ![4, 5, 6], ![7, 8, 9]]
+
+-- vec_simp! handles matrix + norm_num in one call
+example : ∀ i j : Fin 3, testMatrix i j ≤ 9 := by
+  intro i j
+  fin_cases i <;> fin_cases j
+  all_goals vec_simp! [testMatrix]
+
+-- vec_simp! with absolute values
+example : ∀ i j : Fin 3, |testMatrix i j| ≤ 9 := by
+  intro i j
+  fin_cases i <;> fin_cases j
+  all_goals vec_simp! [testMatrix]
+
+-- Larger matrix (5x5)
+open Matrix in
+def bigMatrix : Fin 5 → Fin 5 → ℝ :=
+  ![![1, 2, 3, 4, 5],
+    ![6, 7, 8, 9, 10],
+    ![11, 12, 13, 14, 15],
+    ![16, 17, 18, 19, 20],
+    ![21, 22, 23, 24, 25]]
+
+example : ∀ i j : Fin 5, bigMatrix i j ≤ 25 := by
+  intro i j
+  fin_cases i <;> fin_cases j
+  all_goals vec_simp! [bigMatrix]
+
+-- Non-square matrix (3x4)
+open Matrix in
+def rectMatrix : Fin 3 → Fin 4 → ℝ :=
+  ![![1, 2, 3, 4],
+    ![5, 6, 7, 8],
+    ![9, 10, 11, 12]]
+
+example : ∀ i : Fin 3, ∀ j : Fin 4, rectMatrix i j ≤ 12 := by
+  intro i j
+  fin_cases i <;> fin_cases j
+  all_goals vec_simp! [rectMatrix]
+
+end MatrixSimp.Test
+
+/-! ## Tests for vec_simp! with higher-dimensional tensors -/
+
+namespace TensorSimp.Test
+
+-- 3D tensor as array of 2D matrices
+open Matrix in
+def M0 : Fin 2 → Fin 2 → ℝ := ![![1, 2], ![3, 4]]
+open Matrix in
+def M1 : Fin 2 → Fin 2 → ℝ := ![![5, 6], ![7, 8]]
+
+open Matrix in
+def T3 : Fin 2 → Fin 2 → Fin 2 → ℝ := ![M0, M1]
+
+-- Need to unfold both T3 and the appropriate slice
+example : T3 0 0 0 = 1 := by vec_simp! [T3, M0]
+example : T3 0 1 1 = 4 := by vec_simp! [T3, M0]
+example : T3 1 0 0 = 5 := by vec_simp! [T3, M1]
+example : T3 1 1 1 = 8 := by vec_simp! [T3, M1]
+
+-- With Fin.mk indices
+example : T3 ⟨0, by omega⟩ ⟨1, by omega⟩ ⟨0, by omega⟩ = 3 := by vec_simp! [T3, M0]
+example : T3 ⟨1, by omega⟩ ⟨0, by omega⟩ ⟨1, by omega⟩ = 6 := by vec_simp! [T3, M1]
+
+-- With fin_cases (need all slice definitions)
+example : ∀ i j k : Fin 2, T3 i j k ≤ 8 := by
+  intro i j k
+  fin_cases i <;> fin_cases j <;> fin_cases k
+  all_goals vec_simp! [T3, M0, M1]
+
+end TensorSimp.Test
