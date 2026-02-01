@@ -8,9 +8,13 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Tactic.Ring
 
 /-!
-# Tests for vec_simp tactic
+# Tests for vec_simp, vec_simp!, and dite_simp tactics
 
-Verifies that `vec_simp` reduces `![a, b, c] ⟨i, proof⟩` to the i-th element.
+This file tests the vector and dite simplification tactics:
+
+* `vec_simp` - Reduces `![a, b, c] ⟨i, proof⟩` to the i-th element
+* `vec_simp!` - Aggressive variant that also simplifies `dite` conditions
+* `dite_simp` - Standalone tactic for simplifying `dite` with decidable literal conditions
 -/
 
 namespace VecSimp.Test
@@ -45,3 +49,66 @@ example (c : ℝ) :
   vec_simp; ring
 
 end VecSimp.Test
+
+/-! ## Tests for dite_simp -/
+
+namespace DiteSimp.Test
+
+-- Basic dite with ≤ (true case)
+example (f : (1 : ℕ) ≤ 2 → ℕ) (g : ¬(1 : ℕ) ≤ 2 → ℕ) :
+    (if h : (1 : ℕ) ≤ 2 then f h else g h) = f (by omega) := by
+  dite_simp
+
+-- Basic dite with ≤ (false case)
+example (f : (3 : ℕ) ≤ 2 → ℕ) (g : ¬(3 : ℕ) ≤ 2 → ℕ) :
+    (if h : (3 : ℕ) ≤ 2 then f h else g h) = g (by omega) := by
+  dite_simp
+
+-- dite with < (true case)
+example (f : (1 : ℕ) < 3 → ℕ) (g : ¬(1 : ℕ) < 3 → ℕ) :
+    (if h : (1 : ℕ) < 3 then f h else g h) = f (by omega) := by
+  dite_simp
+
+-- dite with < (false case)
+example (f : (5 : ℕ) < 3 → ℕ) (g : ¬(5 : ℕ) < 3 → ℕ) :
+    (if h : (5 : ℕ) < 3 then f h else g h) = g (by omega) := by
+  dite_simp
+
+-- Edge case: equality
+example (f : (2 : ℕ) ≤ 2 → ℕ) (g : ¬(2 : ℕ) ≤ 2 → ℕ) :
+    (if h : (2 : ℕ) ≤ 2 then f h else g h) = f (by omega) := by
+  dite_simp
+
+-- Multiple dite in sequence (replaces the verbose show pattern)
+example (f : (1 : ℕ) ≤ 2 → (2 : ℕ) ≤ 2 → ℕ) :
+    (if h₁ : (1 : ℕ) ≤ 2 then
+      if h₂ : (2 : ℕ) ≤ 2 then f h₁ h₂
+      else 0
+    else 0) = f (by omega) (by omega) := by
+  dite_simp
+
+end DiteSimp.Test
+
+/-! ## Tests for vec_simp! (combined) -/
+
+namespace VecSimpBang.Test
+
+-- Combined: vector indexing inside dite
+example :
+    (if _ : (1 : ℕ) ≤ 2 then (![1, 2, 3] : Fin 3 → ℕ) ⟨1, by omega⟩ else 0) = 2 := by
+  vec_simp!
+
+-- Combined: multiple vectors with dite
+example (a b c : ℕ) :
+    (if _ : (0 : ℕ) < 1 then (![a, b, c] : Fin 3 → ℕ) ⟨0, by omega⟩ else 0) = a := by
+  vec_simp!
+
+-- Combined: nested dite with vector access
+example :
+    (if _ : (1 : ℕ) ≤ 2 then
+      if _ : (2 : ℕ) ≤ 2 then (![10, 20, 30] : Fin 3 → ℕ) ⟨2, by omega⟩
+      else 0
+    else 0) = 30 := by
+  vec_simp!
+
+end VecSimpBang.Test
