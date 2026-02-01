@@ -7,6 +7,7 @@ import LeanCert.Tactic.VecSimp
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Fin.Basic
 import Mathlib.Data.Fintype.Basic
+import Mathlib.Data.Matrix.Basic
 import Mathlib.Tactic.Ring
 import Mathlib.Tactic.FinCases
 import Mathlib.Tactic.NormNum
@@ -164,6 +165,28 @@ example : ∀ i : Fin 3, ∀ j : Fin 4, rectMatrix i j ≤ 12 := by
   all_goals vec_simp! [rectMatrix]
 
 end MatrixSimp.Test
+
+/-! ## Tests for Matrix.of notation -/
+
+namespace MatrixOfTest
+
+-- Matrix.of wraps a function as a matrix; Matrix.of_apply reduces (Matrix.of f) i j to f i j
+open Matrix in
+def matrixViaOf : Matrix (Fin 2) (Fin 2) ℝ := Matrix.of fun i j => (i.val + j.val : ℝ)
+
+-- vec_simp! handles Matrix.of_apply
+example : matrixViaOf 0 0 = 0 := by vec_simp! [matrixViaOf]
+example : matrixViaOf 0 1 = 1 := by vec_simp! [matrixViaOf]
+example : matrixViaOf 1 0 = 1 := by vec_simp! [matrixViaOf]
+example : matrixViaOf 1 1 = 2 := by vec_simp! [matrixViaOf]
+
+-- With fin_cases
+example : ∀ i j : Fin 2, matrixViaOf i j ≤ 2 := by
+  intro i j
+  fin_cases i <;> fin_cases j
+  all_goals vec_simp! [matrixViaOf]
+
+end MatrixOfTest
 
 /-! ## Tests for vec_simp! with higher-dimensional tensors -/
 

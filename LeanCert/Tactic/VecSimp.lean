@@ -181,8 +181,12 @@ macro "vec_simp" : tactic =>
 
 /-- Aggressive variant of `vec_simp` for simple vector/dite expressions.
 
-    Simplifies vector indexing with `Fin.mk` indices, evaluates decidable `dite`
-    conditions, handles absolute values, and tries `norm_num` to close numeric goals.
+    Simplifies:
+    - Vector indexing with `Fin.mk` indices: `![a, b, c] ⟨1, proof⟩` → `b`
+    - `Matrix.of` applications: `(Matrix.of f) i j` → `f i j`
+    - Decidable `dite` conditions: `if h : 1 ≤ 2 then x else y` → `x`
+    - Absolute values of positive/nonnegative values
+    - Numeric goals via `norm_num`
 
     For matrices with named definitions, use `vec_simp! [M]` instead.
 
@@ -196,7 +200,9 @@ macro "vec_simp" : tactic =>
 -/
 macro "vec_simp!" : tactic =>
   `(tactic| (
-    simp (config := { decide := true }) only [
+    -- Matrix.of_apply needed for !![...] notation: (Matrix.of f) i j = f i j
+    try simp only [Matrix.of_apply]
+    try simp (config := { decide := true }) only [
       VecSimp.vecConsFinMk, Matrix.cons_val_zero, Matrix.cons_val_zero',
       Matrix.cons_val_one, Matrix.head_cons, dite_true, dite_false,
       abs_of_pos, abs_of_nonneg
@@ -206,8 +212,12 @@ macro "vec_simp!" : tactic =>
 
 /-- Version of `vec_simp!` for matrices with named definitions.
 
-    Unfolds the given definitions, then applies vector simplification, dite
-    evaluation, abs simplification, and `norm_num`.
+    Unfolds the given definitions, then applies:
+    - `Matrix.of_apply`: `(Matrix.of f) i j` → `f i j`
+    - Vector indexing with `Fin.mk` indices
+    - Decidable `dite` conditions
+    - Absolute value simplification
+    - `norm_num` for numeric goals
 
     Example:
     ```lean
@@ -221,6 +231,7 @@ macro "vec_simp!" : tactic =>
 macro "vec_simp!" "[" defs:Lean.Parser.Tactic.simpLemma,* "]" : tactic =>
   `(tactic| (
     simp only [$defs,*]
+    try simp only [Matrix.of_apply]
     try simp only [VecSimp.vecConsFinMk]
     try simp (config := { decide := true }) only [dite_true, dite_false]
     try simp only [abs_of_pos, abs_of_nonneg]
