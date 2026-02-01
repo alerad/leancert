@@ -29,13 +29,17 @@ This is tedious and error-prone.
 
 ## Solution
 
-This file provides the `finsum_expand` tactic that **automatically** expands
-finite sums over any concrete finset to explicit additions.
+This file provides two tactics:
+- `finsum_expand` - expands finite sums over concrete finsets to explicit additions
+- `finsum_expand!` - also simplifies `dite` conditions after expansion
 
 Supports:
-- **Interval finsets**: `Icc`, `Ico`, `Ioc`, `Ioo`, `Iic`, `Iio` (fully automated)
-- **Explicit finsets**: `{a, b, c, ...}` (fully automated)
+- **Interval finsets**: `Icc`, `Ico`, `Ioc`, `Ioo`, `Iic`, `Iio`
+- **Explicit finsets**: `{a, b, c, ...}`
 - **Fin sums**: `∑ i : Fin n, f i` for any literal n (uses Mathlib's simproc)
+
+The `!` variant is useful when summands contain `dite` expressions with decidable
+conditions, e.g., `if h : x ≤ 2 then f x else 0` becomes `f x` when `x ≤ 2` is known.
 
 ## Design Notes
 
@@ -56,6 +60,7 @@ Works for any concrete literal n.
 ## Main definitions
 
 * `finsum_expand` - tactic that expands Finset sums to explicit additions
+* `finsum_expand!` - aggressive variant that also simplifies `dite` conditions
 -/
 
 namespace FinSumExpand
@@ -72,26 +77,21 @@ Supports:
 - **Explicit finsets**: `{a, b, c, ...}`
 - **Fin sums**: `∑ i : Fin n, f i` for any literal `n`
 
-Works for any concrete natural number bounds.
+Works for any concrete natural number bounds. See also `finsum_expand!` which
+additionally simplifies `dite` conditions.
 
 ## Algorithm
-1. Expand `Finset.univ : Finset (Fin n)` using custom simproc `finUnivExpand`
+1. Expand `∑ i : Fin n, f i` using Mathlib's `Fin.sum_univ_ofNat` simproc
 2. Convert intervals to explicit sets using Mathlib's simprocs
 3. Repeatedly apply `Finset.sum_insert` with `native_decide` proving membership
 4. Terminate with `Finset.sum_singleton` or `rfl` (empty sums reduce definitionally)
 
 ## Example
 ```lean
--- Interval sums
 example (f : ℕ → ℝ) : ∑ k ∈ Finset.Icc 1 3, f k = f 1 + f 2 + f 3 := by
   finsum_expand
 
--- Fin sums (works for any n, not just n ≤ 8)
 example (f : Fin 10 → ℝ) : ∑ i : Fin 10, f i = f 0 + f 1 + ... + f 9 := by
-  finsum_expand
-
--- Empty sums
-example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioo 5 6, f k = 0 := by
   finsum_expand
 ```
 -/
@@ -109,4 +109,23 @@ macro "finsum_expand" : tactic =>
       | rfl
       | simp only [Finset.sum_singleton]
       | (rw [Finset.sum_insert (by native_decide)]; try simp only [add_assoc]))
+  ))
+
+/-- Aggressive variant of `finsum_expand` that also simplifies `dite` conditions.
+
+After expanding the sum, simplifies expressions like `if h : 1 ≤ 2 then f x else 0`
+to `f x` by evaluating the decidable condition.
+
+## Example
+```lean
+-- Before: ∑ x ∈ Finset.Icc 1 2, |if h : x ≤ 2 then a x else 0|
+-- After finsum_expand:  |if h : 1 ≤ 2 then a 1 else 0| + |if h : 2 ≤ 2 then a 2 else 0|
+-- After finsum_expand!: |a 1| + |a 2|
+```
+-/
+macro "finsum_expand!" : tactic =>
+  `(tactic| (
+    finsum_expand
+    -- Step 3: Simplify dite conditions with decidable literal bounds
+    try simp (config := { decide := true }) only [dite_true, dite_false]
   ))

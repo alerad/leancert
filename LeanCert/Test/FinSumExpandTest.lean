@@ -8,14 +8,14 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Tactic.Ring
 
 /-!
-# Tests for finsum_expand tactic
+# Tests for finsum_expand tactics
 
-Verifies that `finsum_expand` expands Finset sums to explicit additions.
+Tests for `finsum_expand` and `finsum_expand!`.
 
-Supports:
-- **Intervals**: `Icc`, `Ico`, `Ioc`, `Ioo`, `Iic`, `Iio`
-- **Explicit sets**: `{a, b, c, ...}`
-- **Fin sums**: `∑ i : Fin n, f i` for any literal n
+- `finsum_expand` - expands Finset sums to explicit additions
+- `finsum_expand!` - also simplifies `dite` conditions after expansion
+
+Supports intervals, explicit sets, and Fin sums.
 -/
 
 namespace FinSumExpand.Test
@@ -78,5 +78,11 @@ example (f : Fin 10 → ℝ) : ∑ i : Fin 10, f i =
 
 -- With vector notation
 example (a b c : ℝ) : ∑ i : Fin 3, (![a, b, c] : Fin 3 → ℝ) i = a + b + c := by finsum_expand
+
+/-! ### finsum_expand! (with dite simplification) -/
+
+-- dite conditions are simplified
+example (f : ℕ → ℝ) : ∑ x ∈ Finset.Icc 1 2, (if _ : x ≤ 2 then f x else 0) =
+    f 1 + f 2 := by finsum_expand!
 
 end FinSumExpand.Test
