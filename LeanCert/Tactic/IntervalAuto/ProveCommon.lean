@@ -120,8 +120,8 @@ def getSupportProof (ast : Lean.Expr) : TacticM (Lean.Expr × Bool) := do
     let proof ← mkSupportedCoreProof ast
     return (proof, false)
   catch _ =>
-    -- Fall back to ExprSupported (handles inverse trig)
-    let proof ← mkSupportedProof ast
+    -- Fall back to ExprSupportedWithInv (handles log/inv)
+    let proof ← mkSupportedWithInvProof ast
     return (proof, true)
 
 /-- Build a Box expression (List IntervalRat) from an array of VarIntervalInfo -/

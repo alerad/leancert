@@ -11,27 +11,15 @@ import LeanCert.Tactic.IntervalAuto.Diagnostic
 import LeanCert.Tactic.IntervalAuto.ProveCommon
 
 /-!
-# Interval Arithmetic Tactics - Module Index
+# Interval Arithmetic Tactics - Infrastructure
 
-This module re-exports all components of the interval arithmetic tactics.
+This module provides infrastructure for the interval arithmetic tactics:
+- `Types`: Core data structures
+- `Norm`: Goal normalization
+- `Extract`: Rational extraction
+- `Parse`: Goal parsing
+- `Diagnostic`: Error reporting
+- `ProveCommon`: Shared utilities
 
-## Submodules
-
-- `Types`: Core data structures (IntervalInfo, BoundGoal, etc.)
-- `Norm`: Goal normalization and bridge theorems
-- `Extract`: Rational extraction from Lean expressions
-- `Parse`: Goal parsing for various bound goal forms
-- `Diagnostic`: Error reporting and diagnostics
-- `ProveCommon`: Shared proving utilities
-
-## Main Tactics
-
-- `interval_bound` - Prove bounds on universally quantified expressions
-- `interval_decide` - Prove point inequalities
-- `interval_auto` - Unified entry point (recommended)
-- `multivariate_bound` - Prove bounds on multivariate expressions
-- `opt_bound` - Prove bounds using global optimization
-- `root_bound` - Prove non-existence of roots
-- `interval_bound_subdiv` - Prove bounds with subdivision
-- `interval_bound_adaptive` - Prove bounds with adaptive branch-and-bound
+The main tactics are in `LeanCert.Tactic.IntervalAuto`.
 -/
