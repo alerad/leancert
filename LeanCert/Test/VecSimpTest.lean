@@ -103,6 +103,33 @@ example : (Matrix.vecCons (10 : ℚ)
     (fun i => Matrix.vecCons (20 : ℚ) (fun j => Matrix.vecCons (30 : ℚ) (fun _ => 40) j) i) : Fin 4 → ℚ) 3 = 40 := by
   vec_simp!
 
+/-! ### Inferred dimension (metavariable reduction)
+
+When the outer expression has a type annotation but inner lambdas don't have explicit
+binder types, `nExpr` (the dimension in `Fin n`) may be `Nat.succ ?m` rather than a
+raw literal. We must `reduce nExpr` before calling `nat?` to convert it to a concrete
+literal like `2`.
+
+The tests in "Lambda tail without explicit binder types" above exercise this path.
+The key insight: `fun i => ...` without explicit `(i : Fin 2)` causes `inferType` to
+return a type with `Fin (Nat.succ ?m)` where the metavariable gets unified later.
+-/
+
+-- Type annotation on outer expression, but lambda binders are implicit
+-- This exercises the reduce-before-nat? fix
+example : (Matrix.vecCons (1 : ℚ)
+    (fun i => Matrix.vecCons (2 : ℚ) (fun _ => 3) i) : Fin 3 → ℚ) 1 = 2 := by
+  vec_simp!
+
+example : (Matrix.vecCons (1 : ℚ)
+    (fun i => Matrix.vecCons (2 : ℚ) (fun _ => 3) i) : Fin 3 → ℚ) 2 = 3 := by
+  vec_simp!
+
+-- Deeper nesting with implicit binders
+example : (Matrix.vecCons (100 : ℚ)
+    (fun i => Matrix.vecCons (200 : ℚ) (fun j => Matrix.vecCons (300 : ℚ) (fun _ => 400) j) i) : Fin 4 → ℚ) 2 = 300 := by
+  vec_simp!
+
 -- Longer vectors with Fin.mk
 example : (![1, 2, 3, 4, 5] : Fin 5 → ℕ) ⟨3, by omega⟩ = 4 := by vec_simp
 

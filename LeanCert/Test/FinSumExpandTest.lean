@@ -134,4 +134,18 @@ example : ∑ i : Fin 3, (Matrix.vecCons (10 : ℚ)
     (fun j => Matrix.vecCons (20 : ℚ) (fun _ => 30) j) : Fin 3 → ℚ) i = 10 + 20 + 30 := by
   finsum_expand!
 
+/-! ### Inferred dimension (metavariable reduction)
+
+When the outer expression has a type annotation but inner lambdas don't have explicit
+binder types, `nExpr` (the dimension in `Fin n`) may be `Nat.succ ?m` rather than a
+raw literal. We must `reduce nExpr` before calling `nat?` to convert it to a concrete
+literal. This is the same fix applied in VecSimp.
+-/
+
+-- Type annotation on outer expression, but lambda binders are implicit
+-- The fix ensures getVecElem reduces nExpr before nat? check
+example : ∑ i : Fin 3, (Matrix.vecCons (1 : ℚ)
+    (fun j => Matrix.vecCons (2 : ℚ) (fun _ => 3) j) : Fin 3 → ℚ) i = 1 + 2 + 3 := by
+  finsum_expand!
+
 end FinSumExpand.Test

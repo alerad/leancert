@@ -94,7 +94,9 @@ def getFinVal? (e : Expr) : MetaM (Option Nat) := do
 /-- Recursively traverse a vecCons chain to extract the element at index `idx`.
     Handles explicit vecCons chains, lambda tails from matrix column extraction,
     and nested vecCons after lambda reduction.
-    Uses `inferType` for lambda domain to handle implicit binder types. -/
+
+    Uses `inferType` for lambda domain to handle implicit binder types.
+    Uses `instantiateMVars` + `reduce` before `nat?` to handle metavariables. -/
 partial def getVecElem (idx : Nat) (e : Expr) : MetaM (Option Expr) := do
   let e ← whnfR e
   let args := e.getAppArgs
@@ -109,16 +111,19 @@ partial def getVecElem (idx : Nat) (e : Expr) : MetaM (Option Expr) := do
     -- Get the Fin type from the lambda's inferred type (more robust than bindingDomain!)
     let lamType ← inferType e
     let lamType' ← whnfR lamType
-    if !lamType'.isForall then return none
-    let domain := lamType'.bindingDomain!
+    -- Instantiate metavariables that may have been assigned during elaboration
+    let lamType'' ← instantiateMVars lamType'
+    if !lamType''.isForall then return none
+    let domain := lamType''.bindingDomain!
     let finType ← whnfR domain
     if finType.isAppOf ``Fin then
       let finArgs := finType.getAppArgs
       if finArgs.size >= 1 then
         let nExpr := finArgs[0]!
-        let some _ := nExpr.nat? | return none
+        let nExprReduced ← reduce nExpr
+        let some _ := nExprReduced.nat? | return none
         let idxExpr := mkNatLit idx
-        let proof ← mkDecideProof (← mkAppM ``LT.lt #[idxExpr, nExpr])
+        let proof ← mkDecideProof (← mkAppM ``LT.lt #[idxExpr, nExprReduced])
         let finIdx ← mkAppM ``Fin.mk #[idxExpr, proof]
         let applied := Expr.app e finIdx
         let reduced ← reduce applied
@@ -242,8 +247,12 @@ macro "finsum_expand!" : tactic =>
     -- Simplify dite conditions with decidable literal bounds
     try simp (config := { decide := true }) only [dite_true, dite_false]
     -- Simplify matrix/vector indexing (handles lambda tails from column extraction)
-    -- Use repeat for nested indexing (![![...]] i j) which requires multiple reduction passes
+    -- Matrix.of_apply: unwraps !![...] notation: (Matrix.of f) i j → f i j
     try simp only [Matrix.of_apply]
+    -- Nested indexing (![![...]] i j) requires multiple reduction passes:
+    --   Pass 1: ![![1,2],[3,4]] 0 → ![1,2]
+    --   Pass 2: ![1,2] 0 → 1
+    -- Each pass reduces one level of vecCons application
     repeat simp only [FinSumExpand.vecConsFinMk,
                       Matrix.cons_val_zero, Matrix.cons_val_zero',
                       Matrix.cons_val_one, Matrix.head_cons]

@@ -106,6 +106,8 @@ namespace VecSimp
 
 open Lean Meta Elab Tactic
 
+initialize registerTraceClass `VecSimp.debug
+
 /-- Extract natural number from a Fin expression.
     Handles both `Fin.mk n proof` and numeric literals like `(2 : Fin 3)`.
     Returns `some n` if successful, otherwise `none`. -/
@@ -135,14 +137,23 @@ def getFinVal? (e : Expr) : MetaM (Option Nat) := do
     - Nested vecCons after lambda reduction: when applying a lambda returns
       another `vecCons` application that needs further element extraction
 
-    Note: For lambda tails, we use `inferType` to get the domain type rather than
-    `bindingDomain!`, because lambdas without explicit binder annotations
-    (e.g., `fun i => ...` vs `fun (i : Fin 2) => ...`) may not have the Fin type
-    directly accessible in the binder.
+    ## Implementation notes
 
-    After reducing a lambda application, the result may still be a `vecCons`
-    applied to an index (e.g., `vecCons a tail (Fin.mk k proof)`). We recursively
-    extract from this to handle arbitrary nesting depth. -/
+    **inferType vs bindingDomain!**: For lambda tails, we use `inferType` to get
+    the domain type rather than `bindingDomain!`, because lambdas without explicit
+    binder annotations (e.g., `fun i => ...` vs `fun (i : Fin 2) => ...`) may not
+    have the Fin type directly accessible in the binder.
+
+    **instantiateMVars + reduce before nat?**: When extracting the dimension `n` from
+    `Fin n`, we must first `instantiateMVars` on the type (to substitute assigned
+    metavariables), then `reduce nExpr` before calling `nat?`. Without explicit type
+    annotations, `nExpr` may be `Nat.succ ?m` (a metavariable wrapped in Nat.succ)
+    rather than a raw literal like `2`. The `nat?` function only matches raw nat
+    literals, so instantiating then reducing converts `Nat.succ ?m` → `2`.
+
+    **Recursive extraction**: After reducing a lambda application, the result may
+    still be a `vecCons` applied to an index (e.g., `vecCons a tail (Fin.mk k proof)`).
+    We recursively extract from this to handle arbitrary nesting depth. -/
 partial def getVecElem (idx : Nat) (e : Expr) : MetaM (Option Expr) := do
   let e ← whnfR e
   let args := e.getAppArgs
@@ -157,20 +168,35 @@ partial def getVecElem (idx : Nat) (e : Expr) : MetaM (Option Expr) := do
   -- Handle lambda tails from matrix column extraction
   -- e.g., (fun i => Matrix.vecCons ... i) needs to be applied to idx
   else if e.isLambda then
+    trace[VecSimp.debug] "getVecElem: handling lambda tail for idx={idx}"
     -- Get the Fin type from the lambda's inferred type (more robust than bindingDomain!)
     let lamType ← inferType e
+    trace[VecSimp.debug] "  inferType result: {lamType}"
     let lamType' ← whnfR lamType
-    if !lamType'.isForall then return none
-    let domain := lamType'.bindingDomain!
+    trace[VecSimp.debug] "  after whnfR: {lamType'}"
+    -- Instantiate metavariables that may have been assigned during elaboration
+    let lamType'' ← instantiateMVars lamType'
+    trace[VecSimp.debug] "  after instantiateMVars: {lamType''}"
+    if !lamType''.isForall then
+      trace[VecSimp.debug] "  NOT a forall, returning none"
+      return none
+    let domain := lamType''.bindingDomain!
+    trace[VecSimp.debug] "  domain: {domain}"
     let finType ← whnfR domain
+    trace[VecSimp.debug] "  finType after whnfR: {finType}"
     if finType.isAppOf ``Fin then
       let finArgs := finType.getAppArgs
+      trace[VecSimp.debug] "  Fin args: {finArgs.toList}"
       if finArgs.size >= 1 then
         let nExpr := finArgs[0]!
-        let some _ := nExpr.nat? | return none
+        let nExprReduced ← reduce nExpr
+        trace[VecSimp.debug] "  nExpr: {nExpr}, reduced: {nExprReduced}, nat?: {nExprReduced.nat?}"
+        let some _ := nExprReduced.nat? | do
+          trace[VecSimp.debug] "  FAILED: nExprReduced.nat? returned none"
+          return none
         -- Create Fin.mk idx (proof : idx < n)
         let idxExpr := mkNatLit idx
-        let proof ← mkDecideProof (← mkAppM ``LT.lt #[idxExpr, nExpr])
+        let proof ← mkDecideProof (← mkAppM ``LT.lt #[idxExpr, nExprReduced])
         let finIdx ← mkAppM ``Fin.mk #[idxExpr, proof]
         -- Apply lambda to the index and reduce
         let applied := Expr.app e finIdx
@@ -203,14 +229,19 @@ partial def getVecElem (idx : Nat) (e : Expr) : MetaM (Option Expr) := do
     The expression structure is: `App (Matrix.vecCons α n head tail) idx`
     which gives 5 args total to the vecCons function. -/
 dsimproc vecConsFinMk (Matrix.vecCons _ _ _) := fun e => do
+  trace[VecSimp.debug] "vecConsFinMk called with: {e}"
   let e ← whnfR e
+  trace[VecSimp.debug] "after whnfR: {e}"
   let args := e.getAppArgs
+  trace[VecSimp.debug] "args.size = {args.size}, fn = {e.getAppFn.constName?}"
   -- When vecCons is applied to an index, we have 5 args: α, n, head, tail, idx
   if e.getAppFn.constName? != some ``Matrix.vecCons || args.size != 5 then
+    trace[VecSimp.debug] "  returning .continue (pattern mismatch)"
     return .continue
   let x := args[2]!   -- head
   let xs := args[3]!  -- tail
   let ei := args[4]!  -- index
+  trace[VecSimp.debug] "  head={x}, tail={xs}, idx={ei}"
   -- Try to get the index value:
   -- 1. First try int? for raw integer literals (like Mathlib's cons_val)
   -- 2. Fall back to getFinVal? for Fin.mk expressions
@@ -268,8 +299,10 @@ macro "vec_simp" : tactic =>
 -/
 macro "vec_simp!" : tactic =>
   `(tactic| (
-    -- Matrix.of_apply needed for !![...] notation: (Matrix.of f) i j = f i j
+    -- Matrix.of_apply: unwraps !![...] notation: (Matrix.of f) i j → f i j
     try simp only [Matrix.of_apply]
+    -- Nested indexing (![![...]] i j) is handled by simp's repeated application:
+    --   ![![1,2],[3,4]] 0 → ![1,2], then ![1,2] 0 → 1
     try simp (config := { decide := true }) only [
       VecSimp.vecConsFinMk, Matrix.cons_val_zero, Matrix.cons_val_zero',
       Matrix.cons_val_one, Matrix.head_cons, dite_true, dite_false,
