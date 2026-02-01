@@ -129,6 +129,12 @@ def tanhIntervalDyadic (_I : IntervalDyadic) (_cfg : DyadicConfig) : IntervalDya
   let pos1 := Core.Dyadic.ofInt 1
   ⟨neg1, pos1, by rw [Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]; norm_num⟩
 
+/-- arsinh interval: wide box bound via rational arsinhInterval -/
+def arsinhIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
+  let Irat := I.toIntervalRat
+  let result := arsinhInterval Irat
+  IntervalDyadic.ofIntervalRat result cfg.precision
+
 /-- sinc interval: global bound [-1, 1] -/
 def sincIntervalDyadic (_I : IntervalDyadic) (_cfg : DyadicConfig) : IntervalDyadic :=
   let neg1 := Core.Dyadic.ofInt (-1)
@@ -202,8 +208,8 @@ def evalIntervalDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig :
   | Expr.cos e => cosIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
   | Expr.log e => logIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
   | Expr.atan e => atanIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.arsinh _ => default  -- TODO: implement
-  | Expr.atanh _ => default  -- Not in ExprSupportedCore
+  | Expr.arsinh e => arsinhIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
+  | Expr.atanh _ => default  -- Needs computable Taylor series; atanhIntervalComputed is noncomputable
   | Expr.sinc e => sincIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
   | Expr.erf e => erfIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
   | Expr.sinh e => sinhIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
@@ -516,13 +522,18 @@ theorem evalIntervalDyadic_correct_withInv (e : Expr) (hsupp : ExprSupportedWith
   | sinc _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_sinc, evalIntervalDyadic, sincIntervalDyadic]
-    sorry -- sinc ∈ [-1, 1]: not used by Li2, will prove when needed
+    rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
+    simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
+    exact ⟨Real.neg_one_le_sinc _, Real.sinc_le_one _⟩
   | arsinh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    sorry -- arsinh: evalIntervalDyadic returns default, not used by Li2
+    simp only [Expr.eval_arsinh, evalIntervalDyadic, arsinhIntervalDyadic]
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have harsinh := mem_arsinhInterval hrat
+    exact IntervalDyadic.mem_ofIntervalRat harsinh cfg.precision hprec
   | atanh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    sorry -- atanh: evalIntervalDyadic returns default, not used by Li2
+    sorry -- atanh: returns unsound default [0,0]; needs computable Taylor series to fix
   | erf _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_erf, evalIntervalDyadic, erfIntervalDyadic]
