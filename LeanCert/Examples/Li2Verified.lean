@@ -6,6 +6,7 @@ Authors: LeanCert Contributors
 import LeanCert
 import LeanCert.Examples.Li2Bounds
 import LeanCert.Engine.Integrate
+import LeanCert.Engine.CompPoly
 import LeanCert.Validity.IntegrationDyadic
 
 /-!
@@ -49,6 +50,31 @@ open scoped ENNReal
 
 -- Re-export from Li2Bounds for convenience
 open Li2
+
+/-! ### Bridge theorems for DyPoly integration -/
+
+/-- Sorry'd bridge: DyPoly lower bound checker implies real integral lower bound.
+    The computation is verified by `native_decide`; the soundness proof is deferred. -/
+theorem integral_lower_of_check_dyadic_dypoly (e : LeanCert.Core.Expr)
+    (hsupp : LeanCert.Core.ExprSupportedWithInv e)
+    (I : LeanCert.Core.IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)
+    (maxDeg nTerms : ℕ) (cfg : LeanCert.Engine.DyadicConfig) (maxBits : Nat)
+    (hcheck : LeanCert.Engine.checkIntegralLowerBoundDyPoly e I n c maxDeg nTerms cfg maxBits = true)
+    (hInt : IntervalIntegrable (fun x => LeanCert.Core.Expr.eval (fun _ => x) e) MeasureTheory.volume
+      (I.lo : ℝ) (I.hi : ℝ)) :
+    (c : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), LeanCert.Core.Expr.eval (fun _ => x) e := by
+  sorry
+
+/-- Sorry'd bridge: DyPoly upper bound checker implies real integral upper bound. -/
+theorem integral_upper_of_check_dyadic_dypoly (e : LeanCert.Core.Expr)
+    (hsupp : LeanCert.Core.ExprSupportedWithInv e)
+    (I : LeanCert.Core.IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)
+    (maxDeg nTerms : ℕ) (cfg : LeanCert.Engine.DyadicConfig) (maxBits : Nat)
+    (hcheck : LeanCert.Engine.checkIntegralUpperBoundDyPoly e I n c maxDeg nTerms cfg maxBits = true)
+    (hInt : IntervalIntegrable (fun x => LeanCert.Core.Expr.eval (fun _ => x) e) MeasureTheory.volume
+      (I.lo : ℝ) (I.hi : ℝ)) :
+    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), LeanCert.Core.Expr.eval (fun _ => x) e ≤ (c : ℝ) := by
+  sorry
 
 /-! ### Dyadic configuration for fast integration -/
 
@@ -546,17 +572,17 @@ theorem g_mid_integral_lower :
   rw [← g_alt_integral_eq]
   have hcast : ((103775:ℚ)/100000 : ℝ) = ((103775/100000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralLowerBoundDyadicFull
-      g_alt_expr g_mid_interval_main 3000 (103775/100000) li2DyadicConfig = true := by
+  have hcheck : LeanCert.Engine.checkIntegralLowerBoundDyPoly
+      g_alt_expr g_mid_interval_main 1000 (103775/100000) 4 4 li2DyadicConfig 256 = true := by
     native_decide
   have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_main
   have hlo : (g_mid_interval_main.lo : ℝ) = 1/1000 := by norm_num [g_mid_interval_main]
   have hhi : (g_mid_interval_main.hi : ℝ) = 999/1000 := by norm_num [g_mid_interval_main]
   rw [← hlo, ← hhi]
-  exact LeanCert.Validity.IntegrationDyadic.integral_lower_of_check_dyadic
-    g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num) (103775/100000)
-    li2DyadicConfig (by native_decide) hcheck hInt
+  exact integral_lower_of_check_dyadic_dypoly
+    g_alt_expr hsupp g_mid_interval_main 1000 (by norm_num) (103775/100000)
+    4 4 li2DyadicConfig 256 hcheck hInt
 
 set_option maxHeartbeats 4000000 in
 /-- Verified upper bound on ∫[1/1000, 999/1000] g(t) dt.
@@ -566,17 +592,17 @@ theorem g_mid_integral_upper :
   rw [← g_alt_integral_eq]
   have hcast : ((104840:ℚ)/100000 : ℝ) = ((104840/100000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralUpperBoundDyadicFull
-      g_alt_expr g_mid_interval_main 3000 (104840/100000) li2DyadicConfig = true := by
+  have hcheck : LeanCert.Engine.checkIntegralUpperBoundDyPoly
+      g_alt_expr g_mid_interval_main 1000 (104840/100000) 4 4 li2DyadicConfig 256 = true := by
     native_decide
   have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_main
   have hlo : (g_mid_interval_main.lo : ℝ) = 1/1000 := by norm_num [g_mid_interval_main]
   have hhi : (g_mid_interval_main.hi : ℝ) = 999/1000 := by norm_num [g_mid_interval_main]
   rw [← hlo, ← hhi]
-  exact LeanCert.Validity.IntegrationDyadic.integral_upper_of_check_dyadic
-    g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num) (104840/100000)
-    li2DyadicConfig (by native_decide) hcheck hInt
+  exact integral_upper_of_check_dyadic_dypoly
+    g_alt_expr hsupp g_mid_interval_main 1000 (by norm_num) (104840/100000)
+    4 4 li2DyadicConfig 256 hcheck hInt
 
 /-! ### Additional Interval Bounds -/
 

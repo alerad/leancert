@@ -748,4 +748,41 @@ theorem integrateAdaptive_correct (e : Expr) (hsupp : ExprSupported e)
     (integrateAdaptive e I tol htol maxDepth).bound :=
   integrateAdaptiveAux_correct e hsupp I tol maxDepth hInt
 
+/-! ### Non-uniform (geometric) partitioning -/
+
+/-- Build geometric breakpoints from `start`, growing by `ratio` each step.
+    Returns list of breakpoints (not intervals). Stops at `stop` or after `maxN` steps. -/
+def geometricBreakpoints (start stop : ℚ) (w₀ ratio : ℚ) (maxN : ℕ) : List ℚ :=
+  let rec go (cur w : ℚ) (fuel : ℕ) (acc : List ℚ) : List ℚ :=
+    if fuel = 0 then (min cur stop) :: acc
+    else if cur ≥ stop then stop :: acc
+    else go (cur + w) (w * ratio) (fuel - 1) (cur :: acc)
+  (go start w₀ maxN []).reverse
+
+/-- Build a non-uniform partition: geometric near both edges, uniform in the middle.
+    Returns `List IntervalRat`. Intervals with `lo ≥ hi` are dropped. -/
+def nonUniformPartition (I : IntervalRat) (edgeWidth : ℚ) (edgeRatio : ℚ)
+    (edgeCutoff : ℚ) (nMid : ℕ) (maxEdgeParts : ℕ := 200) : List IntervalRat :=
+  let lo := I.lo
+  let hi := I.hi
+  let leftEnd := min (lo + edgeCutoff) hi
+  let rightStart := max (hi - edgeCutoff) lo
+  -- Left edge breakpoints: lo, lo+w, lo+w+wr, lo+w+wr+wr², ..., leftEnd
+  let leftBps := geometricBreakpoints lo leftEnd edgeWidth edgeRatio maxEdgeParts
+  -- Right edge breakpoints (mirror): hi, hi-w, ..., rightStart
+  let rightBpsRev := geometricBreakpoints 0 (hi - rightStart) edgeWidth edgeRatio maxEdgeParts
+  let rightBps := (rightBpsRev.map (hi - ·)).reverse
+  -- Middle breakpoints: uniform from leftEnd to rightStart
+  let midBps := if nMid = 0 || rightStart ≤ leftEnd then [leftEnd, rightStart].filter (· > leftEnd)
+    else
+      let w := (rightStart - leftEnd) / nMid
+      List.ofFn (fun (i : Fin (nMid + 1)) => leftEnd + w * (i : ℚ))
+  -- Merge all breakpoints, deduplicate, sort
+  let allBps := (leftBps ++ midBps ++ rightBps).eraseDups
+  let sorted := allBps.mergeSort (· ≤ ·)
+  -- Convert consecutive breakpoints to intervals
+  let pairs := sorted.zip sorted.tail
+  pairs.filterMap fun (a, b) =>
+    if h : a < b then some ⟨a, b, le_of_lt h⟩ else none
+
 end LeanCert.Engine

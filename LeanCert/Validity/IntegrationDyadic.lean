@@ -253,4 +253,50 @@ theorem integral_upper_of_check_dyadic (e : Expr) (hsupp : ExprSupportedWithInv 
       ≤ ((integratePartitionDyadic e I n hn cfg).hi : ℝ) := hmem.2
     _ ≤ (c : ℝ) := by exact_mod_cast hcheck.2
 
+/-! ### List-based (non-uniform) partition integration -/
+
+/-- Integrate over an arbitrary list of subintervals using Dyadic evaluation. -/
+def integratePartitionDyadicList (e : Expr) (parts : List IntervalRat)
+    (cfg : DyadicConfig := {}) : IntervalRat :=
+  let bounds := collectBoundsDyadic e parts cfg
+  bounds.foldl IntervalRat.add (IntervalRat.singleton 0)
+
+/-- Domain validity check for an arbitrary list of subintervals. -/
+def checkPartitionDomainValidList (e : Expr) (parts : List IntervalRat)
+    (cfg : DyadicConfig) : Bool :=
+  parts.all fun Ik =>
+    checkDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat Ik cfg.precision) cfg
+
+/-- Combined checker (lower bound) for arbitrary partition. -/
+def checkIntegralLowerBoundDyadicList (e : Expr) (parts : List IntervalRat)
+    (c : ℚ) (cfg : DyadicConfig := {}) : Bool :=
+  checkPartitionDomainValidList e parts cfg &&
+  decide (c ≤ (integratePartitionDyadicList e parts cfg).lo)
+
+/-- Combined checker (upper bound) for arbitrary partition. -/
+def checkIntegralUpperBoundDyadicList (e : Expr) (parts : List IntervalRat)
+    (c : ℚ) (cfg : DyadicConfig := {}) : Bool :=
+  checkPartitionDomainValidList e parts cfg &&
+  decide ((integratePartitionDyadicList e parts cfg).hi ≤ c)
+
+/-! ### Bridge lemmas for list-based partition -/
+
+/-- Bridge theorem (lower bound) for arbitrary partition. -/
+theorem integral_lower_of_check_dyadic_list (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (I : IntervalRat) (parts : List IntervalRat)
+    (c : ℚ) (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
+    (hcheck : checkIntegralLowerBoundDyadicList e parts c cfg = true)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
+    (c : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := by
+  sorry
+
+/-- Bridge theorem (upper bound) for arbitrary partition. -/
+theorem integral_upper_of_check_dyadic_list (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (I : IntervalRat) (parts : List IntervalRat)
+    (c : ℚ) (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
+    (hcheck : checkIntegralUpperBoundDyadicList e parts c cfg = true)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
+    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (c : ℝ) := by
+  sorry
+
 end LeanCert.Validity.IntegrationDyadic
