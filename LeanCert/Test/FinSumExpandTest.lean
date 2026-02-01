@@ -66,4 +66,25 @@ example : ∑ n ∈ Finset.Icc 1 3, |a n| * r ^ n =
 example : ∑ k ∈ Finset.Icc 1 3, (fun _ : ℕ => (1 : ℝ)) k = 3 := by finsum_expand; ring
 example : ∑ k ∈ Finset.Icc 1 4, (fun n : ℕ => (n : ℝ)) k = 10 := by finsum_expand; ring
 
+/-! ### Fin sums (new in this version) -/
+
+-- Fin.sum_univ_one
+example (f : Fin 1 → ℝ) : ∑ i : Fin 1, f i = f 0 := by finsum_expand
+
+-- Fin.sum_univ_two
+example (f : Fin 2 → ℝ) : ∑ i : Fin 2, f i = f 0 + f 1 := by finsum_expand
+
+-- Fin.sum_univ_three
+example (f : Fin 3 → ℝ) : ∑ i : Fin 3, f i = f 0 + f 1 + f 2 := by finsum_expand
+
+-- Fin.sum_univ_four
+example (f : Fin 4 → ℝ) : ∑ i : Fin 4, f i = f 0 + f 1 + f 2 + f 3 := by finsum_expand
+
+-- With concrete function
+example : ∑ i : Fin 3, (i : ℝ) = 3 := by finsum_expand; simp; ring
+
+-- With vector notation (combination) - finsum_expand handles this completely
+example (a b c : ℝ) : ∑ i : Fin 3, (![a, b, c] : Fin 3 → ℝ) i = a + b + c := by
+  finsum_expand
+
 end FinSumExpand.Test

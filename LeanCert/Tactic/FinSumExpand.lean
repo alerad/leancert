@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Order.Interval.Finset.Nat
 import Mathlib.Tactic.Simproc.FinsetInterval
 
@@ -33,6 +34,7 @@ finite sums over any concrete finset to explicit additions.
 Supports:
 - **Interval finsets**: `Icc`, `Ico`, `Ioc`, `Ioo`, `Iic`, `Iio`
 - **Explicit finsets**: `{a, b, c, ...}`
+- **Fin sums**: `∑ i : Fin n, f i` for small `n` (up to 8)
 
 ## Design Journey & Failed Approaches
 
@@ -104,6 +106,7 @@ end FinSumExpand
 Supports:
 - **Interval finsets**: `Icc a b`, `Ico a b`, `Ioc a b`, `Ioo a b`, `Iic b`, `Iio b`
 - **Explicit finsets**: `{a, b, c, ...}`
+- **Fin sums**: `∑ i : Fin n, f i` for small `n` (up to 8)
 
 **Fully automated** - works for any concrete natural number or integer bounds.
 
@@ -129,6 +132,10 @@ example (f : ℕ → ℝ) : ∑ k ∈ Finset.Ioo 5 6, f k = 0 := by
 -/
 macro "finsum_expand" : tactic =>
   `(tactic| (
+    -- Step 0: Expand Fin sums to explicit additions (for small n)
+    try simp only [Fin.sum_univ_one, Fin.sum_univ_two, Fin.sum_univ_three,
+                   Fin.sum_univ_four, Fin.sum_univ_five, Fin.sum_univ_six,
+                   Fin.sum_univ_seven, Fin.sum_univ_eight]
     -- Step 1: Use Mathlib's simprocs to compute Finset intervals to explicit sets
     -- (wrapped in try since it won't apply to explicit finsets)
     try simp only [Finset.Icc_ofNat_ofNat, Finset.Ico_ofNat_ofNat,
