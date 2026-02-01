@@ -279,24 +279,193 @@ def checkIntegralUpperBoundDyadicList (e : Expr) (parts : List IntervalRat)
   checkPartitionDomainValidList e parts cfg &&
   decide ((integratePartitionDyadicList e parts cfg).hi ≤ c)
 
+/-! ### List partition coverage -/
+
+/-- A list of intervals forms a partition of `I`: non-empty, adjacent, and spanning `[I.lo, I.hi]`.
+    Specifically: `parts[0].lo = I.lo`, `parts[n-1].hi = I.hi`, and consecutive intervals
+    are adjacent (`parts[k].hi = parts[k+1].lo`). -/
+structure ListPartitionCovers (parts : List IntervalRat) (I : IntervalRat) : Prop where
+  nonempty : parts ≠ []
+  head_lo : (parts.head nonempty).lo = I.lo
+  last_hi : (parts.getLast nonempty).hi = I.hi
+  adjacent : ∀ k (hk : k + 1 < parts.length),
+    (parts[k]'(by omega)).hi = (parts[k + 1]'hk).lo
+
+/-- Domain validity for all subintervals in a list-based partition. -/
+def listPartitionDomainValid (e : Expr) (parts : List IntervalRat)
+    (cfg : DyadicConfig) : Prop :=
+  ∀ Ik, Ik ∈ parts →
+    evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat Ik cfg.precision) cfg
+
+/-- The boolean check implies the Prop-level domain validity. -/
+theorem checkPartitionDomainValidList_correct (e : Expr) (parts : List IntervalRat)
+    (cfg : DyadicConfig) :
+    checkPartitionDomainValidList e parts cfg = true → listPartitionDomainValid e parts cfg := by
+  intro hcheck Ik hmem
+  unfold checkPartitionDomainValidList at hcheck
+  rw [List.all_eq_true] at hcheck
+  exact checkDomainValidDyadic_correct _ _ _ (hcheck _ hmem)
+
+/-- Helper: I.lo ≤ parts[k].lo for any part in a covering partition. -/
+private theorem lo_le_part_lo (parts : List IntervalRat) (I : IntervalRat)
+    (hcover : ListPartitionCovers parts I) (k : ℕ) (hk : k < parts.length) :
+    I.lo ≤ (parts[k]'hk).lo := by
+  induction k with
+  | zero =>
+    have := hcover.head_lo
+    simp only [List.head_eq_getElem] at this
+    exact this ▸ le_refl _
+  | succ k' ih =>
+    have hk' : k' < parts.length := by omega
+    calc I.lo ≤ (parts[k']'hk').lo := ih hk'
+      _ ≤ (parts[k']'hk').hi := (parts[k']'hk').le
+      _ = (parts[k' + 1]'hk).lo := hcover.adjacent k' hk
+
+/-- Helper: parts[k].hi ≤ I.hi for any part in a covering partition. -/
+private theorem part_hi_le_hi (parts : List IntervalRat) (I : IntervalRat)
+    (hcover : ListPartitionCovers parts I) (k : ℕ) (hk : k < parts.length) :
+    (parts[k]'hk).hi ≤ I.hi := by
+  suffices h : ∀ j, k + j + 1 = parts.length → (parts[k]'hk).hi ≤ I.hi from
+    h (parts.length - k - 1) (by omega)
+  intro j
+  induction j generalizing k with
+  | zero =>
+    intro hkn
+    have : parts[k]'hk = parts.getLast hcover.nonempty := by
+      rw [List.getLast_eq_getElem]; congr 1; omega
+    rw [congrArg IntervalRat.hi this]
+    exact hcover.last_hi ▸ le_refl _
+  | succ j ih =>
+    intro hkj
+    have hk1 : k + 1 < parts.length := by omega
+    calc (parts[k]'hk).hi = (parts[k + 1]'hk1).lo := hcover.adjacent k hk1
+      _ ≤ (parts[k + 1]'hk1).hi := (parts[k + 1]'hk1).le
+      _ ≤ I.hi := ih (k + 1) hk1 (by omega)
+
+/-- The integral is contained in the list-based integration bound.
+    Proved by showing each sub-integral is bounded, then using `sum_mem_foldl_add`.
+    The key step is splitting `∫_{I.lo}^{I.hi}` into `∑ ∫_{parts[k].lo}^{parts[k].hi}`. -/
+private theorem integral_mem_bound_dyadic_list (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (parts : List IntervalRat) (I : IntervalRat)
+    (hcover : ListPartitionCovers parts I)
+    (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
+    (hdomall : listPartitionDomainValid e parts cfg)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
+    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
+      integratePartitionDyadicList e parts cfg := by
+  have hne := hcover.nonempty
+  set n := parts.length with hn_def
+  have hn : 0 < n := by rw [hn_def]; exact List.length_pos_of_ne_nil hne
+  -- Step 1: Split the integral using sum_integral_adjacent_intervals
+  set f : ℕ → ℝ := fun k =>
+    if hk : k < n then (parts[k]'hk).lo
+    else (parts.getLast hne).hi with hf_def
+  have hfk : ∀ k (hk : k < n), f k = (parts[k]'hk).lo := by
+    intro k hk; simp [hf_def, hk]
+  have hfk1 : ∀ k (hk : k < n), f (k + 1) = ((parts[k]'hk).hi : ℝ) := by
+    intro k hk
+    simp only [hf_def]
+    split
+    · next hk1 =>
+      have := hcover.adjacent k hk1
+      exact_mod_cast this.symm
+    · next hk1 =>
+      have hkn : k + 1 = n := by omega
+      -- Goal: ↑(parts.getLast hne).hi = ↑(parts[k]'hk).hi
+      congr 1
+      have : parts.getLast hne = parts[k]'hk := by
+        simp only [List.getLast_eq_getElem]; congr 1; omega
+      exact congrArg IntervalRat.hi this
+  have hf0 : f 0 = (I.lo : ℝ) := by
+    have h := hcover.head_lo
+    simp only [List.head_eq_getElem] at h
+    simp only [hf_def, hn, ↓reduceDIte]
+    exact_mod_cast h
+  have hfn : f n = (I.hi : ℝ) := by
+    simp only [hf_def, lt_irrefl, ↓reduceDIte]
+    exact_mod_cast hcover.last_hi
+  have hint_sub : ∀ k (hk : k < n),
+      IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume (f k) (f (k + 1)) := by
+    intro k hk; rw [hfk k hk, hfk1 k hk]
+    apply hInt.mono_set
+    simp only [Set.uIcc_of_le (by exact_mod_cast (parts[k]'hk).le :
+      ((parts[k]'hk).lo : ℝ) ≤ (parts[k]'hk).hi)]
+    simp only [Set.uIcc_of_le (by exact_mod_cast I.le : (I.lo : ℝ) ≤ I.hi)]
+    intro x ⟨hxlo, hxhi⟩
+    exact ⟨le_trans (by exact_mod_cast lo_le_part_lo parts I hcover k hk) hxlo,
+           le_trans hxhi (by exact_mod_cast part_hi_le_hi parts I hcover k hk)⟩
+  -- The integral splits as a Finset sum
+  have hsplit : ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e =
+      ∑ k ∈ Finset.range n,
+        ∫ x in (f k)..(f (k + 1)), Expr.eval (fun _ => x) e := by
+    conv_lhs => rw [← hf0, ← hfn]
+    exact (intervalIntegral.sum_integral_adjacent_intervals (fun k hk => hint_sub k hk)).symm
+  rw [hsplit]
+  -- Step 2: Convert Finset.sum to List operations for sum_mem_foldl_add
+  set integrals := List.ofFn (fun k : Fin n =>
+    ∫ x in ((parts[k.1]'k.2).lo : ℝ)..((parts[k.1]'k.2).hi : ℝ),
+      Expr.eval (fun _ => x) e) with hintegrals_def
+  set bounds := collectBoundsDyadic e parts cfg with hbounds_def
+  -- Rewrite the Finset.sum as a List.sum
+  have hsum_eq : ∑ k ∈ Finset.range n,
+      ∫ x in (f k)..(f (k + 1)), Expr.eval (fun _ => x) e = integrals.sum := by
+    rw [hintegrals_def, List.sum_ofFn, Finset.sum_range]
+    congr 1; ext ⟨k, hk⟩
+    congr 1 <;> [exact hfk k hk; exact hfk1 k hk]
+  rw [hsum_eq]
+  have hlen : integrals.length = bounds.length := by
+    simp only [hintegrals_def, List.length_ofFn, hbounds_def, collectBoundsDyadic, List.length_map]
+    exact hn_def
+  have hmem_each : ∀ i (hi : i < integrals.length),
+      integrals[i] ∈ bounds[i]'(hlen ▸ hi) := by
+    intro i hi
+    have hi' : i < n := by simpa [hintegrals_def, List.length_ofFn] using hi
+    simp only [hintegrals_def, List.getElem_ofFn]
+    simp only [hbounds_def, collectBoundsDyadic, List.getElem_map]
+    apply integrateInterval1Dyadic_correct e hsupp _ cfg hprec
+    · exact hdomall _ (List.getElem_mem hi')
+    · apply hInt.mono_set
+      simp only [Set.uIcc_of_le (by exact_mod_cast (parts[i]'hi').le :
+        ((parts[i]'hi').lo : ℝ) ≤ (parts[i]'hi').hi)]
+      simp only [Set.uIcc_of_le (by exact_mod_cast I.le : (I.lo : ℝ) ≤ I.hi)]
+      intro x ⟨hxlo, hxhi⟩
+      exact ⟨le_trans (by exact_mod_cast lo_le_part_lo parts I hcover i hi') hxlo,
+             le_trans hxhi (by exact_mod_cast part_hi_le_hi parts I hcover i hi')⟩
+  exact sum_mem_foldl_add hlen hmem_each
+
 /-! ### Bridge lemmas for list-based partition -/
 
 /-- Bridge theorem (lower bound) for arbitrary partition. -/
 theorem integral_lower_of_check_dyadic_list (e : Expr) (hsupp : ExprSupportedWithInv e)
     (I : IntervalRat) (parts : List IntervalRat)
+    (hcover : ListPartitionCovers parts I)
     (c : ℚ) (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
     (hcheck : checkIntegralLowerBoundDyadicList e parts c cfg = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
     (c : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := by
-  sorry
+  unfold checkIntegralLowerBoundDyadicList at hcheck
+  simp only [Bool.and_eq_true, decide_eq_true_eq] at hcheck
+  have hdomall := checkPartitionDomainValidList_correct e parts cfg hcheck.1
+  have hmem := integral_mem_bound_dyadic_list e hsupp parts I hcover cfg hprec hdomall hInt
+  simp only [IntervalRat.mem_def] at hmem
+  calc (c : ℝ) ≤ ((integratePartitionDyadicList e parts cfg).lo : ℝ) := by exact_mod_cast hcheck.2
+    _ ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := hmem.1
 
 /-- Bridge theorem (upper bound) for arbitrary partition. -/
 theorem integral_upper_of_check_dyadic_list (e : Expr) (hsupp : ExprSupportedWithInv e)
     (I : IntervalRat) (parts : List IntervalRat)
+    (hcover : ListPartitionCovers parts I)
     (c : ℚ) (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
     (hcheck : checkIntegralUpperBoundDyadicList e parts c cfg = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (c : ℝ) := by
-  sorry
+  unfold checkIntegralUpperBoundDyadicList at hcheck
+  simp only [Bool.and_eq_true, decide_eq_true_eq] at hcheck
+  have hdomall := checkPartitionDomainValidList_correct e parts cfg hcheck.1
+  have hmem := integral_mem_bound_dyadic_list e hsupp parts I hcover cfg hprec hdomall hInt
+  simp only [IntervalRat.mem_def] at hmem
+  calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e
+      ≤ ((integratePartitionDyadicList e parts cfg).hi : ℝ) := hmem.2
+    _ ≤ (c : ℝ) := by exact_mod_cast hcheck.2
 
 end LeanCert.Validity.IntegrationDyadic

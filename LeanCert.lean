@@ -60,8 +60,7 @@ import LeanCert.Tactic.DyadicAuto
 import LeanCert.Tactic.Refute
 -- Additional tactics
 import LeanCert.Tactic.Bound
-import LeanCert.Tactic.TestAuto
-import LeanCert.Tactic.TestDiscovery
+-- Note: TestAuto and TestDiscovery moved to `examples` build target.
 -- Vector simplification with explicit Fin constructors
 import LeanCert.Tactic.VecSimp
 -- Finset sum expansion (intervals and explicit sets)
@@ -86,21 +85,8 @@ import LeanCert.ML.Optimized.Matrix
 import LeanCert.ML.Optimized.QuantizedLayer
 import LeanCert.ML.Optimized.MatrixNetwork
 
--- ML Examples
-import LeanCert.Examples.ML.Distillation
-import LeanCert.Examples.ML.SineApprox
-import LeanCert.Examples.ML.SineNetWeights
-
--- Examples
-import LeanCert.Examples.Basic
-import LeanCert.Examples.Calculus
-import LeanCert.Examples.Numerics
-import LeanCert.Examples.Tactics
-import LeanCert.Examples.Certificate
-import LeanCert.Examples.GlobalOptimization
-import LeanCert.Examples.EdgeCases
-import LeanCert.Examples.NeuralNet
-import LeanCert.Examples.Showcase
+-- Note: Examples moved to separate `examples` build target.
+-- Build with: lake build examples
 
 -- Contrib (community contributions)
 import LeanCert.Contrib.Sinc
