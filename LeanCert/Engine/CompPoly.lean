@@ -134,7 +134,8 @@ def definiteIntegral (p : DyPoly) (a b : IntervalDyadic) (prec : Int) : Interval
         let cDown := antiderivativeCoeffDown (p.coeff i) i prec
         let cUp := antiderivativeCoeffUp (p.coeff i) i prec
         let cI : IntervalDyadic := ⟨LeanCert.Core.Dyadic.min cDown cUp, LeanCert.Core.Dyadic.max cDown cUp,
-          by sorry⟩
+          le_trans (LeanCert.Core.Dyadic.min_toRat_le_left cDown cUp)
+            (LeanCert.Core.Dyadic.le_max_toRat_left cDown cUp)⟩
         IntervalDyadic.addRounded cI (IntervalDyadic.mulRounded x acc prec) prec
       ) init
 
@@ -261,7 +262,8 @@ def inv (tm : DyTM) (maxDeg nTerms : ℕ) (cfg : DyadicConfig) (maxBits : Nat :=
     (DyTM.add acc newPow, newPow)) (init, init)
   -- Geometric series remainder: |s|^(n+1) / (1 - |s|)
   let geomRem := sMax ^ (nTerms + 1) / (1 - sMax)
-  let geomRemDyad := IntervalDyadic.ofIntervalRat ⟨-geomRem, geomRem, by sorry⟩ p
+  let geomRemDyad := IntervalDyadic.ofIntervalRat ⟨-|geomRem|, |geomRem|,
+    neg_le_self (abs_nonneg geomRem)⟩ p
   -- Result = (1/a₀) * (acc + geomRem)
   pure { poly := acc.poly.scale invA0Mid |>.normalize maxBits
          remainder := IntervalDyadic.mulRounded invA0I
@@ -326,7 +328,8 @@ def log (tm : DyTM) (maxDeg nTerms : ℕ) (cfg : DyadicConfig) (maxBits : Nat :=
     (DyTM.add acc term, newPow)) (init, unitTM)
   -- Log series remainder: |s|^(n+1) / ((n+1) * (1 - |s|))
   let logRem := sMax ^ (nTerms + 1) / ((nTerms + 1 : ℚ) * (1 - sMax))
-  let logRemDyad := IntervalDyadic.ofIntervalRat ⟨-logRem, logRem, by sorry⟩ p
+  let logRemDyad := IntervalDyadic.ofIntervalRat ⟨-|logRem|, |logRem|,
+    neg_le_self (abs_nonneg logRem)⟩ p
   pure { poly := acc.poly.normalize maxBits
          remainder := IntervalDyadic.addRounded acc.remainder logRemDyad p
          center := tm.center, domain := tm.domain, prec := p }
