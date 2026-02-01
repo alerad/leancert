@@ -12,9 +12,18 @@ import Mathlib.Algebra.Order.Group.Abs
 
 Helpers for `Matrix.vecCons` expressions, used by `VecSimp` and `FinSumExpand`.
 
+## Metaprogramming utilities (in `VecUtil` namespace)
+
 * `getFinVal?` - extract Nat from Fin expression
 * `getVecElem` - extract element from vecCons chain
 * `vecConsFinMk` - dsimproc reducing `vecCons` indexing
+
+## Shared tactics (outside namespace, for use by other tactics)
+
+* `dite_simp` - simplify `if h : 1 ≤ 2 then x else y` → `x`
+* `abs_simp` - simplify `|3| → 3`, `|-2| → 2`
+* `vec_index_simp_core` - vector indexing with Matrix.of_apply fixed-point iteration
+* `vec_index_simp_with_dite` - adds dite/abs support to `vec_index_simp_core`
 
 Debug: `set_option trace.VecUtil.debug true`
 -/
