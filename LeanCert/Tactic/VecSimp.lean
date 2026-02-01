@@ -85,6 +85,8 @@ simp (config := { decide := true }) only [dite_true, dite_false]
 - Only works for conditions with computable `Decidable` instances
 - Both sides of comparisons must be concrete literals (not variables)
 - Very large literals may be slow to compute
+- Complex expressions (e.g., `Finset.sup'` with nested sums) may hit max recursion;
+  use `vec_simp!` after `fin_cases` breaks down the goal into simple cases
 
 ## Main definitions
 
@@ -204,9 +206,8 @@ macro "vec_simp!" : tactic =>
 
 /-- Version of `vec_simp!` for matrices with named definitions.
 
-    Disables Mathlib simprocs (to avoid PANIC with `fin_cases`), unfolds the
-    given definitions, then applies vector simplification, dite evaluation,
-    abs simplification, and `norm_num`.
+    Unfolds the given definitions, then applies vector simplification, dite
+    evaluation, abs simplification, and `norm_num`.
 
     Example:
     ```lean
@@ -219,7 +220,7 @@ macro "vec_simp!" : tactic =>
 -/
 macro "vec_simp!" "[" defs:Lean.Parser.Tactic.simpLemma,* "]" : tactic =>
   `(tactic| (
-    set_option simprocs false in simp [$defs,*]
+    simp only [$defs,*]
     try simp only [VecSimp.vecConsFinMk]
     try simp (config := { decide := true }) only [dite_true, dite_false]
     try simp only [abs_of_pos, abs_of_nonneg]
