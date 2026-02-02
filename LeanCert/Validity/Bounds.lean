@@ -2268,7 +2268,7 @@ theorem collectBoundsWithInv_length (e : Expr) :
       simp [hI, hIs] at h
     cases h
     have hlen := ih _ hIs
-    simpa [hlen]
+    simp [hlen]
 
 theorem collectBoundsWithInv_getElem (e : Expr) :
     ∀ parts bounds (h : collectBoundsWithInv e parts = some bounds),
@@ -2298,7 +2298,7 @@ theorem collectBoundsWithInv_getElem (e : Expr) :
       have hi' : i < Is.length := by
         simpa [List.length] using hi
       have hrec := ih _ hIs i hi'
-      simp [List.getElem_cons, hrec]
+      simp [hrec]
 
 theorem integral_subinterval_bounded_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (k : ℕ) (hk : k < n)

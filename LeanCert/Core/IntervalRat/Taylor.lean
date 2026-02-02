@@ -2051,6 +2051,55 @@ theorem mem_erfScaled' (q : ℚ) (n : ℕ) :
   rw [erf_eq_factor_mul_inner]
   exact mem_mul two_div_sqrt_pi_mem (mem_erfInner_taylor q n)
 
+/-! ### Computable atanh interval via endpoint evaluation -/
+
+/-- Computable interval enclosure for atanh using endpoint evaluation.
+    Since atanh is strictly increasing on (-1, 1), we evaluate at endpoints.
+    Requires the interval to be strictly inside (-1, 1); returns a wide fallback otherwise. -/
+def atanhComputable (I : IntervalRat) (n : ℕ := 15) : IntervalRat :=
+  if I.lo ≤ -1 then
+    ⟨-1000, 1000, by norm_num⟩
+  else if 1 ≤ I.hi then
+    ⟨-1000, 1000, by norm_num⟩
+  else
+    let atanhLo := atanhPointComputable I.lo n
+    let atanhHi := atanhPointComputable I.hi n
+    hull atanhLo atanhHi
+
+/-- FTIA for atanhComputable: if x ∈ I and I ⊂ (-1, 1), then atanh(x) ∈ atanhComputable I n. -/
+theorem mem_atanhComputable {x : ℝ} {I : IntervalRat} (hx : x ∈ I)
+    (hlo : -1 < I.lo) (hhi : I.hi < 1) (n : ℕ) :
+    Real.atanh x ∈ atanhComputable I n := by
+  simp only [atanhComputable, not_le.mpr hlo, ↓reduceIte, not_le.mpr hhi, ↓reduceIte]
+  -- x ∈ I ⊂ (-1, 1), so |lo|, |hi|, |x| < 1
+  have hlo_real : (-1 : ℝ) < I.lo := by exact_mod_cast hlo
+  have hhi_real : (I.hi : ℝ) < 1 := by exact_mod_cast hhi
+  have hx_lo : -1 < x := by linarith [hx.1]
+  have hx_hi : x < 1 := by linarith [hx.2]
+  have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
+  have habs_lo : |(I.lo : ℝ)| < 1 := by rw [abs_lt]; constructor <;> linarith
+  have habs_hi : |(I.hi : ℝ)| < 1 := by rw [abs_lt]; constructor <;> linarith
+  have habs_x : |x| < 1 := by rw [abs_lt]; constructor <;> linarith
+  -- atanh at endpoints
+  have hlo_abs_rat : |(I.lo : ℝ)| < 1 := habs_lo
+  have hhi_abs_rat : |(I.hi : ℝ)| < 1 := habs_hi
+  have hlo_mem := mem_atanhPointComputable I.lo n hlo_abs_rat
+  have hhi_mem := mem_atanhPointComputable I.hi n hhi_abs_rat
+  -- Monotonicity: atanh(lo) ≤ atanh(x) ≤ atanh(hi)
+  have hatanh_lo_le : Real.atanh I.lo ≤ Real.atanh x :=
+    Real.atanh_mono habs_lo habs_x hx.1
+  have hatanh_x_le_hi : Real.atanh x ≤ Real.atanh I.hi :=
+    Real.atanh_mono habs_x habs_hi hx.2
+  simp only [hull, mem_def, Rat.cast_min, Rat.cast_max]
+  constructor
+  · calc (min (atanhPointComputable I.lo n).lo (atanhPointComputable I.hi n).lo : ℝ)
+        ≤ (atanhPointComputable I.lo n).lo := by exact_mod_cast min_le_left _ _
+      _ ≤ Real.atanh I.lo := hlo_mem.1
+      _ ≤ Real.atanh x := hatanh_lo_le
+  · calc Real.atanh x ≤ Real.atanh I.hi := hatanh_x_le_hi
+      _ ≤ (atanhPointComputable I.hi n).hi := hhi_mem.2
+      _ ≤ max ((atanhPointComputable I.lo n).hi : ℝ) ((atanhPointComputable I.hi n).hi : ℝ) := le_max_right _ _
+
 end IntervalRat
 
 end LeanCert.Core

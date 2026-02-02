@@ -6,13 +6,14 @@ Authors: LeanCert Contributors
 import LeanCert
 import LeanCert.Examples.Li2Bounds
 import LeanCert.Engine.Integrate
+import LeanCert.Validity.IntegrationDyadic
 
 /-!
 # Verified Computation of li(2) - Heavy Numerical Verification
 
 This file contains the heavy numerical verification of li(2) bounds using
-interval arithmetic. It takes ~20 minutes to compile due to the `native_decide`
-calls that verify partition-based integration bounds.
+interval arithmetic. It takes ~5 minutes to compile due to the `native_decide`
+calls that verify partition-based integration bounds using the Dyadic backend.
 
 ## Purpose
 
@@ -21,7 +22,7 @@ This file proves `li2_bounds_verified`, which establishes:
 
 The proof uses:
 - Partition of [0, 1] into 7 subintervals
-- Taylor model integration with 3000 partitions on [1/1000, 999/1000]
+- Dyadic interval arithmetic with 3000 partitions on [1/1000, 999/1000]
 - 100 partitions on tail intervals
 - Analytic bounds on tiny tail intervals near 0 and 1
 
@@ -48,6 +49,13 @@ open scoped ENNReal
 
 -- Re-export from Li2Bounds for convenience
 open Li2
+
+/-! ### Dyadic configuration for fast integration -/
+
+/-- Dyadic precision config for Li2 integration. Uses -200 bit precision
+    with Taylor depth 20 to achieve sufficient accuracy for 3000-partition bounds. -/
+def li2DyadicConfig : LeanCert.Engine.DyadicConfig :=
+  ⟨-200, 20, 0⟩
 
 /-! ### Helper definitions for certified integral bounds via native_decide -/
 
@@ -532,38 +540,43 @@ theorem g_alt_intervalIntegrable_main :
 
 set_option maxHeartbeats 4000000 in
 /-- Verified lower bound on ∫[1/1000, 999/1000] g(t) dt.
-    Computed via integratePartitionWithInv with 3000 partitions using g_alt_expr. -/
+    Uses proven Dyadic interval arithmetic for ~4x speedup over rational backend. -/
 theorem g_mid_integral_lower :
     (103775:ℚ)/100000 ≤ ∫ t in (1/1000:ℝ)..(999/1000), g t := by
   rw [← g_alt_integral_eq]
   have hcast : ((103775:ℚ)/100000 : ℝ) = ((103775/100000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  have hcheck : checkIntegralLowerBound g_alt_expr g_mid_interval_main 3000 (103775/100000) = true := by
+  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralLowerBoundDyadicFull
+      g_alt_expr g_mid_interval_main 3000 (103775/100000) li2DyadicConfig = true := by
     native_decide
   have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_main
   have hlo : (g_mid_interval_main.lo : ℝ) = 1/1000 := by norm_num [g_mid_interval_main]
   have hhi : (g_mid_interval_main.hi : ℝ) = 999/1000 := by norm_num [g_mid_interval_main]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num)
-    (103775/100000) hcheck hInt
+  exact LeanCert.Validity.IntegrationDyadic.integral_lower_of_check_dyadic
+    g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num) (103775/100000)
+    li2DyadicConfig (by native_decide) hcheck hInt
 
 set_option maxHeartbeats 4000000 in
-/-- Verified upper bound on ∫[1/1000, 999/1000] g(t) dt. -/
+/-- Verified upper bound on ∫[1/1000, 999/1000] g(t) dt.
+    Uses proven Dyadic interval arithmetic for ~4x speedup over rational backend. -/
 theorem g_mid_integral_upper :
     ∫ t in (1/1000:ℝ)..(999/1000), g t ≤ (104840:ℚ)/100000 := by
   rw [← g_alt_integral_eq]
   have hcast : ((104840:ℚ)/100000 : ℝ) = ((104840/100000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  have hcheck : checkIntegralUpperBound g_alt_expr g_mid_interval_main 3000 (104840/100000) = true := by
+  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralUpperBoundDyadicFull
+      g_alt_expr g_mid_interval_main 3000 (104840/100000) li2DyadicConfig = true := by
     native_decide
   have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_main
   have hlo : (g_mid_interval_main.lo : ℝ) = 1/1000 := by norm_num [g_mid_interval_main]
   have hhi : (g_mid_interval_main.hi : ℝ) = 999/1000 := by norm_num [g_mid_interval_main]
   rw [← hlo, ← hhi]
-  exact integral_upper_of_check g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num)
-    (104840/100000) hcheck hInt
+  exact LeanCert.Validity.IntegrationDyadic.integral_upper_of_check_dyadic
+    g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num) (104840/100000)
+    li2DyadicConfig (by native_decide) hcheck hInt
 
 /-! ### Additional Interval Bounds -/
 

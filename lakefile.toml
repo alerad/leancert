@@ -13,6 +13,13 @@ precompileModules = false
 # Note: Downstream projects importing LeanCert.Examples.Li2Bounds get fast builds (~3s).
 # Li2Verified (~20min) is only built if explicitly imported or requested.
 
+# Examples and tests - not part of default build
+# Build with: lake build examples
+[[lean_lib]]
+name = "examples"
+roots = ["LeanCert.Examples"]
+precompileModules = false
+
 # Heavy numerical verification - for CI validation
 # Build explicitly with: lake build Li2Verified
 [[lean_lib]]

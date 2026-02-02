@@ -1,0 +1,26 @@
+name: Tag on lean-toolchain change
+
+on:
+  push:
+    paths: ['lean-toolchain']
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extract Lean version
+        id: version
+        run: |
+          VERSION=$(sed 's|leanprover/lean4:||' lean-toolchain | tr -d '[:space:]')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag
+        run: |
+          git tag "${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
