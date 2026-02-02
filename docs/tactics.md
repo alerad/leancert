@@ -32,7 +32,7 @@ Note: `interval_bound` is an alias for backward compatibility.
 |-----------|------|---------|-------------|
 | `depth` | `ℕ` | 10 | Taylor series depth for transcendentals |
 
-**Supported functions:** `+`, `-`, `*`, `sin`, `cos`, `exp`, `sqrt`, `sinh`, `cosh`, `tanh`
+**Supported functions:** `+`, `-`, `*`, `sin`, `cos`, `exp`, `sqrt`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`, `atanh`, `sinc`, `erf`, `log`, `inv`
 
 ---
 
@@ -554,7 +554,7 @@ These reduce the goal to a rational inequality that must be proved manually.
 
 ### `vec_simp`
 
-Simplifies vector indexing expressions with explicit `Fin.mk` constructors.
+Simplifies vector indexing expressions with explicit `Fin.mk` constructors using a custom `dsimproc` that extracts the natural number from `Fin.mk n proof` and walks the `vecCons` chain directly.
 
 ```lean
 import LeanCert.Tactic.VecSimp
@@ -580,7 +580,9 @@ example (a₀ a₁ : ℝ) :
   vec_simp; ring
 ```
 
-**Why this exists:** Mathlib's `cons_val` simproc only matches numeric literals like `0`, `1`, `2`. It doesn't match explicit `Fin.mk` applications like `⟨0, by omega⟩`, which commonly appear in proofs. This tactic fills that gap.
+**Why this exists:** Mathlib's `cons_val` simproc uses `int?` to extract indices, which only matches numeric literals like `0`, `1`, `2`. It doesn't match explicit `Fin.mk` applications like `⟨0, by omega⟩`, which commonly appear in proofs (e.g., from `finsum_expand` or matrix indexing). The `vec_simp` dsimproc fills that gap by pattern-matching on `Fin.mk` directly.
+
+**How it works:** A `dsimproc` (`VecSimp.vecConsFinMk`) matches applications of `vecCons` to a `Fin.mk n proof` index, extracts `n`, and recursively traverses the cons chain to return the n-th element. This is combined with standard Mathlib vector lemmas (`cons_val_zero`, `cons_val_one`, `head_cons`).
 
 ---
 
@@ -637,6 +639,9 @@ example (a : ℕ → ℝ) (r : ℝ) : ∑ n ∈ Finset.Icc 1 3, |a n| * r ^ n =
 | `Finset.Iic n` | [0, n] for ℕ | `Iic 2` → {0, 1, 2} |
 | `Finset.Iio n` | [0, n) for ℕ | `Iio 3` → {0, 1, 2} |
 | `{a, b, ...}` | Explicit set | `{1, 3, 7}` |
+| `∑ i : Fin n, f i` | Fin univ | `Fin 3` → {0, 1, 2} |
+
+**How it works:** Uses `Finset.sum_cons` and `Finset.sum_empty` rewriting combined with `native_decide` to evaluate finset membership. For `Fin n` sums, uses `Fin.sum_univ_ofNat` when `n` is a literal.
 
 **Why this exists:** When proving bounds involving finite sums, you often need to expand them for arithmetic simplification. Without this tactic, you'd need to manually define "bridge lemmas" for each specific range.
 

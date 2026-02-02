@@ -10,7 +10,8 @@ LeanCert automates proofs of inequalities, global extrema, root existence, and i
 - **Kernel-Only Verification**: `certify_kernel` tactic uses `decide` for proofs trusted only by the Lean kernel
 - **Global Optimization**: Branch-and-bound with verified lower/upper bounds
 - **Root Finding**: Existence proofs (bisection) and uniqueness proofs (Newton contraction)
-- **Integration**: Verified Riemann sum bounds
+- **Integration**: Verified Riemann sum bounds with both rational and **dyadic** backends
+- **Bernstein Enclosure**: Tight polynomial bounds via verified Bernstein basis conversion
 - **Neural Network Verification**: Interval propagation with DeepPoly relaxations
 - **Transformer Verification**: Multi-Head Attention, LayerNorm, GELU soundness proofs
 - **Counter-Example Search**: `interval_refute` finds where conjectured bounds fail
@@ -67,7 +68,7 @@ LeanCert operates on a **certificate-driven architecture**:
 
 This separation allows efficient computation while maintaining full formal verification.
 
-**Two Backends**: LeanCert includes both rational (`evalIntervalCore`) and dyadic (`evalIntervalDyadic`) interval arithmetic. The dyadic backend is essential for deep expressions like neural networks, where rational denominators would explode exponentially.
+**Two Backends**: LeanCert includes both rational (`evalIntervalCore`) and dyadic (`evalIntervalDyadic`) interval arithmetic. The dyadic backend is essential for deep expressions like neural networks and integration of complex integrands (e.g., Li₂), where rational denominators would explode exponentially. Both backends now support all transcendental functions including `atanh`.
 
 ## Installation
 

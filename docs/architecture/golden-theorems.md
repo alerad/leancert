@@ -73,6 +73,8 @@ theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupported e)
 
 ### Integration
 
+**Rational backend:**
+
 ```lean
 theorem verify_integral_bound (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (target : ℚ) (cfg : EvalConfig)
@@ -81,7 +83,29 @@ theorem verify_integral_bound (e : Expr) (hsupp : ExprSupportedCore e)
     ∫ x in I.lo..I.hi, Expr.eval (fun _ => x) e ∈ integrateInterval1Core e I cfg
 ```
 
-The integral is proven to lie within the computed interval bounds.
+**Dyadic backend** (for complex integrands like Li₂ where rational arithmetic explodes):
+
+```lean
+theorem integrateInterval1Dyadic_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (I : IntervalRat) (cfg : DyadicConfig)
+    (hprec : cfg.precision ≤ 0)
+    (hdom : evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat I cfg.precision) cfg)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
+    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
+      integrateInterval1Dyadic e I cfg
+```
+
+The dyadic integration path supports `ExprSupportedWithInv` (including `inv`, `log`, `atanh`) and uses `evalIntervalDyadic` which is total — domain violations produce wide bounds that safely cause the checker to return `false`.
+
+```lean
+theorem integratePartitionDyadic_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+    (I : IntervalRat) (n : ℕ) (hn : 0 < n) (cfg : DyadicConfig)
+    (hprec : cfg.precision ≤ 0)
+    (hdom : ∀ k (hk : k < n), evalDomainValidDyadic e ...)
+    (hInt : IntervalIntegrable ...) :
+    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
+      integratePartitionDyadic e I n hn cfg
+```
 
 ### Monotonicity
 

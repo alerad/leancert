@@ -44,8 +44,14 @@ What do you want to prove?
 ├─► Point inequality (π < 3.15, etc.)
 │   └─► interval_decide
 │
-└─► Integral bound
-    └─► interval_integrate
+├─► Integral bound
+│   └─► interval_integrate
+│
+├─► Simplify vector/matrix indexing (![a,b,c] ⟨1,h⟩ → b)
+│   └─► vec_simp
+│
+└─► Expand finite sum (∑ k ∈ Icc 1 3, f k → f 1 + f 2 + f 3)
+    └─► finsum_expand
 ```
 
 ## Quick Reference Table
@@ -65,6 +71,9 @@ What do you want to prove?
 | Find the maximizer | `interval_argmax` | `∃ x ∈ I, ∀ y ∈ I, f y ≤ f x` |
 | Point inequality | `interval_decide` | `π < 3.15` |
 | Disprove a bound | `interval_refute` | Find counterexample |
+| Simplify vector indexing | `vec_simp` | `![a,b,c] ⟨1, h⟩ = b` |
+| Expand finite sums | `finsum_expand` | `∑ k ∈ Icc 1 3, f k = f 1 + f 2 + f 3` |
+| Integral bound | `interval_integrate` | `∫ x in a..b, f x ∈ I` |
 
 ## Trust Levels
 
@@ -151,3 +160,20 @@ example : ∀ x ∈ I01, Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var
 ```
 
 **When native syntax fails:** If you get unification errors with complex expressions (especially with numeric coefficients like `2 * x * x`), switch to Expr AST. See [Troubleshooting](troubleshooting.md#could-not-unify--expreval--with-the-goal) for details.
+
+### "I have a sum over vectors/matrices"
+
+Chain simplification tactics to reduce structured expressions before proving bounds:
+
+```lean
+-- Expand finite sum, simplify vector indexing, then close with ring
+example (a : Fin 3 → ℝ) :
+    ∑ k ∈ Finset.Icc 0 2, (![a 0, a 1, a 2] : Fin 3 → ℝ) ⟨k, by omega⟩ =
+    a 0 + a 1 + a 2 := by
+  finsum_expand; vec_simp
+```
+
+Common combinations:
+- `finsum_expand; ring` — expand sum, simplify arithmetic
+- `finsum_expand; vec_simp; ring` — expand sum, reduce vector indexing, simplify
+- `vec_simp; certify_bound` — simplify indexing, then prove bounds
