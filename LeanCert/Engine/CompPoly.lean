@@ -110,7 +110,7 @@ def tail (p : DyPoly) (maxDeg : ℕ) : DyPoly :=
 def antiderivativeCoeffDown (c : Dy) (i : ℕ) (prec : Int) : Dy :=
   -- c / (i+1), rounding down
   let num := c
-  let denom := LeanCert.Core.Dyadic.ofInt (i + 1 : Int)
+  let _denom := LeanCert.Core.Dyadic.ofInt (i + 1 : Int)
   -- Compute as Dyadic: c * (1/(i+1)) ≈ c.mantissa * 2^c.exponent / (i+1)
   -- Rounding down: use shiftDown on the result
   let result := LeanCert.Core.Dyadic.mul num (LeanCert.Core.Dyadic.ofInt 1)  -- just c
@@ -365,18 +365,18 @@ def dyTMFromExpr (e : Expr) (domain : IntervalDyadic)
     let tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
     DyTM.inv tm maxDeg nTerms cfg maxBits
   | .log e => do
-    let tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
-    DyTM.log tm maxDeg nTerms cfg maxBits
+    let _tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
+    DyTM.log _tm maxDeg nTerms cfg maxBits
   | .exp e => do
-    let tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
+    let _tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
     let expBound := evalIntervalDyadic (.exp e) (fun _ => domain) cfg
     pure (DyTM.fromInterval expBound domain cfg.precision)
   | .sin e => do
-    let tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
+    let _tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
     let sinBound := evalIntervalDyadic (.sin e) (fun _ => domain) cfg
     pure (DyTM.fromInterval sinBound domain cfg.precision)
   | .cos e => do
-    let tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
+    let _tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
     let cosBound := evalIntervalDyadic (.cos e) (fun _ => domain) cfg
     pure (DyTM.fromInterval cosBound domain cfg.precision)
   | _ => none

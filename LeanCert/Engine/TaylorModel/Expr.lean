@@ -732,17 +732,18 @@ private theorem tanh_mem_Icc (x : ℝ) : Real.tanh x ∈ Set.Icc (-1 : ℝ) 1 :=
   · rw [div_le_one hcosh_pos]
     exact le_trans (le_abs_self _) habs_sinh_le
 
-/-- Helper: bound contains values when they're in remainder range and polyBound ≥ 0 -/
+/-- Helper: bound contains values when they're in remainder range and poly is zero. -/
 private theorem bound_contains_neg_one_one (tm : TaylorModel)
     (y : ℝ) (hlo : -1 ≤ y) (hhi : y ≤ 1)
-    (hrem_lo : tm.remainder.lo = -1) (hrem_hi : tm.remainder.hi = 1) :
+    (hrem_lo : tm.remainder.lo = -1) (hrem_hi : tm.remainder.hi = 1)
+    (hpoly : tm.poly = 0) :
     y ∈ tm.bound := by
   simp only [bound, IntervalRat.mem_def, IntervalRat.add, polyBoundIntervalBernstein]
-  -- Bernstein bounds are contained in naive bounds [-B, B] where B ≥ 0
-  -- So bernstein.lo ≤ 0 and bernstein.hi ≥ 0
-  -- TODO: prove these properly - for now use sorry (depends on Bernstein correctness)
-  have hlo_bound : (boundPolyBernstein tm.poly tm.domain tm.center).lo ≤ 0 := by sorry
-  have hhi_bound : 0 ≤ (boundPolyBernstein tm.poly tm.domain tm.center).hi := by sorry
+  have hbern := boundPolyBernstein_zero_poly tm.domain tm.center
+  have hlo_bound : (boundPolyBernstein tm.poly tm.domain tm.center).lo ≤ 0 := by
+    rw [hpoly]; exact hbern.1
+  have hhi_bound : 0 ≤ (boundPolyBernstein tm.poly tm.domain tm.center).hi := by
+    rw [hpoly]; exact hbern.2
   constructor
   · simp only [hrem_lo, Rat.cast_add, Rat.cast_neg, Rat.cast_one]
     have : ((boundPolyBernstein tm.poly tm.domain tm.center).lo : ℝ) ≤ 0 := by exact_mod_cast hlo_bound
@@ -763,7 +764,7 @@ theorem tanh_evalSet_correct
     simp only [Set.mem_Icc] at htanh_bound
     simp only [tmTanh]
     split_ifs with h
-    · apply bound_contains_neg_one_one _ _ htanh_bound.1 htanh_bound.2 rfl rfl
+    · apply bound_contains_neg_one_one _ _ htanh_bound.1 htanh_bound.2 rfl rfl rfl
     · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
       have hsinh_evalSet : Real.sinh (f x) ∈ (tmSinh tm.bound degree).evalSet (f x) :=
         tmSinh_correct tm.bound degree (f x) hfbound

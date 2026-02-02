@@ -27,6 +27,8 @@ import LeanCert.Engine.IntervalEvalRefined
 import LeanCert.Validity.Bounds
 -- v1.1: Dyadic evaluator (prevents denominator explosion)
 import LeanCert.Engine.IntervalEvalDyadic
+-- v1.1: Computable polynomial Taylor models (high-order integration)
+import LeanCert.Engine.CompPoly
 
 -- Global Optimization
 import LeanCert.Engine.Optimization.Box
