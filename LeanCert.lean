@@ -64,7 +64,7 @@ import LeanCert.Tactic.TestAuto
 import LeanCert.Tactic.TestDiscovery
 -- Vector simplification with explicit Fin constructors
 import LeanCert.Tactic.VecSimp
--- Finset sum expansion (intervals and explicit sets)
+-- Finset sum expansion (intervals, explicit sets, and Fin sums)
 import LeanCert.Tactic.FinSumExpand
 
 -- Discovery Mode
