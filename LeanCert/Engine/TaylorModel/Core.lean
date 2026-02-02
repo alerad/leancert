@@ -407,19 +407,6 @@ theorem monomial_bernstein_expansion (n j : ℕ) (hjn : j ≤ n) (t : ℝ) :
 
 /-! ### Main Bernstein enclosure theorem -/
 
-/-- Bernstein bounds are always at least as tight as naive bounds (symmetric [-B, B]).
-    This follows from the property that Bernstein coefficients bound the polynomial range. -/
-theorem boundPolyBernstein_le_boundPolyAbs (p : Polynomial ℚ) (domain : IntervalRat) (c : ℚ) :
-    -(boundPolyAbs p domain c) ≤ (boundPolyBernstein p domain c).lo ∧
-    (boundPolyBernstein p domain c).hi ≤ boundPolyAbs p domain c := by
-  -- UNUSED: secondary property showing Bernstein ⊆ naive [-B, B].
-  -- Requires showing ∀ k, |bₖ| ≤ Σᵢ |aᵢ| rⁱ via double-sum triangle inequality:
-  --   bₖ = Σⱼ Σᵢ C(k,j)/C(n,j) · aᵢ · C(i,j) · α^(i-j) · w^j
-  -- Need: Σ_{j≤min(k,i)} C(k,j)·C(i,j)/C(n,j)·|α|^(i-j)·|w|^j ≤ r^i
-  -- where r = max(|α|,|β|). Note: weights C(k,j)/C(n,j) do NOT sum to 1
-  -- (for k=n they sum to n+1), so a simple convex combination argument fails.
-  sorry
-
 /- Key theorem: polynomial evaluation lies within Bernstein bounds.
     This is the fundamental theorem of Bernstein polynomials:
     For P(x) = Σₖ bₖ Bₖₙ(x), we have min(bₖ) ≤ P(x) ≤ max(bₖ) on [0,1].
