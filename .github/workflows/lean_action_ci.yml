@@ -2,6 +2,7 @@ name: Lean Action CI
 
 on:
   push:
+    branches: ['**']  # All branches
   pull_request:
   workflow_dispatch:
 
