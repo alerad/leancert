@@ -1,8 +1,7 @@
 name: Tag on lean-toolchain change
 
 on:
-  push:
-    paths: ['lean-toolchain']
+  workflow_dispatch:  # Manual trigger only - run from Actions tab
 
 jobs:
   tag:
@@ -18,9 +17,11 @@ jobs:
           VERSION=$(sed 's|leanprover/lean4:||' lean-toolchain | tr -d '[:space:]')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create tag
+      - name: Create or update tag
         run: |
-          git tag "${{ steps.version.outputs.version }}"
-          git push origin "${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.version }}"
+          # Delete remote tag if exists, then create and push
+          git tag -f "$TAG"
+          git push origin "$TAG" --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
