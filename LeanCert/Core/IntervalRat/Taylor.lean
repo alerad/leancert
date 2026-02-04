@@ -12,6 +12,7 @@ import Mathlib.Analysis.Complex.ExponentialBounds
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecificLimits.Normed
 import Mathlib.Analysis.Real.Pi.Bounds
+import Mathlib.Data.List.Range
 
 /-!
 # Rational Endpoint Intervals - Computable Taylor Series
@@ -72,17 +73,89 @@ def absInterval (I : IntervalRat) : IntervalRat :=
 def maxAbs (I : IntervalRat) : ℚ := max (|I.lo|) (|I.hi|)
 
 /-- Evaluate Taylor series ∑_{i=0}^{n} c_i * x^i at interval I.
-    Uses direct interval arithmetic on each term. -/
+    Uses direct interval arithmetic with incremental powers to avoid
+    recomputing `I^i` from scratch for each coefficient. -/
 def evalTaylorSeries (coeffs : List ℚ) (I : IntervalRat) : IntervalRat :=
-  coeffs.zipIdx.foldl (fun acc (c, i) =>
-    add acc (scale c (pow I i))
-  ) (singleton 0)
+  let step (acc : IntervalRat × IntervalRat) (c : ℚ) :=
+    let sum := acc.1
+    let pow := acc.2
+    (add sum (scale c pow), mul pow I)
+  (coeffs.foldl step (singleton 0, singleton 1)).1
 
 /-! ### Computable exp via Taylor series -/
 
-/-- Taylor coefficients for exp: 1/i! for i = 0, 1, ..., n -/
+/-- Tail-recursive exp coefficient generator.
+    `expTaylorCoeffsAux n k c` produces `n+1` coefficients starting at index `k`,
+    assuming `c = 1 / k!`. -/
+private def expTaylorCoeffsAux : ℕ → ℕ → ℚ → List ℚ
+  | 0, _, c => [c]
+  | (n + 1), k, c => c :: expTaylorCoeffsAux n (k + 1) (c / (k + 1))
+
+/-- Taylor coefficients for exp: 1/i! for i = 0, 1, ..., n.
+    Implemented iteratively to avoid repeated factorial recomputation. -/
 def expTaylorCoeffs (n : ℕ) : List ℚ :=
-  (List.range (n + 1)).map (fun i => 1 / ratFactorial i)
+  expTaylorCoeffsAux n 0 1
+
+/-- `ratFactorial` unfolds factorial as a product. -/
+private lemma ratFactorial_succ (k : ℕ) :
+    ratFactorial (k + 1) = ratFactorial k * (k + 1) := by
+  simp [ratFactorial, Nat.factorial_succ, Nat.cast_mul, mul_comm]
+
+private lemma map_range_succ {α : Type*} (f : ℕ → α) (n : ℕ) :
+    (List.range (n + 1)).map f = f 0 :: (List.range n).map (fun i => f (i + 1)) := by
+  induction n with
+  | zero =>
+      simp
+  | succ n ih =>
+      -- range (n+2) = range (n+1) ++ [n+1]
+      calc
+        (List.range (n + 2)).map f
+            = (List.range (n + 1) ++ [n + 1]).map f := by
+                simp [List.range_succ]
+        _ = (List.range (n + 1)).map f ++ [f (n + 1)] := by
+                simp [List.map_append]
+        _ = (f 0 :: (List.range n).map (fun i => f (i + 1))) ++ [f (n + 1)] := by
+                simp [ih]
+        _ = f 0 :: ((List.range n).map (fun i => f (i + 1)) ++ [f (n + 1)]) := by
+                rfl
+        _ = f 0 :: (List.range (n + 1)).map (fun i => f (i + 1)) := by
+                simp [List.range_succ, List.map_append]
+
+/-- Iterative exp coefficients match the standard `1 / i!` definition. -/
+private lemma expTaylorCoeffsAux_eq_range (n k : ℕ) :
+    expTaylorCoeffsAux n k (1 / ratFactorial k) =
+      (List.range (n + 1)).map (fun i => 1 / ratFactorial (i + k)) := by
+  induction n generalizing k with
+  | zero =>
+      simp [expTaylorCoeffsAux]
+  | succ n ih =>
+      have hstep : (ratFactorial k)⁻¹ / (k + 1) = (ratFactorial (k + 1))⁻¹ := by
+        -- (1/k!) / (k+1) = 1/(k+1)!
+        simp [ratFactorial_succ, div_eq_mul_inv, mul_comm]
+      calc
+        expTaylorCoeffsAux (n + 1) k (1 / ratFactorial k)
+            = (1 / ratFactorial k) ::
+                expTaylorCoeffsAux n (k + 1) ((1 / ratFactorial k) / (k + 1)) := by
+                  rfl
+        _ = (1 / ratFactorial k) ::
+                expTaylorCoeffsAux n (k + 1) ((ratFactorial k)⁻¹ / (k + 1)) := by
+                  simp [one_div]
+        _ = (1 / ratFactorial k) ::
+                expTaylorCoeffsAux n (k + 1) (ratFactorial (k + 1))⁻¹ := by
+                  simp [hstep]
+        _ = (1 / ratFactorial k) ::
+              (List.range (n + 1)).map (fun i => (ratFactorial (i + (k + 1)))⁻¹) := by
+                  simpa [one_div] using (ih (k + 1))
+        _ = (List.range (n + 2)).map (fun i => 1 / ratFactorial (i + k)) := by
+            -- unfold the range map at the front
+            have hmap := map_range_succ (fun i => 1 / ratFactorial (i + k)) (n + 1)
+            -- rewrite and simplify
+            simpa [one_div, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hmap.symm
+
+private lemma expTaylorCoeffs_eq_range_map (n : ℕ) :
+    expTaylorCoeffs n = (List.range (n + 1)).map (fun i => 1 / ratFactorial i) := by
+  have h0 : (1 / ratFactorial 0 : ℚ) = 1 := by simp [ratFactorial]
+  simpa [expTaylorCoeffs, h0] using (expTaylorCoeffsAux_eq_range n 0)
 
 /-- Computable exp remainder bound using rational arithmetic.
     The Lagrange remainder is exp(ξ) * x^{n+1} / (n+1)! where ξ is between 0 and x.
@@ -105,14 +178,26 @@ def expRemainderBoundComputable (I : IntervalRat) (n : ℕ) : IntervalRat :=
       · exact Nat.cast_nonneg _
     linarith⟩
 
-/-- Computable interval enclosure for exp at a single rational point.
-    Uses Taylor series with tight remainder bound. -/
-def expPointComputable (q : ℚ) (n : ℕ := 10) : IntervalRat :=
+private def expPointComputableRaw (q : ℚ) (n : ℕ := 10) : IntervalRat :=
   let I := singleton q
   let coeffs := expTaylorCoeffs n
   let polyVal := evalTaylorSeries coeffs I
   let remainder := expRemainderBoundComputable I n
   add polyVal remainder
+
+/-- Heuristic reduction factor for exp evaluation.
+    We choose `k = log2(ceil(|q|) + 1)`, so `2^k` grows roughly with |q|.
+    No correctness depends on the specific choice; it only affects performance. -/
+private def expReduceK (q : ℚ) : ℕ :=
+  Nat.log2 (Nat.ceil |q| + 1)
+
+/-- Computable interval enclosure for exp at a single rational point.
+    Uses argument reduction: `exp(q) = exp(q/2^k)^(2^k)`. -/
+def expPointComputable (q : ℚ) (n : ℕ := 10) : IntervalRat :=
+  let k := expReduceK q
+  let m : ℕ := (2:ℕ)^k
+  let q' : ℚ := q / m
+  pow (expPointComputableRaw q' n) m
 
 /-- Hull of two intervals: smallest interval containing both. -/
 def hull (I J : IntervalRat) : IntervalRat :=
@@ -412,40 +497,62 @@ theorem exp_bound_by_pow3 {r : ℚ} (_hr : 0 ≤ r) {ξ : ℝ} (hξ : |ξ| ≤ r
 lemma iteratedDeriv_exp_zero (i : ℕ) : iteratedDeriv i Real.exp 0 = 1 := by
   simp [iteratedDeriv_eq_iterate, Real.iter_deriv_exp]
 
-/-- Auxiliary lemma: foldl over zipIdx produces valid interval bounds.
-    If y ∈ acc and x ∈ I, then
-    y + ∑_{(c,i) ∈ rest} c * x^i ∈ rest.foldl (fun acc (c, i) => add acc (scale c (pow I i))) acc -/
-private lemma mem_foldl_zipIdx_aux {x : ℝ} {I : IntervalRat} (hx : x ∈ I)
-    (rest : List (ℚ × ℕ)) (acc : IntervalRat) (y : ℝ) (hy : y ∈ acc) :
-    y + (rest.map (fun (c, i) => (c : ℝ) * x ^ i)).sum ∈
-      rest.foldl (fun acc (c, i) => add acc (scale c (pow I i))) acc := by
-  induction rest generalizing acc y with
+/-! ### Helper lemmas for Taylor series membership -/
+
+/-- Polynomial sum starting at exponent `n`. -/
+private def polySumFrom (coeffs : List ℚ) (x : ℝ) (n : ℕ) : ℝ :=
+  ((coeffs.zipIdx n).map (fun (c, i) => (c : ℝ) * x ^ i)).sum
+
+/-- Auxiliary lemma: foldl over coefficients produces valid interval bounds.
+    If `s ∈ sum` and `x^n ∈ pow`, then
+    `s + polySumFrom coeffs x n` lies in the folded interval. -/
+private lemma mem_evalTaylorSeries_aux {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
+    ∀ (coeffs : List ℚ) (sum pow : IntervalRat) (n : ℕ) (s : ℝ),
+      s ∈ sum →
+      x ^ n ∈ pow →
+      s + polySumFrom coeffs x n ∈
+        (coeffs.foldl
+          (fun (acc : IntervalRat × IntervalRat) c =>
+            let sum := acc.1
+            let pow := acc.2
+            (add sum (scale c pow), mul pow I))
+          (sum, pow)).1 := by
+  intro coeffs
+  induction coeffs with
   | nil =>
-    simp only [List.foldl_nil, List.map_nil, List.sum_nil, add_zero]
-    exact hy
-  | cons hd tl ih =>
-    simp only [List.foldl_cons, List.map_cons, List.sum_cons]
-    -- hd = (c, i), need to show y + (c * x^i + rest_sum) ∈ ...
-    have hterm : (hd.1 : ℝ) * x ^ hd.2 ∈ scale hd.1 (pow I hd.2) :=
-      mem_scale hd.1 (mem_pow hx hd.2)
-    have hadd : y + (hd.1 : ℝ) * x ^ hd.2 ∈ add acc (scale hd.1 (pow I hd.2)) :=
-      mem_add hy hterm
-    have heq : y + ((hd.1 : ℝ) * x ^ hd.2 + (tl.map (fun (c, i) => (c : ℝ) * x ^ i)).sum) =
-        (y + (hd.1 : ℝ) * x ^ hd.2) + (tl.map (fun (c, i) => (c : ℝ) * x ^ i)).sum := by ring
-    rw [heq]
-    exact ih (add acc (scale hd.1 (pow I hd.2))) (y + (hd.1 : ℝ) * x ^ hd.2) hadd
+      intro sum pow n s hs _
+      simp [polySumFrom] at *
+      exact hs
+  | cons c cs ih =>
+      intro sum pow n s hs hpow
+      have hsum :
+          polySumFrom (c :: cs) x n =
+            (c : ℝ) * x ^ n + polySumFrom cs x (n + 1) := by
+        simp [polySumFrom, List.zipIdx_cons, List.map_cons, List.sum_cons]
+      have hterm : (c : ℝ) * x ^ n ∈ scale c pow :=
+        mem_scale c hpow
+      have hsum1 : s + (c : ℝ) * x ^ n ∈ add sum (scale c pow) :=
+        mem_add hs hterm
+      have hpow1 : x ^ (n + 1) ∈ mul pow I := by
+        have hmul : x ^ n * x ∈ mul pow I := mem_mul hpow hx
+        simpa [pow_succ] using hmul
+      have hrest :=
+        ih (add sum (scale c pow)) (mul pow I) (n + 1) (s + (c : ℝ) * x ^ n) hsum1 hpow1
+      have heq :
+          s + ((c : ℝ) * x ^ n + polySumFrom cs x (n + 1)) =
+            (s + (c : ℝ) * x ^ n) + polySumFrom cs x (n + 1) := by ring
+      simpa [hsum, heq, List.foldl_cons] using hrest
 
 /-- General FTIA for evalTaylorSeries: if coeffs has length n+1, then
     ∑_{i=0}^{n} coeffs[i] * x^i ∈ evalTaylorSeries coeffs I for x ∈ I. -/
 theorem mem_evalTaylorSeries {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (coeffs : List ℚ) :
     (coeffs.zipIdx.map (fun (c, i) => (c : ℝ) * x ^ i)).sum ∈ evalTaylorSeries coeffs I := by
-  simp only [evalTaylorSeries]
   have h0 : (0 : ℝ) ∈ singleton 0 := by
-    simp only [mem_def, singleton, Rat.cast_zero, le_refl, and_self]
-  have heq : (coeffs.zipIdx.map (fun (c, i) => (c : ℝ) * x ^ i)).sum =
-      0 + (coeffs.zipIdx.map (fun (c, i) => (c : ℝ) * x ^ i)).sum := by ring
-  rw [heq]
-  exact mem_foldl_zipIdx_aux hx coeffs.zipIdx (singleton 0) 0 h0
+    simp [mem_def, singleton]
+  have hpow : x ^ 0 ∈ singleton 1 := by
+    simp [mem_def, singleton]
+  simpa [evalTaylorSeries, polySumFrom] using
+    (mem_evalTaylorSeries_aux hx coeffs (singleton 0) (singleton 1) 0 0 h0 hpow)
 
 /-- Helper: (List.range n).map f).sum = ∑ i ∈ Finset.range n, f i -/
 private lemma list_map_sum_eq_finset_sum {α : Type*} [AddCommMonoid α]
@@ -474,8 +581,12 @@ theorem mem_evalTaylorSeries_exp {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
     ∑ i ∈ Finset.range (n + 1), (1 / i.factorial : ℝ) * x ^ i ∈
       evalTaylorSeries (expTaylorCoeffs n) I := by
   have hmem := mem_evalTaylorSeries hx (expTaylorCoeffs n)
-  convert hmem using 1
-  simp only [expTaylorCoeffs, ratFactorial]
+  have hmem' :
+      (((List.range (n + 1)).map (fun i => 1 / ratFactorial i)).zipIdx.map
+          (fun p => (p.1 : ℝ) * x ^ p.2)).sum ∈
+        evalTaylorSeries (expTaylorCoeffs n) I := by
+    simpa [expTaylorCoeffs_eq_range_map] using hmem
+  convert hmem' using 1
   rw [List.zipIdx_map]
   simp only [List.map_map]
   rw [← list_map_sum_eq_finset_sum (fun i => (1 / i.factorial : ℝ) * x ^ i) (n + 1)]
@@ -488,21 +599,21 @@ theorem mem_evalTaylorSeries_exp {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   -- The RHS has type (ℚ × ℕ) from Prod.map applied to zipIdx pairs
   -- Step 1: Simplify the composition
   have h1 : (List.range (n + 1)).zipIdx.map
-        ((fun p : ℚ × ℕ => (p.1 : ℝ) * x ^ p.2) ∘ Prod.map (fun i => (1 : ℚ) / i.factorial) id) =
-      (List.range (n + 1)).zipIdx.map (fun p : ℕ × ℕ => ((1 : ℚ) / p.1.factorial : ℝ) * x ^ p.2) := by
+        ((fun p : ℚ × ℕ => (p.1 : ℝ) * x ^ p.2) ∘ Prod.map (fun i => (1 : ℚ) / ratFactorial i) id) =
+      (List.range (n + 1)).zipIdx.map (fun p : ℕ × ℕ => ((1 : ℚ) / ratFactorial p.1 : ℝ) * x ^ p.2) := by
     apply List.map_congr_left
     intro ⟨a, b⟩ _
-    simp only [Function.comp_apply, Prod.map_apply, id_eq, Rat.cast_div, Rat.cast_one, Rat.cast_natCast]
+    simp only [Function.comp_apply, Prod.map_apply, id_eq, Rat.cast_div, Rat.cast_one]
   -- Step 2: Use zipIdx_range_map to eliminate zipIdx
-  have h2 : (List.range (n + 1)).zipIdx.map (fun p : ℕ × ℕ => ((1 : ℚ) / p.1.factorial : ℝ) * x ^ p.2) =
-      (List.range (n + 1)).map (fun i => ((1 : ℚ) / i.factorial : ℝ) * x ^ i) := by
-    convert zipIdx_range_map (fun a b => ((1 : ℚ) / a.factorial : ℝ) * x ^ b) (n + 1) using 2
+  have h2 : (List.range (n + 1)).zipIdx.map (fun p : ℕ × ℕ => ((1 : ℚ) / ratFactorial p.1 : ℝ) * x ^ p.2) =
+      (List.range (n + 1)).map (fun i => ((1 : ℚ) / ratFactorial i : ℝ) * x ^ i) := by
+    convert zipIdx_range_map (fun a b => ((1 : ℚ) / ratFactorial a : ℝ) * x ^ b) (n + 1) using 2
   -- Step 3: Simplify the casts
-  have h3 : (List.range (n + 1)).map (fun i => ((1 : ℚ) / i.factorial : ℝ) * x ^ i) =
+  have h3 : (List.range (n + 1)).map (fun i => ((1 : ℚ) / ratFactorial i : ℝ) * x ^ i) =
       (List.range (n + 1)).map (fun i => (1 / i.factorial : ℝ) * x ^ i) := by
     apply List.map_congr_left
     intro i _
-    simp only [Rat.cast_one]
+    simp [ratFactorial]
   rw [h1, h2, h3]
 
 /-- The iterated derivative of sin is sin, cos, -sin, -cos in a cycle of 4. -/
@@ -839,10 +950,9 @@ theorem cos_taylor_remainder_in_interval {x : ℝ} {I : IntervalRat} (hx : x ∈
 
 /-! ### FTIA for computable functions -/
 
-/-- FTIA for single-point exp: Real.exp q ∈ expPointComputable q n -/
-theorem mem_expPointComputable (q : ℚ) (n : ℕ) :
-    Real.exp q ∈ expPointComputable q n := by
-  simp only [expPointComputable]
+private theorem mem_expPointComputableRaw (q : ℚ) (n : ℕ) :
+    Real.exp q ∈ expPointComputableRaw q n := by
+  simp only [expPointComputableRaw]
   have hq_mem : (q : ℝ) ∈ singleton q := mem_singleton q
   -- Strategy: exp q = poly(q) + remainder, with both in their respective intervals
   have hpoly_mem : ∑ i ∈ Finset.range (n + 1), (iteratedDeriv i Real.exp 0 / i.factorial) * (q : ℝ) ^ i
@@ -857,6 +967,37 @@ theorem mem_expPointComputable (q : ℚ) (n : ℕ) :
       (Real.exp q - ∑ i ∈ Finset.range (n + 1),
         (iteratedDeriv i Real.exp 0 / i.factorial) * (q : ℝ) ^ i) := by ring
   rw [heq]; exact mem_add hpoly_mem hrem_mem
+
+/-- FTIA for single-point exp: Real.exp q ∈ expPointComputable q n -/
+theorem mem_expPointComputable (q : ℚ) (n : ℕ) :
+    Real.exp q ∈ expPointComputable q n := by
+  simp only [expPointComputable]
+  set k := expReduceK q
+  set m : ℕ := (2:ℕ)^k
+  set q' : ℚ := q / m
+  have hbase : Real.exp q' ∈ expPointComputableRaw q' n :=
+    mem_expPointComputableRaw q' n
+  have hpow : (Real.exp q') ^ m ∈ pow (expPointComputableRaw q' n) m :=
+    mem_pow hbase m
+  have hm : (m:ℝ) ≠ 0 := by
+    -- m = 2^k > 0
+    exact_mod_cast (pow_ne_zero k (by decide : (2:ℕ) ≠ 0))
+  have hq : (q : ℝ) = (m:ℝ) * (q' : ℝ) := by
+    -- q' = q / m
+    have hm' : (m:ℝ) ≠ 0 := hm
+    calc
+      (q:ℝ) = (m:ℝ) * ((q:ℝ) / (m:ℝ)) := by
+        field_simp [hm']
+      _ = (m:ℝ) * (q' : ℝ) := by
+        simp [q', Rat.cast_div, Rat.cast_natCast]
+  have hexp : Real.exp q = (Real.exp q') ^ m := by
+    calc
+      Real.exp q = Real.exp ((m:ℝ) * (q' : ℝ)) := by simpa [hq]
+      _ = (Real.exp (q' : ℝ)) ^ m := by
+            -- exp (m * q') = (exp q')^m
+            simpa [mul_comm] using (Real.exp_nat_mul (q' : ℝ) m)
+  -- rewrite and apply membership
+  simpa [hexp]
 
 theorem mem_expComputable {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n : ℕ) :
     Real.exp x ∈ expComputable I n := by

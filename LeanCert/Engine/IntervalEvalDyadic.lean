@@ -180,6 +180,52 @@ def logIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic
     -- for soundness (though in practice this shouldn't happen for valid inputs)
     ⟨Core.Dyadic.ofInt (-1000), Core.Dyadic.ofInt 1000, by simp [Dyadic.toRat_ofInt]⟩
 
+/-- Real power x^p for x > 0 and rational p, computed via exp(p * log(x)).
+
+    For x ∈ [lo, hi] with lo > 0 and rational exponent p:
+    - x^p = exp(p * log(x))
+    - We compute log(x), multiply by p, then apply exp
+
+    This is the key operation for BKLNW-style sums where terms are x^(1/k - 1/3). -/
+def rpowIntervalDyadic (base : IntervalDyadic) (p : ℚ) (cfg : DyadicConfig) : IntervalDyadic :=
+  -- x^p = exp(p * log(x)) for x > 0
+  let logBase := logIntervalDyadic base cfg
+  let pInterval := IntervalDyadic.ofIntervalRat (IntervalRat.singleton p) cfg.precision
+  let pLogBase := (IntervalDyadic.mul pInterval logBase).roundOut cfg.precision
+  expIntervalDyadic pLogBase cfg
+
+/-- Correctness of rpowIntervalDyadic: if x ∈ base and base.lo > 0, then x^p ∈ result -/
+theorem mem_rpowIntervalDyadic {x : ℝ} {base : IntervalDyadic} (hx : x ∈ base)
+    (hpos : base.toIntervalRat.lo > 0) (p : ℚ) (cfg : DyadicConfig)
+    (hprec : cfg.precision ≤ 0 := by norm_num) :
+    x ^ (p : ℝ) ∈ rpowIntervalDyadic base p cfg := by
+  simp only [rpowIntervalDyadic]
+  -- x^p = exp(p * log(x)) for x > 0
+  have hx_pos : 0 < x := by
+    have hlo := hx.1
+    have hlo_pos : (0 : ℝ) < base.lo.toRat := by exact_mod_cast hpos
+    linarith
+  rw [Real.rpow_def_of_pos hx_pos, mul_comm]  -- Use commutativity: log x * p = p * log x
+  -- log(x) ∈ logIntervalDyadic base cfg
+  have hlog_mem : Real.log x ∈ logIntervalDyadic base cfg := by
+    simp only [logIntervalDyadic, hpos, ↓reduceIte]
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp hx
+    have hlog := IntervalRat.mem_logComputable hrat hpos cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hlog cfg.precision hprec
+  -- p ∈ pInterval (singleton)
+  have hp_mem : (p : ℝ) ∈ IntervalDyadic.ofIntervalRat (IntervalRat.singleton p) cfg.precision := by
+    apply IntervalDyadic.mem_ofIntervalRat
+    · exact IntervalRat.mem_singleton p
+    · exact hprec
+  -- p * log(x) ∈ mul result
+  have hmul := IntervalDyadic.mem_mul hp_mem hlog_mem
+  have hmul_rounded := IntervalDyadic.roundOut_contains hmul cfg.precision
+  -- exp(p * log(x)) ∈ expIntervalDyadic
+  simp only [expIntervalDyadic]
+  have hrat := IntervalDyadic.mem_toIntervalRat.mp hmul_rounded
+  have hexp := IntervalRat.mem_expComputable hrat cfg.taylorDepth
+  exact IntervalDyadic.mem_ofIntervalRat hexp cfg.precision hprec
+
 /-! ### Main Evaluator -/
 
 /-- High-performance Dyadic interval evaluator.

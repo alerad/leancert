@@ -29,6 +29,8 @@ import LeanCert.Validity.Bounds
 import LeanCert.Engine.IntervalEvalDyadic
 -- v1.1: Computable polynomial Taylor models (high-order integration)
 import LeanCert.Engine.CompPoly
+-- v1.2: Reflective sum evaluator (O(1) proof size for finite sums)
+import LeanCert.Engine.ReflectiveSum
 
 -- Global Optimization
 import LeanCert.Engine.Optimization.Box
@@ -142,6 +144,22 @@ export LeanCert.Engine (
   checkUpperBoundDyadic
   checkLowerBoundDyadic
   checkBoundsDyadic
+)
+
+-- Re-export reflective sum evaluator (O(1) proof size for finite sums)
+export LeanCert.Engine (
+  BKLNWSumConfig
+  bklnwF
+  bklnwSumDyadic
+  bklnwSumExpDyadic
+  checkBKLNWSumUpperBound
+  checkBKLNWSumLowerBound
+  checkBKLNWExpUpperBound
+  checkBKLNWExpLowerBound
+  checkBKLNWSumUpperBound_correct
+  checkBKLNWSumLowerBound_correct
+  rpowIntervalDyadic
+  mem_rpowIntervalDyadic
 )
 
 -- Re-export certificate verification
