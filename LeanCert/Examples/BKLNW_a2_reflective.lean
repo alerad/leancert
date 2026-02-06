@@ -4,31 +4,25 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.ReflectiveSum
-import LeanCert.Examples.BKLNW_a2_pow2
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
+import LeanCert.Examples.BKLNW_a2_bounds
 
 /-!
-# BKLNW a₂ Certificates via Reflective Sum Evaluator
+# BKLNW a₂ Verified Bounds via Reflective Sum Evaluator
 
-This module provides O(1) proof term BKLNW bounds using reflective verification.
-It can replace the slow proofs in BKLNW_a2_exp.lean.
+This module verifies the bounds stated in `BKLNW_a2_bounds.lean` using
+reflective interval arithmetic with `native_decide`.
 
-## Performance comparison
+**Downstream projects should import `BKLNW_a2_bounds`, not this file.**
 
-| b value | Old (finsum_expand) | New (reflective) |
-|---------|---------------------|------------------|
-| 100     | ~5 min              | <1 sec           |
-| 150     | ~10 min             | <1 sec           |
-| 200     | ~15 min             | <1 sec           |
-| 250     | ~20 min             | <1 sec           |
-| 300     | ~30 min             | <1 sec           |
+This file is only needed for LeanCert's CI to verify that the sorry'd bounds
+in `BKLNW_a2_bounds.lean` are correct. Build time: ~5-10 minutes.
 
 ## How it works
 
-1. `bklnwSumExpDyadic b limit` computes an interval containing f(exp(b))
-2. `checkBKLNWExpUpperBound b limit target` verifies upper bound via native computation
+1. `bklnwAlphaSumExpDyadic b limit cfg` computes an interval for (1+α)·f(exp(b))
+2. `checkBKLNWAlphaExpUpperBound b limit target` verifies the bound via native computation
 3. `native_decide` creates O(1) proof term by running the computation
-4. Correctness theorems connect this to the mathematical statement
+4. Bridge theorems connect this to the mathematical statement
 -/
 
 namespace LeanCert.Examples.BKLNW_a2_reflective
@@ -36,191 +30,236 @@ namespace LeanCert.Examples.BKLNW_a2_reflective
 open Real
 open LeanCert.Engine
 open LeanCert.Core
+open LeanCert.Examples.BKLNW_a2_bounds (bklnwF f_eq_bklnwF_exp)
+open LeanCert.Examples.BKLNW_a2_pow2 (f)
 
-/-! ### Computational Tests
+/-! ### Definition Compatibility -/
 
-These `#eval` commands verify that the reflective evaluator computes correct bounds.
-No proof terms are created - this is pure computation. -/
+theorem bklnwF_eq_engine :
+    BKLNW_a2_bounds.bklnwF = LeanCert.Engine.bklnwF := rfl
 
--- Test: compute f(exp(20)) bound with limit=28
-#eval
-  let cfg : BKLNWSumConfig := { precision := -80, taylorDepth := 15 }
-  let result := bklnwSumExpDyadic 20 28 cfg
-  let lo := result.toIntervalRat.lo
-  let hi := result.toIntervalRat.hi
-  s!"f(exp(20)) ∈ [{lo}, {hi}]"
+/-- The engine's alpha matches the PNT+ alpha -/
+private lemma one_plus_alpha_eq :
+    (1 + bklnwAlpha : ℝ) = 1 + 193571378 / (10:ℝ)^16 := by
+  simp only [bklnwAlpha]
+  push_cast
+  ring
 
--- Test: compute f(exp(100)) bound with limit=144
-#eval
-  let cfg : BKLNWSumConfig := { precision := -80, taylorDepth := 15 }
-  let result := bklnwSumExpDyadic 100 144 cfg
-  let lo := result.toIntervalRat.lo
-  let hi := result.toIntervalRat.hi
-  s!"f(exp(100)) ∈ [{lo}, {hi}]"
+/-- Convert f(exp b) to Engine.bklnwF for a given floor value -/
+private lemma f_to_engine (b N : ℕ) (hfloor : ⌊(b : ℝ) / log 2⌋₊ = N) :
+    f (exp (b : ℝ)) = LeanCert.Engine.bklnwF (exp (b : ℝ)) N := by
+  have h := f_eq_bklnwF_exp b
+  rw [hfloor] at h
+  rw [h, bklnwF_eq_engine]
 
--- Test: compute f(exp(300)) bound with limit=432
--- This is the expensive case that previously took 30+ minutes!
-#eval
-  let cfg : BKLNWSumConfig := { precision := -80, taylorDepth := 15 }
-  let result := bklnwSumExpDyadic 300 432 cfg
-  let lo := result.toIntervalRat.lo
-  let hi := result.toIntervalRat.hi
-  s!"f(exp(300)) ∈ [{lo}, {hi}]"
+/-! ### High-precision config -/
 
-/-! ### Certificate Checks
-
-These verify the bounds via native computation (no proof term expansion). -/
-
--- Verify b=100 upper bound check passes
-#eval checkBKLNWExpUpperBound 100 144 (1001 / 1000) { precision := -80 }
-
--- Verify b=300 upper bound check passes
-#eval checkBKLNWExpUpperBound 300 432 (1001 / 1000) { precision := -80 }
-
-/-! ### Connecting to PNT+ Definition
-
-The PNT+ definition is f(x) = Σ_{k=3}^{⌊log(x)/log(2)⌋} x^(1/k - 1/3).
-For x = exp(b), we have log(exp(b))/log(2) = b/log(2), so the limit is ⌊b/log(2)⌋.
-
-Our bklnwF takes the limit as an explicit parameter:
-  bklnwF (exp b) N = Σ_{k=3}^{N} (exp b)^(1/k - 1/3)
-
-So f(exp(b)) = bklnwF (exp b) ⌊b/log(2)⌋ when the floors match. -/
-
--- For b=20: ⌊20/log(2)⌋ = ⌊28.85...⌋ = 28
--- For b=100: ⌊100/log(2)⌋ = ⌊144.26...⌋ = 144
--- For b=300: ⌊300/log(2)⌋ = ⌊432.80...⌋ = 432
-
-/-! ### Verified Bounds via native_decide
-
-These examples demonstrate that the certificate checks pass.
-The proofs are O(1) size regardless of the sum length! -/
-
--- High-precision config for proofs
 def proofConfig : BKLNWSumConfig := { precision := -100, taylorDepth := 18 }
 
--- b = 100: instant proof (previously ~5 min)
-example : checkBKLNWExpUpperBound 100 144 (10003/10000) proofConfig = true := by native_decide
-example : checkBKLNWExpLowerBound 100 144 (10002/10000) proofConfig = true := by native_decide
+/-! ### Verified Bounds
 
--- b = 150: instant proof (previously ~10 min)
-example : checkBKLNWExpUpperBound 150 216 (100001/100000) proofConfig = true := by native_decide
-example : checkBKLNWExpLowerBound 150 216 (1) proofConfig = true := by native_decide
+Each proof:
+1. Rewrites f(exp b) to Engine.bklnwF(exp b, N) via floor lemma
+2. Rewrites (1+α) to match Engine.bklnwAlpha
+3. Applies the α bridge theorem with native_decide
+4. Handles ℚ ↔ ℝ coercion via norm_num -/
 
--- b = 200: instant proof (previously ~15 min)
-example : checkBKLNWExpUpperBound 200 288 (100001/100000) proofConfig = true := by native_decide
-example : checkBKLNWExpLowerBound 200 288 (1) proofConfig = true := by native_decide
+private lemma alpha_lower_bridge (b N : ℕ) (target : ℚ)
+    (hfloor : ⌊(b : ℝ) / log 2⌋₊ = N)
+    (hb : b ≥ 1 := by norm_num)
+    (hexppos : checkExpBLoGe1 b proofConfig.precision proofConfig.taylorDepth = true)
+    (h_check : checkBKLNWAlphaExpLowerBound b N target proofConfig = true) :
+    (target : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (b : ℝ)) := by
+  rw [f_to_engine b N hfloor]
+  rw [← one_plus_alpha_eq]
+  exact verify_bklnwAlpha_exp_lower b N target proofConfig
+    (by simp only [proofConfig]; norm_num) hb hexppos h_check
 
--- b = 250: instant proof (previously ~20 min)
-example : checkBKLNWExpUpperBound 250 360 (100001/100000) proofConfig = true := by native_decide
-example : checkBKLNWExpLowerBound 250 360 (1) proofConfig = true := by native_decide
+private lemma alpha_upper_bridge (b N : ℕ) (target : ℚ)
+    (hfloor : ⌊(b : ℝ) / log 2⌋₊ = N)
+    (hb : b ≥ 1 := by norm_num)
+    (hexppos : checkExpBLoGe1 b proofConfig.precision proofConfig.taylorDepth = true)
+    (h_check : checkBKLNWAlphaExpUpperBound b N target proofConfig = true) :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (b : ℝ)) ≤ (target : ℝ) := by
+  rw [f_to_engine b N hfloor]
+  rw [← one_plus_alpha_eq]
+  exact verify_bklnwAlpha_exp_upper b N target proofConfig
+    (by simp only [proofConfig]; norm_num) hb hexppos h_check
 
--- b = 300: instant proof (previously ~30 min!)
-example : checkBKLNWExpUpperBound 300 432 (100001/100000) proofConfig = true := by native_decide
-example : checkBKLNWExpLowerBound 300 432 (1) proofConfig = true := by native_decide
+-- ═══════════════════════ b = 20 ═══════════════════════
 
-/-! ### Floor lemmas for connecting to PNT+ definition -/
+theorem a2_20_exp_lower :
+    (1.4262 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (20:ℝ)) := by
+  have h := alpha_lower_bridge 20 28 (14262/10000) BKLNW_a2_bounds.floor_20
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.4262 : ℝ) = ↑(14262 / 10000 : ℚ) := by norm_num
+    _ ≤ _ := h
 
-private lemma floor_100 : ⌊(100 : ℝ) / log 2⌋₊ = 144 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 100 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+theorem a2_20_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (20:ℝ)) ≤ (1.4262 : ℝ) + (1:ℝ) / 10^4 := by
+  have h := alpha_upper_bridge 20 28 (14263/10000) BKLNW_a2_bounds.floor_20
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(14263 / 10000 : ℚ) := h
+    _ = (1.4262 : ℝ) + (1:ℝ) / 10^4 := by push_cast; norm_num
 
-private lemma floor_150 : ⌊(150 : ℝ) / log 2⌋₊ = 216 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 150 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+-- ═══════════════════════ b = 25 ═══════════════════════
 
-private lemma floor_200 : ⌊(200 : ℝ) / log 2⌋₊ = 288 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 200 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+theorem a2_25_exp_lower :
+    (1.2195 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (25:ℝ)) := by
+  have h := alpha_lower_bridge 25 36 (12195/10000) BKLNW_a2_bounds.floor_25
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.2195 : ℝ) = ↑(12195 / 10000 : ℚ) := by norm_num
+    _ ≤ _ := h
 
-private lemma floor_250 : ⌊(250 : ℝ) / log 2⌋₊ = 360 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 250 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+theorem a2_25_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (25:ℝ)) ≤ (1.2195 : ℝ) + (1:ℝ) / 10^4 := by
+  have h := alpha_upper_bridge 25 36 (12196/10000) BKLNW_a2_bounds.floor_25
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(12196 / 10000 : ℚ) := h
+    _ = (1.2195 : ℝ) + (1:ℝ) / 10^4 := by push_cast; norm_num
 
-private lemma floor_300 : ⌊(300 : ℝ) / log 2⌋₊ = 432 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 300 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+-- ═══════════════════════ b = 30 ═══════════════════════
 
-/-! ### Connection to PNT+ f definition
+theorem a2_30_exp_lower :
+    (1.1210 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (30:ℝ)) := by
+  have h := alpha_lower_bridge 30 43 (11210/10000) BKLNW_a2_bounds.floor_30
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.1210 : ℝ) = ↑(11210 / 10000 : ℚ) := by norm_num
+    _ ≤ _ := h
 
-The PNT+ definition is:
-  f(x) = Σ_{k=3}^{⌊log(x)/log(2)⌋} x^(1/k - 1/3)
+theorem a2_30_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (30:ℝ)) ≤ (1.1210 : ℝ) + (1:ℝ) / 10^4 := by
+  have h := alpha_upper_bridge 30 43 (11211/10000) BKLNW_a2_bounds.floor_30
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(11211 / 10000 : ℚ) := h
+    _ = (1.1210 : ℝ) + (1:ℝ) / 10^4 := by push_cast; norm_num
 
-Our bklnwF is the same but with explicit limit parameter:
-  bklnwF x N = Σ_{k=3}^{N} x^(1/k - 1/3)
+-- ═══════════════════════ b = 35 ═══════════════════════
 
-So: f(exp b) = bklnwF (exp b) ⌊b/log(2)⌋
--/
+theorem a2_35_exp_lower :
+    (1.07086 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (35:ℝ)) := by
+  have h := alpha_lower_bridge 35 50 (107086/100000) BKLNW_a2_bounds.floor_35
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.07086 : ℝ) = ↑(107086 / 100000 : ℚ) := by norm_num
+    _ ≤ _ := h
 
-open LeanCert.Examples.BKLNW_a2_pow2 (f) in
-theorem f_eq_bklnwF_exp (b : ℕ) :
-    f (exp b) = bklnwF (exp b) ⌊(b : ℝ) / log 2⌋₊ := by
-  unfold f bklnwF
-  congr 1
-  simp only [log_exp]
+theorem a2_35_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (35:ℝ)) ≤ (1.07086 : ℝ) + (1:ℝ) / 10^5 := by
+  have h := alpha_upper_bridge 35 50 (107087/100000) BKLNW_a2_bounds.floor_35
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(107087 / 100000 : ℚ) := h
+    _ = (1.07086 : ℝ) + (1:ℝ) / 10^5 := by push_cast; norm_num
 
-/-! ### Full theorem statements via bridge theorems
+-- ═══════════════════════ b = 40 ═══════════════════════
 
-These theorems use `verify_bklnwF_exp_upper` and `verify_bklnwF_exp_lower` to produce
-actual mathematical bounds on `bklnwF (exp b) limit`.
+theorem a2_40_exp_lower :
+    (1.04319 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (40:ℝ)) := by
+  have h := alpha_lower_bridge 40 57 (104319/100000) BKLNW_a2_bounds.floor_40
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.04319 : ℝ) = ↑(104319 / 100000 : ℚ) := by norm_num
+    _ ≤ _ := h
 
-The pattern is:
-1. The bridge theorem (e.g. `verify_bklnwF_exp_upper`) takes a proof that the certificate
-   check returns true (proved by `native_decide`)
-2. It produces a mathematical statement: `bklnwF (Real.exp b) limit ≤ target`
-3. The proof term is O(1) size regardless of the sum length!
+theorem a2_40_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (40:ℝ)) ≤ (1.04319 : ℝ) + (1:ℝ) / 10^5 := by
+  have h := alpha_upper_bridge 40 57 (104320/100000) BKLNW_a2_bounds.floor_40
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(104320 / 100000 : ℚ) := h
+    _ = (1.04319 : ℝ) + (1:ℝ) / 10^5 := by push_cast; norm_num
 
-Note: These require the `expB_lo_pos` sorry to be filled in for complete soundness.
--/
+-- ═══════════════════════ b = 43 ═══════════════════════
 
--- b = 100: f(exp(100)) ≤ 1.0003 (instant proof)
-theorem bklnwF_exp_100_upper :
-    bklnwF (Real.exp 100) 144 ≤ (10003 / 10000 : ℚ) :=
-  verify_bklnwF_exp_upper 100 144 (10003/10000) proofConfig (by decide) (by norm_num) (by native_decide)
+theorem a2_43_exp_lower :
+    (1.03252 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (43:ℝ)) := by
+  have h := alpha_lower_bridge 43 62 (103252/100000) BKLNW_a2_bounds.floor_43
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.03252 : ℝ) = ↑(103252 / 100000 : ℚ) := by norm_num
+    _ ≤ _ := h
 
--- b = 100: 1.0002 ≤ f(exp(100)) (instant proof)
-theorem bklnwF_exp_100_lower :
-    (10002 / 10000 : ℚ) ≤ bklnwF (Real.exp 100) 144 :=
-  verify_bklnwF_exp_lower 100 144 (10002/10000) proofConfig (by decide) (by norm_num) (by native_decide)
+theorem a2_43_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (43:ℝ)) ≤ (1.03252 : ℝ) + (1:ℝ) / 10^5 := by
+  have h := alpha_upper_bridge 43 62 (103253/100000) BKLNW_a2_bounds.floor_43
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(103253 / 100000 : ℚ) := h
+    _ = (1.03252 : ℝ) + (1:ℝ) / 10^5 := by push_cast; norm_num
 
--- b = 200: f(exp(200)) ≤ 1.00001 (instant proof)
-theorem bklnwF_exp_200_upper :
-    bklnwF (Real.exp 200) 288 ≤ (100001 / 100000 : ℚ) :=
-  verify_bklnwF_exp_upper 200 288 (100001/100000) proofConfig (by decide) (by norm_num) (by native_decide)
+-- ═══════════════════════ b = 100 ═══════════════════════
 
--- b = 300: f(exp(300)) ≤ 1.00001 (instant proof - previously ~30 min!)
-theorem bklnwF_exp_300_upper :
-    bklnwF (Real.exp 300) 432 ≤ (100001 / 100000 : ℚ) :=
-  verify_bklnwF_exp_upper 300 432 (100001/100000) proofConfig (by decide) (by norm_num) (by native_decide)
+theorem a2_100_exp_lower :
+    (1.0002420 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (100:ℝ)) := by
+  have h := alpha_lower_bridge 100 144 (10002420/10000000) BKLNW_a2_bounds.floor_100
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.0002420 : ℝ) = ↑(10002420 / 10000000 : ℚ) := by norm_num
+    _ ≤ _ := h
 
--- b = 300: 1 ≤ f(exp(300)) (instant proof)
-theorem bklnwF_exp_300_lower :
-    (1 : ℚ) ≤ bklnwF (Real.exp 300) 432 :=
-  verify_bklnwF_exp_lower 300 432 1 proofConfig (by decide) (by norm_num) (by native_decide)
+theorem a2_100_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (100:ℝ)) ≤ (1.0002420 : ℝ) + (1:ℝ) / 10^7 := by
+  have h := alpha_upper_bridge 100 144 (10002421/10000000) BKLNW_a2_bounds.floor_100
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(10002421 / 10000000 : ℚ) := h
+    _ = (1.0002420 : ℝ) + (1:ℝ) / 10^7 := by push_cast; norm_num
 
-/-! ### Computational verification -/
+-- ═══════════════════════ b = 150 ═══════════════════════
 
--- Computational verification of the exact bounds from BKLNW_a2_exp.lean:
--- b=100: f(exp 100) ≈ 1.0002420
-#eval
-  let cfg := proofConfig
-  let r := bklnwSumExpDyadic 100 144 cfg
-  (r.toIntervalRat.lo, r.toIntervalRat.hi)
+theorem a2_150_exp_lower :
+    (1.000003748 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (150:ℝ)) := by
+  have h := alpha_lower_bridge 150 216 (1000003748/1000000000) BKLNW_a2_bounds.floor_150
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.000003748 : ℝ) = ↑(1000003748 / 1000000000 : ℚ) := by norm_num
+    _ ≤ _ := h
 
--- b=300: f(exp 300) ≈ 1.00000001937
-#eval
-  let cfg := proofConfig
-  let r := bklnwSumExpDyadic 300 432 cfg
-  (r.toIntervalRat.lo, r.toIntervalRat.hi)
+theorem a2_150_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (150:ℝ)) ≤ (1.000003748 : ℝ) + (1:ℝ) / 10^8 := by
+  have h := alpha_upper_bridge 150 216 (1000003758/1000000000) BKLNW_a2_bounds.floor_150
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(1000003758 / 1000000000 : ℚ) := h
+    _ = (1.000003748 : ℝ) + (1:ℝ) / 10^8 := by push_cast; norm_num
+
+-- ═══════════════════════ b = 200 ═══════════════════════
+
+theorem a2_200_exp_lower :
+    (1.00000007713 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (200:ℝ)) := by
+  have h := alpha_lower_bridge 200 288 (100000007713/100000000000) BKLNW_a2_bounds.floor_200
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.00000007713 : ℝ) = ↑(100000007713 / 100000000000 : ℚ) := by norm_num
+    _ ≤ _ := h
+
+theorem a2_200_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (200:ℝ)) ≤ (1.00000007713 : ℝ) + (1:ℝ) / 10^9 := by
+  have h := alpha_upper_bridge 200 288 (100000007813/100000000000) BKLNW_a2_bounds.floor_200
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(100000007813 / 100000000000 : ℚ) := h
+    _ = (1.00000007713 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
+
+-- ═══════════════════════ b = 250 ═══════════════════════
+
+theorem a2_250_exp_lower :
+    (1.00000002025 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (250:ℝ)) := by
+  have h := alpha_lower_bridge 250 360 (100000002025/100000000000) BKLNW_a2_bounds.floor_250
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.00000002025 : ℝ) = ↑(100000002025 / 100000000000 : ℚ) := by norm_num
+    _ ≤ _ := h
+
+theorem a2_250_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (250:ℝ)) ≤ (1.00000002025 : ℝ) + (1:ℝ) / 10^9 := by
+  have h := alpha_upper_bridge 250 360 (100000002125/100000000000) BKLNW_a2_bounds.floor_250
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(100000002125 / 100000000000 : ℚ) := h
+    _ = (1.00000002025 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
+
+-- ═══════════════════════ b = 300 ═══════════════════════
+
+theorem a2_300_exp_lower :
+    (1.00000001937 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (300:ℝ)) := by
+  have h := alpha_lower_bridge 300 432 (100000001937/100000000000) BKLNW_a2_bounds.floor_300
+    (by norm_num) (by native_decide) (by native_decide)
+  calc (1.00000001937 : ℝ) = ↑(100000001937 / 100000000000 : ℚ) := by norm_num
+    _ ≤ _ := h
+
+theorem a2_300_exp_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f (exp (300:ℝ)) ≤ (1.00000001937 : ℝ) + (1:ℝ) / 10^9 := by
+  have h := alpha_upper_bridge 300 432 (100000002037/100000000000) BKLNW_a2_bounds.floor_300
+    (by norm_num) (by native_decide) (by native_decide)
+  calc _ ≤ ↑(100000002037 / 100000000000 : ℚ) := h
+    _ = (1.00000001937 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
 
 end LeanCert.Examples.BKLNW_a2_reflective

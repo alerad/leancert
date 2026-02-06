@@ -19,3 +19,6 @@ jobs:
 
       - name: Build Li2Verified (heavy numerical verification)
         run: lake build Li2Verified
+
+      - name: Build BKLNW_a2_reflective (heavy a₂ bounds verification)
+        run: lake build BKLNW_a2_reflective
