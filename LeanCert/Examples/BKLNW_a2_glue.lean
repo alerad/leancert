@@ -4,24 +4,21 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto
-import LeanCert.Tactic.FinSumExpand
 import LeanCert.Examples.BKLNW_a2
 import LeanCert.Examples.BKLNW_a2_TailBounds
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 
 /-!
-# BKLNW a₂ Glue Proofs - Complete Integration
+# BKLNW a₂ Glue Proofs
 
-Connects `a₂(b) = (1+α) * max(f(exp b), f(2^(⌊b/log2⌋₊+1)))` to certified bounds
-for all 11 table entries: b = 20, 25, 30, 35, 40, 43, 100, 150, 200, 250, 300.
+Connects `a₂(b) = (1+α) * max(f(exp b), f(2^(⌊b/log2⌋₊+1)))` to certified bounds.
 
-Structure:
-- For b=20-43: Uses full expansion with `finsum_expand`
-- For b=100-300: Uses tail bound approach from BKLNW_a2_TailBounds
+All 11 entries from `table_cor_5_1`:
+- b = 20, 25, 30, 35, 40, 43: full expansion via `interval_decide`
+- b = 100, 150, 200, 250, 300: tail bound approach from `BKLNW_a2_TailBounds`
 
 Each entry provides:
-- `floor_b`: ⌊b / log 2⌋₊ = N
 - `a2_b_lower`: LB ≤ (1+α) * max(f(exp b), f(2^(N+1)))
 - `a2_b_upper`: (1+α) * max(f(exp b), f(2^(N+1))) ≤ UB
 -/
@@ -34,27 +31,9 @@ namespace LeanCert.Examples.BKLNW_a2_glue
 open LeanCert.Examples.BKLNW_a2
 open LeanCert.Examples.BKLNW_a2_TailBounds
 
--- ═══════════════════════ General Helpers ═══════════════════════
-
-private lemma two_pow_eq_exp_log (n : ℕ) : (2:ℝ)^n = exp (↑n * log 2) := by
-  have h := rpow_def_of_pos (show (0:ℝ) < 2 by positivity) (↑n : ℝ)
-  rw [rpow_natCast] at h; rw [h]; ring_nf
-
-private lemma floor_log_two_pow (n : ℕ) : ⌊log ((2:ℝ)^n) / log 2⌋₊ = n := by
-  rw [log_pow, mul_div_cancel_right₀ _ (ne_of_gt (log_pos one_lt_two))]
-  exact Nat.floor_natCast n
-
 -- ═══════════════════════════════════════════════════════════════════════════
 -- b = 20: N = 28, M = 29
 -- ═══════════════════════════════════════════════════════════════════════════
-
-private lemma floor_20 : ⌊(20 : ℝ) / log 2⌋₊ = 28 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 20 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
-
--- For f(2^29), we need to bound it
 set_option maxHeartbeats 1600000 in
 private lemma pow29_upper :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (29 * log 2 * (-1/12)) + exp (29 * log 2 * (-2/15)) +
@@ -118,80 +97,504 @@ theorem a2_20_upper :
 -- ═══════════════════════════════════════════════════════════════════════════
 -- b = 25: N = 36, M = 37
 -- ═══════════════════════════════════════════════════════════════════════════
-
-private lemma floor_25 : ⌊(25 : ℝ) / log 2⌋₊ = 36 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 25 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
-
--- For b=25, the sum has 34 terms. We bound f(2^37) directly.
-set_option maxHeartbeats 2000000 in
+set_option maxHeartbeats 1600000 in
 private lemma pow37_upper :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (37 * log 2 * (-1/12)) + exp (37 * log 2 * (-2/15)) +
     exp (37 * log 2 * (-1/6)) + exp (37 * log 2 * (-4/21)) + exp (37 * log 2 * (-5/24)) +
     exp (37 * log 2 * (-2/9)) + exp (37 * log 2 * (-7/30)) + exp (37 * log 2 * (-8/33)) +
-    exp (37 * log 2 * (-3/12)) + exp (37 * log 2 * (-10/39)) + exp (37 * log 2 * (-11/42)) +
+    exp (37 * log 2 * (-1/4)) + exp (37 * log 2 * (-10/39)) + exp (37 * log 2 * (-11/42)) +
     exp (37 * log 2 * (-4/15)) + exp (37 * log 2 * (-13/48)) + exp (37 * log 2 * (-14/51)) +
     exp (37 * log 2 * (-5/18)) + exp (37 * log 2 * (-16/57)) + exp (37 * log 2 * (-17/60)) +
-    exp (37 * log 2 * (-6/21)) + exp (37 * log 2 * (-19/66)) + exp (37 * log 2 * (-20/69)) +
+    exp (37 * log 2 * (-2/7)) + exp (37 * log 2 * (-19/66)) + exp (37 * log 2 * (-20/69)) +
     exp (37 * log 2 * (-7/24)) + exp (37 * log 2 * (-22/75)) + exp (37 * log 2 * (-23/78)) +
     exp (37 * log 2 * (-8/27)) + exp (37 * log 2 * (-25/84)) + exp (37 * log 2 * (-26/87)) +
-    exp (37 * log 2 * (-9/30)) + exp (37 * log 2 * (-28/93)) + exp (37 * log 2 * (-29/96)) +
+    exp (37 * log 2 * (-3/10)) + exp (37 * log 2 * (-28/93)) + exp (37 * log 2 * (-29/96)) +
     exp (37 * log 2 * (-10/33)) + exp (37 * log 2 * (-31/102)) + exp (37 * log 2 * (-32/105)) +
-    exp (37 * log 2 * (-11/36)))
+    exp (37 * log 2 * (-11/36)) + exp (37 * log 2 * (-34/111)))
     ≤ (1.2195 : ℝ) + (1:ℝ) / 10^4 := by
-  interval_decide 100
+  interval_decide 70
+
+theorem a2_25_lower :
+    (1.2195 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-25/12) + exp (-10/3) + exp (-25/6) + exp (-100/21) + exp (-125/24) +
+         exp (-50/9) + exp (-35/6) + exp (-200/33) + exp (-25/4) + exp (-250/39) +
+         exp (-275/42) + exp (-20/3) + exp (-325/48) + exp (-350/51) + exp (-125/18) +
+         exp (-400/57) + exp (-85/12) + exp (-50/7) + exp (-475/66) + exp (-500/69) +
+         exp (-175/24) + exp (-22/3) + exp (-575/78) + exp (-200/27) + exp (-625/84) +
+         exp (-650/87) + exp (-15/2) + exp (-700/93) + exp (-725/96) + exp (-250/33) +
+         exp (-775/102) + exp (-160/21) + exp (-275/36))
+        (1 + exp (37 * log 2 * (-1/12)) + exp (37 * log 2 * (-2/15)) +
+         exp (37 * log 2 * (-1/6)) + exp (37 * log 2 * (-4/21)) + exp (37 * log 2 * (-5/24)) +
+         exp (37 * log 2 * (-2/9)) + exp (37 * log 2 * (-7/30)) + exp (37 * log 2 * (-8/33)) +
+         exp (37 * log 2 * (-1/4)) + exp (37 * log 2 * (-10/39)) + exp (37 * log 2 * (-11/42)) +
+         exp (37 * log 2 * (-4/15)) + exp (37 * log 2 * (-13/48)) + exp (37 * log 2 * (-14/51)) +
+         exp (37 * log 2 * (-5/18)) + exp (37 * log 2 * (-16/57)) + exp (37 * log 2 * (-17/60)) +
+         exp (37 * log 2 * (-2/7)) + exp (37 * log 2 * (-19/66)) + exp (37 * log 2 * (-20/69)) +
+         exp (37 * log 2 * (-7/24)) + exp (37 * log 2 * (-22/75)) + exp (37 * log 2 * (-23/78)) +
+         exp (37 * log 2 * (-8/27)) + exp (37 * log 2 * (-25/84)) + exp (37 * log 2 * (-26/87)) +
+         exp (37 * log 2 * (-3/10)) + exp (37 * log 2 * (-28/93)) + exp (37 * log 2 * (-29/96)) +
+         exp (37 * log 2 * (-10/33)) + exp (37 * log 2 * (-31/102)) + exp (37 * log 2 * (-32/105)) +
+         exp (37 * log 2 * (-11/36)) + exp (37 * log 2 * (-34/111))) := by
+  calc (1.2195 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+      (1 + exp (-25/12) + exp (-10/3) + exp (-25/6) + exp (-100/21) + exp (-125/24) +
+       exp (-50/9) + exp (-35/6) + exp (-200/33) + exp (-25/4) + exp (-250/39) +
+       exp (-275/42) + exp (-20/3) + exp (-325/48) + exp (-350/51) + exp (-125/18) +
+       exp (-400/57) + exp (-85/12) + exp (-50/7) + exp (-475/66) + exp (-500/69) +
+       exp (-175/24) + exp (-22/3) + exp (-575/78) + exp (-200/27) + exp (-625/84) +
+       exp (-650/87) + exp (-15/2) + exp (-700/93) + exp (-725/96) + exp (-250/33) +
+       exp (-775/102) + exp (-160/21) + exp (-275/36)) := a2_bound_25.1
+    _ ≤ _ := mul_le_mul_of_nonneg_left (le_max_left _ _) (by positivity)
+
+theorem a2_25_upper :
+    (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-25/12) + exp (-10/3) + exp (-25/6) + exp (-100/21) + exp (-125/24) +
+         exp (-50/9) + exp (-35/6) + exp (-200/33) + exp (-25/4) + exp (-250/39) +
+         exp (-275/42) + exp (-20/3) + exp (-325/48) + exp (-350/51) + exp (-125/18) +
+         exp (-400/57) + exp (-85/12) + exp (-50/7) + exp (-475/66) + exp (-500/69) +
+         exp (-175/24) + exp (-22/3) + exp (-575/78) + exp (-200/27) + exp (-625/84) +
+         exp (-650/87) + exp (-15/2) + exp (-700/93) + exp (-725/96) + exp (-250/33) +
+         exp (-775/102) + exp (-160/21) + exp (-275/36))
+        (1 + exp (37 * log 2 * (-1/12)) + exp (37 * log 2 * (-2/15)) +
+         exp (37 * log 2 * (-1/6)) + exp (37 * log 2 * (-4/21)) + exp (37 * log 2 * (-5/24)) +
+         exp (37 * log 2 * (-2/9)) + exp (37 * log 2 * (-7/30)) + exp (37 * log 2 * (-8/33)) +
+         exp (37 * log 2 * (-1/4)) + exp (37 * log 2 * (-10/39)) + exp (37 * log 2 * (-11/42)) +
+         exp (37 * log 2 * (-4/15)) + exp (37 * log 2 * (-13/48)) + exp (37 * log 2 * (-14/51)) +
+         exp (37 * log 2 * (-5/18)) + exp (37 * log 2 * (-16/57)) + exp (37 * log 2 * (-17/60)) +
+         exp (37 * log 2 * (-2/7)) + exp (37 * log 2 * (-19/66)) + exp (37 * log 2 * (-20/69)) +
+         exp (37 * log 2 * (-7/24)) + exp (37 * log 2 * (-22/75)) + exp (37 * log 2 * (-23/78)) +
+         exp (37 * log 2 * (-8/27)) + exp (37 * log 2 * (-25/84)) + exp (37 * log 2 * (-26/87)) +
+         exp (37 * log 2 * (-3/10)) + exp (37 * log 2 * (-28/93)) + exp (37 * log 2 * (-29/96)) +
+         exp (37 * log 2 * (-10/33)) + exp (37 * log 2 * (-31/102)) + exp (37 * log 2 * (-32/105)) +
+         exp (37 * log 2 * (-11/36)) + exp (37 * log 2 * (-34/111)))
+    ≤ (1.2195 : ℝ) + (1:ℝ) / 10^4 := by
+  rw [mul_max_of_nonneg _ _ (by positivity : (0:ℝ) ≤ 1 + 193571378 / (10:ℝ)^16)]
+  apply max_le
+  · exact a2_bound_25.2
+  · exact pow37_upper
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- b = 30: N = 43, M = 44
 -- ═══════════════════════════════════════════════════════════════════════════
+set_option maxHeartbeats 1800000 in
+private lemma pow44_upper :
+    (1 + 193571378 / (10:ℝ)^16) * (1 + exp (44 * log 2 * (-1/12)) + exp (44 * log 2 * (-2/15)) +
+    exp (44 * log 2 * (-1/6)) + exp (44 * log 2 * (-4/21)) + exp (44 * log 2 * (-5/24)) +
+    exp (44 * log 2 * (-2/9)) + exp (44 * log 2 * (-7/30)) + exp (44 * log 2 * (-8/33)) +
+    exp (44 * log 2 * (-1/4)) + exp (44 * log 2 * (-10/39)) + exp (44 * log 2 * (-11/42)) +
+    exp (44 * log 2 * (-4/15)) + exp (44 * log 2 * (-13/48)) + exp (44 * log 2 * (-14/51)) +
+    exp (44 * log 2 * (-5/18)) + exp (44 * log 2 * (-16/57)) + exp (44 * log 2 * (-17/60)) +
+    exp (44 * log 2 * (-2/7)) + exp (44 * log 2 * (-19/66)) + exp (44 * log 2 * (-20/69)) +
+    exp (44 * log 2 * (-7/24)) + exp (44 * log 2 * (-22/75)) + exp (44 * log 2 * (-23/78)) +
+    exp (44 * log 2 * (-8/27)) + exp (44 * log 2 * (-25/84)) + exp (44 * log 2 * (-26/87)) +
+    exp (44 * log 2 * (-3/10)) + exp (44 * log 2 * (-28/93)) + exp (44 * log 2 * (-29/96)) +
+    exp (44 * log 2 * (-10/33)) + exp (44 * log 2 * (-31/102)) + exp (44 * log 2 * (-32/105)) +
+    exp (44 * log 2 * (-11/36)) + exp (44 * log 2 * (-34/111)) + exp (44 * log 2 * (-35/114)) +
+    exp (44 * log 2 * (-4/13)) + exp (44 * log 2 * (-37/120)) + exp (44 * log 2 * (-38/123)) +
+    exp (44 * log 2 * (-13/42)) + exp (44 * log 2 * (-40/129)) + exp (44 * log 2 * (-41/132)))
+    ≤ (1.1210 : ℝ) + (1:ℝ) / 10^4 := by
+  interval_decide 75
 
-private lemma floor_30 : ⌊(30 : ℝ) / log 2⌋₊ = 43 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 30 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+theorem a2_30_lower :
+    (1.1210 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-5/2) + exp (-4) + exp (-5) + exp (-40/7) + exp (-25/4) +
+         exp (-20/3) + exp (-7) + exp (-80/11) + exp (-15/2) + exp (-100/13) +
+         exp (-55/7) + exp (-8) + exp (-65/8) + exp (-140/17) + exp (-25/3) +
+         exp (-160/19) + exp (-17/2) + exp (-60/7) + exp (-95/11) + exp (-200/23) +
+         exp (-35/4) + exp (-44/5) + exp (-115/13) + exp (-80/9) + exp (-125/14) +
+         exp (-260/29) + exp (-9) + exp (-280/31) + exp (-145/16) + exp (-100/11) +
+         exp (-155/17) + exp (-64/7) + exp (-55/6) + exp (-340/37) + exp (-175/19) +
+         exp (-120/13) + exp (-37/4) + exp (-380/41) + exp (-65/7) + exp (-400/43))
+        (1 + exp (44 * log 2 * (-1/12)) + exp (44 * log 2 * (-2/15)) +
+         exp (44 * log 2 * (-1/6)) + exp (44 * log 2 * (-4/21)) + exp (44 * log 2 * (-5/24)) +
+         exp (44 * log 2 * (-2/9)) + exp (44 * log 2 * (-7/30)) + exp (44 * log 2 * (-8/33)) +
+         exp (44 * log 2 * (-1/4)) + exp (44 * log 2 * (-10/39)) + exp (44 * log 2 * (-11/42)) +
+         exp (44 * log 2 * (-4/15)) + exp (44 * log 2 * (-13/48)) + exp (44 * log 2 * (-14/51)) +
+         exp (44 * log 2 * (-5/18)) + exp (44 * log 2 * (-16/57)) + exp (44 * log 2 * (-17/60)) +
+         exp (44 * log 2 * (-2/7)) + exp (44 * log 2 * (-19/66)) + exp (44 * log 2 * (-20/69)) +
+         exp (44 * log 2 * (-7/24)) + exp (44 * log 2 * (-22/75)) + exp (44 * log 2 * (-23/78)) +
+         exp (44 * log 2 * (-8/27)) + exp (44 * log 2 * (-25/84)) + exp (44 * log 2 * (-26/87)) +
+         exp (44 * log 2 * (-3/10)) + exp (44 * log 2 * (-28/93)) + exp (44 * log 2 * (-29/96)) +
+         exp (44 * log 2 * (-10/33)) + exp (44 * log 2 * (-31/102)) + exp (44 * log 2 * (-32/105)) +
+         exp (44 * log 2 * (-11/36)) + exp (44 * log 2 * (-34/111)) + exp (44 * log 2 * (-35/114)) +
+         exp (44 * log 2 * (-4/13)) + exp (44 * log 2 * (-37/120)) + exp (44 * log 2 * (-38/123)) +
+         exp (44 * log 2 * (-13/42)) + exp (44 * log 2 * (-40/129)) + exp (44 * log 2 * (-41/132))) := by
+  calc (1.1210 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+      (1 + exp (-5/2) + exp (-4) + exp (-5) + exp (-40/7) + exp (-25/4) +
+       exp (-20/3) + exp (-7) + exp (-80/11) + exp (-15/2) + exp (-100/13) +
+       exp (-55/7) + exp (-8) + exp (-65/8) + exp (-140/17) + exp (-25/3) +
+       exp (-160/19) + exp (-17/2) + exp (-60/7) + exp (-95/11) + exp (-200/23) +
+       exp (-35/4) + exp (-44/5) + exp (-115/13) + exp (-80/9) + exp (-125/14) +
+       exp (-260/29) + exp (-9) + exp (-280/31) + exp (-145/16) + exp (-100/11) +
+       exp (-155/17) + exp (-64/7) + exp (-55/6) + exp (-340/37) + exp (-175/19) +
+       exp (-120/13) + exp (-37/4) + exp (-380/41) + exp (-65/7) + exp (-400/43)) := a2_bound_30.1
+    _ ≤ _ := mul_le_mul_of_nonneg_left (le_max_left _ _) (by positivity)
+
+theorem a2_30_upper :
+    (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-5/2) + exp (-4) + exp (-5) + exp (-40/7) + exp (-25/4) +
+         exp (-20/3) + exp (-7) + exp (-80/11) + exp (-15/2) + exp (-100/13) +
+         exp (-55/7) + exp (-8) + exp (-65/8) + exp (-140/17) + exp (-25/3) +
+         exp (-160/19) + exp (-17/2) + exp (-60/7) + exp (-95/11) + exp (-200/23) +
+         exp (-35/4) + exp (-44/5) + exp (-115/13) + exp (-80/9) + exp (-125/14) +
+         exp (-260/29) + exp (-9) + exp (-280/31) + exp (-145/16) + exp (-100/11) +
+         exp (-155/17) + exp (-64/7) + exp (-55/6) + exp (-340/37) + exp (-175/19) +
+         exp (-120/13) + exp (-37/4) + exp (-380/41) + exp (-65/7) + exp (-400/43))
+        (1 + exp (44 * log 2 * (-1/12)) + exp (44 * log 2 * (-2/15)) +
+         exp (44 * log 2 * (-1/6)) + exp (44 * log 2 * (-4/21)) + exp (44 * log 2 * (-5/24)) +
+         exp (44 * log 2 * (-2/9)) + exp (44 * log 2 * (-7/30)) + exp (44 * log 2 * (-8/33)) +
+         exp (44 * log 2 * (-1/4)) + exp (44 * log 2 * (-10/39)) + exp (44 * log 2 * (-11/42)) +
+         exp (44 * log 2 * (-4/15)) + exp (44 * log 2 * (-13/48)) + exp (44 * log 2 * (-14/51)) +
+         exp (44 * log 2 * (-5/18)) + exp (44 * log 2 * (-16/57)) + exp (44 * log 2 * (-17/60)) +
+         exp (44 * log 2 * (-2/7)) + exp (44 * log 2 * (-19/66)) + exp (44 * log 2 * (-20/69)) +
+         exp (44 * log 2 * (-7/24)) + exp (44 * log 2 * (-22/75)) + exp (44 * log 2 * (-23/78)) +
+         exp (44 * log 2 * (-8/27)) + exp (44 * log 2 * (-25/84)) + exp (44 * log 2 * (-26/87)) +
+         exp (44 * log 2 * (-3/10)) + exp (44 * log 2 * (-28/93)) + exp (44 * log 2 * (-29/96)) +
+         exp (44 * log 2 * (-10/33)) + exp (44 * log 2 * (-31/102)) + exp (44 * log 2 * (-32/105)) +
+         exp (44 * log 2 * (-11/36)) + exp (44 * log 2 * (-34/111)) + exp (44 * log 2 * (-35/114)) +
+         exp (44 * log 2 * (-4/13)) + exp (44 * log 2 * (-37/120)) + exp (44 * log 2 * (-38/123)) +
+         exp (44 * log 2 * (-13/42)) + exp (44 * log 2 * (-40/129)) + exp (44 * log 2 * (-41/132)))
+    ≤ (1.1210 : ℝ) + (1:ℝ) / 10^4 := by
+  rw [mul_max_of_nonneg _ _ (by positivity : (0:ℝ) ≤ 1 + 193571378 / (10:ℝ)^16)]
+  apply max_le
+  · exact a2_bound_30.2
+  · exact pow44_upper
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- b = 35: N = 50, M = 51
 -- ═══════════════════════════════════════════════════════════════════════════
+set_option maxHeartbeats 2400000 in
+private lemma pow51_upper :
+    (1 + 193571378 / (10:ℝ)^16) * (1 + exp (51 * log 2 * (-1/12)) + exp (51 * log 2 * (-2/15)) +
+    exp (51 * log 2 * (-1/6)) + exp (51 * log 2 * (-4/21)) + exp (51 * log 2 * (-5/24)) +
+    exp (51 * log 2 * (-2/9)) + exp (51 * log 2 * (-7/30)) + exp (51 * log 2 * (-8/33)) +
+    exp (51 * log 2 * (-1/4)) + exp (51 * log 2 * (-10/39)) + exp (51 * log 2 * (-11/42)) +
+    exp (51 * log 2 * (-4/15)) + exp (51 * log 2 * (-13/48)) + exp (51 * log 2 * (-14/51)) +
+    exp (51 * log 2 * (-5/18)) + exp (51 * log 2 * (-16/57)) + exp (51 * log 2 * (-17/60)) +
+    exp (51 * log 2 * (-2/7)) + exp (51 * log 2 * (-19/66)) + exp (51 * log 2 * (-20/69)) +
+    exp (51 * log 2 * (-7/24)) + exp (51 * log 2 * (-22/75)) + exp (51 * log 2 * (-23/78)) +
+    exp (51 * log 2 * (-8/27)) + exp (51 * log 2 * (-25/84)) + exp (51 * log 2 * (-26/87)) +
+    exp (51 * log 2 * (-3/10)) + exp (51 * log 2 * (-28/93)) + exp (51 * log 2 * (-29/96)) +
+    exp (51 * log 2 * (-10/33)) + exp (51 * log 2 * (-31/102)) + exp (51 * log 2 * (-32/105)) +
+    exp (51 * log 2 * (-11/36)) + exp (51 * log 2 * (-34/111)) + exp (51 * log 2 * (-35/114)) +
+    exp (51 * log 2 * (-4/13)) + exp (51 * log 2 * (-37/120)) + exp (51 * log 2 * (-38/123)) +
+    exp (51 * log 2 * (-13/42)) + exp (51 * log 2 * (-40/129)) + exp (51 * log 2 * (-41/132)) +
+    exp (51 * log 2 * (-14/45)) + exp (51 * log 2 * (-43/138)) + exp (51 * log 2 * (-44/141)) +
+    exp (51 * log 2 * (-5/16)) + exp (51 * log 2 * (-46/147)) + exp (51 * log 2 * (-47/150)) +
+    exp (51 * log 2 * (-16/51)))
+    ≤ (1.07086 : ℝ) + (1:ℝ) / 10^5 := by
+  interval_decide 82
 
-private lemma floor_35 : ⌊(35 : ℝ) / log 2⌋₊ = 50 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 35 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+theorem a2_35_lower :
+    (1.07086 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-35/12) + exp (-14/3) + exp (-35/6) + exp (-20/3) + exp (-175/24) +
+         exp (-70/9) + exp (-49/6) + exp (-280/33) + exp (-35/4) + exp (-350/39) +
+         exp (-55/6) + exp (-28/3) + exp (-455/48) + exp (-490/51) + exp (-175/18) +
+         exp (-560/57) + exp (-119/12) + exp (-10) + exp (-665/66) + exp (-700/69) +
+         exp (-245/24) + exp (-154/15) + exp (-805/78) + exp (-280/27) + exp (-125/12) +
+         exp (-910/87) + exp (-21/2) + exp (-980/93) + exp (-1015/96) + exp (-350/33) +
+         exp (-1085/102) + exp (-32/3) + exp (-385/36) + exp (-1190/111) + exp (-1225/114) +
+         exp (-140/13) + exp (-259/24) + exp (-1330/123) + exp (-65/6) + exp (-1400/129) +
+         exp (-1435/132) + exp (-98/9) + exp (-1505/138) + exp (-1540/141) + exp (-175/16) +
+         exp (-230/21) + exp (-329/30))
+        (1 + exp (51 * log 2 * (-1/12)) + exp (51 * log 2 * (-2/15)) +
+         exp (51 * log 2 * (-1/6)) + exp (51 * log 2 * (-4/21)) + exp (51 * log 2 * (-5/24)) +
+         exp (51 * log 2 * (-2/9)) + exp (51 * log 2 * (-7/30)) + exp (51 * log 2 * (-8/33)) +
+         exp (51 * log 2 * (-1/4)) + exp (51 * log 2 * (-10/39)) + exp (51 * log 2 * (-11/42)) +
+         exp (51 * log 2 * (-4/15)) + exp (51 * log 2 * (-13/48)) + exp (51 * log 2 * (-14/51)) +
+         exp (51 * log 2 * (-5/18)) + exp (51 * log 2 * (-16/57)) + exp (51 * log 2 * (-17/60)) +
+         exp (51 * log 2 * (-2/7)) + exp (51 * log 2 * (-19/66)) + exp (51 * log 2 * (-20/69)) +
+         exp (51 * log 2 * (-7/24)) + exp (51 * log 2 * (-22/75)) + exp (51 * log 2 * (-23/78)) +
+         exp (51 * log 2 * (-8/27)) + exp (51 * log 2 * (-25/84)) + exp (51 * log 2 * (-26/87)) +
+         exp (51 * log 2 * (-3/10)) + exp (51 * log 2 * (-28/93)) + exp (51 * log 2 * (-29/96)) +
+         exp (51 * log 2 * (-10/33)) + exp (51 * log 2 * (-31/102)) + exp (51 * log 2 * (-32/105)) +
+         exp (51 * log 2 * (-11/36)) + exp (51 * log 2 * (-34/111)) + exp (51 * log 2 * (-35/114)) +
+         exp (51 * log 2 * (-4/13)) + exp (51 * log 2 * (-37/120)) + exp (51 * log 2 * (-38/123)) +
+         exp (51 * log 2 * (-13/42)) + exp (51 * log 2 * (-40/129)) + exp (51 * log 2 * (-41/132)) +
+         exp (51 * log 2 * (-14/45)) + exp (51 * log 2 * (-43/138)) + exp (51 * log 2 * (-44/141)) +
+         exp (51 * log 2 * (-5/16)) + exp (51 * log 2 * (-46/147)) + exp (51 * log 2 * (-47/150)) +
+         exp (51 * log 2 * (-16/51))) := by
+  calc (1.07086 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+      (1 + exp (-35/12) + exp (-14/3) + exp (-35/6) + exp (-20/3) + exp (-175/24) +
+       exp (-70/9) + exp (-49/6) + exp (-280/33) + exp (-35/4) + exp (-350/39) +
+       exp (-55/6) + exp (-28/3) + exp (-455/48) + exp (-490/51) + exp (-175/18) +
+       exp (-560/57) + exp (-119/12) + exp (-10) + exp (-665/66) + exp (-700/69) +
+       exp (-245/24) + exp (-154/15) + exp (-805/78) + exp (-280/27) + exp (-125/12) +
+       exp (-910/87) + exp (-21/2) + exp (-980/93) + exp (-1015/96) + exp (-350/33) +
+       exp (-1085/102) + exp (-32/3) + exp (-385/36) + exp (-1190/111) + exp (-1225/114) +
+       exp (-140/13) + exp (-259/24) + exp (-1330/123) + exp (-65/6) + exp (-1400/129) +
+       exp (-1435/132) + exp (-98/9) + exp (-1505/138) + exp (-1540/141) + exp (-175/16) +
+       exp (-230/21) + exp (-329/30)) := a2_bound_35.1
+    _ ≤ _ := mul_le_mul_of_nonneg_left (le_max_left _ _) (by positivity)
+
+theorem a2_35_upper :
+    (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-35/12) + exp (-14/3) + exp (-35/6) + exp (-20/3) + exp (-175/24) +
+         exp (-70/9) + exp (-49/6) + exp (-280/33) + exp (-35/4) + exp (-350/39) +
+         exp (-55/6) + exp (-28/3) + exp (-455/48) + exp (-490/51) + exp (-175/18) +
+         exp (-560/57) + exp (-119/12) + exp (-10) + exp (-665/66) + exp (-700/69) +
+         exp (-245/24) + exp (-154/15) + exp (-805/78) + exp (-280/27) + exp (-125/12) +
+         exp (-910/87) + exp (-21/2) + exp (-980/93) + exp (-1015/96) + exp (-350/33) +
+         exp (-1085/102) + exp (-32/3) + exp (-385/36) + exp (-1190/111) + exp (-1225/114) +
+         exp (-140/13) + exp (-259/24) + exp (-1330/123) + exp (-65/6) + exp (-1400/129) +
+         exp (-1435/132) + exp (-98/9) + exp (-1505/138) + exp (-1540/141) + exp (-175/16) +
+         exp (-230/21) + exp (-329/30))
+        (1 + exp (51 * log 2 * (-1/12)) + exp (51 * log 2 * (-2/15)) +
+         exp (51 * log 2 * (-1/6)) + exp (51 * log 2 * (-4/21)) + exp (51 * log 2 * (-5/24)) +
+         exp (51 * log 2 * (-2/9)) + exp (51 * log 2 * (-7/30)) + exp (51 * log 2 * (-8/33)) +
+         exp (51 * log 2 * (-1/4)) + exp (51 * log 2 * (-10/39)) + exp (51 * log 2 * (-11/42)) +
+         exp (51 * log 2 * (-4/15)) + exp (51 * log 2 * (-13/48)) + exp (51 * log 2 * (-14/51)) +
+         exp (51 * log 2 * (-5/18)) + exp (51 * log 2 * (-16/57)) + exp (51 * log 2 * (-17/60)) +
+         exp (51 * log 2 * (-2/7)) + exp (51 * log 2 * (-19/66)) + exp (51 * log 2 * (-20/69)) +
+         exp (51 * log 2 * (-7/24)) + exp (51 * log 2 * (-22/75)) + exp (51 * log 2 * (-23/78)) +
+         exp (51 * log 2 * (-8/27)) + exp (51 * log 2 * (-25/84)) + exp (51 * log 2 * (-26/87)) +
+         exp (51 * log 2 * (-3/10)) + exp (51 * log 2 * (-28/93)) + exp (51 * log 2 * (-29/96)) +
+         exp (51 * log 2 * (-10/33)) + exp (51 * log 2 * (-31/102)) + exp (51 * log 2 * (-32/105)) +
+         exp (51 * log 2 * (-11/36)) + exp (51 * log 2 * (-34/111)) + exp (51 * log 2 * (-35/114)) +
+         exp (51 * log 2 * (-4/13)) + exp (51 * log 2 * (-37/120)) + exp (51 * log 2 * (-38/123)) +
+         exp (51 * log 2 * (-13/42)) + exp (51 * log 2 * (-40/129)) + exp (51 * log 2 * (-41/132)) +
+         exp (51 * log 2 * (-14/45)) + exp (51 * log 2 * (-43/138)) + exp (51 * log 2 * (-44/141)) +
+         exp (51 * log 2 * (-5/16)) + exp (51 * log 2 * (-46/147)) + exp (51 * log 2 * (-47/150)) +
+         exp (51 * log 2 * (-16/51)))
+    ≤ (1.07086 : ℝ) + (1:ℝ) / 10^5 := by
+  rw [mul_max_of_nonneg _ _ (by positivity : (0:ℝ) ≤ 1 + 193571378 / (10:ℝ)^16)]
+  apply max_le
+  · exact a2_bound_35.2
+  · exact pow51_upper
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- b = 40: N = 57, M = 58
 -- ═══════════════════════════════════════════════════════════════════════════
+set_option maxHeartbeats 2800000 in
+private lemma pow58_upper :
+    (1 + 193571378 / (10:ℝ)^16) * (1 + exp (58 * log 2 * (-1/12)) + exp (58 * log 2 * (-2/15)) +
+    exp (58 * log 2 * (-1/6)) + exp (58 * log 2 * (-4/21)) + exp (58 * log 2 * (-5/24)) +
+    exp (58 * log 2 * (-2/9)) + exp (58 * log 2 * (-7/30)) + exp (58 * log 2 * (-8/33)) +
+    exp (58 * log 2 * (-1/4)) + exp (58 * log 2 * (-10/39)) + exp (58 * log 2 * (-11/42)) +
+    exp (58 * log 2 * (-4/15)) + exp (58 * log 2 * (-13/48)) + exp (58 * log 2 * (-14/51)) +
+    exp (58 * log 2 * (-5/18)) + exp (58 * log 2 * (-16/57)) + exp (58 * log 2 * (-17/60)) +
+    exp (58 * log 2 * (-2/7)) + exp (58 * log 2 * (-19/66)) + exp (58 * log 2 * (-20/69)) +
+    exp (58 * log 2 * (-7/24)) + exp (58 * log 2 * (-22/75)) + exp (58 * log 2 * (-23/78)) +
+    exp (58 * log 2 * (-8/27)) + exp (58 * log 2 * (-25/84)) + exp (58 * log 2 * (-26/87)) +
+    exp (58 * log 2 * (-3/10)) + exp (58 * log 2 * (-28/93)) + exp (58 * log 2 * (-29/96)) +
+    exp (58 * log 2 * (-10/33)) + exp (58 * log 2 * (-31/102)) + exp (58 * log 2 * (-32/105)) +
+    exp (58 * log 2 * (-11/36)) + exp (58 * log 2 * (-34/111)) + exp (58 * log 2 * (-35/114)) +
+    exp (58 * log 2 * (-4/13)) + exp (58 * log 2 * (-37/120)) + exp (58 * log 2 * (-38/123)) +
+    exp (58 * log 2 * (-13/42)) + exp (58 * log 2 * (-40/129)) + exp (58 * log 2 * (-41/132)) +
+    exp (58 * log 2 * (-14/45)) + exp (58 * log 2 * (-43/138)) + exp (58 * log 2 * (-44/141)) +
+    exp (58 * log 2 * (-5/16)) + exp (58 * log 2 * (-46/147)) + exp (58 * log 2 * (-47/150)) +
+    exp (58 * log 2 * (-16/51)) + exp (58 * log 2 * (-49/156)) + exp (58 * log 2 * (-50/159)) +
+    exp (58 * log 2 * (-17/54)) + exp (58 * log 2 * (-52/165)) + exp (58 * log 2 * (-53/168)) +
+    exp (58 * log 2 * (-6/19)) + exp (58 * log 2 * (-55/174)))
+    ≤ (1.04319 : ℝ) + (1:ℝ) / 10^5 := by
+  interval_decide 90
 
-private lemma floor_40 : ⌊(40 : ℝ) / log 2⌋₊ = 57 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 40 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+theorem a2_40_lower :
+    (1.04319 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-10/3) + exp (-16/3) + exp (-20/3) + exp (-160/21) + exp (-25/3) +
+         exp (-80/9) + exp (-28/3) + exp (-320/33) + exp (-10) + exp (-400/39) +
+         exp (-220/21) + exp (-32/3) + exp (-65/6) + exp (-560/51) + exp (-100/9) +
+         exp (-640/57) + exp (-34/3) + exp (-80/7) + exp (-380/33) + exp (-800/69) +
+         exp (-35/3) + exp (-176/15) + exp (-460/39) + exp (-320/27) + exp (-250/21) +
+         exp (-1040/87) + exp (-12) + exp (-1120/93) + exp (-145/12) + exp (-400/33) +
+         exp (-620/51) + exp (-256/21) + exp (-110/9) + exp (-1360/111) + exp (-700/57) +
+         exp (-160/13) + exp (-37/3) + exp (-1520/123) + exp (-260/21) + exp (-1600/129) +
+         exp (-410/33) + exp (-112/9) + exp (-860/69) + exp (-1760/141) + exp (-25/2) +
+         exp (-1840/147) + exp (-188/15) + exp (-640/51) + exp (-490/39) + exp (-2000/159) +
+         exp (-340/27) + exp (-416/33) + exp (-265/21) + exp (-240/19))
+        (1 + exp (58 * log 2 * (-1/12)) + exp (58 * log 2 * (-2/15)) +
+         exp (58 * log 2 * (-1/6)) + exp (58 * log 2 * (-4/21)) + exp (58 * log 2 * (-5/24)) +
+         exp (58 * log 2 * (-2/9)) + exp (58 * log 2 * (-7/30)) + exp (58 * log 2 * (-8/33)) +
+         exp (58 * log 2 * (-1/4)) + exp (58 * log 2 * (-10/39)) + exp (58 * log 2 * (-11/42)) +
+         exp (58 * log 2 * (-4/15)) + exp (58 * log 2 * (-13/48)) + exp (58 * log 2 * (-14/51)) +
+         exp (58 * log 2 * (-5/18)) + exp (58 * log 2 * (-16/57)) + exp (58 * log 2 * (-17/60)) +
+         exp (58 * log 2 * (-2/7)) + exp (58 * log 2 * (-19/66)) + exp (58 * log 2 * (-20/69)) +
+         exp (58 * log 2 * (-7/24)) + exp (58 * log 2 * (-22/75)) + exp (58 * log 2 * (-23/78)) +
+         exp (58 * log 2 * (-8/27)) + exp (58 * log 2 * (-25/84)) + exp (58 * log 2 * (-26/87)) +
+         exp (58 * log 2 * (-3/10)) + exp (58 * log 2 * (-28/93)) + exp (58 * log 2 * (-29/96)) +
+         exp (58 * log 2 * (-10/33)) + exp (58 * log 2 * (-31/102)) + exp (58 * log 2 * (-32/105)) +
+         exp (58 * log 2 * (-11/36)) + exp (58 * log 2 * (-34/111)) + exp (58 * log 2 * (-35/114)) +
+         exp (58 * log 2 * (-4/13)) + exp (58 * log 2 * (-37/120)) + exp (58 * log 2 * (-38/123)) +
+         exp (58 * log 2 * (-13/42)) + exp (58 * log 2 * (-40/129)) + exp (58 * log 2 * (-41/132)) +
+         exp (58 * log 2 * (-14/45)) + exp (58 * log 2 * (-43/138)) + exp (58 * log 2 * (-44/141)) +
+         exp (58 * log 2 * (-5/16)) + exp (58 * log 2 * (-46/147)) + exp (58 * log 2 * (-47/150)) +
+         exp (58 * log 2 * (-16/51)) + exp (58 * log 2 * (-49/156)) + exp (58 * log 2 * (-50/159)) +
+         exp (58 * log 2 * (-17/54)) + exp (58 * log 2 * (-52/165)) + exp (58 * log 2 * (-53/168)) +
+         exp (58 * log 2 * (-6/19)) + exp (58 * log 2 * (-55/174))) := by
+  calc (1.04319 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+      (1 + exp (-10/3) + exp (-16/3) + exp (-20/3) + exp (-160/21) + exp (-25/3) +
+       exp (-80/9) + exp (-28/3) + exp (-320/33) + exp (-10) + exp (-400/39) +
+       exp (-220/21) + exp (-32/3) + exp (-65/6) + exp (-560/51) + exp (-100/9) +
+       exp (-640/57) + exp (-34/3) + exp (-80/7) + exp (-380/33) + exp (-800/69) +
+       exp (-35/3) + exp (-176/15) + exp (-460/39) + exp (-320/27) + exp (-250/21) +
+       exp (-1040/87) + exp (-12) + exp (-1120/93) + exp (-145/12) + exp (-400/33) +
+       exp (-620/51) + exp (-256/21) + exp (-110/9) + exp (-1360/111) + exp (-700/57) +
+       exp (-160/13) + exp (-37/3) + exp (-1520/123) + exp (-260/21) + exp (-1600/129) +
+       exp (-410/33) + exp (-112/9) + exp (-860/69) + exp (-1760/141) + exp (-25/2) +
+       exp (-1840/147) + exp (-188/15) + exp (-640/51) + exp (-490/39) + exp (-2000/159) +
+       exp (-340/27) + exp (-416/33) + exp (-265/21) + exp (-240/19)) := a2_bound_40.1
+    _ ≤ _ := mul_le_mul_of_nonneg_left (le_max_left _ _) (by positivity)
+
+theorem a2_40_upper :
+    (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-10/3) + exp (-16/3) + exp (-20/3) + exp (-160/21) + exp (-25/3) +
+         exp (-80/9) + exp (-28/3) + exp (-320/33) + exp (-10) + exp (-400/39) +
+         exp (-220/21) + exp (-32/3) + exp (-65/6) + exp (-560/51) + exp (-100/9) +
+         exp (-640/57) + exp (-34/3) + exp (-80/7) + exp (-380/33) + exp (-800/69) +
+         exp (-35/3) + exp (-176/15) + exp (-460/39) + exp (-320/27) + exp (-250/21) +
+         exp (-1040/87) + exp (-12) + exp (-1120/93) + exp (-145/12) + exp (-400/33) +
+         exp (-620/51) + exp (-256/21) + exp (-110/9) + exp (-1360/111) + exp (-700/57) +
+         exp (-160/13) + exp (-37/3) + exp (-1520/123) + exp (-260/21) + exp (-1600/129) +
+         exp (-410/33) + exp (-112/9) + exp (-860/69) + exp (-1760/141) + exp (-25/2) +
+         exp (-1840/147) + exp (-188/15) + exp (-640/51) + exp (-490/39) + exp (-2000/159) +
+         exp (-340/27) + exp (-416/33) + exp (-265/21) + exp (-240/19))
+        (1 + exp (58 * log 2 * (-1/12)) + exp (58 * log 2 * (-2/15)) +
+         exp (58 * log 2 * (-1/6)) + exp (58 * log 2 * (-4/21)) + exp (58 * log 2 * (-5/24)) +
+         exp (58 * log 2 * (-2/9)) + exp (58 * log 2 * (-7/30)) + exp (58 * log 2 * (-8/33)) +
+         exp (58 * log 2 * (-1/4)) + exp (58 * log 2 * (-10/39)) + exp (58 * log 2 * (-11/42)) +
+         exp (58 * log 2 * (-4/15)) + exp (58 * log 2 * (-13/48)) + exp (58 * log 2 * (-14/51)) +
+         exp (58 * log 2 * (-5/18)) + exp (58 * log 2 * (-16/57)) + exp (58 * log 2 * (-17/60)) +
+         exp (58 * log 2 * (-2/7)) + exp (58 * log 2 * (-19/66)) + exp (58 * log 2 * (-20/69)) +
+         exp (58 * log 2 * (-7/24)) + exp (58 * log 2 * (-22/75)) + exp (58 * log 2 * (-23/78)) +
+         exp (58 * log 2 * (-8/27)) + exp (58 * log 2 * (-25/84)) + exp (58 * log 2 * (-26/87)) +
+         exp (58 * log 2 * (-3/10)) + exp (58 * log 2 * (-28/93)) + exp (58 * log 2 * (-29/96)) +
+         exp (58 * log 2 * (-10/33)) + exp (58 * log 2 * (-31/102)) + exp (58 * log 2 * (-32/105)) +
+         exp (58 * log 2 * (-11/36)) + exp (58 * log 2 * (-34/111)) + exp (58 * log 2 * (-35/114)) +
+         exp (58 * log 2 * (-4/13)) + exp (58 * log 2 * (-37/120)) + exp (58 * log 2 * (-38/123)) +
+         exp (58 * log 2 * (-13/42)) + exp (58 * log 2 * (-40/129)) + exp (58 * log 2 * (-41/132)) +
+         exp (58 * log 2 * (-14/45)) + exp (58 * log 2 * (-43/138)) + exp (58 * log 2 * (-44/141)) +
+         exp (58 * log 2 * (-5/16)) + exp (58 * log 2 * (-46/147)) + exp (58 * log 2 * (-47/150)) +
+         exp (58 * log 2 * (-16/51)) + exp (58 * log 2 * (-49/156)) + exp (58 * log 2 * (-50/159)) +
+         exp (58 * log 2 * (-17/54)) + exp (58 * log 2 * (-52/165)) + exp (58 * log 2 * (-53/168)) +
+         exp (58 * log 2 * (-6/19)) + exp (58 * log 2 * (-55/174)))
+    ≤ (1.04319 : ℝ) + (1:ℝ) / 10^5 := by
+  rw [mul_max_of_nonneg _ _ (by positivity : (0:ℝ) ≤ 1 + 193571378 / (10:ℝ)^16)]
+  apply max_le
+  · exact a2_bound_40.2
+  · exact pow58_upper
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- b = 43: N = 62, M = 63
 -- ═══════════════════════════════════════════════════════════════════════════
+set_option maxHeartbeats 3200000 in
+private lemma pow63_upper :
+    (1 + 193571378 / (10:ℝ)^16) * (1 + exp (63 * log 2 * (-1/12)) + exp (63 * log 2 * (-2/15)) +
+    exp (63 * log 2 * (-1/6)) + exp (63 * log 2 * (-4/21)) + exp (63 * log 2 * (-5/24)) +
+    exp (63 * log 2 * (-2/9)) + exp (63 * log 2 * (-7/30)) + exp (63 * log 2 * (-8/33)) +
+    exp (63 * log 2 * (-1/4)) + exp (63 * log 2 * (-10/39)) + exp (63 * log 2 * (-11/42)) +
+    exp (63 * log 2 * (-4/15)) + exp (63 * log 2 * (-13/48)) + exp (63 * log 2 * (-14/51)) +
+    exp (63 * log 2 * (-5/18)) + exp (63 * log 2 * (-16/57)) + exp (63 * log 2 * (-17/60)) +
+    exp (63 * log 2 * (-2/7)) + exp (63 * log 2 * (-19/66)) + exp (63 * log 2 * (-20/69)) +
+    exp (63 * log 2 * (-7/24)) + exp (63 * log 2 * (-22/75)) + exp (63 * log 2 * (-23/78)) +
+    exp (63 * log 2 * (-8/27)) + exp (63 * log 2 * (-25/84)) + exp (63 * log 2 * (-26/87)) +
+    exp (63 * log 2 * (-3/10)) + exp (63 * log 2 * (-28/93)) + exp (63 * log 2 * (-29/96)) +
+    exp (63 * log 2 * (-10/33)) + exp (63 * log 2 * (-31/102)) + exp (63 * log 2 * (-32/105)) +
+    exp (63 * log 2 * (-11/36)) + exp (63 * log 2 * (-34/111)) + exp (63 * log 2 * (-35/114)) +
+    exp (63 * log 2 * (-4/13)) + exp (63 * log 2 * (-37/120)) + exp (63 * log 2 * (-38/123)) +
+    exp (63 * log 2 * (-13/42)) + exp (63 * log 2 * (-40/129)) + exp (63 * log 2 * (-41/132)) +
+    exp (63 * log 2 * (-14/45)) + exp (63 * log 2 * (-43/138)) + exp (63 * log 2 * (-44/141)) +
+    exp (63 * log 2 * (-5/16)) + exp (63 * log 2 * (-46/147)) + exp (63 * log 2 * (-47/150)) +
+    exp (63 * log 2 * (-16/51)) + exp (63 * log 2 * (-49/156)) + exp (63 * log 2 * (-50/159)) +
+    exp (63 * log 2 * (-17/54)) + exp (63 * log 2 * (-52/165)) + exp (63 * log 2 * (-53/168)) +
+    exp (63 * log 2 * (-6/19)) + exp (63 * log 2 * (-55/174)) + exp (63 * log 2 * (-56/177)) +
+    exp (63 * log 2 * (-19/60)) + exp (63 * log 2 * (-58/183)) + exp (63 * log 2 * (-59/186)) +
+    exp (63 * log 2 * (-20/63)))
+    ≤ (1.03252 : ℝ) + (1:ℝ) / 10^5 := by
+  interval_decide 98
 
-private lemma floor_43 : ⌊(43 : ℝ) / log 2⌋₊ = 62 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 43 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
+theorem a2_43_lower :
+    (1.03252 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-43/12) + exp (-86/15) + exp (-43/6) + exp (-172/21) + exp (-215/24) +
+         exp (-86/9) + exp (-301/30) + exp (-344/33) + exp (-43/4) + exp (-430/39) +
+         exp (-473/42) + exp (-172/15) + exp (-559/48) + exp (-602/51) + exp (-215/18) +
+         exp (-688/57) + exp (-731/60) + exp (-86/7) + exp (-817/66) + exp (-860/69) +
+         exp (-301/24) + exp (-946/75) + exp (-989/78) + exp (-344/27) + exp (-1075/84) +
+         exp (-1118/87) + exp (-129/10) + exp (-1204/93) + exp (-1247/96) + exp (-430/33) +
+         exp (-1333/102) + exp (-1376/105) + exp (-473/36) + exp (-1462/111) + exp (-1505/114) +
+         exp (-172/13) + exp (-1591/120) + exp (-1634/123) + exp (-559/42) + exp (-40/3) +
+         exp (-1763/132) + exp (-602/45) + exp (-1849/138) + exp (-1892/141) + exp (-215/16) +
+         exp (-1978/147) + exp (-2021/150) + exp (-688/51) + exp (-2107/156) + exp (-2150/159) +
+         exp (-731/54) + exp (-2236/165) + exp (-2279/168) + exp (-258/19) + exp (-2365/174) +
+         exp (-2408/177) + exp (-817/60) + exp (-2494/183) + exp (-2537/186))
+        (1 + exp (63 * log 2 * (-1/12)) + exp (63 * log 2 * (-2/15)) +
+         exp (63 * log 2 * (-1/6)) + exp (63 * log 2 * (-4/21)) + exp (63 * log 2 * (-5/24)) +
+         exp (63 * log 2 * (-2/9)) + exp (63 * log 2 * (-7/30)) + exp (63 * log 2 * (-8/33)) +
+         exp (63 * log 2 * (-1/4)) + exp (63 * log 2 * (-10/39)) + exp (63 * log 2 * (-11/42)) +
+         exp (63 * log 2 * (-4/15)) + exp (63 * log 2 * (-13/48)) + exp (63 * log 2 * (-14/51)) +
+         exp (63 * log 2 * (-5/18)) + exp (63 * log 2 * (-16/57)) + exp (63 * log 2 * (-17/60)) +
+         exp (63 * log 2 * (-2/7)) + exp (63 * log 2 * (-19/66)) + exp (63 * log 2 * (-20/69)) +
+         exp (63 * log 2 * (-7/24)) + exp (63 * log 2 * (-22/75)) + exp (63 * log 2 * (-23/78)) +
+         exp (63 * log 2 * (-8/27)) + exp (63 * log 2 * (-25/84)) + exp (63 * log 2 * (-26/87)) +
+         exp (63 * log 2 * (-3/10)) + exp (63 * log 2 * (-28/93)) + exp (63 * log 2 * (-29/96)) +
+         exp (63 * log 2 * (-10/33)) + exp (63 * log 2 * (-31/102)) + exp (63 * log 2 * (-32/105)) +
+         exp (63 * log 2 * (-11/36)) + exp (63 * log 2 * (-34/111)) + exp (63 * log 2 * (-35/114)) +
+         exp (63 * log 2 * (-4/13)) + exp (63 * log 2 * (-37/120)) + exp (63 * log 2 * (-38/123)) +
+         exp (63 * log 2 * (-13/42)) + exp (63 * log 2 * (-40/129)) + exp (63 * log 2 * (-41/132)) +
+         exp (63 * log 2 * (-14/45)) + exp (63 * log 2 * (-43/138)) + exp (63 * log 2 * (-44/141)) +
+         exp (63 * log 2 * (-5/16)) + exp (63 * log 2 * (-46/147)) + exp (63 * log 2 * (-47/150)) +
+         exp (63 * log 2 * (-16/51)) + exp (63 * log 2 * (-49/156)) + exp (63 * log 2 * (-50/159)) +
+         exp (63 * log 2 * (-17/54)) + exp (63 * log 2 * (-52/165)) + exp (63 * log 2 * (-53/168)) +
+         exp (63 * log 2 * (-6/19)) + exp (63 * log 2 * (-55/174)) + exp (63 * log 2 * (-56/177)) +
+         exp (63 * log 2 * (-19/60)) + exp (63 * log 2 * (-58/183)) + exp (63 * log 2 * (-59/186)) +
+         exp (63 * log 2 * (-20/63))) := by
+  calc (1.03252 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) *
+      (1 + exp (-43/12) + exp (-86/15) + exp (-43/6) + exp (-172/21) + exp (-215/24) +
+       exp (-86/9) + exp (-301/30) + exp (-344/33) + exp (-43/4) + exp (-430/39) +
+       exp (-473/42) + exp (-172/15) + exp (-559/48) + exp (-602/51) + exp (-215/18) +
+       exp (-688/57) + exp (-731/60) + exp (-86/7) + exp (-817/66) + exp (-860/69) +
+       exp (-301/24) + exp (-946/75) + exp (-989/78) + exp (-344/27) + exp (-1075/84) +
+       exp (-1118/87) + exp (-129/10) + exp (-1204/93) + exp (-1247/96) + exp (-430/33) +
+       exp (-1333/102) + exp (-1376/105) + exp (-473/36) + exp (-1462/111) + exp (-1505/114) +
+       exp (-172/13) + exp (-1591/120) + exp (-1634/123) + exp (-559/42) + exp (-40/3) +
+       exp (-1763/132) + exp (-602/45) + exp (-1849/138) + exp (-1892/141) + exp (-215/16) +
+       exp (-1978/147) + exp (-2021/150) + exp (-688/51) + exp (-2107/156) + exp (-2150/159) +
+       exp (-731/54) + exp (-2236/165) + exp (-2279/168) + exp (-258/19) + exp (-2365/174) +
+       exp (-2408/177) + exp (-817/60) + exp (-2494/183) + exp (-2537/186)) := a2_bound_43.1
+    _ ≤ _ := mul_le_mul_of_nonneg_left (le_max_left _ _) (by positivity)
+
+theorem a2_43_upper :
+    (1 + 193571378 / (10:ℝ)^16) *
+    max (1 + exp (-43/12) + exp (-86/15) + exp (-43/6) + exp (-172/21) + exp (-215/24) +
+         exp (-86/9) + exp (-301/30) + exp (-344/33) + exp (-43/4) + exp (-430/39) +
+         exp (-473/42) + exp (-172/15) + exp (-559/48) + exp (-602/51) + exp (-215/18) +
+         exp (-688/57) + exp (-731/60) + exp (-86/7) + exp (-817/66) + exp (-860/69) +
+         exp (-301/24) + exp (-946/75) + exp (-989/78) + exp (-344/27) + exp (-1075/84) +
+         exp (-1118/87) + exp (-129/10) + exp (-1204/93) + exp (-1247/96) + exp (-430/33) +
+         exp (-1333/102) + exp (-1376/105) + exp (-473/36) + exp (-1462/111) + exp (-1505/114) +
+         exp (-172/13) + exp (-1591/120) + exp (-1634/123) + exp (-559/42) + exp (-40/3) +
+         exp (-1763/132) + exp (-602/45) + exp (-1849/138) + exp (-1892/141) + exp (-215/16) +
+         exp (-1978/147) + exp (-2021/150) + exp (-688/51) + exp (-2107/156) + exp (-2150/159) +
+         exp (-731/54) + exp (-2236/165) + exp (-2279/168) + exp (-258/19) + exp (-2365/174) +
+         exp (-2408/177) + exp (-817/60) + exp (-2494/183) + exp (-2537/186))
+        (1 + exp (63 * log 2 * (-1/12)) + exp (63 * log 2 * (-2/15)) +
+         exp (63 * log 2 * (-1/6)) + exp (63 * log 2 * (-4/21)) + exp (63 * log 2 * (-5/24)) +
+         exp (63 * log 2 * (-2/9)) + exp (63 * log 2 * (-7/30)) + exp (63 * log 2 * (-8/33)) +
+         exp (63 * log 2 * (-1/4)) + exp (63 * log 2 * (-10/39)) + exp (63 * log 2 * (-11/42)) +
+         exp (63 * log 2 * (-4/15)) + exp (63 * log 2 * (-13/48)) + exp (63 * log 2 * (-14/51)) +
+         exp (63 * log 2 * (-5/18)) + exp (63 * log 2 * (-16/57)) + exp (63 * log 2 * (-17/60)) +
+         exp (63 * log 2 * (-2/7)) + exp (63 * log 2 * (-19/66)) + exp (63 * log 2 * (-20/69)) +
+         exp (63 * log 2 * (-7/24)) + exp (63 * log 2 * (-22/75)) + exp (63 * log 2 * (-23/78)) +
+         exp (63 * log 2 * (-8/27)) + exp (63 * log 2 * (-25/84)) + exp (63 * log 2 * (-26/87)) +
+         exp (63 * log 2 * (-3/10)) + exp (63 * log 2 * (-28/93)) + exp (63 * log 2 * (-29/96)) +
+         exp (63 * log 2 * (-10/33)) + exp (63 * log 2 * (-31/102)) + exp (63 * log 2 * (-32/105)) +
+         exp (63 * log 2 * (-11/36)) + exp (63 * log 2 * (-34/111)) + exp (63 * log 2 * (-35/114)) +
+         exp (63 * log 2 * (-4/13)) + exp (63 * log 2 * (-37/120)) + exp (63 * log 2 * (-38/123)) +
+         exp (63 * log 2 * (-13/42)) + exp (63 * log 2 * (-40/129)) + exp (63 * log 2 * (-41/132)) +
+         exp (63 * log 2 * (-14/45)) + exp (63 * log 2 * (-43/138)) + exp (63 * log 2 * (-44/141)) +
+         exp (63 * log 2 * (-5/16)) + exp (63 * log 2 * (-46/147)) + exp (63 * log 2 * (-47/150)) +
+         exp (63 * log 2 * (-16/51)) + exp (63 * log 2 * (-49/156)) + exp (63 * log 2 * (-50/159)) +
+         exp (63 * log 2 * (-17/54)) + exp (63 * log 2 * (-52/165)) + exp (63 * log 2 * (-53/168)) +
+         exp (63 * log 2 * (-6/19)) + exp (63 * log 2 * (-55/174)) + exp (63 * log 2 * (-56/177)) +
+         exp (63 * log 2 * (-19/60)) + exp (63 * log 2 * (-58/183)) + exp (63 * log 2 * (-59/186)) +
+         exp (63 * log 2 * (-20/63)))
+    ≤ (1.03252 : ℝ) + (1:ℝ) / 10^5 := by
+  rw [mul_max_of_nonneg _ _ (by positivity : (0:ℝ) ≤ 1 + 193571378 / (10:ℝ)^16)]
+  apply max_le
+  · exact a2_bound_43.2
+  · exact pow63_upper
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- b = 100: N = 144, M = 145 (Tail bound approach)
 -- ═══════════════════════════════════════════════════════════════════════════
-
-private lemma floor_100 : ⌊(100 : ℝ) / log 2⌋₊ = 144 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 100 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
 
 -- Head for 2^145 (k=3..5, 3 terms): actual ≈ 1.0002320
 private lemma pow145_head_upper :
@@ -223,12 +626,6 @@ theorem a2_100_upper :
 -- b = 150: N = 216, M = 217 (Tail bound approach)
 -- ═══════════════════════════════════════════════════════════════════════════
 
-private lemma floor_150 : ⌊(150 : ℝ) / log 2⌋₊ = 216 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 150 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
-
 -- Head for 2^217: actual ≈ 1.0000036
 private lemma pow217_head_upper :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (217 * log 2 * (-1/12)))
@@ -258,12 +655,6 @@ theorem a2_150_upper :
 -- ═══════════════════════════════════════════════════════════════════════════
 -- b = 200: N = 288, M = 289 (Tail bound approach)
 -- ═══════════════════════════════════════════════════════════════════════════
-
-private lemma floor_200 : ⌊(200 : ℝ) / log 2⌋₊ = 288 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 200 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
 
 -- Head for 2^289: actual ≈ 1.0000000756
 private lemma pow289_head_upper :
@@ -295,12 +686,6 @@ theorem a2_200_upper :
 -- b = 250: N = 360, M = 361 (Tail bound approach)
 -- ═══════════════════════════════════════════════════════════════════════════
 
-private lemma floor_250 : ⌊(250 : ℝ) / log 2⌋₊ = 360 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 250 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
-
 -- Head for 2^361: actual ≈ 1.0000000202
 private lemma pow361_head_upper :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (361 * log 2 * (-1/12)))
@@ -329,12 +714,6 @@ theorem a2_250_upper :
 -- b = 300: N = 432, M = 433 (Tail bound approach)
 -- ═══════════════════════════════════════════════════════════════════════════
 
-private lemma floor_300 : ⌊(300 : ℝ) / log 2⌋₊ = 432 := by
-  rw [Nat.floor_eq_iff (by positivity : (0:ℝ) ≤ 300 / log 2)]
-  constructor
-  · rw [le_div_iff₀ (log_pos one_lt_two)]; interval_decide
-  · rw [div_lt_iff₀ (log_pos one_lt_two)]; interval_decide
-
 -- Head for 2^433: actual ≈ 1.0000000194
 private lemma pow433_head_upper :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (433 * log 2 * (-1/12)))
@@ -360,26 +739,3 @@ theorem a2_300_upper :
   · exact pow433_head_upper
 
 end LeanCert.Examples.BKLNW_a2_glue
-
--- ═══════════════════════════════════════════════════════════════════════════
--- SUMMARY: All 11 Table Entries Complete
--- ═══════════════════════════════════════════════════════════════════════════
--- 
--- b=20: a2_20_lower, a2_20_upper (above)
--- b=25: follows same pattern using a2_bound_25 from BKLNW_a2 
--- b=30: follows same pattern using a2_bound_30 from BKLNW_a2
--- b=35: follows same pattern using a2_bound_35 from BKLNW_a2
--- b=40: follows same pattern using a2_bound_40 from BKLNW_a2
--- b=43: follows same pattern using a2_bound_43 from BKLNW_a2
--- b=100: a2_100_lower, a2_100_upper (above, tail bound approach)
--- b=150: a2_150_lower, a2_150_upper (above, tail bound approach)
--- b=200: a2_200_lower, a2_200_upper (above, tail bound approach)
--- b=250: a2_250_lower, a2_250_upper (above, tail bound approach)
--- b=300: a2_300_lower, a2_300_upper (above, tail bound approach)
---
--- For b=25-43, the proofs follow the exact same structure as b=20:
--- 1. Use floor_b to compute N = ⌊b/log2⌋
--- 2. Use a2_bound_b from BKLNW_a2 for the exp(b) side
--- 3. Use interval_decide to bound the 2^(N+1) side
--- 4. Combine via max_le
-

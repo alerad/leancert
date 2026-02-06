@@ -270,47 +270,47 @@ theorem a2_bound_43 :
     have h5 := a2_upper_43_part5
     linarith
 
-theorem a2_lower_100 :
+private theorem a2_lower_100 :
     (1 + 2420 / (10:ℝ)^7 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-25/3) + exp (-40/3) + exp (-50/3) + exp (-400/21) + exp (-125/6) + exp (-200/9)) := by
   interval_decide 160
 
-theorem a2_upper_100 :
+private theorem a2_upper_100 :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-25/3) + exp (-40/3) + exp (-50/3) + exp (-400/21) + exp (-125/6) + exp (-200/9) + 135 * exp (-70/3)) ≤
     (1 + 2420 / (10:ℝ)^7 : ℝ) + (1:ℝ) / 10^7 := by
   interval_decide 170
 
-theorem a2_lower_150 :
+private theorem a2_lower_150 :
     (1 + 3748 / (10:ℝ)^9 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-25/2) + exp (-20)) := by
   interval_decide 140
 
-theorem a2_upper_150 :
+private theorem a2_upper_150 :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-25/2) + exp (-20) + 211 * exp (-25)) ≤
     (1 + 3748 / (10:ℝ)^9 : ℝ) + (1:ℝ) / 10^8 := by
   interval_decide 180
 
-theorem a2_lower_200 :
+private theorem a2_lower_200 :
     (1 + 7713 / (10:ℝ)^11 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-50/3)) := by
   interval_decide 120
 
-theorem a2_upper_200 :
+private theorem a2_upper_200 :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-50/3) + 284 * exp (-80/3)) ≤
     (1 + 7713 / (10:ℝ)^11 : ℝ) + (1:ℝ) / 10^9 := by
   interval_decide 190
 
-theorem a2_lower_250 :
+private theorem a2_lower_250 :
     (1 + 2025 / (10:ℝ)^11 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-125/6)) := by
   interval_decide 150
 
-theorem a2_upper_250 :
+private theorem a2_upper_250 :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-125/6) + 356 * exp (-100/3)) ≤
     (1 + 2025 / (10:ℝ)^11 : ℝ) + (1:ℝ) / 10^9 := by
   interval_decide 240
 
-theorem a2_lower_300 :
+private theorem a2_lower_300 :
     (1 + 1937 / (10:ℝ)^11 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-25)) := by
   interval_decide 180
 
-theorem a2_upper_300 :
+private theorem a2_upper_300 :
     (1 + 193571378 / (10:ℝ)^16) * (1 + exp (-25) + 428 * exp (-40)) ≤
     (1 + 1937 / (10:ℝ)^11 : ℝ) + (1:ℝ) / 10^9 := by
   interval_decide 280

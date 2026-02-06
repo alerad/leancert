@@ -44,12 +44,11 @@ open LeanCert.Engine
 #eval checkBKLNWExpUpperBound 300 432 (10001/10000) { precision := -80, taylorDepth := 15 }
 
 /-!
-## Demonstration: Reflective Proofs (Once Correctness Theorems Complete)
+## Demonstration: Reflective Proofs
 
-The following shows the structure of how reflective proofs would work.
-Currently uses `sorry` since the correctness theorems in ReflectiveSum.lean
-are not yet complete. Once they are, these proofs would compile instantly
-via `native_decide`.
+The following shows that the reflective sum evaluator produces correct bounds.
+These proofs compile instantly via `native_decide`. For the full set of verified
+bounds, see `BKLNW_a2_reflective.lean`.
 -/
 
 -- High-precision config for proofs
