@@ -30,7 +30,7 @@ private lemma two_pow_eq_exp_log (n : ℕ) : (2:ℝ)^n = exp (↑n * log 2) := b
   have h := rpow_def_of_pos (show (0:ℝ) < 2 by positivity) (↑n : ℝ)
   rw [rpow_natCast] at h; rw [h]; ring_nf
 
-private lemma floor_log_two_pow (n : ℕ) : ⌊log ((2:ℝ)^n) / log 2⌋₊ = n := by
+lemma floor_log_two_pow (n : ℕ) : ⌊log ((2:ℝ)^n) / log 2⌋₊ = n := by
   rw [log_pow, mul_div_cancel_right₀ _ (ne_of_gt (log_pos one_lt_two))]
   exact Nat.floor_natCast n
 
@@ -96,8 +96,10 @@ theorem pow63_upper :
 
 /-! ### Large-N 2^M certificates (sorry'd interface)
 
-These are verified via the tail-bound approach in `BKLNW_a2_glue.lean` +
-`BKLNW_a2_reflective.lean`. Sorry'd here to keep compilation fast. -/
+These are verified via reflective interval arithmetic in `BKLNW_a2_reflective.lean`
+(see `pow145_upper` etc.), which uses `native_decide` with
+`Engine.checkBKLNWAlphaPowUpperBound`. Sorry'd here to keep compilation fast
+(same pattern as the exp bounds in `BKLNW_a2_bounds.lean`). -/
 
 -- 2^145 (for b=100)
 theorem pow145_upper :

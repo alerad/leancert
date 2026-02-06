@@ -262,4 +262,60 @@ theorem a2_300_exp_upper :
   calc _ ≤ ↑(100000002037 / 100000000000 : ℚ) := h
     _ = (1.00000001937 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
 
+/-! ### Verified 2^M Bounds (pow certificates)
+
+These verify (1+α)·f(2^M) ≤ target for the large-b entries (b=100,150,200,250,300)
+where M = ⌊b/log2⌋₊ + 1. Same O(1) proof terms via native_decide. -/
+
+/-- Convert f(2^M) to Engine.bklnwF for verification -/
+private lemma f_pow_to_engine (M : Nat) :
+    f ((2:ℝ)^(M:ℕ)) = LeanCert.Engine.bklnwF ((2:ℝ)^M) M := by
+  have hfb := f_eq_bklnwF_exp M -- f(exp M) = bklnwF(exp M, ⌊M/log2⌋₊)
+  -- Actually we need f(2^M) = bklnwF(2^M, M) directly
+  unfold f
+  rw [BKLNW_a2_pow2.floor_log_two_pow M]
+  rfl
+
+private lemma alpha_pow_upper_bridge (M : Nat) (target : ℚ)
+    (h_check : LeanCert.Engine.checkBKLNWAlphaPowUpperBound M target proofConfig = true) :
+    (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(M:ℕ)) ≤ (target : ℝ) := by
+  rw [f_pow_to_engine M, ← one_plus_alpha_eq]
+  exact LeanCert.Engine.verify_bklnwAlpha_pow_upper M target proofConfig
+    (by simp only [proofConfig]; norm_num) h_check
+
+-- 2^145 (for b=100)
+theorem pow145_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(145:ℕ)) ≤ (1.0002420 : ℝ) + (1:ℝ) / 10^7 := by
+  have h := alpha_pow_upper_bridge 145 (10002421/10000000) (by native_decide)
+  calc _ ≤ ↑(10002421 / 10000000 : ℚ) := h
+    _ = (1.0002420 : ℝ) + (1:ℝ) / 10^7 := by push_cast; norm_num
+
+-- 2^217 (for b=150)
+theorem pow217_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(217:ℕ)) ≤ (1.000003748 : ℝ) + (1:ℝ) / 10^8 := by
+  have h := alpha_pow_upper_bridge 217 (1000003758/1000000000) (by native_decide)
+  calc _ ≤ ↑(1000003758 / 1000000000 : ℚ) := h
+    _ ≤ (1.000003748 : ℝ) + (1:ℝ) / 10^8 := by push_cast; norm_num
+
+-- 2^289 (for b=200)
+theorem pow289_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(289:ℕ)) ≤ (1.00000007713 : ℝ) + (1:ℝ) / 10^9 := by
+  have h := alpha_pow_upper_bridge 289 (100000007813/100000000000) (by native_decide)
+  calc _ ≤ ↑(100000007813 / 100000000000 : ℚ) := h
+    _ ≤ (1.00000007713 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
+
+-- 2^361 (for b=250)
+theorem pow361_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(361:ℕ)) ≤ (1.00000002025 : ℝ) + (1:ℝ) / 10^9 := by
+  have h := alpha_pow_upper_bridge 361 (100000002125/100000000000) (by native_decide)
+  calc _ ≤ ↑(100000002125 / 100000000000 : ℚ) := h
+    _ ≤ (1.00000002025 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
+
+-- 2^433 (for b=300)
+theorem pow433_upper :
+    (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(433:ℕ)) ≤ (1.00000001938 : ℝ) + (1:ℝ) / 10^9 := by
+  have h := alpha_pow_upper_bridge 433 (100000001948/100000000000) (by native_decide)
+  calc _ ≤ ↑(100000001948 / 100000000000 : ℚ) := h
+    _ ≤ (1.00000001938 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
+
 end LeanCert.Examples.BKLNW_a2_reflective

@@ -721,4 +721,58 @@ theorem verify_bklnwAlpha_exp_lower (b : Nat) (limit : Nat) (target : ℚ)
   have hbound := IntervalDyadic.lowerBoundedBy_spec h_check
   exact le_trans hbound hlo
 
+/-! ### Convenience Functions for 2^M (Power-of-Two) Case
+
+For BKLNW bounds on f(2^M), where 2^M is exactly representable as a rational.
+No Taylor series for exp needed — just direct interval arithmetic on the sum. -/
+
+/-- Compute (1+α) * bklnwF(2^M, M) as a dyadic interval -/
+def bklnwAlphaSumPowDyadic (M : Nat) (cfg : BKLNWSumConfig := {}) : IntervalDyadic :=
+  let pow2M := IntervalDyadic.ofIntervalRat (IntervalRat.singleton (2^M : ℚ)) cfg.precision
+  let result := bklnwSumDyadic pow2M M cfg
+  let one_plus_alpha := IntervalDyadic.ofIntervalRat
+    (IntervalRat.singleton (1 + bklnwAlpha)) cfg.precision
+  (IntervalDyadic.mul one_plus_alpha result).roundOut cfg.precision
+
+/-- Check (1+α) * bklnwF(2^M, M) ≤ target -/
+def checkBKLNWAlphaPowUpperBound (M : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  (bklnwAlphaSumPowDyadic M cfg).upperBoundedBy target
+
+/-- Bridge theorem: if checkBKLNWAlphaPowUpperBound passes,
+    then (1+α) * bklnwF(2^M, M) ≤ target. -/
+theorem verify_bklnwAlpha_pow_upper (M : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWAlphaPowUpperBound M target cfg = true) :
+    (1 + bklnwAlpha : ℝ) * bklnwF ((2:ℝ)^M) M ≤ target := by
+  -- 2^M is rational, construct its interval
+  let pow2M := IntervalDyadic.ofIntervalRat (IntervalRat.singleton (2^M : ℚ)) cfg.precision
+  -- Show (2:ℝ)^M ∈ pow2M
+  have hpow_mem : (2:ℝ)^M ∈ pow2M := by
+    show (2:ℝ)^M ∈ IntervalDyadic.ofIntervalRat (IntervalRat.singleton (2^M : ℚ)) cfg.precision
+    have : ((2^M : ℚ) : ℝ) = (2:ℝ)^M := by push_cast; ring
+    rw [← this]
+    exact_mod_cast IntervalDyadic.mem_ofIntervalRat (IntervalRat.mem_singleton (2^M : ℚ)) cfg.precision hprec
+  -- Positivity: 2^M ≥ 1
+  have hpos : pow2M.toIntervalRat.lo > 0 := by
+    have h1 : (1 : ℚ) ≤ 2^M := by
+      have : (1 : ℚ) ≤ 2 := by norm_num
+      exact one_le_pow₀ this
+    exact IntervalDyadic.ofIntervalRat_lo_pos (le_refl _) h1 cfg.precision hprec
+  -- bklnwF membership
+  have hmem_bklnw := mem_bklnwSumDyadic hpow_mem hpos M cfg hprec
+  -- (1+α) membership
+  have hmem_alpha : (1 + bklnwAlpha : ℝ) ∈
+      IntervalDyadic.ofIntervalRat (IntervalRat.singleton (1 + bklnwAlpha)) cfg.precision := by
+    exact_mod_cast IntervalDyadic.mem_ofIntervalRat (IntervalRat.mem_singleton (1 + bklnwAlpha)) cfg.precision hprec
+  -- Product and round
+  have hmem_prod := IntervalDyadic.mem_mul hmem_alpha hmem_bklnw
+  have hmem_round := IntervalDyadic.roundOut_contains hmem_prod cfg.precision
+  -- Extract upper bound
+  have hhi := IntervalDyadic.le_hi_of_mem hmem_round
+  simp only [checkBKLNWAlphaPowUpperBound, bklnwAlphaSumPowDyadic, bklnwSumDyadic] at h_check
+  have hbound := IntervalDyadic.upperBoundedBy_spec h_check
+  exact le_trans hhi hbound
+
 end LeanCert.Engine
