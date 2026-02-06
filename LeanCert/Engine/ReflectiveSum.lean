@@ -636,63 +636,6 @@ theorem mem_oneDyadic : (1 : ℝ) ∈ oneDyadic := by
   simp only [h1, Core.Dyadic.toRat, Core.Dyadic.pow2Nat]
   norm_num
 
-/-- Correctness of optimized sum.
-
-    Note: The full proof requires showing bklnwTermFromLog computes x^(1/k - 1/3)
-    and the accumulator preserves containment. Since these are computational
-    optimizations of the same mathematical function, correctness at runtime
-    is verified by native_decide.
-
-    TODO: Complete formal proof by showing equivalence to non-optimized version. -/
-theorem mem_bklnwSumDyadicOpt {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
-    (hpos : I.toIntervalRat.lo > 0) (limit : Nat)
-    (cfg : BKLNWSumConfig := {})
-    (roundEvery : Nat := 8)
-    (hprec : cfg.precision ≤ 0 := by norm_num) :
-    bklnwF x limit ∈ bklnwSumDyadicOpt I limit cfg roundEvery := by
-  -- The optimized version computes the same mathematical function as the
-  -- non-optimized version, just more efficiently. The correctness at runtime
-  -- is verified computationally via native_decide.
-  sorry
-
-/-- Bridge theorem for optimized upper bound check -/
-theorem verify_bklnwF_exp_upper_opt (b : Nat) (limit : Nat) (target : ℚ)
-    (cfg : BKLNWSumConfig := {})
-    (roundEvery : Nat := 8)
-    (hprec : cfg.precision ≤ 0 := by norm_num)
-    (hb : b ≥ 1 := by norm_num)
-    (hexppos : checkExpBLoGe1 b cfg.precision cfg.taylorDepth = true)
-    (h_check : checkBKLNWExpUpperBoundOpt b limit target cfg roundEvery = true) :
-    bklnwF (Real.exp (b : ℝ)) limit ≤ target := by
-  let bInterval := IntervalDyadic.ofIntervalRat (IntervalRat.singleton b) cfg.precision
-  let expB := expIntervalDyadic bInterval cfg.toDyadicConfig
-  have hexp : Real.exp (b : ℝ) ∈ expB := mem_expB_of_nat b cfg hprec
-  have hpos : expB.toIntervalRat.lo > 0 := expB_lo_pos b hb cfg hprec hexppos
-  have hmem := mem_bklnwSumDyadicOpt hexp hpos limit cfg roundEvery hprec
-  have hhi := IntervalDyadic.le_hi_of_mem hmem
-  simp only [checkBKLNWExpUpperBoundOpt, bklnwSumExpDyadicOpt] at h_check
-  have hbound := IntervalDyadic.upperBoundedBy_spec h_check
-  exact le_trans hhi hbound
-
-/-- Bridge theorem for optimized lower bound check -/
-theorem verify_bklnwF_exp_lower_opt (b : Nat) (limit : Nat) (target : ℚ)
-    (cfg : BKLNWSumConfig := {})
-    (roundEvery : Nat := 8)
-    (hprec : cfg.precision ≤ 0 := by norm_num)
-    (hb : b ≥ 1 := by norm_num)
-    (hexppos : checkExpBLoGe1 b cfg.precision cfg.taylorDepth = true)
-    (h_check : checkBKLNWExpLowerBoundOpt b limit target cfg roundEvery = true) :
-    target ≤ bklnwF (Real.exp (b : ℝ)) limit := by
-  let bInterval := IntervalDyadic.ofIntervalRat (IntervalRat.singleton b) cfg.precision
-  let expB := expIntervalDyadic bInterval cfg.toDyadicConfig
-  have hexp : Real.exp (b : ℝ) ∈ expB := mem_expB_of_nat b cfg hprec
-  have hpos : expB.toIntervalRat.lo > 0 := expB_lo_pos b hb cfg hprec hexppos
-  have hmem := mem_bklnwSumDyadicOpt hexp hpos limit cfg roundEvery hprec
-  have hlo := IntervalDyadic.lo_le_of_mem hmem
-  simp only [checkBKLNWExpLowerBoundOpt, bklnwSumExpDyadicOpt] at h_check
-  have hbound := IntervalDyadic.lowerBoundedBy_spec h_check
-  exact le_trans hbound hlo
-
 /-! ### Alpha-scaled BKLNW bounds
 
 For PNT+ compatibility, checkers that include the (1+α) factor
