@@ -1,0 +1,42 @@
+name: Soundness Guard
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: leanprover/lean-action@v1
+
+      - name: Guard - no user axioms in LeanCert
+        run: |
+          if rg -n '^\s*axiom\s+' LeanCert; then
+            echo "Found forbidden axiom declaration(s) in LeanCert/"
+            exit 1
+          fi
+
+      - name: Guard - no non-allowlisted sorry in LeanCert
+        run: |
+          # Track only actual placeholder terms (not prose mentions).
+          # Allowlist:
+          # - LeanCert/Examples/** (intentional interface placeholders)
+          # - LeanCert/Test/** (test-only)
+          # - LeanCert/Tactic/Interval.lean (doc-comment example snippet)
+          hits="$(rg -n '^\s*sorry\s*$' LeanCert \
+            -g '!LeanCert/Examples/**' \
+            -g '!LeanCert/Test/**' \
+            -g '!LeanCert/Tactic/Interval.lean' || true)"
+          if [ -n "$hits" ]; then
+            echo "Found non-allowlisted sorry placeholder(s):"
+            echo "$hits"
+            exit 1
+          fi
+
+      - name: Guard - core axiom/sorry audit
+        run: lake env lean Tests/AxiomAudit.lean
