@@ -30,11 +30,9 @@ jobs:
           # Allowlist:
           # - LeanCert/Examples/** (intentional interface placeholders)
           # - LeanCert/Test/** (test-only)
-          # - LeanCert/Tactic/Interval.lean (doc-comment example snippet)
           hits="$(rg -n '^\s*sorry\s*$' LeanCert \
             -g '!LeanCert/Examples/**' \
-            -g '!LeanCert/Test/**' \
-            -g '!LeanCert/Tactic/Interval.lean' || true)"
+            -g '!LeanCert/Test/**' || true)"
           if [ -n "$hits" ]; then
             echo "Found non-allowlisted sorry placeholder(s):"
             echo "$hits"
