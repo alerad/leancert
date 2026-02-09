@@ -137,30 +137,85 @@ theorem Real.strictMono_erf : StrictMono Real.erf := by
   -- Multiply both sides by positive factor
   exact mul_lt_mul_of_pos_left hineq hfactor
 
+/-- Quantitative global bound: `|erf x| ≤ (2257/2000) * |x|`.
+    This is conservative but fully proved from the integral definition. -/
+private theorem Real.abs_erf_le_2257_div_2000_mul_abs (x : ℝ) :
+    |Real.erf x| ≤ ((2257 : ℝ) / 2000) * |x| := by
+  unfold Real.erf
+  have h_int :
+      ‖∫ t in (0 : ℝ)..x, Real.exp (-(t ^ 2))‖ ≤ |x| := by
+    have hnorm :
+        ∀ t ∈ Set.uIoc (0 : ℝ) x, ‖Real.exp (-(t ^ 2))‖ ≤ (1 : ℝ) := by
+      intro t _ht
+      have hsq : 0 ≤ t ^ 2 := sq_nonneg t
+      have hle : Real.exp (-(t ^ 2)) ≤ 1 := Real.exp_le_one_iff.mpr (by linarith)
+      have hnonneg : 0 ≤ Real.exp (-(t ^ 2)) := le_of_lt (Real.exp_pos _)
+      simpa [Real.norm_eq_abs, abs_of_nonneg hnonneg] using hle
+    have h := intervalIntegral.norm_integral_le_of_norm_le_const
+      (a := (0 : ℝ)) (b := x) (C := (1 : ℝ)) (f := fun t => Real.exp (-(t ^ 2))) hnorm
+    simpa [one_mul, sub_zero] using h
+  have hfactor_nonneg : 0 ≤ 2 / Real.sqrt Real.pi := by
+    exact div_nonneg (by norm_num) (le_of_lt (Real.sqrt_pos.mpr Real.pi_pos))
+  have hsqrt_ge_17724 : (17724 / 10000 : ℝ) ≤ Real.sqrt Real.pi := by
+    have hpi_ge : (3.1415 : ℝ) ≤ Real.pi := le_of_lt Real.pi_gt_d4
+    have hsq : (17724 / 10000 : ℝ) ^ 2 ≤ Real.pi := by
+      have hcalc : (17724 / 10000 : ℝ) ^ 2 = 3.14140176 := by norm_num
+      linarith
+    have hnonneg : (0 : ℝ) ≤ (17724 / 10000 : ℝ) := by norm_num
+    have hsqrt_sq : (17724 / 10000 : ℝ) = Real.sqrt ((17724 / 10000 : ℝ) ^ 2) := by
+      symm; exact Real.sqrt_sq hnonneg
+    calc
+      (17724 / 10000 : ℝ) = Real.sqrt ((17724 / 10000 : ℝ) ^ 2) := hsqrt_sq
+      _ ≤ Real.sqrt Real.pi := by exact Real.sqrt_le_sqrt hsq
+  have hfactor_le_2257_div_2000 : 2 / Real.sqrt Real.pi ≤ ((2257 : ℝ) / 2000) := by
+    have hmul : (2 : ℝ) ≤ ((2257 : ℝ) / 2000) * Real.sqrt Real.pi := by
+      calc
+        (2 : ℝ) ≤ ((2257 : ℝ) / 2000) * (17724 / 10000 : ℝ) := by norm_num
+        _ ≤ ((2257 : ℝ) / 2000) * Real.sqrt Real.pi := by
+              gcongr
+    exact (div_le_iff₀ (Real.sqrt_pos.mpr Real.pi_pos)).2 hmul
+  calc
+    |(2 / Real.sqrt Real.pi) * ∫ t in (0 : ℝ)..x, Real.exp (-(t ^ 2))|
+        = (2 / Real.sqrt Real.pi) * ‖∫ t in (0 : ℝ)..x, Real.exp (-(t ^ 2))‖ := by
+            rw [abs_mul, abs_of_nonneg hfactor_nonneg, Real.norm_eq_abs]
+    _ ≤ (2 / Real.sqrt Real.pi) * |x| := by
+          gcongr
+    _ ≤ ((2257 : ℝ) / 2000) * |x| := by
+          nlinarith [hfactor_nonneg, hfactor_le_2257_div_2000, abs_nonneg x]
+
 /-- Correctness of `erfPointComputable`.
     The enclosure is sign-aware and uses monotonicity of erf with `erf(0)=0`. -/
 theorem mem_erfPointComputable (q : ℚ) (n : ℕ) :
     Real.erf q ∈ IntervalRat.erfPointComputable q n := by
   unfold IntervalRat.erfPointComputable
-  split_ifs with hq h0
-  · simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_zero]
+  have h_abs1 : |Real.erf q| ≤ (1 : ℝ) := by
+    refine (abs_le.2 ?_)
+    constructor
+    · exact_mod_cast (Real.neg_one_le_erf q)
+    · exact_mod_cast (Real.erf_le_one q)
+  have h_abs2 : |Real.erf q| ≤ ((2257 : ℝ) / 2000) * |(q : ℝ)| :=
+    Real.abs_erf_le_2257_div_2000_mul_abs q
+  by_cases hq : q < 0
+  · simp [hq, IntervalRat.mem_def]
     have hq_real : (q : ℝ) < 0 := by exact_mod_cast hq
     have herf_lt_erf0 : Real.erf q < Real.erf 0 := Real.strictMono_erf hq_real
     have herf_nonpos : Real.erf q ≤ 0 := by
       simpa [Real.erf] using le_of_lt herf_lt_erf0
-    have hneg1 : (-(1 : ℚ) : ℝ) ≤ Real.erf q := by
-      exact_mod_cast (Real.neg_one_le_erf q)
-    exact ⟨hneg1, herf_nonpos⟩
-  · simp only [IntervalRat.mem_def]
-    subst h0
-    simp [Real.erf]
-  · simp only [IntervalRat.mem_def, Rat.cast_zero, Rat.cast_one]
-    have hq_pos : 0 < q := lt_of_le_of_ne (le_of_not_gt hq) (Ne.symm h0)
-    have hq_pos_real : (0 : ℝ) < q := by exact_mod_cast hq_pos
-    have herf0_lt : Real.erf 0 < Real.erf q := Real.strictMono_erf hq_pos_real
-    have herf_nonneg : 0 ≤ Real.erf q := by
-      simpa [Real.erf] using le_of_lt herf0_lt
-    exact ⟨herf_nonneg, Real.erf_le_one q⟩
+    have hneg_min : -(min (1 : ℝ) (((2257 : ℝ) / 2000) * |(q : ℝ)|)) ≤ Real.erf q := by
+      exact (abs_le.mp (le_min h_abs1 h_abs2)).1
+    exact ⟨hneg_min, herf_nonpos⟩
+  · by_cases h0 : q = 0
+    · subst h0
+      simp [IntervalRat.mem_def, Real.erf]
+    · simp [hq, h0, IntervalRat.mem_def]
+      have hq_pos : 0 < q := lt_of_le_of_ne (le_of_not_gt hq) (by
+        intro hz
+        exact h0 hz.symm)
+      have hq_pos_real : (0 : ℝ) < q := by exact_mod_cast hq_pos
+      have herf0_lt : Real.erf 0 < Real.erf q := Real.strictMono_erf hq_pos_real
+      have herf_nonneg : 0 ≤ Real.erf q := by
+        simpa [Real.erf] using le_of_lt herf0_lt
+      exact ⟨herf_nonneg, (abs_le.mp h_abs1).2, (abs_le.mp h_abs2).2⟩
 
 /-- Correctness of erf interval using monotonicity and endpoint evaluation.
 
