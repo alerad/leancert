@@ -14,6 +14,9 @@ jobs:
       - uses: actions/checkout@v5
       - uses: leanprover/lean-action@v1
 
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       - name: Guard - no user axioms in LeanCert
         run: |
           if rg -n '^\s*axiom\s+' LeanCert; then
