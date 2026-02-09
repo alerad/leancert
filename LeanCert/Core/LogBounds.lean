@@ -255,51 +255,103 @@ theorem symmetricLogComb_half_lt_four_thirds : symmetricLogComb (1/2) < 4/3 := b
       < 5/2 - 1/0.6931471808 := by linarith
     _ < 4/3 := by norm_num
 
-/-- g is strictly monotone increasing on (0, 1).
-
-    **Proof sketch:** The derivative is
-      g'(t) = -1/((1+t)(log(1+t))²) + 1/((1-t)(log(1-t))²)
-
-    For g'(t) > 0, we need: (1+t)(log(1+t))² > (1-t)(log(1-t))².
-
-    Define h(x) = x(log x)². Then we need h(1+t) > h(1-t).
-
-    Key facts about h:
-    - h'(x) = (log x)(log x + 2)
-    - h is increasing on (0, e⁻²) ∪ (1, ∞), decreasing on (e⁻², 1)
-    - For t ∈ (0, 1): 1+t ∈ (1, 2) where h is increasing
-                       1-t ∈ (0, 1) where h has a maximum at e⁻² ≈ 0.135
-
-    The inequality h(1+t) > h(1-t) can be verified:
-    - At t = 0: h(1) = 0 = h(1), so equal
-    - For t > 0: both h(1+t) and h(1-t) > 0, but h(1+t) grows faster
-
-    This follows from the fact that for x near 1:
-    h(x) = x(log x)² ≈ (x-1)² for x → 1
-    And h(1+t) - h(1-t) ~ t³ for small t, which is positive. -/
-theorem symmetricLogComb_strictMonoOn :
-    StrictMonoOn symmetricLogComb (Set.Ioo 0 1) := by
-  -- Full proof requires derivative analysis via HasDerivAt
-  -- The key lemma is: (1+t)(log(1+t))² > (1-t)(log(1-t))² for t ∈ (0, 1)
-  sorry
-
 /-- g(t) ≤ 4/3 for 0 < t ≤ 1/2.
-
-    **Proof:** By `symmetricLogComb_strictMonoOn`, g is strictly increasing on (0, 1).
-    Since t ≤ 1/2, we have g(t) ≤ g(1/2). By `symmetricLogComb_half_lt_four_thirds`,
-    g(1/2) < 4/3, so g(t) < 4/3. -/
+    Proof is direct from explicit log inequalities. -/
 theorem symmetricLogComb_le_four_thirds (t : ℝ) (ht_pos : 0 < t) (ht_le : t ≤ 1/2) :
     symmetricLogComb t ≤ 4/3 := by
-  have hlt1 : t < 1 := by linarith
-  by_cases ht_eq : t = 1/2
-  · rw [ht_eq]; exact le_of_lt symmetricLogComb_half_lt_four_thirds
-  · have ht_lt : t < 1/2 := lt_of_le_of_ne ht_le ht_eq
-    -- Use monotonicity: g(t) < g(1/2) < 4/3
-    have hmono := symmetricLogComb_strictMonoOn
-    have ht_mem : t ∈ Set.Ioo 0 1 := ⟨ht_pos, hlt1⟩
-    have hhalf_mem : (1/2 : ℝ) ∈ Set.Ioo 0 1 := ⟨by norm_num, by norm_num⟩
-    have hlt := hmono ht_mem hhalf_mem ht_lt
-    exact le_of_lt (lt_trans hlt symmetricLogComb_half_lt_four_thirds)
+  have ht_lt : t < 1 := by linarith
+  have h1pt_pos : 0 < 1 + t := by linarith
+  have h1mt_pos : 0 < 1 - t := by linarith
+  have h1mt2_pos : 0 < 1 - t^2 := by nlinarith [sq_nonneg t]
+  have hlog1p_pos : 0 < log (1 + t) := log_pos (by linarith : (1 : ℝ) < 1 + t)
+  have hlog1m_neg : log (1 - t) < 0 := log_neg h1mt_pos (by linarith : 1 - t < (1 : ℝ))
+  have hden_neg : log (1 + t) * log (1 - t) < 0 := mul_neg_of_pos_of_neg hlog1p_pos hlog1m_neg
+
+  -- Lower bound for log(1+t).
+  have hlog1p_lb : 2 * t / (t + 2) ≤ log (1 + t) := le_log_one_add_of_nonneg (le_of_lt ht_pos)
+
+  -- Upper bound for log(1-t): log(1-t) ≤ -2t/(2-t).
+  have hlog1m_ub : log (1 - t) ≤ -(2 * t / (2 - t)) := by
+    have hfrac_nonneg : 0 ≤ t / (1 - t) := div_nonneg (le_of_lt ht_pos) (le_of_lt h1mt_pos)
+    have h := le_log_one_add_of_nonneg hfrac_nonneg
+    have h1mt_ne : 1 - t ≠ 0 := ne_of_gt h1mt_pos
+    have hleft : 2 * (t / (1 - t)) / (t / (1 - t) + 2) = 2 * t / (2 - t) := by
+      have h2mt_ne : 2 - t ≠ 0 := by linarith
+      field_simp [h1mt_ne, h2mt_ne]
+      ring
+    have hright : log (1 + t / (1 - t)) = -log (1 - t) := by
+      calc
+        log (1 + t / (1 - t)) = log ((1 - t + t) / (1 - t)) := by
+          congr
+          field_simp [h1mt_ne]
+        _ = log ((1 : ℝ) / (1 - t)) := by ring
+        _ = log ((1 - t)⁻¹) := by field_simp [h1mt_ne]
+        _ = -log (1 - t) := by simpa using log_inv h1mt_ne
+    rw [hleft, hright] at h
+    linarith
+
+  -- Product bound.
+  have hprod_ub : log (1 + t) * log (1 - t) ≤ (2 * t / (t + 2)) * (-(2 * t / (2 - t))) := by
+    have hlog1p_nonneg : 0 ≤ log (1 + t) := le_of_lt hlog1p_pos
+    have hneg_nonpos : -(2 * t / (2 - t)) ≤ 0 := by
+      have : 0 ≤ 2 * t / (2 - t) := by
+        refine div_nonneg ?_ ?_
+        · positivity
+        · linarith
+      linarith
+    have h1 : log (1 + t) * log (1 - t) ≤ log (1 + t) * (-(2 * t / (2 - t))) :=
+      mul_le_mul_of_nonneg_left hlog1m_ub hlog1p_nonneg
+    have h2 : log (1 + t) * (-(2 * t / (2 - t))) ≤ (2 * t / (t + 2)) * (-(2 * t / (2 - t))) :=
+      mul_le_mul_of_nonpos_right hlog1p_lb hneg_nonpos
+    exact le_trans h1 h2
+
+  -- Numerator lower bound: log(1-u) ≥ -u/(1-u), with u = t².
+  have hnum_lb : -(t^2) / (1 - t^2) ≤ log (1 - t^2) := by
+    have h := one_sub_inv_le_log_of_pos h1mt2_pos
+    have hrew : -(t^2) / (1 - t^2) = (1 : ℝ) - 1 / (1 - t^2) := by
+      field_simp [ne_of_gt h1mt2_pos]
+      ring_nf
+    calc
+      -(t^2) / (1 - t^2) = (1 : ℝ) - 1 / (1 - t^2) := hrew
+      _ ≤ log (1 - t^2) := by simpa [one_div] using h
+
+  rw [symmetricLogComb_alt t ht_pos ht_lt]
+  have hmain : (4 / 3 : ℝ) * (log (1 + t) * log (1 - t)) ≤ log (1 - t^2) := by
+    have hstep1 : (4 / 3 : ℝ) * (log (1 + t) * log (1 - t))
+        ≤ (4 / 3 : ℝ) * ((2 * t / (t + 2)) * (-(2 * t / (2 - t)))) :=
+      mul_le_mul_of_nonneg_left hprod_ub (by positivity)
+    have hstep2 : (4 / 3 : ℝ) * ((2 * t / (t + 2)) * (-(2 * t / (2 - t)))
+        ) ≤ -(t^2) / (1 - t^2) := by
+      have h2mt_ne : 2 - t ≠ 0 := by linarith
+      have htp2_ne : t + 2 ≠ 0 := by linarith
+      have hrew : (4 / 3 : ℝ) * ((2 * t / (t + 2)) * (-(2 * t / (2 - t))))
+          = -(16 * t^2) / (3 * ((t + 2) * (2 - t))) := by
+        field_simp [h2mt_ne, htp2_ne]
+        ring
+      rw [hrew]
+      have hcoef : 1 / (1 - t^2) ≤ 16 / (3 * ((t + 2) * (2 - t))) := by
+        have hA : 0 < 3 * ((t + 2) * (2 - t)) := by nlinarith
+        have hAB : 3 * ((t + 2) * (2 - t)) ≤ 16 * (1 - t^2) := by nlinarith [ht_le]
+        have hrecip : 1 / (16 * (1 - t^2)) ≤ 1 / (3 * ((t + 2) * (2 - t))) :=
+          one_div_le_one_div_of_le hA hAB
+        have hmul := mul_le_mul_of_nonneg_left hrecip (by norm_num : (0 : ℝ) ≤ 16)
+        have h1mt2_ne : (1 - t^2) ≠ 0 := by nlinarith
+        have hleft : 16 * (1 / (16 * (1 - t^2))) = 1 / (1 - t^2) := by
+          field_simp [h1mt2_ne]
+        have hright : 16 * (1 / (3 * ((t + 2) * (2 - t)))) = 16 / (3 * ((t + 2) * (2 - t))) := by
+          ring
+        calc
+          1 / (1 - t^2) = 16 * (1 / (16 * (1 - t^2))) := by symm; exact hleft
+          _ ≤ 16 * (1 / (3 * ((t + 2) * (2 - t)))) := hmul
+          _ = 16 / (3 * ((t + 2) * (2 - t))) := hright
+      have ht2_nonneg : 0 ≤ t^2 := sq_nonneg t
+      have hmul : t^2 / (1 - t^2) ≤ (16 * t^2) / (3 * ((t + 2) * (2 - t))) := by
+        have hmul' := mul_le_mul_of_nonneg_left hcoef ht2_nonneg
+        simpa [div_eq_mul_inv, mul_assoc, mul_comm, mul_left_comm] using hmul'
+      have hneg : -(16 * t^2 / (3 * ((t + 2) * (2 - t)))) ≤ -(t^2 / (1 - t^2)) := neg_le_neg hmul
+      simpa [neg_div] using hneg
+    exact le_trans hstep1 (le_trans hstep2 hnum_lb)
+  exact (div_le_iff_of_neg hden_neg).2 hmain
 
 /-! ## Limit theorems for the symmetric combination -/
 
