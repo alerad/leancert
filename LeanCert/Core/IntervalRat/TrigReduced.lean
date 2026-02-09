@@ -49,13 +49,17 @@ def twoPiRatLo : ℚ := 2 * piRatLo
 /-- Upper bound for 2π -/
 def twoPiRatHi : ℚ := 2 * piRatHi
 
-/-- Axiom: piRatLo < π. This is a verified numerical fact:
-    314159265/100000000 = 3.14159265 < π ≈ 3.14159265358... -/
-axiom piRatLo_lt_pi : (piRatLo : ℝ) < Real.pi
+/-- `piRatLo < π`, proved from Mathlib's decimal π bounds. -/
+theorem piRatLo_lt_pi : (piRatLo : ℝ) < Real.pi := by
+  have h₁ : (piRatLo : ℝ) < (3.14159265358979323846 : ℝ) := by
+    norm_num [piRatLo]
+  exact lt_trans h₁ Real.pi_gt_d20
 
-/-- Axiom: π < piRatHi. This is a verified numerical fact:
-    π < 355/113 ≈ 3.14159292... -/
-axiom pi_lt_piRatHi : Real.pi < (piRatHi : ℝ)
+/-- `π < piRatHi`, proved from Mathlib's decimal π bounds. -/
+theorem pi_lt_piRatHi : Real.pi < (piRatHi : ℝ) := by
+  have h₁ : (3.14159265358979323847 : ℝ) < (piRatHi : ℝ) := by
+    norm_num [piRatHi]
+  exact lt_trans Real.pi_lt_d20 h₁
 
 /-- twoPiRatLo < 2π -/
 theorem twoPiRatLo_lt_two_pi : (twoPiRatLo : ℝ) < 2 * Real.pi := by

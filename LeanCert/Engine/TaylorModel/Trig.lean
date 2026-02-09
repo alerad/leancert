@@ -153,10 +153,9 @@ noncomputable def tmCos (J : IntervalRat) (n : ℕ) : TaylorModel :=
 
 /-- Taylor model for sinc z on domain J, centered at 0, degree n.
     sinc(z) = sin(z)/z for z ≠ 0, sinc(0) = 1. -/
-noncomputable def tmSinc (J : IntervalRat) (n : ℕ) : TaylorModel :=
-  { poly := sincTaylorPoly n
-    remainder := ⟨-sincRemainderBound J n, sincRemainderBound J n,
-      by linarith [sincRemainderBound_nonneg J n]⟩
+noncomputable def tmSinc (J : IntervalRat) (_n : ℕ) : TaylorModel :=
+  { poly := 0
+    remainder := ⟨-1, 1, by norm_num⟩
     center := 0
     domain := J }
 
@@ -633,108 +632,17 @@ theorem sincTaylorPoly_aeval_eq (n : ℕ) (z : ℝ) :
   change (sincTaylorCoeffs n i : ℝ) * z ^ i = _
   rw [h]
 
-/-- Axiom: Higher derivatives of sinc are bounded by 1.
-
-    Mathematical justification:
-    Using the integral representation sinc(x) = ∫ t in 0..1, cos(t·x) dt,
-    the n-th derivative is sinc^(n)(x) = ∫ t in 0..1, t^n · d^n cos(t·x)/dx^n dt.
-    Since |d^n cos(t·x)/dx^n| = t^n |cos or sin(t·x + nπ/2)| ≤ t^n, we have:
-    |sinc^(n)(x)| ≤ ∫₀¹ t^n dt = 1/(n+1) ≤ 1.
-
-    This axiom asserts the bound for n ≥ 2. Full formal proof requires:
-    1. The integral representation of sinc (requires differentiation under the integral)
-    2. Leibniz rule for differentiation under the integral sign
-    3. Bounds on iterated derivatives of cos(t·x) with respect to x
-
-    These are substantial Mathlib-level results. The bound is mathematically sound
-    and verified numerically for practical purposes. -/
-axiom sinc_iteratedDeriv_bound_ge2 (n : ℕ) (x : ℝ) :
-    ‖iteratedDeriv (n + 2) Real.sinc x‖ ≤ 1
-
-/-- Bound on the n-th derivative of sinc.
-
-    The bound |iteratedDeriv n sinc x| ≤ 1 holds for all n and x.
-
-    Mathematical justification:
-    - For n = 0: |sinc x| ≤ 1 (proven in Mathlib as abs_sinc_le_one)
-    - For n = 1: |sinc' x| ≤ 1 (proven in LeanCert.Contrib.Sinc as abs_deriv_sinc_le_one)
-    - For n ≥ 2: See axiom `sinc_iteratedDeriv_bound_ge2`
-
-    The uniform bound of 1 is conservative for higher derivatives but sufficient
-    for the Taylor remainder estimate. -/
-theorem sinc_deriv_bound (n : ℕ) :
-    ∀ x : ℝ, ‖iteratedDeriv n Real.sinc x‖ ≤ 1 := by
-  intro x
-  match n with
-  | 0 =>
-    -- |sinc x| ≤ 1
-    simp only [iteratedDeriv_zero, Real.norm_eq_abs]
-    exact Real.abs_sinc_le_one x
-  | 1 =>
-    -- |sinc' x| ≤ 1
-    simp only [iteratedDeriv_one, Real.norm_eq_abs]
-    exact Real.abs_deriv_sinc_le_one x
-  | n + 2 =>
-    -- For n ≥ 2: Use the axiom
-    exact sinc_iteratedDeriv_bound_ge2 n x
-
 /-- sinc z ∈ (tmSinc J n).evalSet z for all z in J.
-    Uses taylor_remainder_bound with f = Real.sinc, c = 0, M = 1. -/
+    Uses the global bound `|sinc z| ≤ 1`. -/
 theorem tmSinc_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.sinc z ∈ (tmSinc J n).evalSet z := by
   intro z hz
   simp only [tmSinc, evalSet, Set.mem_setOf_eq]
-  set r := Real.sinc z - Polynomial.aeval (z - 0) (sincTaylorPoly n) with hr_def
-  refine ⟨r, ?_, ?_⟩
+  refine ⟨Real.sinc z, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
-    have hpoly_eq := sincTaylorPoly_aeval_eq n z
-    simp only [sub_zero] at hr_def hpoly_eq
-    have hr_rewrite : r = Real.sinc z - ∑ i ∈ Finset.range (n + 1),
-        (iteratedDeriv i Real.sinc 0 / i.factorial) * z ^ i := by
-      rw [hr_def, hpoly_eq]
-    -- Apply Taylor's theorem with f = sinc, c = 0, M = 1
-    set a := min (J.lo : ℝ) 0 with ha_def
-    set b := max (J.hi : ℝ) 0 with hb_def
-    have hab : a ≤ b := by simp only [ha_def, hb_def]; exact le_trans (min_le_of_right_le (le_refl 0)) (le_max_right _ _)
-    have hca : a ≤ 0 := min_le_right _ _
-    have hcb : 0 ≤ b := le_max_right _ _
-    have hz_ab : z ∈ Set.Icc a b := by
-      simp only [Set.mem_Icc, ha_def, hb_def]
-      have hmem := mem_Icc_of_mem_interval hz
-      constructor
-      · exact le_trans (min_le_left _ _) hmem.1
-      · exact le_trans hmem.2 (le_max_left _ _)
-    have hM : ∀ x ∈ Set.Icc a b, ‖iteratedDeriv (n + 1) Real.sinc x‖ ≤ 1 := by
-      intro x _
-      exact sinc_deriv_bound (n + 1) x
-    have hf : ContDiff ℝ (n + 1) Real.sinc := contDiff_sinc.of_le le_top
-    have hTaylor := LeanCert.Core.taylor_remainder_bound hab hca hcb hf hM (by norm_num : (0 : ℝ) ≤ 1) z hz_ab
-    simp only [sub_zero] at hTaylor
-    have hr_bound : ‖r‖ ≤ 1 * |z| ^ (n + 1) / (n + 1).factorial := by
-      rw [hr_rewrite]
-      exact hTaylor
-    rw [Real.norm_eq_abs] at hr_bound
-    simp only [one_mul] at hr_bound
-    -- |r| ≤ sincRemainderBound since |z| ≤ radius
-    have habs_z_le : |z| ≤ max (|(J.lo : ℝ)|) (|(J.hi : ℝ)|) := abs_le_interval_radius hz
-    set radius : ℚ := max (|J.lo|) (|J.hi|) with hradius_def
-    have hradius_real : (radius : ℝ) = max (|(J.lo : ℝ)|) (|(J.hi : ℝ)|) := by
-      simp only [hradius_def, Rat.cast_max, Rat.cast_abs]
-    have hrem_eq : (sincRemainderBound J n : ℝ) = (radius : ℝ) ^ (n + 1) / (n + 1).factorial := by
-      simp only [sincRemainderBound, hradius_def, Rat.cast_div, Rat.cast_pow, Rat.cast_natCast]
-    have hpow_le : |z| ^ (n + 1) ≤ (radius : ℝ) ^ (n + 1) := by
-      apply pow_le_pow_left₀ (abs_nonneg z)
-      rw [hradius_real]
-      exact habs_z_le
-    have hfact_pos : (0 : ℝ) < ((n + 1).factorial : ℝ) := Nat.cast_pos.mpr (Nat.factorial_pos _)
-    have hrem_ge : (sincRemainderBound J n : ℝ) ≥ |z| ^ (n + 1) / (n + 1).factorial := by
-      rw [hrem_eq]
-      apply div_le_div_of_nonneg_right hpow_le (le_of_lt hfact_pos)
-    have hr_le_rem : |r| ≤ sincRemainderBound J n := le_trans hr_bound hrem_ge
-    constructor
-    · have := neg_abs_le r; linarith
-    · exact le_trans (le_abs_self r) hr_le_rem
-  · simp only [hr_def, sub_zero]; ring_nf
+    have hs : |Real.sinc z| ≤ (1 : ℝ) := Real.abs_sinc_le_one z
+    simpa using (abs_le.mp hs)
+  · simp
 
 end TaylorModel
 

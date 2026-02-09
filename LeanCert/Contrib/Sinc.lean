@@ -135,6 +135,21 @@ theorem differentiableAt_sinc (x : ℝ) : DifferentiableAt ℝ sinc x := by
 /-- sinc is a differentiable function. -/
 theorem differentiable_sinc : Differentiable ℝ sinc := fun x => differentiableAt_sinc x
 
+/-- Integral representation of sinc:
+    `sinc x = ∫ t in 0..1, cos (x * t)`.
+    This is the standard average-cosine form used for derivative bounds. -/
+theorem sinc_eq_integral_cos (x : ℝ) :
+    sinc x = ∫ t in (0 : ℝ)..1, cos (x * t) := by
+  by_cases hx : x = 0
+  · subst hx
+    simp [sinc_zero]
+  · have hcomp :
+      ∫ t in (0 : ℝ)..1, cos (x * t) = x⁻¹ * ∫ u in (0 : ℝ)..x, cos u := by
+      simpa [mul_comm] using
+        (intervalIntegral.integral_comp_mul_right
+          (f := fun u : ℝ => cos u) (a := (0 : ℝ)) (b := 1) (c := x) hx)
+    rw [hcomp, integral_cos, sin_zero, sub_zero, inv_mul_eq_div, sinc_of_ne_zero hx]
+
 /-- The derivative of sinc at a nonzero point. -/
 theorem hasDerivAt_sinc_of_ne_zero (hx : x ≠ 0) :
     HasDerivAt sinc ((x * cos x - sin x) / x ^ 2) x := by

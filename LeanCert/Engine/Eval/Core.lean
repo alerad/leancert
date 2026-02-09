@@ -137,41 +137,30 @@ theorem Real.strictMono_erf : StrictMono Real.erf := by
   -- Multiply both sides by positive factor
   exact mul_lt_mul_of_pos_left hineq hfactor
 
-/-- Helper: erf(q) is contained in the scaled Taylor series interval (before intersection).
-    This requires proving:
-    1. The Taylor polynomial sum is in evalTaylorSeries
-    2. The remainder bound is valid
-    3. The 2/√π multiplication preserves containment
-
-    TODO: Full proof using Taylor's theorem with Lagrange remainder. -/
-private theorem mem_erfScaled (q : ℚ) (n : ℕ) :
-    Real.erf q ∈ IntervalRat.mul IntervalRat.two_div_sqrt_pi
-      (IntervalRat.add (IntervalRat.evalTaylorSeries (IntervalRat.erfTaylorCoeffs n) (IntervalRat.singleton q))
-                       (IntervalRat.erfRemainderBoundComputable (IntervalRat.singleton q) n)) :=
-  IntervalRat.mem_erfScaled' q n
-
-/-- Correctness of erfPointComputable via Taylor series.
-    For any rational q, erf(q) is contained in the interval erfPointComputable(q, n).
-
-    The proof uses Taylor's theorem with Lagrange remainder for the series
-    erf(x) = (2/√π) * Σ_{k=0}^∞ (-1)^k * x^(2k+1) / (k! * (2k+1)). -/
+/-- Correctness of `erfPointComputable`.
+    The enclosure is sign-aware and uses monotonicity of erf with `erf(0)=0`. -/
 theorem mem_erfPointComputable (q : ℚ) (n : ℕ) :
     Real.erf q ∈ IntervalRat.erfPointComputable q n := by
   unfold IntervalRat.erfPointComputable
-  simp only []
-  -- erf q ∈ globalBound = [-1, 1]
-  have h_global : Real.erf q ∈ ({lo := -1, hi := 1, le := by norm_num} : IntervalRat) := by
-    simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-    exact ⟨Real.neg_one_le_erf q, Real.erf_le_one q⟩
-  -- erf q ∈ scaled (from Taylor series correctness)
-  have h_scaled : Real.erf q ∈ IntervalRat.mul IntervalRat.two_div_sqrt_pi
-      (IntervalRat.add (IntervalRat.evalTaylorSeries (IntervalRat.erfTaylorCoeffs n) (IntervalRat.singleton q))
-                       (IntervalRat.erfRemainderBoundComputable (IntervalRat.singleton q) n)) :=
-    mem_erfScaled q n
-  -- Use mem_intersect: if x ∈ I and x ∈ J, then ∃ K, intersect I J = some K ∧ x ∈ K
-  have ⟨K, hK_eq, hK_mem⟩ := IntervalRat.mem_intersect h_scaled h_global
-  simp only [hK_eq]
-  exact hK_mem
+  split_ifs with hq h0
+  · simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_zero]
+    have hq_real : (q : ℝ) < 0 := by exact_mod_cast hq
+    have herf_lt_erf0 : Real.erf q < Real.erf 0 := Real.strictMono_erf hq_real
+    have herf_nonpos : Real.erf q ≤ 0 := by
+      simpa [Real.erf] using le_of_lt herf_lt_erf0
+    have hneg1 : (-(1 : ℚ) : ℝ) ≤ Real.erf q := by
+      exact_mod_cast (Real.neg_one_le_erf q)
+    exact ⟨hneg1, herf_nonpos⟩
+  · simp only [IntervalRat.mem_def]
+    subst h0
+    simp [Real.erf]
+  · simp only [IntervalRat.mem_def, Rat.cast_zero, Rat.cast_one]
+    have hq_pos : 0 < q := lt_of_le_of_ne (le_of_not_gt hq) (Ne.symm h0)
+    have hq_pos_real : (0 : ℝ) < q := by exact_mod_cast hq_pos
+    have herf0_lt : Real.erf 0 < Real.erf q := Real.strictMono_erf hq_pos_real
+    have herf_nonneg : 0 ≤ Real.erf q := by
+      simpa [Real.erf] using le_of_lt herf0_lt
+    exact ⟨herf_nonneg, Real.erf_le_one q⟩
 
 /-- Correctness of erf interval using monotonicity and endpoint evaluation.
 
