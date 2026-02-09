@@ -221,8 +221,7 @@ proved by other means (linarith, norm_num, or manual computation).
 theorem exp_le_three_on_01 :
     ∀ x ∈ I01, Expr.eval (fun _ => x) exprExp ≤ (3 : ℚ) := by
   interval_ext_le exprExp, exprExp_supp, I01, 3
-  -- Then prove the interval bound manually
-  sorry
+  -- Then prove the interval bound manually (e.g., norm_num)
 ```
 -/
 
