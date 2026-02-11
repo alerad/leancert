@@ -98,16 +98,112 @@ private def parseWitnessGoal (goalType : Lean.Expr) : Option WitnessGoal := do
     return { aExpr := a, bExpr := b, bodyLambda := f, targetExpr := lhs, isUpper := false }
   none
 
+/-! ## Generalized Finset Parsing -/
+
+/-- Result of parsing a witness goal over an arbitrary Finset. -/
+private structure WitnessGoalList where
+  /-- The Finset expression from the goal -/
+  finsetExpr : Lean.Expr
+  /-- The List Nat literal of elements -/
+  indicesExpr : Lean.Expr
+  /-- Sum body as lambda (ℕ → ℝ) -/
+  bodyLambda : Lean.Expr
+  /-- Bound target (ℝ expression) -/
+  targetExpr : Lean.Expr
+  /-- true for `sum ≤ target`, false for `target ≤ sum` -/
+  isUpper : Bool
+
+/-- Extract `(Finset, body)` from `Finset.sum S f`. -/
+private def extractFinsetSum' (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) :=
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  if fn.isConstOf ``Finset.sum && args.size ≥ 5 then
+    some (args[3]!, args[4]!)
+  else
+    none
+
+/-- Try to extract a Nat literal from a Lean expression. -/
+private def extractNatLit' (e : Lean.Expr) : MetaM (Option Nat) := do
+  if let some n := e.rawNatLit? then return some n
+  let e' ← whnf e
+  if let some n := e'.rawNatLit? then return some n
+  return none
+
+/-- Recursively extract elements from nested insert/singleton/empty Finset expressions. -/
+private partial def tryExtractExplicitFinset' (e : Lean.Expr) : MetaM (Option (List Nat)) := do
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  if fn.isConstOf ``Insert.insert && args.size ≥ 5 then
+    if let some n := ← extractNatLit' args[3]! then
+      if let some rest := ← tryExtractExplicitFinset' args[4]! then
+        return some (n :: rest)
+    return none
+  if fn.isConstOf ``Finset.cons && args.size ≥ 4 then
+    if let some n := ← extractNatLit' args[1]! then
+      if let some rest := ← tryExtractExplicitFinset' args[2]! then
+        return some (n :: rest)
+    return none
+  if fn.isConstOf ``Singleton.singleton && args.size ≥ 4 then
+    if let some n := ← extractNatLit' args[3]! then
+      return some [n]
+    return none
+  if fn.isConstOf ``EmptyCollection.emptyCollection then
+    return some []
+  let e' ← whnf e
+  if e' != e then
+    return ← tryExtractExplicitFinset' e'
+  return none
+
+/-- Extract Nat elements from a Finset expression. -/
+private def extractFinsetElements' (finsetExpr : Lean.Expr) : MetaM (Option (List Nat)) := do
+  let sfn := finsetExpr.getAppFn
+  let sargs := finsetExpr.getAppArgs
+  if sfn.isConstOf ``Finset.Icc && sargs.size ≥ 5 then
+    if let (some a, some b) := (← extractNatLit' sargs[3]!, ← extractNatLit' sargs[4]!) then
+      return some (List.range' a (b + 1 - a))
+    return none
+  if sfn.isConstOf ``Finset.Ico && sargs.size ≥ 5 then
+    if let (some a, some b) := (← extractNatLit' sargs[3]!, ← extractNatLit' sargs[4]!) then
+      return some (List.range' a (b - a))
+    return none
+  if sfn.isConstOf ``Finset.Ioc && sargs.size ≥ 5 then
+    if let (some a, some b) := (← extractNatLit' sargs[3]!, ← extractNatLit' sargs[4]!) then
+      return some (List.range' (a + 1) (b - a))
+    return none
+  if sfn.isConstOf ``Finset.Ioo && sargs.size ≥ 5 then
+    if let (some a, some b) := (← extractNatLit' sargs[3]!, ← extractNatLit' sargs[4]!) then
+      if b > a + 1 then
+        return some (List.range' (a + 1) (b - a - 1))
+      else
+        return some []
+    return none
+  if sfn.isConstOf ``Finset.range && sargs.size ≥ 1 then
+    if let some n := ← extractNatLit' sargs[0]! then
+      return some (List.range n)
+    return none
+  tryExtractExplicitFinset' finsetExpr
+
+/-- Parse a witness goal for the list path. -/
+private def parseWitnessGoalList (goalType : Lean.Expr) : MetaM (Option WitnessGoalList) := do
+  let_expr LE.le _ _ lhs rhs := goalType | return none
+  let tryExtract (sumSide otherSide : Lean.Expr) (isUpper : Bool) :
+      MetaM (Option WitnessGoalList) := do
+    if let some (finsetExpr, bodyLambda) := extractFinsetSum' sumSide then
+      if let some indices := ← extractFinsetElements' finsetExpr then
+        let indicesExpr := toExpr indices
+        return some { finsetExpr, indicesExpr, bodyLambda, targetExpr := otherSide, isUpper }
+    return none
+  if let some g := ← tryExtract lhs rhs true then return some g
+  if let some g := ← tryExtract rhs lhs false then return some g
+  return none
+
 /-! ## Tactic Implementation -/
 
-/-- Core implementation of `finsum_witness`. -/
-def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit := do
+/-- Core implementation of `finsum_witness` for Icc goals. -/
+private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Syntax)
+    (prec : Int) : TacticM Unit := do
   let goal ← getMainGoal
   let goalType ← goal.getType
-
-  let some wGoal := parseWitnessGoal goalType
-    | throwError "finsum_witness: goal is not of the form \
-        `∑ k ∈ Finset.Icc a b, f k ≤ target` or `target ≤ ∑ k ∈ Finset.Icc a b, f k`"
 
   goal.withContext do
     -- Extract target as rational
@@ -134,17 +230,14 @@ def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit
       let kbTy ← mkAppM ``LE.le #[k, wGoal.bExpr]
       let fk := (Lean.mkApp wGoal.bodyLambda k).headBeta
       let evalk := Lean.mkApp (Lean.mkApp evalTermExpr k) cfgExpr
-      -- Membership.mem takes (container, element) order: mem I x
       let memTy ← mkAppM ``Membership.mem #[evalk, fk]
       let body ← mkArrow akTy (← mkArrow kbTy memTy)
       mkForallFVars #[k] body
 
     trace[finsum_witness] "Expected hmem type: {hmemTy}"
 
-    -- Elaborate hmem against the expected type
     let hmemExpr ← Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
 
-    -- Build check expression and native_decide metavar
     let checkExpr ← if wGoal.isUpper then
       mkAppM ``checkWitnessSumUpperBound
         #[evalTermExpr, wGoal.aExpr, wGoal.bExpr, targetExpr, cfgExpr]
@@ -155,7 +248,6 @@ def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit
     let checkEqTrue ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
     let checkMVar ← mkFreshExprMVar (some checkEqTrue) (kind := .syntheticOpaque)
 
-    -- Build bridge theorem proof
     let bridgeThm := if wGoal.isUpper then
       ``verify_witness_sum_upper
     else
@@ -164,14 +256,12 @@ def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit
       #[wGoal.bodyLambda, evalTermExpr, wGoal.aExpr, wGoal.bExpr,
         targetExpr, cfgExpr, hmemExpr, checkMVar]
 
-    -- Try direct assignment
     let proofTy ← inferType proof
     if ← isDefEq proofTy goalType then
       goal.assign proof
       replaceMainGoal [checkMVar.mvarId!]
       evalTactic (← `(tactic| native_decide))
     else
-      -- DefEq failed. Use suffices: prove the bridge form, then convert.
       trace[finsum_witness] "Direct defEq failed, using suffices fallback"
 
       let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
@@ -179,10 +269,8 @@ def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit
         (some (← mkArrow proofTy goalType)) (kind := .syntheticOpaque)
       goal.assign (mkApp converterMVar suffMVar)
 
-      -- 1. Solve suffMVar: assign the bridge theorem proof
       suffMVar.mvarId!.assign proof
 
-      -- 2. Solve checkMVar with native_decide
       setGoals [checkMVar.mvarId!]
       try
         evalTactic (← `(tactic| native_decide))
@@ -191,7 +279,6 @@ def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit
           The bound may be too tight for precision ({prec}).\n\
           Try: `finsum_witness ... 100`.\n{e.toMessageData}"
 
-      -- 3. Solve converterMVar: proofTy → goalType
       setGoals [converterMVar.mvarId!]
       try
         evalTactic (← `(tactic| intro h; exact h))
@@ -202,6 +289,112 @@ def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit
           throwError "finsum_witness: could not convert proof type to goal type.\n\
             Proof type: {← ppExpr proofTy}\n\
             Goal type: {← ppExpr goalType}"
+
+/-- Core implementation of `finsum_witness` for arbitrary Finsets (list path). -/
+private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn : Syntax)
+    (prec : Int) : TacticM Unit := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+
+  goal.withContext do
+    let some target ← Auto.extractRatFromReal wGoal.targetExpr
+      | throwError "finsum_witness: could not extract rational from bound \
+          `{← ppExpr wGoal.targetExpr}`"
+    let targetExpr := toExpr target
+
+    let precExpr := toExpr prec
+    let depthExpr := toExpr (10 : Nat)
+    let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr, toExpr (0 : Nat)]
+
+    let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
+      (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
+    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+
+    -- Build hmem type: ∀ k, k ∈ S → f k ∈ evalTerm k cfg
+    let natTy := Lean.mkConst ``Nat
+    let hmemTy ← withLocalDeclD `k natTy fun k => do
+      let memSTy ← mkAppM ``Membership.mem #[wGoal.finsetExpr, k]
+      let fk := (Lean.mkApp wGoal.bodyLambda k).headBeta
+      let evalk := Lean.mkApp (Lean.mkApp evalTermExpr k) cfgExpr
+      let memEvalTy ← mkAppM ``Membership.mem #[evalk, fk]
+      let body ← mkArrow memSTy memEvalTy
+      mkForallFVars #[k] body
+
+    trace[finsum_witness] "Expected hmem type (list path): {hmemTy}"
+
+    let hmemExpr ← Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+
+    -- Build combined check (S = indices.toFinset ∧ Nodup ∧ bound)
+    let checkExpr ← if wGoal.isUpper then
+      mkAppM ``checkWitnessSumUpperBoundListFull
+        #[evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr, targetExpr, cfgExpr]
+    else
+      mkAppM ``checkWitnessSumLowerBoundListFull
+        #[evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr, targetExpr, cfgExpr]
+
+    let checkEqTrue ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
+    let checkMVar ← mkFreshExprMVar (some checkEqTrue) (kind := .syntheticOpaque)
+
+    let bridgeThm := if wGoal.isUpper then
+      ``verify_witness_sum_upper_list_full
+    else
+      ``verify_witness_sum_lower_list_full
+    let proof ← mkAppM bridgeThm
+      #[wGoal.bodyLambda, evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr,
+        targetExpr, cfgExpr, hmemExpr, checkMVar]
+
+    let proofTy ← inferType proof
+    if ← isDefEq proofTy goalType then
+      goal.assign proof
+      replaceMainGoal [checkMVar.mvarId!]
+      evalTactic (← `(tactic| native_decide))
+    else
+      trace[finsum_witness] "Direct defEq failed (list path), using suffices fallback"
+
+      let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
+      let converterMVar ← mkFreshExprMVar
+        (some (← mkArrow proofTy goalType)) (kind := .syntheticOpaque)
+      goal.assign (mkApp converterMVar suffMVar)
+
+      suffMVar.mvarId!.assign proof
+
+      setGoals [checkMVar.mvarId!]
+      try
+        evalTactic (← `(tactic| native_decide))
+      catch e =>
+        throwError "finsum_witness: native_decide failed on certificate check. \
+          The bound may be too tight for precision ({prec}).\n\
+          Try: `finsum_witness ... 100`.\n{e.toMessageData}"
+
+      setGoals [converterMVar.mvarId!]
+      try
+        evalTactic (← `(tactic| intro h; exact h))
+      catch _ =>
+        try
+          evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
+        catch _ =>
+          throwError "finsum_witness: could not convert proof type to goal type.\n\
+            Proof type: {← ppExpr proofTy}\n\
+            Goal type: {← ppExpr goalType}"
+
+/-- Main dispatch: try Icc path first, then list path. -/
+def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+
+  -- Try Icc path first
+  if let some wGoal := parseWitnessGoal goalType then
+    finSumWitnessIccCore wGoal evalTermSyn hmemSyn prec
+    return
+
+  -- Fall back to general list path
+  if let some wGoalList := ← parseWitnessGoalList goalType then
+    finSumWitnessListCore wGoalList evalTermSyn hmemSyn prec
+    return
+
+  throwError "finsum_witness: goal is not of the form \
+    `∑ k ∈ S, f k ≤ target` or `target ≤ ∑ k ∈ S, f k` \
+    where S is a recognized Finset (Icc, Ico, Ioc, Ioo, range, or explicit)"
 
 /-! ## Main Tactic -/
 
