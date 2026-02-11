@@ -139,4 +139,146 @@ theorem verify_witness_sum_lower (f : Nat → ℝ)
     decide_eq_true_eq] at h_check
   exact le_trans (by exact_mod_cast h_check) hlo
 
+/-! ## List-Based Witness Sum
+
+Witness sum over an explicit `List Nat` of indices, enabling arbitrary Finsets. -/
+
+/-! ### List Accumulator -/
+
+/-- Accumulator loop over a list of indices. -/
+def witnessSumAuxList (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (indices : List Nat) (acc : IntervalDyadic)
+    (cfg : DyadicConfig) : IntervalDyadic :=
+  match indices with
+  | [] => acc
+  | k :: rest =>
+    let term := evalTerm k cfg
+    let newAcc := (IntervalDyadic.add acc term).roundOut cfg.precision
+    witnessSumAuxList evalTerm rest newAcc cfg
+
+/-- Interval for `∑ k ∈ indices.toFinset, f k` using a witness evaluator. -/
+def witnessSumDyadicList (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (indices : List Nat) (cfg : DyadicConfig) : IntervalDyadic :=
+  witnessSumAuxList evalTerm indices finSumZero cfg
+
+/-! ### List Certificate Checkers -/
+
+def checkWitnessSumUpperBoundList (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (indices : List Nat) (target : ℚ) (cfg : DyadicConfig) : Bool :=
+  (witnessSumDyadicList evalTerm indices cfg).upperBoundedBy target
+
+def checkWitnessSumLowerBoundList (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (indices : List Nat) (target : ℚ) (cfg : DyadicConfig) : Bool :=
+  (witnessSumDyadicList evalTerm indices cfg).lowerBoundedBy target
+
+/-! ### List Correctness Theorems -/
+
+/-- Accumulator correctness for list-based witness sum. -/
+theorem mem_witnessSumAuxList (f : Nat → ℝ) (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (indices : List Nat) (acc : IntervalDyadic) (partialSum : ℝ)
+    (hacc : partialSum ∈ acc) (cfg : DyadicConfig)
+    (hmem : ∀ k, k ∈ indices → f k ∈ evalTerm k cfg) :
+    (partialSum + (indices.map f).sum)
+      ∈ witnessSumAuxList evalTerm indices acc cfg := by
+  induction indices generalizing acc partialSum with
+  | nil =>
+    simp only [List.map_nil, List.sum_nil, add_zero, witnessSumAuxList]
+    exact hacc
+  | cons k rest ih =>
+    simp only [witnessSumAuxList, List.map_cons, List.sum_cons]
+    rw [← add_assoc]
+    have hterm := hmem k (.head rest)
+    have hnewAcc : partialSum + f k ∈
+        (IntervalDyadic.add acc (evalTerm k cfg)).roundOut cfg.precision := by
+      apply IntervalDyadic.roundOut_contains
+      exact IntervalDyadic.mem_add hacc hterm
+    exact ih _ _ hnewAcc (fun j hj => hmem j (.tail k hj))
+
+/-- Golden theorem for list-based witness sum. -/
+theorem mem_witnessSumDyadicList (f : Nat → ℝ) (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (indices : List Nat) (hnodup : indices.Nodup) (cfg : DyadicConfig)
+    (hmem : ∀ k, k ∈ indices → f k ∈ evalTerm k cfg) :
+    (∑ k ∈ indices.toFinset, f k) ∈ witnessSumDyadicList evalTerm indices cfg := by
+  unfold witnessSumDyadicList
+  rw [List.sum_toFinset _ hnodup]
+  have h := mem_witnessSumAuxList f evalTerm indices finSumZero 0 mem_finSumZero cfg hmem
+  simp only [zero_add] at h
+  exact h
+
+/-! ### List Bridge Theorems -/
+
+/-- Upper bound for witness sum over a list. -/
+theorem verify_witness_sum_upper_list (f : Nat → ℝ)
+    (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (indices : List Nat) (hnodup : indices.Nodup)
+    (target : ℚ) (cfg : DyadicConfig)
+    (hmem : ∀ k, k ∈ indices → f k ∈ evalTerm k cfg)
+    (h_check : checkWitnessSumUpperBoundList evalTerm indices target cfg = true) :
+    ∑ k ∈ indices.toFinset, f k ≤ target := by
+  have hsum := mem_witnessSumDyadicList f evalTerm indices hnodup cfg hmem
+  exact le_trans hsum.2 (by
+    simp only [checkWitnessSumUpperBoundList, IntervalDyadic.upperBoundedBy,
+      decide_eq_true_eq] at h_check
+    exact_mod_cast h_check)
+
+/-- Lower bound for witness sum over a list. -/
+theorem verify_witness_sum_lower_list (f : Nat → ℝ)
+    (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (indices : List Nat) (hnodup : indices.Nodup)
+    (target : ℚ) (cfg : DyadicConfig)
+    (hmem : ∀ k, k ∈ indices → f k ∈ evalTerm k cfg)
+    (h_check : checkWitnessSumLowerBoundList evalTerm indices target cfg = true) :
+    target ≤ ∑ k ∈ indices.toFinset, f k := by
+  have hsum := mem_witnessSumDyadicList f evalTerm indices hnodup cfg hmem
+  exact le_trans (by
+    simp only [checkWitnessSumLowerBoundList, IntervalDyadic.lowerBoundedBy,
+      decide_eq_true_eq] at h_check
+    exact_mod_cast h_check) hsum.1
+
+/-! ### List Combined Checkers -/
+
+/-- Combined check: S = indices.toFinset ∧ Nodup ∧ upper bound. -/
+def checkWitnessSumUpperBoundListFull (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (S : Finset Nat) (indices : List Nat) (target : ℚ) (cfg : DyadicConfig) : Bool :=
+  decide (S = indices.toFinset) &&
+  indices.Nodup &&
+  checkWitnessSumUpperBoundList evalTerm indices target cfg
+
+/-- Combined check: S = indices.toFinset ∧ Nodup ∧ lower bound. -/
+def checkWitnessSumLowerBoundListFull (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (S : Finset Nat) (indices : List Nat) (target : ℚ) (cfg : DyadicConfig) : Bool :=
+  decide (S = indices.toFinset) &&
+  indices.Nodup &&
+  checkWitnessSumLowerBoundList evalTerm indices target cfg
+
+/-! ### List Combined Bridge Theorems -/
+
+/-- If checkWitnessSumUpperBoundListFull returns true, the sum is bounded above. -/
+theorem verify_witness_sum_upper_list_full (f : Nat → ℝ)
+    (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (S : Finset Nat) (indices : List Nat) (target : ℚ) (cfg : DyadicConfig)
+    (hmem : ∀ k, k ∈ S → f k ∈ evalTerm k cfg)
+    (h_check : checkWitnessSumUpperBoundListFull evalTerm S indices target cfg = true) :
+    ∑ k ∈ S, f k ≤ target := by
+  simp only [checkWitnessSumUpperBoundListFull, Bool.and_eq_true, decide_eq_true_eq] at h_check
+  obtain ⟨⟨heq, hnodup⟩, hbound⟩ := h_check
+  rw [heq]
+  have hmem' : ∀ k, k ∈ indices → f k ∈ evalTerm k cfg :=
+    fun k hk => hmem k (heq ▸ List.mem_toFinset.mpr hk)
+  exact verify_witness_sum_upper_list f evalTerm indices hnodup target cfg hmem' hbound
+
+/-- If checkWitnessSumLowerBoundListFull returns true, the sum is bounded below. -/
+theorem verify_witness_sum_lower_list_full (f : Nat → ℝ)
+    (evalTerm : Nat → DyadicConfig → IntervalDyadic)
+    (S : Finset Nat) (indices : List Nat) (target : ℚ) (cfg : DyadicConfig)
+    (hmem : ∀ k, k ∈ S → f k ∈ evalTerm k cfg)
+    (h_check : checkWitnessSumLowerBoundListFull evalTerm S indices target cfg = true) :
+    target ≤ ∑ k ∈ S, f k := by
+  simp only [checkWitnessSumLowerBoundListFull, Bool.and_eq_true, decide_eq_true_eq] at h_check
+  obtain ⟨⟨heq, hnodup⟩, hbound⟩ := h_check
+  rw [heq]
+  have hmem' : ∀ k, k ∈ indices → f k ∈ evalTerm k cfg :=
+    fun k hk => hmem k (heq ▸ List.mem_toFinset.mpr hk)
+  exact verify_witness_sum_lower_list f evalTerm indices hnodup target cfg hmem' hbound
+
 end LeanCert.Engine
