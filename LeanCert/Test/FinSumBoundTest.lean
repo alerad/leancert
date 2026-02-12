@@ -64,60 +64,111 @@ example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.exp ((1 : ℝ) / ↑k) ≤ 20 
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 500, (1 : ℝ) / (↑k * ↑k) ≤ 2 := by
   finsum_bound
 
-/-! ## Tier 3: Witness mode (`finsum_bound using`) -/
+-- Nested exp: exp(exp(1/k))
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp (Real.exp ((1 : ℝ) / ↑k)) ≤ 35 := by
+  finsum_bound
+
+-- Nested inv: 1/(1 + 1/k) = k/(k+1)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (1 : ℝ) / ((1 : ℝ) + (1 : ℝ) / ↑k) ≤ 9 := by
+  finsum_bound
+
+-- Log with inv: log(k)/k
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.log ↑k / ↑k ≤ 6 := by
+  finsum_bound
+
+-- exp of log: exp(log(k)) = k for k ≥ 1
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.exp (Real.log ↑k) ≤ 56 := by
+  finsum_bound
+
+-- Triple nesting: exp(1/(1 + exp(-k)))
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp ((1 : ℝ) / ((1 : ℝ) + Real.exp (-(↑k : ℝ)))) ≤ 14 := by
+  finsum_bound
+
+/-! ## Tier 3: Witness mode (`finsum_bound using`)
+
+Unlike the automatic mode (Tier 1–2), witness mode lets the user supply
+a custom per-term interval evaluator.  The evaluators below use the
+engine's `evalSumTermDyadic` which calls `evalIntervalDyadic`—producing
+*real* intervals with dyadic rounding error, not point singletons. -/
 
 open LeanCert.Core
 open LeanCert.Engine
 
-/-- Constant evaluator: always returns [1, 1]. -/
-def constEval (_k : Nat) (_cfg : DyadicConfig) : IntervalDyadic :=
-  IntervalDyadic.singleton (Core.Dyadic.ofInt 1)
+/-- Interval evaluator for exp(k) via Taylor series + dyadic rounding. -/
+def expEval (k : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
+  evalSumTermDyadic (.exp (.var 0)) k cfg
 
-theorem constEval_correct (k : Nat) (cfg : DyadicConfig) :
-    (1 : ℝ) ∈ constEval k cfg := by
-  show (1 : ℝ) ∈ IntervalDyadic.singleton (Core.Dyadic.ofInt 1)
-  have h := IntervalDyadic.mem_singleton (Core.Dyadic.ofInt 1)
-  rw [Core.Dyadic.toRat_ofInt] at h
-  simpa using h
+theorem expEval_correct (k : Nat) (cfg : DyadicConfig)
+    (hprec : cfg.precision ≤ 0 := by norm_num) :
+    Real.exp (↑k : ℝ) ∈ expEval k cfg :=
+  mem_evalSumTermDyadic (.exp (.var 0)) (.exp (.var 0)) k cfg hprec trivial
 
-/-- Identity evaluator: returns [k, k] for each k. -/
-def identityEval (k : Nat) (_cfg : DyadicConfig) : IntervalDyadic :=
-  IntervalDyadic.singleton (Core.Dyadic.ofInt ↑k)
+/-- Interval evaluator for 1/k via dyadic interval arithmetic. -/
+def invEval (k : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
+  evalSumTermDyadic (.inv (.var 0)) k cfg
 
-theorem identityEval_correct (k : Nat) (cfg : DyadicConfig) :
-    (↑k : ℝ) ∈ identityEval k cfg := by
-  show (↑k : ℝ) ∈ IntervalDyadic.singleton (Core.Dyadic.ofInt ↑k)
-  have h := IntervalDyadic.mem_singleton (Core.Dyadic.ofInt ↑k)
-  rw [Core.Dyadic.toRat_ofInt] at h
-  simpa using h
+theorem invEval_correct (k : Nat) (cfg : DyadicConfig)
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (hdom : evalDomainValidDyadic (.inv (.var 0)) (sumBodyEnvSimple k cfg.precision) cfg) :
+    (1 : ℝ) / ↑k ∈ invEval k cfg := by
+  rw [one_div]
+  exact mem_evalSumTermDyadic_withInv (.inv (.var 0)) (.inv (.var 0)) k cfg hprec hdom
 
--- Witness: constant upper bound
-example : ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 11 := by
-  finsum_bound using constEval (fun _ _ _ => constEval_correct _ _)
+/-- Interval evaluator for exp(1/k): nested inv inside exp. -/
+def expInvEval (k : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
+  evalSumTermDyadic (.exp (.inv (.var 0))) k cfg
 
--- Witness: constant lower bound
-example : (1 : ℝ) ≤ ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) := by
-  finsum_bound using constEval (fun _ _ _ => constEval_correct _ _)
+theorem expInvEval_correct (k : Nat) (cfg : DyadicConfig)
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (hdom : evalDomainValidDyadic (.exp (.inv (.var 0))) (sumBodyEnvSimple k cfg.precision) cfg) :
+    Real.exp ((1 : ℝ) / ↑k) ∈ expInvEval k cfg := by
+  rw [one_div]
+  exact mem_evalSumTermDyadic_withInv (.exp (.inv (.var 0))) (.exp (.inv (.var 0))) k cfg hprec hdom
 
--- Witness: identity upper bound (each term = k)
-example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (↑k : ℝ) ≤ 56 := by
-  finsum_bound using identityEval (fun k _ _ => identityEval_correct k _)
+/-- Interval evaluator for 1/(k*k). -/
+def invSqEval (k : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
+  evalSumTermDyadic (.inv (.mul (.var 0) (.var 0))) k cfg
 
--- Witness: identity lower bound
-example : (50 : ℝ) ≤ ∑ k ∈ Finset.Icc (1 : ℕ) 10, (↑k : ℝ) := by
-  finsum_bound using identityEval (fun k _ _ => identityEval_correct k _)
+theorem invSqEval_correct (k : Nat) (cfg : DyadicConfig)
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (hdom : evalDomainValidDyadic (.inv (.mul (.var 0) (.var 0)))
+        (sumBodyEnvSimple k cfg.precision) cfg) :
+    (1 : ℝ) / (↑k * ↑k) ∈ invSqEval k cfg := by
+  rw [one_div]
+  exact mem_evalSumTermDyadic_withInv (.inv (.mul (.var 0) (.var 0)))
+    (.inv (.mul (.var 0) (.var 0))) k cfg hprec hdom
+
+-- Witness: exp(k) upper bound (trivial domain, no inv/log)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp (↑k : ℝ) ≤ 234 := by
+  finsum_bound using expEval (fun k _ _ => expEval_correct k _)
+
+-- Witness: exp(k) lower bound
+example : (233 : ℝ) ≤ ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp (↑k : ℝ) := by
+  finsum_bound using expEval (fun k _ _ => expEval_correct k _)
+
+-- Witness: 1/k upper bound (domain check via native_decide)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (1 : ℝ) / ↑k ≤ 4 := by
+  finsum_bound using invEval (fun k ha hb => invEval_correct k {} (hdom :=
+    checkDomainValidAll_correct (.inv (.var 0)) 1 10 {} (by native_decide) k ha hb))
+
+-- Witness: 1/k lower bound
+example : (1 : ℝ) ≤ ∑ k ∈ Finset.Icc (1 : ℕ) 10, (1 : ℝ) / ↑k := by
+  finsum_bound using invEval (fun k ha hb => invEval_correct k {} (hdom :=
+    checkDomainValidAll_correct (.inv (.var 0)) 1 10 {} (by native_decide) k ha hb))
+
+-- Witness: exp(1/k) upper bound (nested inv inside exp, domain check)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.exp ((1 : ℝ) / ↑k) ≤ 20 := by
+  finsum_bound using expInvEval (fun k ha hb => expInvEval_correct k {} (hdom :=
+    checkDomainValidAll_correct (.exp (.inv (.var 0))) 1 10 {} (by native_decide) k ha hb))
+
+-- Witness: 1/(k*k) on 100 terms (stress test)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 100, (1 : ℝ) / (↑k * ↑k) ≤ 2 := by
+  finsum_bound using invSqEval (fun k ha hb => invSqEval_correct k {} (hdom :=
+    checkDomainValidAll_correct (.inv (.mul (.var 0) (.var 0))) 1 100 {} (by native_decide) k ha hb))
 
 -- Witness: empty range
-example : ∑ _k ∈ Finset.Icc 5 3, (1 : ℝ) ≤ 1 := by
-  finsum_bound using constEval (fun _ _ _ => constEval_correct _ _)
-
--- Witness: larger sum (100 terms)
-example : ∑ _k ∈ Finset.Icc 1 100, (1 : ℝ) ≤ 101 := by
-  finsum_bound using constEval (fun _ _ _ => constEval_correct _ _)
-
--- Witness: identity, larger range (∑ k for k=1..100 = 5050)
-example : ∑ k ∈ Finset.Icc (1 : ℕ) 100, (↑k : ℝ) ≤ 5051 := by
-  finsum_bound using identityEval (fun k _ _ => identityEval_correct k _)
+example : ∑ k ∈ Finset.Icc (5 : ℕ) 3, Real.exp (↑k : ℝ) ≤ 1 := by
+  finsum_bound using expEval (fun k _ _ => expEval_correct k _)
 
 /-! ## Tier 4: Arbitrary finite sets (list path) -/
 
@@ -142,34 +193,10 @@ example : (10 : ℝ) ≤ ∑ k ∈ Finset.range 6, (↑k : ℝ) := by finsum_bou
 -- Sparse set with exp
 example : ∑ k ∈ ({1, 10, 100} : Finset ℕ), Real.exp (-(↑k : ℝ)) ≤ 1 := by finsum_bound
 
-/-! ## Tier 5: Nested inv/exp/log (deep nesting stress tests) -/
-
--- Nested exp: exp(exp(1/k))
-example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp (Real.exp ((1 : ℝ) / ↑k)) ≤ 35 := by
-  finsum_bound
-
--- Nested inv: 1/(1 + 1/k) = k/(k+1)
-example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (1 : ℝ) / ((1 : ℝ) + (1 : ℝ) / ↑k) ≤ 9 := by
-  finsum_bound
-
--- Log with inv: log(k)/k
-example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.log ↑k / ↑k ≤ 6 := by
-  finsum_bound
-
 -- Deep nesting on explicit finset: 1/(k * log(k))
-example : ∑ k ∈ ({2, 3, 5, 7} : Finset ℕ), (1 : ℝ) / (↑k * Real.log ↑k) ≤ 2 := by
-  finsum_bound
+example : ∑ k ∈ ({2, 3, 5, 7} : Finset ℕ), (1 : ℝ) / (↑k * Real.log ↑k) ≤ 2 := by finsum_bound
 
 -- Nested exp on explicit finset: exp(exp(1/k))
-example : ∑ k ∈ ({1, 2, 3} : Finset ℕ), Real.exp (Real.exp ((1 : ℝ) / ↑k)) ≤ 26 := by
-  finsum_bound
-
--- exp of log: exp(log(k)) = k for k ≥ 1
-example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.exp (Real.log ↑k) ≤ 56 := by
-  finsum_bound
-
--- Triple nesting: exp(1/(1 + exp(-k)))
-example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp ((1 : ℝ) / ((1 : ℝ) + Real.exp (-(↑k : ℝ)))) ≤ 14 := by
-  finsum_bound
+example : ∑ k ∈ ({1, 2, 3} : Finset ℕ), Real.exp (Real.exp ((1 : ℝ) / ↑k)) ≤ 26 := by finsum_bound
 
 end LeanCert.Test.FinSumBound
