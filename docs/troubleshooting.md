@@ -170,7 +170,10 @@ example : ∃ m, ∀ x ∈ I, f x ≥ m := by interval_minimize 20
 ```lean
 -- Basic arithmetic
 x * x + 1
-x * x * x  -- (not x^3)
+x^3
+x^(-2)
+x^(5/2)
+x^(-3/2)
 
 -- Simple coefficients
 x * x + x + 1
@@ -183,17 +186,19 @@ Real.sin x + Real.cos x
 Real.exp (Real.sin x)
 ```
 
-**May have issues:**
+**Still unsupported in reification:**
 ```lean
--- Numeric coefficients (type inference)
-2 * x * x + 3 * x  -- Sometimes fails
-
--- Power notation
-x^3  -- May not reify correctly for some tactics
+-- Non-half rational exponents
+x^(1/3)
+x^(2/3)
+x^(1/5)
 
 -- Complex nested coefficients
 (2/3) * x * Real.sin x
 ```
+
+These unsupported power shapes now fail with an explicit error:
+`Unsupported rational exponent in x ^ q`.
 
 ### What requires Expr AST syntax?
 

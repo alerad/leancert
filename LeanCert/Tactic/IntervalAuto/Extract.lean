@@ -5,7 +5,7 @@ Authors: LeanCert Contributors
 -/
 import Lean
 import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Meta.ToExpr
+import LeanCert.Meta.Numeral
 
 /-!
 # Rational Extraction Utilities
@@ -95,7 +95,16 @@ where
     else if fn.isConstOf ``Rat.mk' then
       return none  -- TODO: implement if needed
 
-    else return none
+    else
+      -- Last resort: evaluate the expression directly.  Only safe for
+      -- fully ground terms (no free variables or metavariables).
+      if e.hasFVar || e.hasMVar then
+        return none
+      try
+        let q ← unsafe evalExpr ℚ (mkConst ``Rat) e
+        return some q
+      catch _ =>
+        return none
 
 /-- Try to extract a rational value from a Lean expression that represents a real number.
     Handles: Rat.cast, OfNat.ofNat, Nat.cast, Int.cast, negations, and divisions.
@@ -203,6 +212,11 @@ def mkIntervalRat (loExpr hiExpr : Lean.Expr) (lo hi : ℚ) : MetaM Lean.Expr :=
   mkAppM ``IntervalRat.mk #[loExpr, hiExpr, proof]
 
 /-- Try to convert an expression directly to a rational (if it IS a rational constant) -/
-def toRat? (e : Lean.Expr) : MetaM (Option ℚ) := extractRatFromReal e
+def toRat? (e : Lean.Expr) : MetaM (Option ℚ) :=
+  -- Prefer the shared numeric parser used by reification.
+  do
+    match ← LeanCert.Meta.toRat? e with
+    | some q => pure (some q)
+    | none => extractRatFromReal e
 
 end LeanCert.Tactic.Auto

@@ -52,6 +52,256 @@ def tryCloseGoal : TacticM Bool := do
   let tacs ← standardCloseTactics
   tryCloseWith tacs
 
+/-- Parse a ≤ b expression. -/
+private def parseLe? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  guard (fn.isConstOf ``LE.le)
+  guard (args.size >= 4)
+  some (args[args.size - 2]!, args[args.size - 1]!)
+
+/-- Parse a < b expression. -/
+private def parseLt? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  guard (fn.isConstOf ``LT.lt)
+  guard (args.size >= 4)
+  some (args[args.size - 2]!, args[args.size - 1]!)
+
+/-- Parse x ^ y (either through `HPow.hPow` or `Real.rpow`). -/
+private def parsePow? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  if fn.isConstOf ``HPow.hPow || fn.isConstOf ``Pow.pow then
+    guard (args.size >= 2)
+    return (args[args.size - 2]!, args[args.size - 1]!)
+  if fn.isConstOf ``Real.rpow then
+    guard (args.size >= 2)
+    return (args[args.size - 2]!, args[args.size - 1]!)
+  none
+
+/-- Parse `Real.log x`. -/
+private def parseLogArg? (e : Lean.Expr) : Option Lean.Expr := do
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  guard (fn.isConstOf ``Real.log)
+  guard (args.size >= 1)
+  return args[args.size - 1]!
+
+/-- Parse `Set.Icc lo hi` as a set expression. -/
+private def parseIccSet? (s : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+  let fn := s.getAppFn
+  let args := s.getAppArgs
+  guard (fn.isConstOf ``Set.Icc)
+  guard (args.size >= 2)
+  some (args[args.size - 2]!, args[args.size - 1]!)
+
+/-- Parse an Icc proposition in either `x ∈ Set.Icc lo hi` or `Set.Icc lo hi x` form. -/
+private def parseIccProp? (p : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Lean.Expr) := do
+  -- Membership form: Membership.mem x (Set.Icc lo hi)
+  let fn := p.getAppFn
+  let args := p.getAppArgs
+  if fn.isConstOf ``Membership.mem && args.size >= 2 then
+    let x := args[args.size - 2]!
+    let s := args[args.size - 1]!
+    if let some (lo, hi) := parseIccSet? s then
+      return (x, lo, hi)
+  -- Application form: Set.Icc lo hi x
+  let fn2 := p.getAppFn
+  let args2 := p.getAppArgs
+  if fn2.isConstOf ``Set.Icc && args2.size >= 3 then
+    let lo := args2[args2.size - 3]!
+    let hi := args2[args2.size - 2]!
+    let x := args2[args2.size - 1]!
+    return (x, lo, hi)
+  none
+
+/-- Try to solve a fresh goal by running a tactic; returns a proof term on success. -/
+private def solveByTactic? (goalTy : Lean.Expr) (tac : TSyntax `tactic) : TacticM (Option Lean.Expr) := do
+  let saved ← saveState
+  let g ← mkFreshExprMVar goalTy
+  setGoals [g.mvarId!]
+  try
+    evalTactic tac
+    if (← getGoals).isEmpty then
+      let pf ← instantiateMVars g
+      saved.restore
+      return some pf
+    saved.restore
+    return none
+  catch _ =>
+    saved.restore
+    return none
+
+/-- Build `0 < e` type for reals. -/
+private def mkZeroLt (e : Lean.Expr) : MetaM Lean.Expr := do
+  let ty ← inferType e
+  let zero ← mkAppOptM ``Rat.cast #[some ty, none, some (toExpr (0 : Rat))]
+  mkAppM ``LT.lt #[zero, e]
+
+/-- Build `1 < e` type for reals. -/
+private def mkOneLt (e : Lean.Expr) : MetaM Lean.Expr := do
+  let ty ← inferType e
+  let one ← mkAppOptM ``Rat.cast #[some ty, none, some (toExpr (1 : Rat))]
+  mkAppM ``LT.lt #[one, e]
+
+/-- Collect lower-bound proofs `lo ≤ target` with extracted rational `lo`. -/
+private def collectLowerBounds (target : Lean.Expr) : TacticM (Array (ℚ × Lean.Expr × Lean.Expr)) := do
+  let mut out : Array (ℚ × Lean.Expr × Lean.Expr) := #[]
+  for ldecl in (← getLCtx) do
+    if ldecl.isImplementationDetail || ldecl.isAuxDecl then
+      continue
+    let h := mkFVar ldecl.fvarId
+    let tyWhnf ← whnf ldecl.type
+
+    -- Direct lower-bound hypothesis: lo ≤ target.
+    if let some (lo, rhs) := parseLe? tyWhnf then
+      if (← isDefEq rhs target) then
+        if let some q ← extractRatFromReal lo then
+          out := out.push (q, lo, h)
+
+    -- Strict lower-bound hypothesis: lo < target.
+    if let some (lo, rhs) := parseLt? tyWhnf then
+      if (← isDefEq rhs target) then
+        if let some q ← extractRatFromReal lo then
+          let hle ← mkAppM ``le_of_lt #[h]
+          out := out.push (q, lo, hle)
+
+    -- Membership/app-style Set.Icc hypotheses.
+    if let some (x, lo, _hi) := parseIccProp? tyWhnf then
+      if (← isDefEq x target) then
+        if let some q ← extractRatFromReal lo then
+          let hLoLe ← mkAppM ``And.left #[h]
+          out := out.push (q, lo, hLoLe)
+
+    -- Conjunctive hypotheses (e.g. from Set.Icc): extract both sides.
+    let fn := tyWhnf.getAppFn
+    let args := tyWhnf.getAppArgs
+    if fn.isConstOf ``And && args.size >= 2 then
+      let leftProp := args[0]!
+      let rightProp := args[1]!
+      let hLeft ← mkAppM ``And.left #[h]
+      let hRight ← mkAppM ``And.right #[h]
+
+      if let some (lo, rhs) := parseLe? leftProp then
+        if (← isDefEq rhs target) then
+          if let some q ← extractRatFromReal lo then
+            out := out.push (q, lo, hLeft)
+      if let some (lo, rhs) := parseLt? leftProp then
+        if (← isDefEq rhs target) then
+          if let some q ← extractRatFromReal lo then
+            let hle ← mkAppM ``le_of_lt #[hLeft]
+            out := out.push (q, lo, hle)
+
+      if let some (lo, rhs) := parseLe? rightProp then
+        if (← isDefEq rhs target) then
+          if let some q ← extractRatFromReal lo then
+            out := out.push (q, lo, hRight)
+      if let some (lo, rhs) := parseLt? rightProp then
+        if (← isDefEq rhs target) then
+          if let some q ← extractRatFromReal lo then
+            let hle ← mkAppM ``le_of_lt #[hRight]
+            out := out.push (q, lo, hle)
+  return out
+
+/-- Try to prove `0 < target` from collected lower bounds. -/
+private def provePositiveFromBounds? (target : Lean.Expr) : TacticM (Option Lean.Expr) := do
+  let lbs ← collectLowerBounds target
+  for (q, lo, hLoLeTarget) in lbs do
+    if q > 0 then
+      let some hZeroLtLo ← solveByTactic? (← mkZeroLt lo) (← `(tactic| norm_num))
+        | continue
+      let hPos ← mkAppM ``lt_of_lt_of_le #[hZeroLtLo, hLoLeTarget]
+      return some hPos
+  return none
+
+/-- Try to prove `0 < target` from an `Set.Icc` hypothesis in the local context. -/
+private def provePositiveFromIccAssumption? (target : Lean.Expr) : TacticM (Option Lean.Expr) := do
+  solveByTactic? (← mkZeroLt target) (← `(tactic|
+    first
+    | exact lt_of_lt_of_le (by norm_num) ((Set.mem_Icc.mp (by assumption)).1)
+    | exact lt_of_lt_of_le (by positivity) ((Set.mem_Icc.mp (by assumption)).1)
+    | positivity))
+
+/-- Try to prove `0 < log arg` from bounds on `arg`. -/
+private def proveLogPositiveFromBounds? (arg : Lean.Expr) : TacticM (Option Lean.Expr) := do
+  let lbs ← collectLowerBounds arg
+  for (q, lo, hLoLeArg) in lbs do
+    if q > 1 then
+      let some hOneLtLo ← solveByTactic? (← mkOneLt lo) (← `(tactic| norm_num))
+        | continue
+      let hOneLtArg ← mkAppM ``lt_of_lt_of_le #[hOneLtLo, hLoLeArg]
+      let hLogPos ← mkAppM ``Real.log_pos #[hOneLtArg]
+      return some hLogPos
+  return none
+
+/-- Try to prove `0 < log arg` from an `Set.Icc` hypothesis on `arg`. -/
+private def proveLogPositiveFromIccAssumption? (arg : Lean.Expr) : TacticM (Option Lean.Expr) := do
+  solveByTactic? (← mkZeroLt (← mkAppM ``Real.log #[arg])) (← `(tactic|
+    exact Real.log_pos (lt_of_lt_of_le (by norm_num) ((Set.mem_Icc.mp (by assumption)).1))))
+
+/-- Try to close side goals generated by reifying `x ^ q` as `exp (log x * q)`. -/
+def tryCloseRpowSideGoal : TacticM Bool := do
+  let saved ← saveState
+  let goal ← getMainGoal
+  goal.withContext do
+    try
+      evalTactic (← `(tactic| try intros))
+      -- Unfold the reflected RHS into plain real operations.
+      evalTactic (← `(tactic|
+        simp only [LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_mul,
+          LeanCert.Core.Expr.eval_log, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_const]))
+
+      let goal ← getMainGoal
+      let goalTy ← instantiateMVars (← goal.getType)
+      let some (_eqTy, lhs, rhs) := goalTy.eq?
+        | saved.restore; return false
+
+      let orientationAndPow? : Option (Bool × Lean.Expr × Lean.Expr) :=
+        match parsePow? lhs with
+        | some (base, exp) => some (true, base, exp)
+        | none =>
+          match parsePow? rhs with
+          | some (base, exp) => some (false, base, exp)
+          | none => none
+      let some (powOnLeft, base, _exp) := orientationAndPow?
+        | saved.restore; return false
+
+      -- Prove positivity of the rpow base from interval/domain hypotheses.
+      let hPos? ←
+        match parseLogArg? base with
+        | some arg =>
+          -- For `(log arg)^q`, we need `1 < arg`.
+          proveLogPositiveFromBounds? arg
+        | none =>
+          provePositiveFromBounds? base
+      let some hPos := hPos?
+        | saved.restore; return false
+
+      let hPosSyn ← Lean.Elab.Term.exprToSyntax hPos
+      let zeroReal ← mkAppOptM ``OfNat.ofNat #[some (mkConst ``Real), some (mkNatLit 0), none]
+      let hPos0Ty ← mkAppM ``LT.lt #[zeroReal, base]
+      let some hPos0 ← solveByTactic? hPos0Ty (← `(tactic| simpa [Rat.cast_zero] using $hPosSyn))
+        | saved.restore; return false
+      let hPos0Syn ← Lean.Elab.Term.exprToSyntax hPos0
+      if powOnLeft then
+        evalTactic (← `(tactic|
+          simpa [Real.rpow_def_of_pos $hPos0Syn, Rat.divInt_eq_div,
+            mul_comm, mul_left_comm, mul_assoc]))
+      else
+        evalTactic (← `(tactic|
+          symm;
+          simpa [Real.rpow_def_of_pos $hPos0Syn, Rat.divInt_eq_div,
+            mul_comm, mul_left_comm, mul_assoc]))
+
+      if (← getGoals).isEmpty then
+        return true
+      saved.restore
+      return false
+    catch _ =>
+      saved.restore
+      return false
+
 /-- Close all remaining side goals -/
 def closeAllSideGoals (tacticName : String) : TacticM Unit := do
   let goals ← getGoals

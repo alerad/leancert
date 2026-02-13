@@ -141,9 +141,9 @@ def intervalBoundCore (taylorDepth : Nat) : TacticM Unit := do
   if preprocessed then
     trace[interval_decide] "Preprocessing applied ≥/> → ≤/<"
 
-  -- Pre-process: normalize powers (x^2 → x*x, x^3 → x*x*x, etc.)
+  -- Pre-process: lightweight power cleanup after intervalNormCore.
   try
-    evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one] at *))
+    evalTactic (← `(tactic| simp only [pow_zero, pow_one, one_mul, mul_one] at *))
   catch _ => pure ()
 
   -- Check if the goal was already solved by simplification (e.g., x^0 ≤ 1 → 1 ≤ 1)
@@ -220,11 +220,15 @@ where
             for g in newGoals do
               setGoals [g]
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  let goalsEmpty := (← getGoals).isEmpty
-                  return goalsEmpty
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
+                  return false
                 catch _ =>
+                  saved.restore
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
@@ -263,29 +267,34 @@ where
               setGoals [g]
               -- Helper: try a tactic and check if goal was actually closed
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  -- Check if goal is now assigned/closed
-                  let goalsEmpty := (← getGoals).isEmpty
-                  return goalsEmpty
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
+                  return false
                 catch _ =>
+                  saved.restore
                   return false
               -- Try decimal-specific tactic first for efficiency
               if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryCloseRpowSideGoal then continue
               -- Handle negative decimals (-(1/2) = ↑(Rat.divInt (-1) 2))
-              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; try (push_cast; try ring)))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               -- For Set.Icc equality, use congr_arg with norm_num
               if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+              if ← tryCloseRpowSideGoal then continue
               if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
               -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
               if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
               -- Handle Expr.eval unfolding - unfolds Expr.eval to raw arithmetic, then uses ring to close
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
               -- Same but with push_cast for rational coercion issues
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
               -- Handle decimal bounds (2.72 = ↑(Rat.divInt 68 25))
               -- norm_num converts 2.72 to 68/25, then simp+push_cast closes the equality
               if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
@@ -331,15 +340,22 @@ where
             for g in goals do
               setGoals [g]
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  return (← getGoals).isEmpty
-                catch _ => return false
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
+                  return false
+                catch _ =>
+                  saved.restore
+                  return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+              if ← tryCloseRpowSideGoal then continue
               if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; ring))) then continue
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
               logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
 
   /-- Prove ∀ x ∈ I, c ≤ f x -/
@@ -371,11 +387,15 @@ where
             for g in newGoals do
               setGoals [g]
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  let goalsEmpty := (← getGoals).isEmpty
-                  return goalsEmpty
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
+                  return false
                 catch _ =>
+                  saved.restore
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
@@ -408,27 +428,33 @@ where
               setGoals [g]
               -- Helper: try a tactic and check if goal was actually closed
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  -- Check if goal is now assigned/closed
-                  if (← getGoals).isEmpty then return true
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
                   return false
-                catch _ => return false
+                catch _ =>
+                  saved.restore
+                  return false
               -- Try decimal-specific tactic first for efficiency
               if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryCloseRpowSideGoal then continue
               -- Handle negative decimals (-(1/2) = ↑(Rat.divInt (-1) 2))
-              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; try (push_cast; try ring)))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+              if ← tryCloseRpowSideGoal then continue
               if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
               -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
               if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
               -- Handle Expr.eval unfolding - unfolds Expr.eval to raw arithmetic, then uses ring to close
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
               -- Same but with push_cast for rational coercion issues
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
               -- Handle decimal bounds (2.72 = ↑(Rat.divInt 68 25)) - fallback tactics
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
@@ -471,15 +497,22 @@ where
             for g in goals do
               setGoals [g]
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  return (← getGoals).isEmpty
-                catch _ => return false
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
+                  return false
+                catch _ =>
+                  saved.restore
+                  return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
+              if ← tryCloseRpowSideGoal then continue
               if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; ring))) then continue
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
               logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
 
   /-- Prove ∀ x ∈ I, f x < c -/
@@ -511,11 +544,15 @@ where
             for g in newGoals do
               setGoals [g]
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  let goalsEmpty := (← getGoals).isEmpty
-                  return goalsEmpty
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
+                  return false
                 catch _ =>
+                  saved.restore
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
@@ -548,16 +585,21 @@ where
               setGoals [g]
               -- Helper: try a tactic and check if goal was actually closed
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  -- Check if goal is now assigned/closed
-                  if (← getGoals).isEmpty then return true
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
                   return false
-                catch _ => return false
+                catch _ =>
+                  saved.restore
+                  return false
               -- Try decimal-specific tactic first for efficiency
               if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryCloseRpowSideGoal then continue
               -- Handle negative decimals (-(1/2) = ↑(Rat.divInt (-1) 2))
-              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; try (push_cast; try ring)))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
@@ -566,9 +608,9 @@ where
               -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
               if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
               -- Handle Expr.eval unfolding - unfolds Expr.eval to raw arithmetic, then uses ring to close
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
               -- Same but with push_cast for rational coercion issues
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
               -- Handle decimal bounds - fallback tactics
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
@@ -623,11 +665,15 @@ where
             for g in newGoals do
               setGoals [g]
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  let goalsEmpty := (← getGoals).isEmpty
-                  return goalsEmpty
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
+                  return false
                 catch _ =>
+                  saved.restore
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
@@ -660,16 +706,21 @@ where
               setGoals [g]
               -- Helper: try a tactic and check if goal was actually closed
               let tryClose (tac : TacticM Unit) : TacticM Bool := do
+                let saved ← saveState
                 try
                   tac
-                  -- Check if goal is now assigned/closed
-                  if (← getGoals).isEmpty then return true
+                  if (← getGoals).isEmpty then
+                    return true
+                  saved.restore
                   return false
-                catch _ => return false
+                catch _ =>
+                  saved.restore
+                  return false
               -- Try decimal-specific tactic first for efficiency
               if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+              if ← tryCloseRpowSideGoal then continue
               -- Handle negative decimals (-(1/2) = ↑(Rat.divInt (-1) 2))
-              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; try (push_cast; try ring)))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
               if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
@@ -678,9 +729,9 @@ where
               -- Handle power expansion (x^2 = x*x, x^3 = x*x*x, etc.)
               if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
               -- Handle Expr.eval unfolding - unfolds Expr.eval to raw arithmetic, then uses ring to close
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
               -- Same but with push_cast for rational coercion issues
-              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sub]; push_cast; ring))) then continue
+              if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
               -- Handle decimal bounds - fallback tactics
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
@@ -759,7 +810,7 @@ elab "certify_bound" depth:(num)? : tactic => do
           try evalTactic (← `(tactic| simp only [ge_iff_le, gt_iff_lt]))
           catch _ => pure ()
         try
-          evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one] at *))
+          evalTactic (← `(tactic| simp only [pow_zero, pow_one, one_mul, mul_one] at *))
         catch _ => pure ()
 
         let goal ← getMainGoal
@@ -777,3 +828,4 @@ macro "interval_bound" depth:(num)? : tactic => `(tactic| certify_bound $[$depth
 
 
 end LeanCert.Tactic.Auto
+

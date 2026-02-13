@@ -146,14 +146,59 @@ def tryNormalizeGoalToIcc : TacticM Bool := do
   else
     return false
 
+/-! ## rpow Normalization Helpers -/
+
+/-- Normalize `x ^ (1/2)` into `sqrt x`. -/
+private theorem rpow_one_half_eq_sqrt (x : ℝ) :
+    x ^ ((1 : ℝ) / 2) = Real.sqrt x := by
+  rw [Real.sqrt_eq_rpow]
+
+/-- Normalize `x ^ (2⁻¹)` into `sqrt x`. -/
+private theorem rpow_inv_two_eq_sqrt (x : ℝ) :
+    x ^ ((2 : ℝ)⁻¹) = Real.sqrt x := by
+  have hInv : ((2 : ℝ)⁻¹) = ((1 : ℝ) / 2) := by norm_num
+  rw [hInv, rpow_one_half_eq_sqrt]
+
+/-- Normalize `x ^ (3/2)` into `x * sqrt x`. -/
+private theorem rpow_three_halves_eq_mul_sqrt (x : ℝ) :
+    x ^ ((3 : ℝ) / 2) = x * Real.sqrt x := by
+  by_cases hx : x = 0
+  · subst hx
+    norm_num
+  · have hsplit : ((3 : ℝ) / 2) = ((1 : ℝ) / 2) + (1 : ℕ) := by norm_num
+    rw [hsplit, Real.rpow_add_natCast hx ((1 : ℝ) / 2) 1, pow_one]
+    simp [Real.sqrt_eq_rpow, mul_comm]
+
+/-- Normalize `x ^ 1.5` into `x * sqrt x`. -/
+private theorem rpow_one_point_five_eq_mul_sqrt (x : ℝ) :
+    x ^ (1.5 : ℝ) = x * Real.sqrt x := by
+  have hDec : (1.5 : ℝ) = ((3 : ℝ) / 2) := by norm_num
+  rw [hDec, rpow_three_halves_eq_mul_sqrt]
+
+/-! ## Canonicalization Simp Sets -/
+
+/-- Apply robust, non-expansive normalization rewrites. -/
+private def intervalNormSafeSimp : TacticM Unit := do
+  evalTactic (← `(tactic|
+    simp only [ge_iff_le, gt_iff_lt, sub_eq_add_neg, Rat.divInt_eq_div,
+      Set.mem_setOf, pow_two, sq,
+      rpow_one_half_eq_sqrt, rpow_inv_two_eq_sqrt,
+      rpow_three_halves_eq_mul_sqrt, rpow_one_point_five_eq_mul_sqrt] at *))
+
+/-- Apply goal-level cleanup rewrites after safe normalization. -/
+private def intervalNormGoalSimp : TacticM Unit := do
+  evalTactic (← `(tactic| simp only [pow_zero, pow_one, one_mul, mul_one] at *))
+
 /-! ## Main Normalization -/
 
 /-- Normalize common goal patterns for interval tactics. -/
 def intervalNormCore : TacticM Unit := do
   try
-    evalTactic (← `(tactic|
-      simp only [ge_iff_le, gt_iff_lt, sub_eq_add_neg, Rat.divInt_eq_div,
-        Set.mem_setOf, pow_two, sq] at *))
+    intervalNormSafeSimp
+  catch _ =>
+    pure ()
+  try
+    intervalNormGoalSimp
   catch _ =>
     pure ()
   -- Try to normalize the outermost variable to Set.Icc form.
