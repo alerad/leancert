@@ -186,19 +186,16 @@ Real.sin x + Real.cos x
 Real.exp (Real.sin x)
 ```
 
-**Still unsupported in reification:**
+**Requires positive base (lowered via exp/log):**
 ```lean
--- Non-half rational exponents
+-- General rational exponents (base must be provably > 0)
 x^(1/3)
 x^(2/3)
 x^(1/5)
-
--- Complex nested coefficients
-(2/3) * x * Real.sin x
 ```
 
-These unsupported power shapes now fail with an explicit error:
-`Unsupported rational exponent in x ^ q`.
+These are reified as `exp(log(x) * q)`. The tactic automatically proves
+`0 < x` from `Set.Icc` domain hypotheses when the lower bound is positive.
 
 ### What requires Expr AST syntax?
 

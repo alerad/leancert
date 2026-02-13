@@ -32,9 +32,9 @@ Note: `interval_bound` is an alias for backward compatibility.
 |-----------|------|---------|-------------|
 | `depth` | `ℕ` | 10 | Taylor series depth for transcendentals |
 
-**Supported functions:** `+`, `-`, `*`, `/`, `^` (integer and half-integer exponents), `sin`, `cos`, `exp`, `sqrt`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`, `atanh`, `sinc`, `erf`, `log`, `inv`
+**Supported functions:** `+`, `-`, `*`, `/`, `^` (rational exponents), `abs`, `max`, `min`, `sin`, `cos`, `exp`, `sqrt`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`, `atanh`, `sinc`, `erf`, `log`, `inv`
 
-**Current power limitation:** non-half rational exponents such as `x^(1/3)`, `x^(2/3)`, `x^(1/5)` are not yet reified automatically.
+**Note on rational exponents:** general rational exponents like `x^(1/3)` are lowered to `exp(log(x) * q)`, which requires the base to be provably positive from interval bounds.
 
 ---
 
