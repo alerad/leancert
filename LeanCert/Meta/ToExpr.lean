@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import Lean
 import LeanCert.Core.Expr
+import LeanCert.Meta.Numeral
 
 /-!
 # Metaprogram for Reifying Lean Expressions to LeanCert AST
@@ -31,6 +32,22 @@ expressions (e.g., `fun (x : ℝ) => x + 2`) into `LeanCert.Core.Expr` terms
 open Lean Meta Elab Command Term
 
 namespace LeanCert.Meta
+
+/-- Closed-form rewrite for max on reals, used for reification via existing Expr nodes. -/
+theorem max_eq_half_add_abs_sub (a b : Real) :
+    max a b = (a + b + |b + (-a)|) / 2 := by
+  have h1 : min a b + max a b = a + b := min_add_max a b
+  have h2 : max a b - min a b = |b + (-a)| := by
+    simpa [sub_eq_add_neg] using (max_sub_min_eq_abs a b)
+  linarith
+
+/-- Closed-form rewrite for min on reals, used for reification via existing Expr nodes. -/
+theorem min_eq_half_sub_abs_sub (a b : Real) :
+    min a b = (a + b - |b + (-a)|) / 2 := by
+  have h1 : min a b + max a b = a + b := min_add_max a b
+  have h2 : max a b - min a b = |b + (-a)| := by
+    simpa [sub_eq_add_neg] using (max_sub_min_eq_abs a b)
+  linarith
 
 /-- Context for the translation. Stores fvars of the lambda being traversed.
     `vars[0]` corresponds to `var 0`, `vars[1]` to `var 1`, etc. -/
@@ -81,6 +98,10 @@ def mkExprMul (e1 e2 : Lean.Expr) : MetaM Lean.Expr :=
 def mkExprNeg (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.neg #[e]
 
+/-- Build subtraction `e1 - e2` as `e1 + (-e2)` in Expr AST. -/
+def mkExprSub (e1 e2 : Lean.Expr) : MetaM Lean.Expr := do
+  mkExprAdd e1 (← mkExprNeg e2)
+
 /-- Build `LeanCert.Core.Expr.inv e`. -/
 def mkExprInv (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.inv #[e]
@@ -125,6 +146,10 @@ def mkExprErf (e : Lean.Expr) : MetaM Lean.Expr :=
 def mkExprSqrt (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.sqrt #[e]
 
+/-- Build absolute value as `sqrt (e * e)`. -/
+def mkExprAbs (e : Lean.Expr) : MetaM Lean.Expr := do
+  mkExprSqrt (← mkExprMul e e)
+
 /-- Build `LeanCert.Core.Expr.sinh e`. -/
 def mkExprSinh (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.sinh #[e]
@@ -141,114 +166,28 @@ def mkExprTanh (e : Lean.Expr) : MetaM Lean.Expr :=
 def mkExprPi : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.pi #[]
 
+/-- Build max(a,b) via `(a + b + |b - a|) / 2` in existing Expr constructors. -/
+def mkExprMaxViaAbs (a b : Lean.Expr) : MetaM Lean.Expr := do
+  let sumAB ← mkExprAdd a b
+  let diffBA ← mkExprSub b a
+  let absDiff ← mkExprAbs diffBA
+  let numer ← mkExprAdd sumAB absDiff
+  let half ← mkExprConst ((1 : ℚ) / 2)
+  mkExprMul half numer
+
+/-- Build min(a,b) via `(a + b - |b - a|) / 2` in existing Expr constructors. -/
+def mkExprMinViaAbs (a b : Lean.Expr) : MetaM Lean.Expr := do
+  let sumAB ← mkExprAdd a b
+  let diffBA ← mkExprSub b a
+  let absDiff ← mkExprAbs diffBA
+  let numer ← mkExprSub sumAB absDiff
+  let half ← mkExprConst ((1 : ℚ) / 2)
+  mkExprMul half numer
+
 /-! ## Constant Extraction
 
-Lean stores numbers as complex hierarchies of type classes (`OfNat.ofNat`,
-`Rat.cast`, etc.). We need a pattern matcher that digs out the actual number.
+Numeric parsing is shared in `LeanCert.Meta.Numeral.toRat?`.
 -/
-
-/-- Attempt to parse a Lean Expr as a constant rational number.
-    Handles various encodings: Nat literals, Int literals, OfNat, Neg, etc. -/
-partial def toRat? (e : Lean.Expr) : MetaM (Option ℚ) := do
-  -- Case 1: Simple Nat literal
-  if let some n := e.rawNatLit? then
-    return some (n : ℚ)
-
-  -- Case 2: Try matching before whnf
-  if let some q ← tryMatchNumeric e then
-    return some q
-
-  -- Case 3: Reduce the expression to handle type class projections
-  let e ← whnf e
-
-  -- Case 4: Try matching after whnf
-  if let some q ← tryMatchNumeric e then
-    return some q
-
-  return none
-
-where
-  /-- Try to match a numeric expression. -/
-  tryMatchNumeric (e : Lean.Expr) : MetaM (Option ℚ) := do
-    match_expr e with
-    -- OfNat.ofNat α n inst => extract n
-    | OfNat.ofNat _ n _ =>
-      if let some k := n.rawNatLit? then
-        return some (k : ℚ)
-      -- For natural number literals like (2 : ℝ), the second arg contains the nat
-      if let some k := n.nat? then
-        return some (k : ℚ)
-      -- Try to recursively extract from n
-      toRat? n
-
-    -- Neg.neg α inst x => negate the result
-    | Neg.neg _ _ x =>
-      if let some q ← toRat? x then
-        return some (-q)
-      else
-        return none
-
-    -- HSub.hSub for constant subtraction
-    | HSub.hSub _ _ _ _ a b =>
-      match ← toRat? a, ← toRat? b with
-      | some qa, some qb => return some (qa - qb)
-      | _, _ => return none
-
-    -- HDiv.hDiv α β γ inst n d => n / d
-    | HDiv.hDiv _ _ _ _ n d =>
-      match ← toRat? n, ← toRat? d with
-      | some qn, some qd => return some (qn / qd)
-      | _, _ => return none
-
-    -- HMul.hMul for constant multiplication
-    | HMul.hMul _ _ _ _ a b =>
-      match ← toRat? a, ← toRat? b with
-      | some qa, some qb => return some (qa * qb)
-      | _, _ => return none
-
-    -- HAdd.hAdd for constant addition
-    | HAdd.hAdd _ _ _ _ a b =>
-      match ← toRat? a, ← toRat? b with
-      | some qa, some qb => return some (qa + qb)
-      | _, _ => return none
-
-    -- Int.ofNat n => positive integer
-    | Int.ofNat n =>
-      if let some k := n.rawNatLit? then
-        return some (k : ℚ)
-      else
-        toRat? n
-
-    -- Int.negSucc n => -(n+1)
-    | Int.negSucc n =>
-      if let some k := n.rawNatLit? then
-        return some (-(k + 1 : ℚ))
-      else
-        return none
-
-    -- Rat.mk' num den (normalized rational)
-    | Rat.mk' num den _ _ =>
-      match ← toRat? num, ← toRat? den with
-      | some qnum, some qden => return some (qnum / qden)
-      | _, _ => return none
-
-    -- OfScientific.ofScientific α inst mantissa exponentSign decimalExponent
-    -- Represents: mantissa * 10^(if exponentSign then -decimalExponent else decimalExponent)
-    -- E.g., 2.5 = 25 * 10^(-1) → mantissa=25, exponentSign=true, decimalExponent=1
-    | OfScientific.ofScientific _ _ mantissa exponentSign decimalExponent =>
-      let some m := mantissa.rawNatLit?
-        | return none
-      let some exp := decimalExponent.rawNatLit?
-        | return none
-      -- Check exponentSign: true means negative exponent (like 2.5 = 25e-1)
-      let isNegExp := exponentSign.constName? == some ``Bool.true
-      let base10 : ℚ := (10 : ℚ) ^ exp
-      if isNegExp then
-        return some ((m : ℚ) / base10)  -- e.g., 25 / 10 = 2.5
-      else
-        return some ((m : ℚ) * base10)  -- e.g., 25 * 10 = 250
-
-    | _ => return none
 
 /-! ## Main Reification Loop
 
@@ -291,156 +230,189 @@ partial def toLeanCertExpr (e : Lean.Expr) : TranslateM Lean.Expr := do
     if unfolded != e then
       toLeanCertExpr unfolded
     else
-      let eTy ← inferType e
-      let ePP ← Meta.ppExpr e
-      let eTyPP ← Meta.ppExpr eTy
-      throwError "Unsupported expression for LeanCert: {ePP}\n\n\
-                  Expression type: {eTyPP}\n\n\
-                  Supported operations:\n\
-                  • Arithmetic: +, -, *, /, ^ (with constant exponent)\n\
-                  • Transcendentals: Real.sin, Real.cos, Real.exp, Real.log\n\
-                  • Constants: rational numbers, Real.pi\n\n\
-                  Suggestions:\n\
-                  • If using a custom definition, try unfolding it first with `simp only [myDef]`\n\
-                  • Check that all functions are from the Real namespace\n\
-                  • Complex expressions may need manual rewriting"
+      throwUnsupported e
   | none =>
-    let eTy ← inferType e
-    let ePP ← Meta.ppExpr e
-    let eTyPP ← Meta.ppExpr eTy
-    throwError "Unsupported expression for LeanCert: {ePP}\n\n\
-                Expression type: {eTyPP}\n\n\
-                Supported operations:\n\
-                • Arithmetic: +, -, *, /, ^ (with constant exponent)\n\
-                • Transcendentals: Real.sin, Real.cos, Real.exp, Real.log\n\
-                • Constants: rational numbers, Real.pi\n\n\
-                Suggestions:\n\
-                • If using a custom definition, try unfolding it first with `simp only [myDef]`\n\
-                • Check that all functions are from the Real namespace\n\
-                • Complex expressions may need manual rewriting"
+    throwUnsupported e
 
 where
   /-- Try to match the expression against known patterns. -/
   tryMatchExpr (e : Lean.Expr) : TranslateM (Option Lean.Expr) := do
-    match_expr e with
-    -- Addition: HAdd.hAdd α β γ inst a b
-    | HAdd.hAdd _ _ _ _ a b =>
+    -- For `Real`, `abs x` often elaborates to a max/sup form like
+    -- `SemilatticeSup.toMax.1 x (-x)` or a private `Real.sup` helper.
+    -- Recognize these shapes and normalize them to sqrt(x * x).
+    if let some (a, b) := (← toMaxArgs? e) then
+      let absArg? : Option Lean.Expr ←
+        match_expr b with
+        | Neg.neg _ _ b' =>
+          if b' == a then
+            pure (some a)
+          else
+            pure none
+        | _ =>
+          match_expr a with
+          | Neg.neg _ _ a' =>
+            if a' == b then
+              pure (some b)
+            else
+              pure none
+          | _ => pure none
+      if let some x := absArg? then
+        let ex ← toLeanCertExpr x
+        let exSq ← mkExprMul ex ex
+        return some (← mkExprSqrt exSq)
+      -- Generic max case: reify via a closed form with abs.
       let ea ← toLeanCertExpr a
       let eb ← toLeanCertExpr b
-      return some (← mkExprAdd ea eb)
+      return some (← mkExprMaxViaAbs ea eb)
 
-    -- Multiplication: HMul.hMul α β γ inst a b
-    | HMul.hMul _ _ _ _ a b =>
+    -- Generic min case: reify via a closed form with abs.
+    if let some (a, b) := (← toMinArgs? e) then
       let ea ← toLeanCertExpr a
       let eb ← toLeanCertExpr b
-      return some (← mkExprMul ea eb)
+      return some (← mkExprMinViaAbs ea eb)
 
-    -- Subtraction: HSub.hSub α β γ inst a b
-    -- Convert a - b to add(a, neg(b))
-    | HSub.hSub _ _ _ _ a b =>
-      let ea ← toLeanCertExpr a
-      let eb ← toLeanCertExpr b
-      let neg_b ← mkExprNeg eb
-      return some (← mkExprAdd ea neg_b)
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+    let some headName := fn.constName?
+      | return none
 
-    -- Negation: Neg.neg α inst x
-    | Neg.neg _ _ x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprNeg ex)
+    -- Nullary constants
+    if headName == ``Real.pi then
+      return some (← mkExprPi)
 
-    -- Division: HDiv.hDiv α β γ inst a b
-    -- If b is a nonzero constant, convert a / b to mul(a, const(1/b)) to avoid Expr.inv
-    -- Otherwise, convert a / b to mul(a, inv(b))
-    | HDiv.hDiv _ _ _ _ a b =>
-      let ea ← toLeanCertExpr a
-      -- Check if b is a constant rational
-      if let some qb ← toRat? b then
-        if qb ≠ 0 then
-          -- b is a nonzero constant: use a * (1/b) as Expr.const
-          let reciprocal := (1 : ℚ) / qb
-          let eRecip ← mkExprConst reciprocal
-          return some (← mkExprMul ea eRecip)
-      -- b is not a constant or is zero: fall back to a * inv(b)
-      let eb ← toLeanCertExpr b
-      let inv_b ← mkExprInv eb
-      return some (← mkExprMul ea inv_b)
-
-    -- Inverse: Inv.inv α inst x
-    | Inv.inv _ _ x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprInv ex)
-
-    -- Power: HPow.hPow α β γ inst base exp
-    | HPow.hPow _ _ _ _ base exp =>
-      -- Try to extract natural number exponent
-      if let some q ← toRat? exp then
-        if q.den == 1 && q.num ≥ 0 then
-          let ebase ← toLeanCertExpr base
-          return some (← mkPow ebase q.num.toNat)
+    -- Unary operations dispatched from a table
+    if let some mk := lookupUnary headName then
+      if let some x := lastArg? args then
+        let ex ← toLeanCertExpr x
+        return some (← mk ex)
       return none
 
-    -- Transcendental functions
-    | Real.sin x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprSin ex)
+    -- Binary operations with direct constructors
+    if let some mk := lookupBinary headName then
+      if let some (a, b) := lastTwoArgs? args then
+        let ea ← toLeanCertExpr a
+        let eb ← toLeanCertExpr b
+        return some (← mk ea eb)
+      return none
 
-    | Real.cos x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprCos ex)
+    -- Subtraction: a - b  ↦  a + (-b)
+    if headName == ``HSub.hSub then
+      if let some (a, b) := lastTwoArgs? args then
+        let ea ← toLeanCertExpr a
+        let eb ← toLeanCertExpr b
+        let neg_b ← mkExprNeg eb
+        return some (← mkExprAdd ea neg_b)
+      return none
 
-    | Real.exp x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprExp ex)
+    -- Division: a / b  ↦  a * (1/b) when b is constant; else a * inv(b)
+    if headName == ``HDiv.hDiv then
+      if let some (a, b) := lastTwoArgs? args then
+        let ea ← toLeanCertExpr a
+        if let some qb ← toRat? b then
+          if qb ≠ 0 then
+            let eRecip ← mkExprConst ((1 : ℚ) / qb)
+            return some (← mkExprMul ea eRecip)
+        let eb ← toLeanCertExpr b
+        let inv_b ← mkExprInv eb
+        return some (← mkExprMul ea inv_b)
+      return none
 
-    | Real.log x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprLog ex)
+    -- Power with rational exponents.
+    if headName == ``HPow.hPow then
+      if let some (base, exp) := lastTwoArgs? args then
+        if let some q ← toRat? exp then
+          let ebase ← toLeanCertExpr base
+          if q.den == 1 then
+            return some (← mkPowInt ebase q.num)
+          if q.den == 2 then
+            return some (← mkHalfIntegerPow ebase q.num)
+          -- General rational exponents are lowered to exp(log(base) * q).
+          -- This keeps the AST small while making domain constraints explicit
+          -- through `log` (which must be certified on positive intervals).
+          let qExpr ← mkExprConst q
+          let logBase ← mkExprLog ebase
+          let prod ← mkExprMul logBase qExpr
+          return some (← mkExprExp prod)
+      return none
 
-    | Real.arctan x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprAtan ex)
+    return none
 
-    | Real.arsinh x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprArsinh ex)
+  /-- Unary head-symbol handlers. -/
+  lookupUnary (n : Name) : Option (Lean.Expr → MetaM Lean.Expr) :=
+    unaryTable.findSome? (fun (name, mk) =>
+      if name == n then some mk else none)
 
-    -- Handle Real.atanh from our own definition
-    | LeanCert.Core.Real.atanh x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprAtanh ex)
+  /-- Binary head-symbol handlers. -/
+  lookupBinary (n : Name) : Option (Lean.Expr → Lean.Expr → MetaM Lean.Expr) :=
+    binaryTable.findSome? (fun (name, mk) =>
+      if name == n then some mk else none)
 
-    -- Handle Real.sinc from Mathlib
-    | Real.sinc x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprSinc ex)
+  /-- Table for unary operations. -/
+  unaryTable : List (Name × (Lean.Expr → MetaM Lean.Expr)) :=
+    [ (``Neg.neg, mkExprNeg)
+    , (``Inv.inv, mkExprInv)
+    , (``Real.sin, mkExprSin)
+    , (``Real.cos, mkExprCos)
+    , (``Real.exp, mkExprExp)
+    , (``Real.log, mkExprLog)
+    , (``Real.arctan, mkExprAtan)
+    , (``Real.arsinh, mkExprArsinh)
+    , (``LeanCert.Core.Real.atanh, mkExprAtanh)
+    , (``Real.sinc, mkExprSinc)
+    , (``LeanCert.Core.Real.erf, mkExprErf)
+    , (``Real.sqrt, mkExprSqrt)
+    , (``Real.sinh, mkExprSinh)
+    , (``Real.cosh, mkExprCosh)
+    , (``Real.tanh, mkExprTanh)
+    , (``abs, fun x => do
+        let xSq ← mkExprMul x x
+        mkExprSqrt xSq)
+    ]
 
-    -- Handle Real.erf from our own definition
-    | LeanCert.Core.Real.erf x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprErf ex)
+  /-- Table for binary operations with direct AST constructors. -/
+  binaryTable : List (Name × (Lean.Expr → Lean.Expr → MetaM Lean.Expr)) :=
+    [ (``HAdd.hAdd, mkExprAdd)
+    , (``HMul.hMul, mkExprMul)
+    ]
 
-    -- Handle Real.sqrt
-    | Real.sqrt x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprSqrt ex)
+  /-- Last argument of an application (if present). -/
+  lastArg? (args : Array Lean.Expr) : Option Lean.Expr :=
+    if _h : args.size ≥ 1 then
+      some (args[args.size - 1]!)
+    else
+      none
 
-    -- Handle hyperbolic functions
-    | Real.sinh x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprSinh ex)
+  /-- Last two arguments of an application (if present). -/
+  lastTwoArgs? (args : Array Lean.Expr) : Option (Lean.Expr × Lean.Expr) :=
+    if _h : args.size ≥ 2 then
+      some (args[args.size - 2]!, args[args.size - 1]!)
+    else
+      none
 
-    | Real.cosh x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprCosh ex)
-
-    | Real.tanh x =>
-      let ex ← toLeanCertExpr x
-      return some (← mkExprTanh ex)
-
-    -- The constant π
-    | Real.pi => return some (← mkExprPi)
-
-    | _ => return none
+  /-- Rich unsupported-expression diagnostics (head symbol + arity). -/
+  throwUnsupported {α : Type} (e : Lean.Expr) : TranslateM α := do
+    let eTy ← inferType e
+    let ePP ← Meta.ppExpr e
+    let eTyPP ← Meta.ppExpr eTy
+    let head := e.getAppFn
+    let headPP ← Meta.ppExpr head
+    let headName := head.constName?.map toString |>.getD "(non-const head)"
+    let args := e.getAppArgs
+    throwError "Unsupported expression for LeanCert: {ePP}\n\n\
+                Expression type: {eTyPP}\n\
+                Head symbol: {headName}\n\
+                Head term: {headPP}\n\
+                Arity: {args.size}\n\n\
+                Supported operations:\n\
+                • Arithmetic: +, -, *, /, ^ (integer, half-integer, and general rational exponents), abs, max, min\n\
+                • Transcendentals: Real.sin, Real.cos, Real.exp, Real.log,\n\
+                  Real.sqrt, Real.arctan, Real.arsinh, Real.atanh,\n\
+                  Real.sinc, Real.erf, Real.sinh, Real.cosh, Real.tanh\n\
+                • Constants: rational numbers, Real.pi\n\n\
+                Suggestions:\n\
+                • Normalize first with `interval_norm`\n\
+                • Unfold custom definitions with `simp only [myDef]`\n\
+                • Add a handler for the head symbol above if this form should be supported"
 
   /-- Build a power expression using repeated multiplication.
       pow(base, k) = base * base * ... * base (k times) or 1 if k = 0. -/
@@ -452,6 +424,62 @@ where
     else
       let rest ← mkPow base (k - 1)
       mkExprMul base rest
+
+  /-- Build `base ^ z` for integer `z` using `Expr.pow` + `Expr.inv`. -/
+  mkPowInt (base : Lean.Expr) (z : Int) : MetaM Lean.Expr := do
+    if z ≥ 0 then
+      mkPow base z.toNat
+    else
+      let p ← mkPow base z.natAbs
+      mkExprInv p
+
+  /-- Build `base ^ (n/2)` for integer numerator `n` (half-integers). -/
+  mkHalfIntegerPow (base : Lean.Expr) (n : Int) : MetaM Lean.Expr := do
+    -- n/2 in reduced form always has odd |n|. We still handle all cases defensively.
+    if n = 0 then
+      mkExprConst 1
+    else
+      let absN : Nat := n.natAbs
+      let k : Nat := (absN - 1) / 2
+      let sqrtBase ← mkExprSqrt base
+      let posPart ←
+        if k == 0 then
+          pure sqrtBase
+        else
+          let p ← mkPow base k
+          mkExprMul p sqrtBase
+      if n ≥ 0 then
+        pure posPart
+      else
+        mkExprInv posPart
+
+  /-- Try to decompose `e` as `max a b` using definitional equality.
+      This is robust against internal projection names changing across
+      Mathlib versions. -/
+  toMaxArgs? (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    let args := e.getAppArgs
+    if args.size < 2 then return none
+    let a := args[args.size - 2]!
+    let b := args[args.size - 1]!
+    try
+      let maxExpr ← mkAppM ``max #[a, b]
+      if (← isDefEq e maxExpr) then
+        return some (a, b)
+    catch _ => pure ()
+    return none
+
+  /-- Try to decompose `e` as `min a b` using definitional equality. -/
+  toMinArgs? (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    let args := e.getAppArgs
+    if args.size < 2 then return none
+    let a := args[args.size - 2]!
+    let b := args[args.size - 1]!
+    try
+      let minExpr ← mkAppM ``min #[a, b]
+      if (← isDefEq e minExpr) then
+        return some (a, b)
+    catch _ => pure ()
+    return none
 
 /-! ## Entry Point
 

@@ -32,7 +32,9 @@ Note: `interval_bound` is an alias for backward compatibility.
 |-----------|------|---------|-------------|
 | `depth` | `ℕ` | 10 | Taylor series depth for transcendentals |
 
-**Supported functions:** `+`, `-`, `*`, `sin`, `cos`, `exp`, `sqrt`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`, `atanh`, `sinc`, `erf`, `log`, `inv`
+**Supported functions:** `+`, `-`, `*`, `/`, `^` (rational exponents), `abs`, `max`, `min`, `sin`, `cos`, `exp`, `sqrt`, `sinh`, `cosh`, `tanh`, `atan`, `arsinh`, `atanh`, `sinc`, `erf`, `log`, `inv`
+
+**Note on rational exponents:** general rational exponents like `x^(1/3)` are lowered to `exp(log(x) * q)`, which requires the base to be provably positive from interval bounds.
 
 ---
 

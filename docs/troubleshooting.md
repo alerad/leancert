@@ -170,7 +170,10 @@ example : ∃ m, ∀ x ∈ I, f x ≥ m := by interval_minimize 20
 ```lean
 -- Basic arithmetic
 x * x + 1
-x * x * x  -- (not x^3)
+x^3
+x^(-2)
+x^(5/2)
+x^(-3/2)
 
 -- Simple coefficients
 x * x + x + 1
@@ -183,17 +186,16 @@ Real.sin x + Real.cos x
 Real.exp (Real.sin x)
 ```
 
-**May have issues:**
+**Requires positive base (lowered via exp/log):**
 ```lean
--- Numeric coefficients (type inference)
-2 * x * x + 3 * x  -- Sometimes fails
-
--- Power notation
-x^3  -- May not reify correctly for some tactics
-
--- Complex nested coefficients
-(2/3) * x * Real.sin x
+-- General rational exponents (base must be provably > 0)
+x^(1/3)
+x^(2/3)
+x^(1/5)
 ```
+
+These are reified as `exp(log(x) * q)`. The tactic automatically proves
+`0 < x` from `Set.Icc` domain hypotheses when the lower bound is positive.
 
 ### What requires Expr AST syntax?
 
