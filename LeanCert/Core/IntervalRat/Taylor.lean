@@ -991,7 +991,7 @@ theorem mem_expPointComputable (q : ℚ) (n : ℕ) :
         simp [q', Rat.cast_div, Rat.cast_natCast]
   have hexp : Real.exp q = (Real.exp q') ^ m := by
     calc
-      Real.exp q = Real.exp ((m:ℝ) * (q' : ℝ)) := by simpa [hq]
+      Real.exp q = Real.exp ((m:ℝ) * (q' : ℝ)) := by simp [hq]
       _ = (Real.exp (q' : ℝ)) ^ m := by
             -- exp (m * q') = (exp q')^m
             simpa [mul_comm] using (Real.exp_nat_mul (q' : ℝ) m)
