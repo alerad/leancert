@@ -34,20 +34,24 @@ namespace LeanCert.Examples.PNT_PsiBounds
 
 /-- The incremental checker verifies ψ(N) ≤ 1.11 * N for all N = 1, ..., 11723.
     Sorry'd here; proved by `native_decide` in `PNT_PsiVerified.lean`. -/
-theorem allChecks_11723 : allPsiBoundsHold 11723 20 = true := by sorry
+theorem allChecks_11723_slope111_100 : checkAllPsiLeMulWith 11723 (111 / 100) 20 = true := by sorry
 
-/-- For each N ≤ 11723, checkPsiBound holds. Derived from allChecks_11723 via the
-    formal bridge `allPsiBoundsHold_implies_checkPsiBound`. -/
-theorem checkPsiBound_le_11723 (N : ℕ) (hN : 0 < N) (hNb : N ≤ 11723) :
-    checkPsiBound N 20 = true :=
-  allPsiBoundsHold_implies_checkPsiBound 11723 20 allChecks_11723 N hN hNb
+/-- For each N ≤ 11723, `checkPsiLeMulWith` holds at slope `111/100`.
+    Derived from allChecks_11723_slope111_100 via the formal bridge
+    `checkAllPsiLeMulWith_implies_checkPsiLeMulWith`. -/
+theorem checkPsiLeMul_le_11723 (N : ℕ) (hN : 0 < N) (hNb : N ≤ 11723) :
+    checkPsiLeMulWith N (111 / 100) 20 = true :=
+  checkAllPsiLeMulWith_implies_checkPsiLeMulWith 11723 (111 / 100) 20 allChecks_11723_slope111_100 N hN hNb
 
 /-! ### Main theorems -/
 
 /-- ψ(N) ≤ 1.11 * N for all natural N ≤ 11723. -/
 theorem psi_le_nat (N : ℕ) (hN : 0 < N) (hNb : N ≤ 11723) :
-    psi (N : ℝ) ≤ 111 / 100 * N :=
-  psi_le_of_checkPsiBound N 20 (checkPsiBound_le_11723 N hN hNb)
+    psi (N : ℝ) ≤ 111 / 100 * N := by
+  have h :=
+    psi_le_of_checkPsiLeMulWith N 20 (111 / 100) (checkPsiLeMul_le_11723 N hN hNb)
+  have hcast : ((111 / 100 : ℚ) : ℝ) = 111 / 100 := by norm_num
+  simpa [hcast] using h
 
 /-- ψ(x) ≤ 1.11 * x for all real 0 < x ≤ 11723.
     This is the main theorem needed by PNT's `psi_num_2`. -/
@@ -66,3 +70,4 @@ theorem psi_le_mul_11723 (x : ℝ) (hx : 0 < x) (hxb : x ≤ 11723) :
       _ ≤ 111 / 100 * x := by gcongr; exact Nat.floor_le hnn
 
 end LeanCert.Examples.PNT_PsiBounds
+

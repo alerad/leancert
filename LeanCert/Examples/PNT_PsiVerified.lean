@@ -9,7 +9,8 @@ import LeanCert.Examples.PNT_PsiBounds
 /-!
 # Certified psi(N) <= 1.11 * N - Heavy Numerical Verification
 
-This file proves via `native_decide` that `allPsiBoundsHold 11723 20 = true`,
+This file proves via `native_decide` that
+`checkAllPsiLeMulWith 11723 (111 / 100) 20 = true`,
 confirming that `psiUB(N) <= 1.11 * N` for all `N = 1, ..., 11723`.
 
 This fills the single sorry in `PNT_PsiBounds.lean`.
@@ -24,7 +25,7 @@ open Chebyshev (psi)
 namespace LeanCert.Examples.PNT_PsiVerified
 
 /-- The incremental checker confirms `psi(N) <= 1.11 * N` for all `N = 1, ..., 11723`. -/
-theorem allChecks_11723 : allPsiBoundsHold 11723 20 = true := by native_decide
+theorem allChecks_11723_slope111_100 : checkAllPsiLeMulWith 11723 (111 / 100) 20 = true := by native_decide
 
 /-- Verified endpoint theorem mirroring the interface-level bound. -/
 theorem psi_le_mul_11723_verified (x : Real) (hx : 0 < x) (hxb : x <= 11723) :
@@ -39,17 +40,21 @@ theorem psi_le_mul_11723_verified (x : Real) (hx : 0 < x) (hxb : x <= 11723) :
       have hmul_nonneg : (0 : Real) <= 111 / 100 * x := by positivity
       simpa [hpsi0] using hmul_nonneg
   | inr hf =>
-      have hcheck : checkPsiBound (Nat.floor x) 20 = true :=
-        allPsiBoundsHold_implies_checkPsiBound 11723 20 allChecks_11723 (Nat.floor x) hf hfloor_le
-      have h1 := psi_le_of_checkPsiBound (Nat.floor x) 20 hcheck
+      have hcheck : checkPsiLeMulWith (Nat.floor x) (111 / 100) 20 = true :=
+        checkAllPsiLeMulWith_implies_checkPsiLeMulWith 11723 (111 / 100) 20 allChecks_11723_slope111_100
+          (Nat.floor x) hf hfloor_le
+      have h1rat := psi_le_of_checkPsiLeMulWith (Nat.floor x) 20 (111 / 100) hcheck
+      have hcast : ((111 / 100 : ℚ) : ℝ) = 111 / 100 := by norm_num
+      have h1 : psi (Nat.floor x : Real) <= 111 / 100 * Nat.floor x := by
+        simpa [hcast] using h1rat
       calc
         psi (Nat.floor x : Real) <= 111 / 100 * Nat.floor x := h1
         _ <= 111 / 100 * x := by gcongr; exact Nat.floor_le hnn
 
 /-! ### Consistency checks with lightweight interface -/
 
-example : allPsiBoundsHold 11723 20 = true :=
-  LeanCert.Examples.PNT_PsiBounds.allChecks_11723
+example : checkAllPsiLeMulWith 11723 (111 / 100) 20 = true :=
+  LeanCert.Examples.PNT_PsiBounds.allChecks_11723_slope111_100
 
 example (x : Real) (hx : 0 < x) (hxb : x <= 11723) :
     psi x <= 111 / 100 * x :=
@@ -60,3 +65,4 @@ example (x : Real) (hx : 0 < x) (hxb : x <= 11723) :
   psi_le_mul_11723_verified x hx hxb
 
 end LeanCert.Examples.PNT_PsiVerified
+
