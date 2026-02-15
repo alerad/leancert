@@ -326,7 +326,7 @@ theorem tmLog1p_correct (J : IntervalRat) (n : ℕ)
   · -- Show log(1+z) = poly.aeval z + r
     simp only [r, poly]
     rw [Polynomial.aeval_map_algebraMap]
-    ring
+    ring_nf
 
 /-! ### Symmetric combination bound for li(x)
 
@@ -399,7 +399,7 @@ theorem tendsto_log_one_sub_div_self :
   have htendsto := hderiv.tendsto_slope_zero_right
   simp only [sub_zero, Real.log_one, smul_eq_mul, inv_mul_eq_div] at htendsto
   convert htendsto using 2 with t
-  ring
+  ring_nf
 
 /-- Helper: log(1-t²)/t² → -1 as t → 0⁺. -/
 theorem tendsto_log_one_sub_sq_div_sq :
