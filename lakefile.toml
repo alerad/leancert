@@ -27,11 +27,18 @@ name = "Li2Verified"
 roots = ["LeanCert.Examples.Li2Verified"]
 precompileModules = false
 
-# Heavy BKLNW a₂ bounds verification - for CI validation
+# Heavy BKLNW a2 bounds verification - for CI validation
 # Build explicitly with: lake build BKLNW_a2_reflective
 [[lean_lib]]
 name = "BKLNW_a2_reflective"
 roots = ["LeanCert.Examples.BKLNW_a2_reflective"]
+precompileModules = false
+
+# Heavy psi bounds verification - for CI validation
+# Build explicitly with: lake build PNT_PsiVerified
+[[lean_lib]]
+name = "PNT_PsiVerified"
+roots = ["LeanCert.Examples.PNT_PsiVerified"]
 precompileModules = false
 
 [[lean_exe]]
