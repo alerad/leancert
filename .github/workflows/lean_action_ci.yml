@@ -25,3 +25,6 @@ jobs:
 
       - name: Build PNT_PsiVerified (heavy psi bounds verification)
         run: lake build PNT_PsiVerified
+
+      - name: Build ChebyshevPsiTest (psi checker smoke test)
+        run: lake build ChebyshevPsiTest
