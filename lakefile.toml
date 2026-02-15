@@ -41,6 +41,13 @@ name = "PNT_PsiVerified"
 roots = ["LeanCert.Examples.PNT_PsiVerified"]
 precompileModules = false
 
+# Chebyshev psi smoke test (native_decide)
+# Build explicitly with: lake build ChebyshevPsiTest
+[[lean_lib]]
+name = "ChebyshevPsiTest"
+roots = ["LeanCert.Engine.ChebyshevPsiTest"]
+precompileModules = false
+
 [[lean_exe]]
 name = "leancert"
 root = "Main"
