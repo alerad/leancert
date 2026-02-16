@@ -34,13 +34,6 @@ name = "BKLNW_a2_reflective"
 roots = ["LeanCert.Examples.BKLNW_a2_reflective"]
 precompileModules = false
 
-# Heavy psi bounds verification - for CI validation
-# Build explicitly with: lake build PNT_PsiVerified
-[[lean_lib]]
-name = "PNT_PsiVerified"
-roots = ["LeanCert.Examples.PNT_PsiVerified"]
-precompileModules = false
-
 # Chebyshev psi smoke test (native_decide)
 # Build explicitly with: lake build ChebyshevPsiTest
 [[lean_lib]]

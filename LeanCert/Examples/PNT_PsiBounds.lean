@@ -6,18 +6,10 @@ Authors: LeanCert Contributors
 import LeanCert.Engine.ChebyshevPsi
 
 /-!
-# Certified ψ(N) ≤ 1.11 * N bounds — Lightweight Interface
+# Certified ψ(N) ≤ 1.11 * N bounds
 
 This file provides certified bounds on the Chebyshev function ψ(N) ≤ 1.11 * N
-for all N ≤ 11723. Each bound is sorry'd here and fully verified via
-`native_decide` in `PNT_PsiVerified.lean`.
-
-## Purpose
-
-This module is designed to be **fast to compile** (~seconds) and is what
-downstream projects like PNT+ should import. The heavy numerical verification
-is in `PNT_PsiVerified.lean`, which uses `native_decide` and is only needed
-for LeanCert's CI.
+for all N ≤ 11723, verified via `native_decide`.
 
 ## Interface
 
@@ -32,9 +24,8 @@ namespace LeanCert.Examples.PNT_PsiBounds
 
 /-! ### Core verification fact -/
 
-/-- The incremental checker verifies ψ(N) ≤ 1.11 * N for all N = 1, ..., 11723.
-    Sorry'd here; proved by `native_decide` in `PNT_PsiVerified.lean`. -/
-theorem allChecks_11723_slope111_100 : checkAllPsiLeMulWith 11723 (111 / 100) 20 = true := by sorry
+/-- The incremental checker verifies ψ(N) ≤ 1.11 * N for all N = 1, ..., 11723. -/
+theorem allChecks_11723_slope111_100 : checkAllPsiLeMulWith 11723 (111 / 100) 20 = true := by native_decide
 
 /-- For each N ≤ 11723, `checkPsiLeMulWith` holds at slope `111/100`.
     Derived from allChecks_11723_slope111_100 via the formal bridge
