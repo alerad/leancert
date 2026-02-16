@@ -251,57 +251,86 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
 
       return false
 
-    -- Try dyadic backend first for non-strict bounds on supported expressions
-    if !isStrict then
+    -- Try dyadic backend first for supported expressions (all inequality types)
+    try
+      -- Try ExprSupported first, fall back to ExprSupportedWithInv
+      let mut dyadicSupportProof ← mkSupportedWithInvProof ast
+      let mut useDyadicWithInv := true
       try
-        let dyadicSupportProof ← mkSupportedProof ast
-        trace[interval_decide] "dyadic supportProof generated"
+        dyadicSupportProof ← mkSupportedProof ast
+        useDyadicWithInv := false
+      catch _ => pure ()
+      trace[interval_decide] "dyadic supportProof generated (withInv={useDyadicWithInv})"
 
-        let prec : Int := -80
-        let precExpr := toExpr prec
-        let depthExpr := toExpr taylorDepth
-        let precLeZeroTy ← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)]
-        let precLeZeroProof ← mkDecideProof precLeZeroTy
+      let prec : Int := -80
+      let precExpr := toExpr prec
+      let depthExpr := toExpr taylorDepth
+      let precLeZeroTy ← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)]
+      let precLeZeroProof ← mkDecideProof precLeZeroTy
 
-        let zeroRat : ℚ := 0
-        let leProof ← mkAppM ``le_refl #[toExpr zeroRat]
+      let zeroRat : ℚ := 0
+      let leProof ← mkAppM ``le_refl #[toExpr zeroRat]
 
-        let dyadicTheoremName :=
-          if isReversed then ``LeanCert.Validity.verify_lower_bound_dyadic'
-          else ``LeanCert.Validity.verify_upper_bound_dyadic'
-        let dyadicCheckName :=
-          if isReversed then ``LeanCert.Validity.checkLowerBoundDyadic
-          else ``LeanCert.Validity.checkUpperBoundDyadic
+      let dyadicTheoremName :=
+        if useDyadicWithInv then
+          if isStrict then
+            if isReversed then ``LeanCert.Validity.verify_strict_lower_bound_dyadic_withInv
+            else ``LeanCert.Validity.verify_strict_upper_bound_dyadic_withInv
+          else
+            if isReversed then ``LeanCert.Validity.verify_lower_bound_dyadic_withInv
+            else ``LeanCert.Validity.verify_upper_bound_dyadic_withInv
+        else
+          if isStrict then
+            if isReversed then ``LeanCert.Validity.verify_strict_lower_bound_dyadic'
+            else ``LeanCert.Validity.verify_strict_upper_bound_dyadic'
+          else
+            if isReversed then ``LeanCert.Validity.verify_lower_bound_dyadic'
+            else ``LeanCert.Validity.verify_upper_bound_dyadic'
+      let dyadicCheckName :=
+        if useDyadicWithInv then
+          if isStrict then
+            if isReversed then ``LeanCert.Validity.checkStrictLowerBoundDyadicWithInv
+            else ``LeanCert.Validity.checkStrictUpperBoundDyadicWithInv
+          else
+            if isReversed then ``LeanCert.Validity.checkLowerBoundDyadicWithInv
+            else ``LeanCert.Validity.checkUpperBoundDyadicWithInv
+        else
+          if isStrict then
+            if isReversed then ``LeanCert.Validity.checkStrictLowerBoundDyadic
+            else ``LeanCert.Validity.checkStrictUpperBoundDyadic
+          else
+            if isReversed then ``LeanCert.Validity.checkLowerBoundDyadic
+            else ``LeanCert.Validity.checkUpperBoundDyadic
 
-        trace[interval_decide] "Building dyadic certificate check"
-        let dyadicCheckExpr ← mkAppM dyadicCheckName
-          #[ast, toExpr zeroRat, toExpr zeroRat, leProof, toExpr boundRat, precExpr, depthExpr]
-        let dyadicCertTy ← mkAppM ``Eq #[dyadicCheckExpr, mkConst ``Bool.true]
-        let dyadicCertGoal ← mkFreshExprMVar dyadicCertTy
-        let dyadicCertGoalId := dyadicCertGoal.mvarId!
-        dyadicCertGoalId.withContext do
-          setGoals [dyadicCertGoalId]
-          trace[interval_decide] "Running native_decide (dyadic)"
-          evalTactic (← `(tactic| native_decide))
-          trace[interval_decide] "Dyadic certificate verified"
+      trace[interval_decide] "Building dyadic certificate check"
+      let dyadicCheckExpr ← mkAppM dyadicCheckName
+        #[ast, toExpr zeroRat, toExpr zeroRat, leProof, toExpr boundRat, precExpr, depthExpr]
+      let dyadicCertTy ← mkAppM ``Eq #[dyadicCheckExpr, mkConst ``Bool.true]
+      let dyadicCertGoal ← mkFreshExprMVar dyadicCertTy
+      let dyadicCertGoalId := dyadicCertGoal.mvarId!
+      dyadicCertGoalId.withContext do
+        setGoals [dyadicCertGoalId]
+        trace[interval_decide] "Running native_decide (dyadic)"
+        evalTactic (← `(tactic| native_decide))
+        trace[interval_decide] "Dyadic certificate verified"
 
-        let dyadicProof ← mkAppM dyadicTheoremName
-          #[ast, dyadicSupportProof, toExpr zeroRat, toExpr zeroRat, leProof, toExpr boundRat,
-            precExpr, depthExpr, precLeZeroProof, dyadicCertGoal]
+      let dyadicProof ← mkAppM dyadicTheoremName
+        #[ast, dyadicSupportProof, toExpr zeroRat, toExpr zeroRat, leProof, toExpr boundRat,
+          precExpr, depthExpr, precLeZeroProof, dyadicCertGoal]
 
-        let zeroRatAsReal ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, toExpr (0 : ℚ)]
-        let h1 ← mkAppM ``le_refl #[zeroRatAsReal]
-        let h2 ← mkAppM ``le_refl #[zeroRatAsReal]
-        let memProof ← mkAppM ``And.intro #[h1, h2]
-        let dyadicProofAtZero := Lean.mkApp2 dyadicProof zeroRatAsReal memProof
+      let zeroRatAsReal ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, toExpr (0 : ℚ)]
+      let h1 ← mkAppM ``le_refl #[zeroRatAsReal]
+      let h2 ← mkAppM ``le_refl #[zeroRatAsReal]
+      let memProof ← mkAppM ``And.intro #[h1, h2]
+      let dyadicProofAtZero := Lean.mkApp2 dyadicProof zeroRatAsReal memProof
 
-        let dyadicProofStxRaw ← Term.exprToSyntax dyadicProofAtZero
-        let dyadicProofStx : TSyntax `term := ⟨dyadicProofStxRaw⟩
-        let closed ← tryCloseWith dyadicProofStx
-        if closed then
-          return
-      catch e =>
-        trace[interval_decide] "Dyadic backend failed: {e.toMessageData}"
+      let dyadicProofStxRaw ← Term.exprToSyntax dyadicProofAtZero
+      let dyadicProofStx : TSyntax `term := ⟨dyadicProofStxRaw⟩
+      let closed ← tryCloseWith dyadicProofStx
+      if closed then
+        return
+    catch e =>
+      trace[interval_decide] "Dyadic backend failed: {e.toMessageData}"
 
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 

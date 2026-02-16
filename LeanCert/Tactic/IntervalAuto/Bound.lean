@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
 import LeanCert.Validity.Bounds
+import LeanCert.Validity.DyadicBounds
 import LeanCert.Engine.Eval.Core
 import LeanCert.Engine.Optimization.BoundVerify
 
@@ -121,6 +122,63 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
       return m!"(Diagnostic computation failed: {e.toMessageData})"
 
 
+/-! ## Dyadic Backend Helper -/
+
+/-- Try to prove a forall-bound goal using the Dyadic backend.
+    Returns `true` if the goal was closed, `false` otherwise.
+    Tries ExprSupported first, falls back to ExprSupportedWithInv for inv/log. -/
+private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
+    (intervalInfo : IntervalInfo) (taylorDepth : Nat)
+    (dyadicTheoremName dyadicCheckName : Lean.Name)
+    (dyadicWithInvTheoremName dyadicWithInvCheckName : Lean.Name) : TacticM Bool := do
+  try
+    -- Try ExprSupported first, fall back to ExprSupportedWithInv
+    let mut dyadicSupportProof ← mkSupportedWithInvProof ast
+    let mut useWithInv := true
+    try
+      dyadicSupportProof ← mkSupportedProof ast
+      useWithInv := false
+    catch _ => pure ()
+    let theoremName := if useWithInv then dyadicWithInvTheoremName else dyadicTheoremName
+    let checkName := if useWithInv then dyadicWithInvCheckName else dyadicCheckName
+    let prec : Int := -80
+    let precExpr := toExpr prec
+    let depthExpr := toExpr taylorDepth
+    let precLeZeroProof ← mkDecideProof (← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)])
+    match intervalInfo.fromSetIcc with
+    | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
+      let proof ← mkAppM theoremName
+        #[ast, dyadicSupportProof, loRatExpr, hiRatExpr, leProof, boundRat,
+          precExpr, depthExpr, precLeZeroProof]
+      let checkExpr ← mkAppM checkName
+        #[ast, loRatExpr, hiRatExpr, leProof, boundRat, precExpr, depthExpr]
+      let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
+      let certGoal ← mkFreshExprMVar certTy
+      let certGoalId := certGoal.mvarId!
+      certGoalId.withContext do
+        setGoals [certGoalId]
+        evalTactic (← `(tactic| native_decide))
+      let conclusionProof ← mkAppM' proof #[certGoal]
+      setGoals [goal]
+      let newGoals ← goal.apply conclusionProof
+      setGoals newGoals
+      -- Close any remaining side goals
+      for g in newGoals do
+        setGoals [g]
+        try evalTactic (← `(tactic| rfl))
+        catch _ =>
+          try evalTactic (← `(tactic| norm_num))
+          catch _ =>
+            try evalTactic (← `(tactic| norm_cast))
+            catch _ => pure ()
+      if (← getGoals).isEmpty then
+        return true
+      return false
+    | none => return false
+  catch e =>
+    trace[interval_decide] "Dyadic backend failed in interval_bound: {e.toMessageData}"
+    return false
+
 /-! ## Main Tactic Implementation -/
 
 /-- The main interval_bound tactic implementation -/
@@ -195,6 +253,16 @@ where
 
       -- 2. Extract rational bound from possible coercion
       let boundRat ← extractRatBound bound
+
+      -- 2.5. Try Dyadic backend first
+      let savedState ← saveState
+      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth
+          ``LeanCert.Validity.verify_upper_bound_dyadic'
+          ``LeanCert.Validity.checkUpperBoundDyadic
+          ``LeanCert.Validity.verify_upper_bound_dyadic_withInv
+          ``LeanCert.Validity.checkUpperBoundDyadicWithInv then
+        return
+      restoreState savedState
 
       -- 3. Generate support proof (tries Core first, falls back to WithInv for log/inv)
       let (supportProof, useWithInv) ← getSupportProof ast
@@ -366,6 +434,17 @@ where
       let goal ← getMainGoal
       let ast ← getAst func
       let boundRat ← extractRatBound bound
+
+      -- Try Dyadic backend first
+      let savedState ← saveState
+      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth
+          ``LeanCert.Validity.verify_lower_bound_dyadic'
+          ``LeanCert.Validity.checkLowerBoundDyadic
+          ``LeanCert.Validity.verify_lower_bound_dyadic_withInv
+          ``LeanCert.Validity.checkLowerBoundDyadicWithInv then
+        return
+      restoreState savedState
+
       let (supportProof, useWithInv) ← getSupportProof ast
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
@@ -523,6 +602,17 @@ where
       let goal ← getMainGoal
       let ast ← getAst func
       let boundRat ← extractRatBound bound
+
+      -- Try Dyadic backend first
+      let savedState ← saveState
+      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth
+          ``LeanCert.Validity.verify_strict_upper_bound_dyadic'
+          ``LeanCert.Validity.checkStrictUpperBoundDyadic
+          ``LeanCert.Validity.verify_strict_upper_bound_dyadic_withInv
+          ``LeanCert.Validity.checkStrictUpperBoundDyadicWithInv then
+        return
+      restoreState savedState
+
       let (supportProof, useWithInv) ← getSupportProof ast
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
@@ -644,6 +734,17 @@ where
       let goal ← getMainGoal
       let ast ← getAst func
       let boundRat ← extractRatBound bound
+
+      -- Try Dyadic backend first
+      let savedState ← saveState
+      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth
+          ``LeanCert.Validity.verify_strict_lower_bound_dyadic'
+          ``LeanCert.Validity.checkStrictLowerBoundDyadic
+          ``LeanCert.Validity.verify_strict_lower_bound_dyadic_withInv
+          ``LeanCert.Validity.checkStrictLowerBoundDyadicWithInv then
+        return
+      restoreState savedState
+
       let (supportProof, useWithInv) ← getSupportProof ast
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
