@@ -20,5 +20,11 @@ jobs:
       - name: Build Li2Verified (heavy numerical verification)
         run: lake build Li2Verified
 
-      - name: Build BKLNW_a2_reflective (heavy a₂ bounds verification)
+      - name: Build BKLNW_a2_reflective (heavy a2 bounds verification)
         run: lake build BKLNW_a2_reflective
+
+      - name: Build PNT_PsiVerified (heavy psi bounds verification)
+        run: lake build PNT_PsiVerified
+
+      - name: Build ChebyshevPsiTest (psi checker smoke test)
+        run: lake build ChebyshevPsiTest
