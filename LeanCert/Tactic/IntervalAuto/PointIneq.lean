@@ -649,8 +649,137 @@ private def trySumSplitting (taylorDepth : Nat) (groupSize : Nat := 10) : Tactic
     trace[interval_decide] "Sum splitting: linarith failed to combine group bounds"
     return false
 
+/-! ### Ceiling/Floor Preprocessing
+
+Goals involving `⌈e⌉₊` (Nat.ceil) cannot be reified into the `Expr` AST because
+it has no constructor for ceiling.  Instead we reduce to a pure real inequality:
+
+* `⌈e⌉₊ + k ≤ n`  ⟹  prove `e ≤ ↑(n - k)` by `interval_decide`,
+  then close via `Nat.ceil_le` + `omega`.
+-/
+
+/-- Parse an expression as `⌈e⌉₊ + k`, `k + ⌈e⌉₊`, or just `⌈e⌉₊`.
+    Returns `(ceilApp, innerRealExpr, offset)`. -/
+private def parseCeilPlusOffset (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr × ℕ)) := do
+  -- Direct: e = Nat.ceil ... (offset = 0)
+  let eFn := e.getAppFn
+  if eFn.isConstOf ``Nat.ceil && e.getAppArgs.size >= 2 then
+    return some (e, e.getAppArgs.back!, 0)
+  -- Addition: e = a + b
+  let eArgs := e.getAppArgs
+  if eFn.isConstOf ``HAdd.hAdd && eArgs.size >= 6 then
+    let a := eArgs[4]!
+    let b := eArgs[5]!
+    -- a = ⌈inner⌉₊, b = k
+    let aFn := a.getAppFn
+    if aFn.isConstOf ``Nat.ceil && a.getAppArgs.size >= 2 then
+      let bRed ← withTransparency TransparencyMode.all <| reduce b
+      if let some k := bRed.rawNatLit? then
+        return some (a, a.getAppArgs.back!, k)
+    -- b = ⌈inner⌉₊, a = k
+    let bFn := b.getAppFn
+    if bFn.isConstOf ``Nat.ceil && b.getAppArgs.size >= 2 then
+      let aRed ← withTransparency TransparencyMode.all <| reduce a
+      if let some k := aRed.rawNatLit? then
+        return some (b, b.getAppArgs.back!, k)
+  return none
+
+/-- Try to close a goal of the form `⌈e⌉₊ + k ≤ n` (or `⌈e⌉₊ ≤ n`, `n ≥ ⌈e⌉₊ + k`, …)
+    by proving a sufficient real-valued inequality.
+
+    Strategy:
+    1. Create a sub-goal `innerExpr ≤ ↑(n − k)` and prove it with `intervalDecideCore`
+    2. Derive `⌈innerExpr⌉₊ ≤ n − k` via `Nat.ceil_le`
+    3. Close the original goal with `omega`
+
+    Returns `true` if the goal was closed. -/
+private def tryCeilPreprocess (taylorDepth : Nat) : TacticM Bool := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let goalTypeW ← whnf goalType
+  let fn := goalTypeW.getAppFn
+  let args := goalTypeW.getAppArgs
+  -- Must be an inequality on ℕ.  After whnf it might be:
+  --   LE.le  ℕ inst lhs rhs  (4 args)
+  --   Nat.le lhs rhs          (2 args, whnf-reduced)
+  --   GE.ge  ℕ inst lhs rhs  (4 args)
+  let (lhs, rhs, isGe) ←
+    if fn.isConstOf ``LE.le && args.size >= 4 then
+      let ty ← whnf args[0]!
+      unless ty.isConstOf ``Nat do return false
+      pure (args[2]!, args[3]!, false)
+    else if fn.isConstOf ``Nat.le && args.size >= 2 then
+      pure (args[0]!, args[1]!, false)
+    else if fn.isConstOf ``GE.ge && args.size >= 4 then
+      let ty ← whnf args[0]!
+      unless ty.isConstOf ``Nat do return false
+      pure (args[2]!, args[3]!, true)
+    else return false
+  -- Orient so that the ceil is on the "small" side: ceil_side ≤ bound_side
+  let (ceilSide, boundSide) := if isGe then (rhs, lhs) else (lhs, rhs)
+  -- Find Nat.ceil in the ceil side
+  let some (_ceilApp, innerExpr, offset) ← parseCeilPlusOffset ceilSide | return false
+  trace[interval_decide] "Ceil preprocessing: inner = {innerExpr}, offset = {offset}"
+  -- Evaluate RHS to a concrete ℕ
+  let boundRed ← withTransparency TransparencyMode.all <| reduce boundSide
+  let some boundVal := boundRed.rawNatLit? | return false
+  -- Compute the target: n − k (in ℕ)
+  if offset > boundVal then return false
+  let targetVal := boundVal - offset
+  trace[interval_decide] "Ceil preprocessing: proving {innerExpr} ≤ ({targetVal} : ℝ)"
+  try
+    -- Build  (targetVal : ℝ)  as  @OfNat.ofNat ℝ targetVal inst
+    let realTy := Lean.mkConst ``Real
+    let targetNatLit := mkNatLit targetVal
+    let targetRealExpr ← mkAppOptM ``OfNat.ofNat #[some realTy, some targetNatLit, none]
+    -- Build the real inequality type:  innerExpr ≤ (targetVal : ℝ)
+    let realIneqType ← mkAppM ``LE.le #[innerExpr, targetRealExpr]
+    -- Create a fresh metavariable for the proof
+    let realProofMVar ← mkFreshExprMVar (some realIneqType) .natural `h_real_bound
+    let realGoalId := realProofMVar.mvarId!
+    -- Save original goals, focus on the real sub-goal
+    let origGoals ← getGoals
+    setGoals [realGoalId]
+    -- Prove the real inequality with intervalDecideCore
+    intervalDecideCore taylorDepth
+    trace[interval_decide] "Ceil preprocessing: real inequality proved"
+    -- Now build  ⌈innerExpr⌉₊ ≤ targetVal  via Nat.ceil_le.mpr
+    -- Nat.ceil_le has type: ⌈a⌉₊ ≤ n ↔ a ≤ ↑n
+    -- The RHS of the iff is  a ≤ ↑n  where ↑n = @Nat.cast ℝ _ n
+    -- Our proof is  a ≤ (targetVal : ℝ)  which uses OfNat, not Nat.cast.
+    -- These should be definitionally equal.  Use `Iff.mpr` with the proof.
+    let ceilLeIff ← mkAppOptM ``Nat.ceil_le
+      #[some realTy, none, none, none, some innerExpr, some targetNatLit]
+    let ceilLeProof ← mkAppM ``Iff.mpr #[ceilLeIff, realProofMVar]
+    let ceilIneqType ← inferType ceilLeProof
+    -- Restore original goal and add h_ceil_bound as hypothesis, then omega
+    setGoals origGoals
+    let mainGoal ← getMainGoal
+    let newGoal ← mainGoal.assert `h_ceil_bound ceilIneqType ceilLeProof
+    let (_, newGoal) ← newGoal.intro `h_ceil_bound
+    replaceMainGoal [newGoal]
+    evalTactic (← `(tactic| omega))
+    return true
+  catch e =>
+    trace[interval_decide] "Ceil preprocessing failed: {e.toMessageData}"
+    return false
+
 /-- Run interval_decide on a single goal (non-conjunction) -/
 private def intervalDecideSingle (depth : Option Nat) : TacticM Unit := do
+  -- Try ceiling/floor preprocessing first (for goals like ⌈e⌉₊ + k ≤ n).
+  -- We estimate the Taylor depth from the inner real expression and try a few depths.
+  let goalType ← getMainTarget
+  let est ← estimateTranscendentalDepth goalType
+  let ceilDepths : List Nat := match depth with
+    | some d => [d]
+    | none => if est > 10 then [est, est + 10, est + 20] else [10, 15, 20, 25, 30]
+  let goalState ← saveState
+  for d in ceilDepths do
+    try
+      restoreState goalState
+      if ← tryCeilPreprocess d then return
+    catch _ => continue
+  restoreState goalState
   match depth with
   | some n =>
     let goalState ← saveState
