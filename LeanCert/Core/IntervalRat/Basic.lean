@@ -188,6 +188,35 @@ def mul (I J : IntervalRat) : IntervalRat where
     exact le_trans (min_le_of_left_le (min_le_left _ _))
                    (le_max_of_le_left (le_max_left _ _))
 
+/-- Fast interval multiplication using sign-based case splitting.
+    Reduces from 4 multiplications + 12 comparisons to 2 multiplications
+    in the common case (both intervals positive or both negative).
+    Falls back to the full 4-way product for mixed-sign intervals. -/
+private def mulFast (I J : IntervalRat) : IntervalRat :=
+  if hIlo : I.lo ≥ 0 then
+    if hJlo : J.lo ≥ 0 then
+      ⟨I.lo * J.lo, I.hi * J.hi, by nlinarith [I.le, J.le]⟩
+    else if hJhi : J.hi ≤ 0 then
+      ⟨I.hi * J.lo, I.lo * J.hi, by nlinarith [I.le, J.le]⟩
+    else
+      ⟨I.hi * J.lo, I.hi * J.hi, by nlinarith [I.le, J.le]⟩
+  else if hIhi : I.hi ≤ 0 then
+    if hJlo : J.lo ≥ 0 then
+      ⟨I.lo * J.hi, I.hi * J.lo, by nlinarith [I.le, J.le]⟩
+    else if hJhi : J.hi ≤ 0 then
+      ⟨I.hi * J.hi, I.lo * J.lo, by nlinarith [I.le, J.le]⟩
+    else
+      ⟨I.lo * J.hi, I.lo * J.lo, by nlinarith [I.le, J.le]⟩
+  else
+    if hJlo : J.lo ≥ 0 then
+      ⟨I.lo * J.hi, I.hi * J.hi, by nlinarith [I.le, J.le]⟩
+    else if hJhi : J.hi ≤ 0 then
+      ⟨I.hi * J.lo, I.lo * J.lo, by nlinarith [I.le, J.le]⟩
+    else
+      mul I J
+
+attribute [implemented_by mulFast] mul
+
 /-- Helper: for x ∈ [a₁, a₂], x*y lies between endpoint products.
     When y ≥ 0: a₁*y ≤ x*y ≤ a₂*y
     When y ≤ 0: a₂*y ≤ x*y ≤ a₁*y -/
