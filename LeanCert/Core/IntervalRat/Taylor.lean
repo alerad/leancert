@@ -49,11 +49,15 @@ namespace IntervalRat
 /-- Compute n! as a Rational -/
 def ratFactorial (n : ℕ) : ℚ := (Nat.factorial n : ℚ)
 
-/-- Compute the integer power of an interval using repeated multiplication.
-    This is a simple but correct implementation. -/
+/-- Compute the integer power of an interval using exponentiation by squaring.
+    O(log n) interval multiplications instead of O(n). -/
 def pow (I : IntervalRat) : ℕ → IntervalRat
   | 0 => singleton 1
-  | n + 1 => mul I (pow I n)
+  | 1 => I
+  | n + 2 =>
+    let half := pow I ((n + 2) / 2)
+    let sq := mul half half
+    if (n + 2) % 2 == 0 then sq else mul I sq
 
 /-- Compute the absolute value interval: |I| = [0, max(|lo|, |hi|)] if 0 ∈ I,
     or [min(|lo|,|hi|), max(|lo|,|hi|)] otherwise -/
@@ -71,15 +75,12 @@ def absInterval (I : IntervalRat) : IntervalRat :=
 /-- Maximum absolute value of an interval -/
 def maxAbs (I : IntervalRat) : ℚ := max (|I.lo|) (|I.hi|)
 
-/-- Evaluate Taylor series ∑_{i=0}^{n} c_i * x^i at interval I.
-    Uses direct interval arithmetic with incremental powers to avoid
-    recomputing `I^i` from scratch for each coefficient. -/
+/-- Evaluate Taylor series ∑_{i=0}^{n} c_i * x^i at interval I using Horner's method.
+    Computes c₀ + I * (c₁ + I * (c₂ + ... + I * cₙ)), which is mathematically
+    equivalent to the direct sum but uses fewer operations and often gives tighter
+    bounds by reducing the dependency problem in interval arithmetic. -/
 def evalTaylorSeries (coeffs : List ℚ) (I : IntervalRat) : IntervalRat :=
-  let step (acc : IntervalRat × IntervalRat) (c : ℚ) :=
-    let sum := acc.1
-    let pow := acc.2
-    (add sum (scale c pow), mul pow I)
-  (coeffs.foldl step (singleton 0, singleton 1)).1
+  coeffs.foldr (fun c acc => add (singleton c) (mul acc I)) (singleton 0)
 
 /-! ### Computable exp via Taylor series -/
 
@@ -399,20 +400,35 @@ def coshComputable (I : IntervalRat) (n : ℕ := 10) : IntervalRat :=
 
 /-! ### FTIA for pow -/
 
-/-- FTIA for interval power -/
+/-- FTIA for interval power (binary exponentiation version) -/
 theorem mem_pow {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n : ℕ) :
     x ^ n ∈ pow I n := by
-  induction n with
-  | zero =>
-    simp only [_root_.pow_zero, pow]
-    simp only [mem_def, singleton]
+  match n with
+  | 0 =>
+    simp only [_root_.pow_zero, pow, mem_def, singleton]
     norm_num
-  | succ n ih =>
-    simp only [_root_.pow_succ, pow]
-    -- x^(n+1) = x * x^n ∈ mul I (pow I n)
-    have h : x * x ^ n ∈ mul I (pow I n) := mem_mul hx ih
-    convert h using 1
-    ring
+  | 1 =>
+    simp only [_root_.pow_one, pow]
+    exact hx
+  | n + 2 =>
+    have ih_half := mem_pow hx ((n + 2) / 2)
+    have h_sq := mem_mul ih_half ih_half
+    show x ^ (n + 2) ∈ pow I (n + 2)
+    unfold pow
+    split
+    · -- even case: x^(n+2) = (x^half)^2
+      next heven =>
+      have := beq_iff_eq.mp heven
+      rw [show x ^ (n + 2) = x ^ ((n + 2) / 2) * x ^ ((n + 2) / 2) from by
+        rw [← _root_.pow_add]; congr 1; omega]
+      exact h_sq
+    · -- odd case: x^(n+2) = x * (x^half)^2
+      next heven =>
+      have hodd : (n + 2) % 2 ≠ 0 := fun h => heven (beq_iff_eq.mpr h)
+      rw [show x ^ (n + 2) = x * (x ^ ((n + 2) / 2) * x ^ ((n + 2) / 2)) from by
+        rw [← _root_.pow_add, ← mul_comm, ← _root_.pow_succ]; congr 1; omega]
+      exact mem_mul hx h_sq
+termination_by n
 
 /-! ### Helper lemmas for Taylor series membership -/
 
@@ -502,56 +518,61 @@ lemma iteratedDeriv_exp_zero (i : ℕ) : iteratedDeriv i Real.exp 0 = 1 := by
 private def polySumFrom (coeffs : List ℚ) (x : ℝ) (n : ℕ) : ℝ :=
   ((coeffs.zipIdx n).map (fun (c, i) => (c : ℝ) * x ^ i)).sum
 
-/-- Auxiliary lemma: foldl over coefficients produces valid interval bounds.
-    If `s ∈ sum` and `x^n ∈ pow`, then
-    `s + polySumFrom coeffs x n` lies in the folded interval. -/
-private lemma mem_evalTaylorSeries_aux {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
-    ∀ (coeffs : List ℚ) (sum pow : IntervalRat) (n : ℕ) (s : ℝ),
-      s ∈ sum →
-      x ^ n ∈ pow →
-      s + polySumFrom coeffs x n ∈
-        (coeffs.foldl
-          (fun (acc : IntervalRat × IntervalRat) c =>
-            let sum := acc.1
-            let pow := acc.2
-            (add sum (scale c pow), mul pow I))
-          (sum, pow)).1 := by
-  intro coeffs
+/-- Horner polynomial evaluation: the real value computed by Horner's method.
+    `hornerVal [c₀, c₁, c₂] x = c₀ + x * (c₁ + x * (c₂ + x * 0)) = c₀ + c₁*x + c₂*x²` -/
+private def hornerVal (coeffs : List ℚ) (x : ℝ) : ℝ :=
+  coeffs.foldr (fun c acc => (c : ℝ) + x * acc) 0
+
+/-- hornerVal equals polySumFrom at any starting index n, scaled by x^n.
+    Specifically: x^n * hornerVal coeffs x = polySumFrom coeffs x n -/
+private lemma hornerVal_mul_pow_eq_polySumFrom (coeffs : List ℚ) (x : ℝ) (n : ℕ) :
+    x ^ n * hornerVal coeffs x = polySumFrom coeffs x n := by
+  induction coeffs generalizing n with
+  | nil => simp [hornerVal, polySumFrom]
+  | cons c cs ih =>
+    have hstep : hornerVal (c :: cs) x = (c : ℝ) + x * hornerVal cs x := by
+      simp [hornerVal]
+    have hunfold : polySumFrom (c :: cs) x n =
+        (c : ℝ) * x ^ n + polySumFrom cs x (n + 1) := by
+      simp [polySumFrom, List.zipIdx_cons]
+    rw [hstep, mul_add, hunfold, ← ih (n + 1)]
+    ring
+
+/-- hornerVal equals polySumFrom at index 0. -/
+private lemma hornerVal_eq_polySumFrom (coeffs : List ℚ) (x : ℝ) :
+    hornerVal coeffs x = polySumFrom coeffs x 0 := by
+  rw [← hornerVal_mul_pow_eq_polySumFrom coeffs x 0]
+  simp
+
+/-- Auxiliary lemma for Horner-style evaluation: the foldr contains hornerVal. -/
+private lemma mem_horner_foldr {x : ℝ} {I : IntervalRat} (hx : x ∈ I)
+    (coeffs : List ℚ) :
+    hornerVal coeffs x ∈
+      coeffs.foldr (fun c acc => add (singleton c) (mul acc I)) (singleton 0) := by
   induction coeffs with
   | nil =>
-      intro sum pow n s hs _
-      simp [polySumFrom] at *
-      exact hs
+      simp [hornerVal, mem_def, singleton]
   | cons c cs ih =>
-      intro sum pow n s hs hpow
-      have hsum :
-          polySumFrom (c :: cs) x n =
-            (c : ℝ) * x ^ n + polySumFrom cs x (n + 1) := by
-        simp [polySumFrom, List.zipIdx_cons, List.map_cons, List.sum_cons]
-      have hterm : (c : ℝ) * x ^ n ∈ scale c pow :=
-        mem_scale c hpow
-      have hsum1 : s + (c : ℝ) * x ^ n ∈ add sum (scale c pow) :=
-        mem_add hs hterm
-      have hpow1 : x ^ (n + 1) ∈ mul pow I := by
-        have hmul : x ^ n * x ∈ mul pow I := mem_mul hpow hx
-        simpa [pow_succ] using hmul
-      have hrest :=
-        ih (add sum (scale c pow)) (mul pow I) (n + 1) (s + (c : ℝ) * x ^ n) hsum1 hpow1
-      have heq :
-          s + ((c : ℝ) * x ^ n + polySumFrom cs x (n + 1)) =
-            (s + (c : ℝ) * x ^ n) + polySumFrom cs x (n + 1) := by ring
-      simpa [hsum, heq, List.foldl_cons] using hrest
+      -- hornerVal (c :: cs) x = ↑c + x * hornerVal cs x
+      -- foldr ... (c :: cs) = add (singleton c) (mul (foldr ... cs) I)
+      change (c : ℝ) + x * hornerVal cs x ∈
+        add (singleton c) (mul (cs.foldr (fun c acc => add (singleton c) (mul acc I)) (singleton 0)) I)
+      have hc : (c : ℝ) ∈ singleton c := by simp [mem_def, singleton]
+      have hmul : hornerVal cs x * x ∈
+        mul (cs.foldr (fun c acc => add (singleton c) (mul acc I)) (singleton 0)) I :=
+        mem_mul ih hx
+      have : (c : ℝ) + x * hornerVal cs x = (c : ℝ) + hornerVal cs x * x := by ring
+      rw [this]
+      exact mem_add hc hmul
 
-/-- General FTIA for evalTaylorSeries: if coeffs has length n+1, then
+/-- General FTIA for evalTaylorSeries (Horner version): if coeffs has length n+1, then
     ∑_{i=0}^{n} coeffs[i] * x^i ∈ evalTaylorSeries coeffs I for x ∈ I. -/
 theorem mem_evalTaylorSeries {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (coeffs : List ℚ) :
     (coeffs.zipIdx.map (fun (c, i) => (c : ℝ) * x ^ i)).sum ∈ evalTaylorSeries coeffs I := by
-  have h0 : (0 : ℝ) ∈ singleton 0 := by
-    simp [mem_def, singleton]
-  have hpow : x ^ 0 ∈ singleton 1 := by
-    simp [mem_def, singleton]
-  simpa [evalTaylorSeries, polySumFrom] using
-    (mem_evalTaylorSeries_aux hx coeffs (singleton 0) (singleton 1) 0 0 h0 hpow)
+  have hmem := mem_horner_foldr hx coeffs
+  rw [hornerVal_eq_polySumFrom] at hmem
+  simp only [evalTaylorSeries, polySumFrom] at *
+  exact hmem
 
 /-- Helper: (List.range n).map f).sum = ∑ i ∈ Finset.range n, f i -/
 private lemma list_map_sum_eq_finset_sum {α : Type*} [AddCommMonoid α]

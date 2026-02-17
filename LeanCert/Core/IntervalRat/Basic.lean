@@ -148,12 +148,12 @@ theorem mem_sub {x y : ℝ} {I J : IntervalRat} (hx : x ∈ I) (hy : y ∈ J) :
 /-! ### Interval multiplication -/
 
 /-- Helper: minimum of four rationals -/
-private def min4 (a b c d : ℚ) : ℚ := min (min a b) (min c d)
+def min4 (a b c d : ℚ) : ℚ := min (min a b) (min c d)
 
 /-- Helper: maximum of four rationals -/
-private def max4 (a b c d : ℚ) : ℚ := max (max a b) (max c d)
+def max4 (a b c d : ℚ) : ℚ := max (max a b) (max c d)
 
-private theorem min4_le_all (a b c d : ℚ) :
+theorem min4_le_all (a b c d : ℚ) :
     min4 a b c d ≤ a ∧ min4 a b c d ≤ b ∧ min4 a b c d ≤ c ∧ min4 a b c d ≤ d := by
   simp only [min4]
   refine ⟨?_, ?_, ?_, ?_⟩
@@ -162,7 +162,7 @@ private theorem min4_le_all (a b c d : ℚ) :
   · exact le_trans (min_le_right _ _) (min_le_left _ _)
   · exact le_trans (min_le_right _ _) (min_le_right _ _)
 
-private theorem all_le_max4 (a b c d : ℚ) :
+theorem all_le_max4 (a b c d : ℚ) :
     a ≤ max4 a b c d ∧ b ≤ max4 a b c d ∧ c ≤ max4 a b c d ∧ d ≤ max4 a b c d := by
   simp only [max4]
   refine ⟨?_, ?_, ?_, ?_⟩
@@ -171,11 +171,11 @@ private theorem all_le_max4 (a b c d : ℚ) :
   · exact le_trans (le_max_left _ _) (le_max_right _ _)
   · exact le_trans (le_max_right _ _) (le_max_right _ _)
 
-private theorem le_min4_iff (x a b c d : ℚ) :
+theorem le_min4_iff (x a b c d : ℚ) :
     x ≤ min4 a b c d ↔ x ≤ a ∧ x ≤ b ∧ x ≤ c ∧ x ≤ d := by
   simp only [min4, le_min_iff, and_assoc]
 
-private theorem max4_le_iff (x a b c d : ℚ) :
+theorem max4_le_iff (x a b c d : ℚ) :
     max4 a b c d ≤ x ↔ a ≤ x ∧ b ≤ x ∧ c ≤ x ∧ d ≤ x := by
   simp only [max4, max_le_iff, and_assoc]
 
@@ -187,6 +187,35 @@ def mul (I J : IntervalRat) : IntervalRat where
     simp only [min4, max4]
     exact le_trans (min_le_of_left_le (min_le_left _ _))
                    (le_max_of_le_left (le_max_left _ _))
+
+/-- Fast interval multiplication using sign-based case splitting.
+    Reduces from 4 multiplications + 12 comparisons to 2 multiplications
+    in the common case (both intervals positive or both negative).
+    Falls back to the full 4-way product for mixed-sign intervals. -/
+private def mulFast (I J : IntervalRat) : IntervalRat :=
+  if hIlo : I.lo ≥ 0 then
+    if hJlo : J.lo ≥ 0 then
+      ⟨I.lo * J.lo, I.hi * J.hi, by nlinarith [I.le, J.le]⟩
+    else if hJhi : J.hi ≤ 0 then
+      ⟨I.hi * J.lo, I.lo * J.hi, by nlinarith [I.le, J.le]⟩
+    else
+      ⟨I.hi * J.lo, I.hi * J.hi, by nlinarith [I.le, J.le]⟩
+  else if hIhi : I.hi ≤ 0 then
+    if hJlo : J.lo ≥ 0 then
+      ⟨I.lo * J.hi, I.hi * J.lo, by nlinarith [I.le, J.le]⟩
+    else if hJhi : J.hi ≤ 0 then
+      ⟨I.hi * J.hi, I.lo * J.lo, by nlinarith [I.le, J.le]⟩
+    else
+      ⟨I.lo * J.hi, I.lo * J.lo, by nlinarith [I.le, J.le]⟩
+  else
+    if hJlo : J.lo ≥ 0 then
+      ⟨I.lo * J.hi, I.hi * J.hi, by nlinarith [I.le, J.le]⟩
+    else if hJhi : J.hi ≤ 0 then
+      ⟨I.hi * J.lo, I.lo * J.lo, by nlinarith [I.le, J.le]⟩
+    else
+      mul I J
+
+attribute [implemented_by mulFast] mul
 
 /-- Helper: for x ∈ [a₁, a₂], x*y lies between endpoint products.
     When y ≥ 0: a₁*y ≤ x*y ≤ a₂*y
@@ -297,6 +326,82 @@ theorem mem_mul {x y : ℝ} {I J : IntervalRat} (hx : x ∈ I) (hy : y ∈ J) :
   simp only [mem_def] at *
   simp only [mul, min4, max4, Rat.cast_mul, Rat.cast_min, Rat.cast_max]
   exact mul_mem_corners hx hy
+
+/-- Helper: show a = min4 a b c d when a ≤ b, a ≤ c, a ≤ d -/
+theorem eq_min4_of_le {a b c d : ℚ} (h1 : a ≤ b) (h2 : a ≤ c) (h3 : a ≤ d) :
+    a = min4 a b c d := le_antisymm ((le_min4_iff _ _ _ _ _).mpr ⟨le_refl _, h1, h2, h3⟩) (min4_le_all _ _ _ _).1
+
+theorem eq_min4_of_le2 {a b c d : ℚ} (h1 : b ≤ a) (h2 : b ≤ c) (h3 : b ≤ d) :
+    b = min4 a b c d := le_antisymm ((le_min4_iff _ _ _ _ _).mpr ⟨h1, le_refl _, h2, h3⟩) (min4_le_all _ _ _ _).2.1
+
+theorem eq_min4_of_le3 {a b c d : ℚ} (h1 : c ≤ a) (h2 : c ≤ b) (h3 : c ≤ d) :
+    c = min4 a b c d := le_antisymm ((le_min4_iff _ _ _ _ _).mpr ⟨h1, h2, le_refl _, h3⟩) (min4_le_all _ _ _ _).2.2.1
+
+theorem eq_min4_of_le4 {a b c d : ℚ} (h1 : d ≤ a) (h2 : d ≤ b) (h3 : d ≤ c) :
+    d = min4 a b c d := le_antisymm ((le_min4_iff _ _ _ _ _).mpr ⟨h1, h2, h3, le_refl _⟩) (min4_le_all _ _ _ _).2.2.2
+
+theorem eq_max4_of_ge {a b c d : ℚ} (h1 : b ≤ a) (h2 : c ≤ a) (h3 : d ≤ a) :
+    a = max4 a b c d := le_antisymm (all_le_max4 _ _ _ _).1 ((max4_le_iff _ _ _ _ _).mpr ⟨le_refl _, h1, h2, h3⟩)
+
+theorem eq_max4_of_ge2 {a b c d : ℚ} (h1 : a ≤ b) (h2 : c ≤ b) (h3 : d ≤ b) :
+    b = max4 a b c d := le_antisymm (all_le_max4 _ _ _ _).2.1 ((max4_le_iff _ _ _ _ _).mpr ⟨h1, le_refl _, h2, h3⟩)
+
+theorem eq_max4_of_ge3 {a b c d : ℚ} (h1 : a ≤ c) (h2 : b ≤ c) (h3 : d ≤ c) :
+    c = max4 a b c d := le_antisymm (all_le_max4 _ _ _ _).2.2.1 ((max4_le_iff _ _ _ _ _).mpr ⟨h1, h2, le_refl _, h3⟩)
+
+theorem eq_max4_of_ge4 {a b c d : ℚ} (h1 : a ≤ d) (h2 : b ≤ d) (h3 : c ≤ d) :
+    d = max4 a b c d := le_antisymm (all_le_max4 _ _ _ _).2.2.2 ((max4_le_iff _ _ _ _ _).mpr ⟨h1, h2, h3, le_refl _⟩)
+
+/-- mulFast endpoints match mul endpoints: lo -/
+private theorem mulFast_lo (I J : IntervalRat) : (mulFast I J).lo = (mul I J).lo := by
+  simp only [mulFast, mul]
+  split
+  · split
+    · exact eq_min4_of_le (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+    · split
+      · exact eq_min4_of_le3 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · exact eq_min4_of_le3 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+  · split
+    · split
+      · exact eq_min4_of_le2 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · split
+        · exact eq_min4_of_le4 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+        · exact eq_min4_of_le2 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+    · split
+      · exact eq_min4_of_le2 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · split
+        · exact eq_min4_of_le3 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+        · rfl
+
+/-- mulFast endpoints match mul endpoints: hi -/
+private theorem mulFast_hi (I J : IntervalRat) : (mulFast I J).hi = (mul I J).hi := by
+  simp only [mulFast, mul]
+  split
+  · split
+    · exact eq_max4_of_ge4 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+    · split
+      · exact eq_max4_of_ge2 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · exact eq_max4_of_ge4 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+  · split
+    · split
+      · exact eq_max4_of_ge3 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · split
+        · exact eq_max4_of_ge (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+        · exact eq_max4_of_ge (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+    · split
+      · exact eq_max4_of_ge4 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · split
+        · exact eq_max4_of_ge (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+        · rfl
+
+/-- Safety net: mulFast preserves the containment property of mul.
+    This ensures that even though `implemented_by` bypasses the kernel's
+    definitional equality check, the runtime implementation is sound. -/
+private theorem mem_mulFast {x y : ℝ} {I J : IntervalRat} (hx : x ∈ I) (hy : y ∈ J) :
+    x * y ∈ mulFast I J := by
+  simp only [mem_def]
+  rw [mulFast_lo, mulFast_hi]
+  exact mem_mul hx hy
 
 /-! ### Interval containing zero check -/
 

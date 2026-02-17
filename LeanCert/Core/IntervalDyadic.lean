@@ -205,6 +205,71 @@ def mul (I J : IntervalDyadic) : IntervalDyadic :=
   let v4 := I.hi.mul J.hi
   ⟨Dyadic.min4 v1 v2 v3 v4, Dyadic.max4 v1 v2 v3 v4, Dyadic.min4_le_max4 v1 v2 v3 v4⟩
 
+/-- Fast interval multiplication using sign-based case splitting.
+    Reduces from 4 multiplications + 12 comparisons to 2 multiplications
+    in the common case (both intervals positive or both negative).
+    Falls back to the full 4-way product for mixed-sign intervals. -/
+private def mulFast (I J : IntervalDyadic) : IntervalDyadic :=
+  if hI : Dyadic.le 0 I.lo then
+    if hJ : Dyadic.le 0 J.lo then
+      ⟨I.lo.mul J.lo, I.hi.mul J.hi, by
+        simp only [Dyadic.toRat_mul]
+        have := (Dyadic.le_iff_toRat_le 0 I.lo).mp hI
+        have := (Dyadic.le_iff_toRat_le 0 J.lo).mp hJ
+        simp only [Dyadic.toRat_zero] at *
+        nlinarith [I.le, J.le]⟩
+    else if hJ2 : Dyadic.le J.hi 0 then
+      ⟨I.hi.mul J.lo, I.lo.mul J.hi, by
+        simp only [Dyadic.toRat_mul]
+        have := (Dyadic.le_iff_toRat_le 0 I.lo).mp hI
+        have := (Dyadic.le_iff_toRat_le J.hi 0).mp hJ2
+        simp only [Dyadic.toRat_zero] at *
+        nlinarith [I.le, J.le]⟩
+    else
+      ⟨I.hi.mul J.lo, I.hi.mul J.hi, by
+        simp only [Dyadic.toRat_mul]
+        have := (Dyadic.le_iff_toRat_le 0 I.lo).mp hI
+        simp only [Dyadic.toRat_zero] at *
+        nlinarith [I.le, J.le]⟩
+  else if hI2 : Dyadic.le I.hi 0 then
+    if hJ : Dyadic.le 0 J.lo then
+      ⟨I.lo.mul J.hi, I.hi.mul J.lo, by
+        simp only [Dyadic.toRat_mul]
+        have := (Dyadic.le_iff_toRat_le I.hi 0).mp hI2
+        have := (Dyadic.le_iff_toRat_le 0 J.lo).mp hJ
+        simp only [Dyadic.toRat_zero] at *
+        nlinarith [I.le, J.le]⟩
+    else if hJ2 : Dyadic.le J.hi 0 then
+      ⟨I.hi.mul J.hi, I.lo.mul J.lo, by
+        simp only [Dyadic.toRat_mul]
+        have := (Dyadic.le_iff_toRat_le I.hi 0).mp hI2
+        have := (Dyadic.le_iff_toRat_le J.hi 0).mp hJ2
+        simp only [Dyadic.toRat_zero] at *
+        nlinarith [I.le, J.le]⟩
+    else
+      ⟨I.lo.mul J.hi, I.lo.mul J.lo, by
+        simp only [Dyadic.toRat_mul]
+        have := (Dyadic.le_iff_toRat_le I.hi 0).mp hI2
+        simp only [Dyadic.toRat_zero] at *
+        nlinarith [I.le, J.le]⟩
+  else
+    if hJ : Dyadic.le 0 J.lo then
+      ⟨I.lo.mul J.hi, I.hi.mul J.hi, by
+        simp only [Dyadic.toRat_mul]
+        have := (Dyadic.le_iff_toRat_le 0 J.lo).mp hJ
+        simp only [Dyadic.toRat_zero] at *
+        nlinarith [I.le, J.le]⟩
+    else if hJ2 : Dyadic.le J.hi 0 then
+      ⟨I.hi.mul J.lo, I.lo.mul J.lo, by
+        simp only [Dyadic.toRat_mul]
+        have := (Dyadic.le_iff_toRat_le J.hi 0).mp hJ2
+        simp only [Dyadic.toRat_zero] at *
+        nlinarith [I.le, J.le]⟩
+    else
+      mul I J
+
+attribute [implemented_by mulFast] mul
+
 /-- FTIA for multiplication -/
 theorem mem_mul {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) :
     x * y ∈ mul I J := by
@@ -232,6 +297,130 @@ theorem mem_mul {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J)
       simp only [Dyadic.max4, Dyadic.toRat_mul, Dyadic.max_toRat]
     rw [heq]
     exact_mod_cast hmul.2
+
+/-- Dyadic.min4 converts to rational min4 -/
+private theorem min4_toRat (a b c d : Dyadic) :
+    (Dyadic.min4 a b c d).toRat = IntervalRat.min4 a.toRat b.toRat c.toRat d.toRat := by
+  simp only [Dyadic.min4, IntervalRat.min4, Dyadic.min_toRat]
+
+/-- Dyadic.max4 converts to rational max4 -/
+private theorem max4_toRat (a b c d : Dyadic) :
+    (Dyadic.max4 a b c d).toRat = IntervalRat.max4 a.toRat b.toRat c.toRat d.toRat := by
+  simp only [Dyadic.max4, IntervalRat.max4, Dyadic.max_toRat]
+
+/-- Extract 0 ≤ toRat from Dyadic.le 0 d -/
+private theorem toRat_nonneg_of_le {d : Dyadic} (h : Dyadic.le 0 d) : 0 ≤ d.toRat := by
+  have := (Dyadic.le_iff_toRat_le 0 d).mp h; rwa [Dyadic.toRat_zero] at this
+
+/-- Extract toRat ≤ 0 from Dyadic.le d 0 -/
+private theorem toRat_nonpos_of_le {d : Dyadic} (h : Dyadic.le d 0) : d.toRat ≤ 0 := by
+  have := (Dyadic.le_iff_toRat_le d 0).mp h; rwa [Dyadic.toRat_zero] at this
+
+/-- Extract toRat < 0 from ¬ Dyadic.le 0 d -/
+private theorem toRat_neg_of_not_le {d : Dyadic} (h : ¬ Dyadic.le 0 d) : d.toRat < 0 := by
+  exact lt_of_not_ge fun h' => h ((Dyadic.le_iff_toRat_le 0 d).mpr (by rwa [Dyadic.toRat_zero]))
+
+/-- Extract 0 < toRat from ¬ Dyadic.le d 0 -/
+private theorem toRat_pos_of_not_le {d : Dyadic} (h : ¬ Dyadic.le d 0) : 0 < d.toRat := by
+  exact lt_of_not_ge fun h' => h ((Dyadic.le_iff_toRat_le d 0).mpr (by rwa [Dyadic.toRat_zero]))
+
+/-- mulFast endpoints match mul endpoints: lo -/
+private theorem mulFast_lo (I J : IntervalDyadic) : (mulFast I J).lo.toRat = (mul I J).lo.toRat := by
+  have hrhs : (mul I J).lo.toRat = IntervalRat.min4
+      (I.lo.toRat * J.lo.toRat) (I.lo.toRat * J.hi.toRat)
+      (I.hi.toRat * J.lo.toRat) (I.hi.toRat * J.hi.toRat) := by
+    simp only [mul, Dyadic.toRat_mul, min4_toRat]
+  rw [hrhs]; unfold mulFast
+  split
+  · rename_i hI; have hIlo := toRat_nonneg_of_le hI
+    split
+    · rename_i hJ; have hJlo := toRat_nonneg_of_le hJ
+      simp only [Dyadic.toRat_mul]
+      exact IntervalRat.eq_min4_of_le (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+    · split
+      · rename_i _ hJ2; have hJhi := toRat_nonpos_of_le hJ2
+        simp only [Dyadic.toRat_mul]
+        exact IntervalRat.eq_min4_of_le3 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · rename_i hJ hJ2; have hJlo := le_of_lt (toRat_neg_of_not_le hJ); have hJhi := le_of_lt (toRat_pos_of_not_le hJ2)
+        simp only [Dyadic.toRat_mul]
+        exact IntervalRat.eq_min4_of_le3 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+  · split
+    · rename_i _ hI2; have hIhi := toRat_nonpos_of_le hI2
+      split
+      · rename_i hJ; have hJlo := toRat_nonneg_of_le hJ
+        simp only [Dyadic.toRat_mul]
+        exact IntervalRat.eq_min4_of_le2 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · split
+        · rename_i _ hJ2; have hJhi := toRat_nonpos_of_le hJ2
+          simp only [Dyadic.toRat_mul]
+          exact IntervalRat.eq_min4_of_le4 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+        · rename_i hJ hJ2; have hJlo := le_of_lt (toRat_neg_of_not_le hJ); have hJhi := le_of_lt (toRat_pos_of_not_le hJ2)
+          simp only [Dyadic.toRat_mul]
+          exact IntervalRat.eq_min4_of_le2 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+    · rename_i hI hI2; have hIlo := le_of_lt (toRat_neg_of_not_le hI); have hIhi := le_of_lt (toRat_pos_of_not_le hI2)
+      split
+      · rename_i hJ; have hJlo := toRat_nonneg_of_le hJ
+        simp only [Dyadic.toRat_mul]
+        exact IntervalRat.eq_min4_of_le2 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · split
+        · rename_i _ hJ2; have hJhi := toRat_nonpos_of_le hJ2
+          simp only [Dyadic.toRat_mul]
+          exact IntervalRat.eq_min4_of_le3 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+        · exact hrhs
+
+/-- mulFast endpoints match mul endpoints: hi -/
+private theorem mulFast_hi (I J : IntervalDyadic) : (mulFast I J).hi.toRat = (mul I J).hi.toRat := by
+  have hrhs : (mul I J).hi.toRat = IntervalRat.max4
+      (I.lo.toRat * J.lo.toRat) (I.lo.toRat * J.hi.toRat)
+      (I.hi.toRat * J.lo.toRat) (I.hi.toRat * J.hi.toRat) := by
+    simp only [mul, Dyadic.toRat_mul, max4_toRat]
+  rw [hrhs]; unfold mulFast
+  split
+  · rename_i hI; have hIlo := toRat_nonneg_of_le hI
+    split
+    · rename_i hJ; have hJlo := toRat_nonneg_of_le hJ
+      simp only [Dyadic.toRat_mul]
+      exact IntervalRat.eq_max4_of_ge4 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+    · split
+      · rename_i _ hJ2; have hJhi := toRat_nonpos_of_le hJ2
+        simp only [Dyadic.toRat_mul]
+        exact IntervalRat.eq_max4_of_ge2 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · rename_i hJ hJ2; have hJlo := le_of_lt (toRat_neg_of_not_le hJ); have hJhi := le_of_lt (toRat_pos_of_not_le hJ2)
+        simp only [Dyadic.toRat_mul]
+        exact IntervalRat.eq_max4_of_ge4 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+  · split
+    · rename_i _ hI2; have hIhi := toRat_nonpos_of_le hI2
+      split
+      · rename_i hJ; have hJlo := toRat_nonneg_of_le hJ
+        simp only [Dyadic.toRat_mul]
+        exact IntervalRat.eq_max4_of_ge3 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · split
+        · rename_i _ hJ2; have hJhi := toRat_nonpos_of_le hJ2
+          simp only [Dyadic.toRat_mul]
+          exact IntervalRat.eq_max4_of_ge (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+        · rename_i hJ hJ2; have hJlo := le_of_lt (toRat_neg_of_not_le hJ); have hJhi := le_of_lt (toRat_pos_of_not_le hJ2)
+          simp only [Dyadic.toRat_mul]
+          exact IntervalRat.eq_max4_of_ge (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+    · rename_i hI hI2; have hIlo := le_of_lt (toRat_neg_of_not_le hI); have hIhi := le_of_lt (toRat_pos_of_not_le hI2)
+      split
+      · rename_i hJ; have hJlo := toRat_nonneg_of_le hJ
+        simp only [Dyadic.toRat_mul]
+        exact IntervalRat.eq_max4_of_ge4 (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+      · split
+        · rename_i _ hJ2; have hJhi := toRat_nonpos_of_le hJ2
+          simp only [Dyadic.toRat_mul]
+          exact IntervalRat.eq_max4_of_ge (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
+        · exact hrhs
+
+/-- Safety net: mulFast preserves the containment property of mul.
+    This ensures that even though `implemented_by` bypasses the kernel's
+    definitional equality check, the runtime implementation is sound. -/
+private theorem mem_mulFast {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) :
+    x * y ∈ mulFast I J := by
+  simp only [mem_def]
+  constructor
+  · rw [mulFast_lo]; exact (mem_mul hx hy).1
+  · rw [mulFast_hi]; exact (mem_mul hx hy).2
 
 /-- Multiply with precision control (outward rounding) -/
 def mulRounded (I J : IntervalDyadic) (prec : Int := -53) : IntervalDyadic :=
