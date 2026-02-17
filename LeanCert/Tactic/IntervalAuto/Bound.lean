@@ -129,8 +129,7 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
     Tries ExprSupported first, falls back to ExprSupportedWithInv for inv/log. -/
 private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
     (intervalInfo : IntervalInfo) (taylorDepth : Nat)
-    (dyadicTheoremName dyadicCheckName : Lean.Name)
-    (dyadicWithInvTheoremName dyadicWithInvCheckName : Lean.Name) : TacticM Bool := do
+    (isStrict isLower : Bool) : TacticM Bool := do
   try
     -- Try ExprSupported first, fall back to ExprSupportedWithInv
     let mut dyadicSupportProof ← mkSupportedWithInvProof ast
@@ -139,8 +138,16 @@ private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
       dyadicSupportProof ← mkSupportedProof ast
       useWithInv := false
     catch _ => pure ()
-    let theoremName := if useWithInv then dyadicWithInvTheoremName else dyadicTheoremName
-    let checkName := if useWithInv then dyadicWithInvCheckName else dyadicCheckName
+    let (theoremName, checkName) :=
+      match useWithInv, isStrict, isLower with
+      | false, false, false => (``LeanCert.Validity.verify_upper_bound_dyadic', ``LeanCert.Validity.checkUpperBoundDyadic)
+      | false, false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic', ``LeanCert.Validity.checkLowerBoundDyadic)
+      | false, true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic', ``LeanCert.Validity.checkStrictUpperBoundDyadic)
+      | false, true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic', ``LeanCert.Validity.checkStrictLowerBoundDyadic)
+      | true,  false, false => (``LeanCert.Validity.verify_upper_bound_dyadic_withInv, ``LeanCert.Validity.checkUpperBoundDyadicWithInv)
+      | true,  false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic_withInv, ``LeanCert.Validity.checkLowerBoundDyadicWithInv)
+      | true,  true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic_withInv, ``LeanCert.Validity.checkStrictUpperBoundDyadicWithInv)
+      | true,  true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic_withInv, ``LeanCert.Validity.checkStrictLowerBoundDyadicWithInv)
     let prec : Int := -80
     let precExpr := toExpr prec
     let depthExpr := toExpr taylorDepth
@@ -256,11 +263,7 @@ where
 
       -- 2.5. Try Dyadic backend first
       let savedState ← saveState
-      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth
-          ``LeanCert.Validity.verify_upper_bound_dyadic'
-          ``LeanCert.Validity.checkUpperBoundDyadic
-          ``LeanCert.Validity.verify_upper_bound_dyadic_withInv
-          ``LeanCert.Validity.checkUpperBoundDyadicWithInv then
+      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth false false then
         return
       restoreState savedState
 
@@ -437,11 +440,7 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth
-          ``LeanCert.Validity.verify_lower_bound_dyadic'
-          ``LeanCert.Validity.checkLowerBoundDyadic
-          ``LeanCert.Validity.verify_lower_bound_dyadic_withInv
-          ``LeanCert.Validity.checkLowerBoundDyadicWithInv then
+      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth false true then
         return
       restoreState savedState
 
@@ -605,11 +604,7 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth
-          ``LeanCert.Validity.verify_strict_upper_bound_dyadic'
-          ``LeanCert.Validity.checkStrictUpperBoundDyadic
-          ``LeanCert.Validity.verify_strict_upper_bound_dyadic_withInv
-          ``LeanCert.Validity.checkStrictUpperBoundDyadicWithInv then
+      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth true false then
         return
       restoreState savedState
 
@@ -737,11 +732,7 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth
-          ``LeanCert.Validity.verify_strict_lower_bound_dyadic'
-          ``LeanCert.Validity.checkStrictLowerBoundDyadic
-          ``LeanCert.Validity.verify_strict_lower_bound_dyadic_withInv
-          ``LeanCert.Validity.checkStrictLowerBoundDyadicWithInv then
+      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth true true then
         return
       restoreState savedState
 

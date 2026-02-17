@@ -271,36 +271,16 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       let zeroRat : ℚ := 0
       let leProof ← mkAppM ``le_refl #[toExpr zeroRat]
 
-      let dyadicTheoremName :=
-        if useDyadicWithInv then
-          if isStrict then
-            if isReversed then ``LeanCert.Validity.verify_strict_lower_bound_dyadic_withInv
-            else ``LeanCert.Validity.verify_strict_upper_bound_dyadic_withInv
-          else
-            if isReversed then ``LeanCert.Validity.verify_lower_bound_dyadic_withInv
-            else ``LeanCert.Validity.verify_upper_bound_dyadic_withInv
-        else
-          if isStrict then
-            if isReversed then ``LeanCert.Validity.verify_strict_lower_bound_dyadic'
-            else ``LeanCert.Validity.verify_strict_upper_bound_dyadic'
-          else
-            if isReversed then ``LeanCert.Validity.verify_lower_bound_dyadic'
-            else ``LeanCert.Validity.verify_upper_bound_dyadic'
-      let dyadicCheckName :=
-        if useDyadicWithInv then
-          if isStrict then
-            if isReversed then ``LeanCert.Validity.checkStrictLowerBoundDyadicWithInv
-            else ``LeanCert.Validity.checkStrictUpperBoundDyadicWithInv
-          else
-            if isReversed then ``LeanCert.Validity.checkLowerBoundDyadicWithInv
-            else ``LeanCert.Validity.checkUpperBoundDyadicWithInv
-        else
-          if isStrict then
-            if isReversed then ``LeanCert.Validity.checkStrictLowerBoundDyadic
-            else ``LeanCert.Validity.checkStrictUpperBoundDyadic
-          else
-            if isReversed then ``LeanCert.Validity.checkLowerBoundDyadic
-            else ``LeanCert.Validity.checkUpperBoundDyadic
+      let (dyadicTheoremName, dyadicCheckName) :=
+        match useDyadicWithInv, isStrict, isReversed with
+        | false, false, false => (``LeanCert.Validity.verify_upper_bound_dyadic', ``LeanCert.Validity.checkUpperBoundDyadic)
+        | false, false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic', ``LeanCert.Validity.checkLowerBoundDyadic)
+        | false, true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic', ``LeanCert.Validity.checkStrictUpperBoundDyadic)
+        | false, true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic', ``LeanCert.Validity.checkStrictLowerBoundDyadic)
+        | true,  false, false => (``LeanCert.Validity.verify_upper_bound_dyadic_withInv, ``LeanCert.Validity.checkUpperBoundDyadicWithInv)
+        | true,  false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic_withInv, ``LeanCert.Validity.checkLowerBoundDyadicWithInv)
+        | true,  true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic_withInv, ``LeanCert.Validity.checkStrictUpperBoundDyadicWithInv)
+        | true,  true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic_withInv, ``LeanCert.Validity.checkStrictLowerBoundDyadicWithInv)
 
       trace[interval_decide] "Building dyadic certificate check"
       let dyadicCheckExpr ← mkAppM dyadicCheckName
