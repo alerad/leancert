@@ -3,7 +3,9 @@ name: Update toolchain tag
 on:
   push:
     branches: [main]
-  workflow_dispatch:  # Also allow manual trigger from Actions tab
+    paths:
+      - lean-toolchain
+  workflow_dispatch:
 
 jobs:
   tag:
@@ -12,6 +14,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Extract Lean version
         id: version
@@ -19,10 +23,15 @@ jobs:
           VERSION=$(sed 's|leanprover/lean4:||' lean-toolchain | tr -d '[:space:]')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create or update tag
+      - name: Create tag if missing
         run: |
           TAG="${{ steps.version.outputs.version }}"
-          git tag -f "$TAG"
-          git push origin "$TAG" --force
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag '$TAG' already exists on origin; leaving it unchanged."
+            exit 0
+          fi
+
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "refs/tags/$TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
