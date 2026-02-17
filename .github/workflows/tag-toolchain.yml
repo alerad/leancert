@@ -1,7 +1,9 @@
-name: Tag on lean-toolchain change
+name: Update toolchain tag
 
 on:
-  workflow_dispatch:  # Manual trigger only - run from Actions tab
+  push:
+    branches: [main]
+  workflow_dispatch:  # Also allow manual trigger from Actions tab
 
 jobs:
   tag:
@@ -20,7 +22,6 @@ jobs:
       - name: Create or update tag
         run: |
           TAG="${{ steps.version.outputs.version }}"
-          # Delete remote tag if exists, then create and push
           git tag -f "$TAG"
           git push origin "$TAG" --force
         env:
