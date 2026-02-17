@@ -5,7 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.IntervalEval
 import Mathlib.RingTheory.Polynomial.Basic
-import Mathlib.Algebra.Polynomial.Degree.Definitions
+import Mathlib.Algebra.Polynomial.Degree.Defs
 import Mathlib.Data.Nat.Choose.Sum
 import Mathlib.Data.Nat.Choose.Basic
 import Mathlib.Data.List.GetD
