@@ -38,14 +38,14 @@ precompileModules = false
 # Build explicitly with: lake build ChebyshevPsiTest
 [[lean_lib]]
 name = "ChebyshevPsiTest"
-roots = ["LeanCert.Engine.ChebyshevPsiTest"]
+roots = ["LeanCert.Test.ChebyshevPsi"]
 precompileModules = false
 
 # Chebyshev theta smoke test (native_decide)
 # Build explicitly with: lake build ChebyshevThetaTest
 [[lean_lib]]
 name = "ChebyshevThetaTest"
-roots = ["LeanCert.Engine.ChebyshevThetaTest"]
+roots = ["LeanCert.Test.ChebyshevTheta"]
 precompileModules = false
 
 [[lean_exe]]
