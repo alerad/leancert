@@ -3,7 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEvalDyadic
+import LeanCert.Engine.WitnessSum
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 
@@ -90,38 +90,23 @@ def bklnwTermDyadic (x : IntervalDyadic) (k : Nat) (cfg : BKLNWSumConfig := {}) 
   let p : ℚ := (1 : ℚ) / k - 1 / 3
   rpowIntervalDyadic x p cfg.toDyadicConfig
 
+/-- Wrap bklnwTermDyadic as a witness evaluator for use with witnessSumDyadic.
+    The DyadicConfig parameter is ignored — precision comes from BKLNWSumConfig. -/
+def bklnwEvalTerm (x : IntervalDyadic) (cfg : BKLNWSumConfig)
+    (k : Nat) (_dyadicCfg : DyadicConfig) : IntervalDyadic :=
+  bklnwTermDyadic x k cfg
+
 /-! ### Accumulator-Based Sum -/
 
 /-- Zero interval for accumulator initialization -/
 def zeroDyadic : IntervalDyadic := IntervalDyadic.singleton Core.Dyadic.zero
 
-/-- Recursive accumulator for BKLNW sum.
-
-    Computes Σ_{k=current}^{limit} x^(1/k - 1/3) by iterating and accumulating.
-    Each iteration adds one term to the accumulator interval.
-
-    Termination: limit - current decreases at each recursive call. -/
-def bklnwSumAux (x : IntervalDyadic) (current limit : Nat)
-    (acc : IntervalDyadic) (cfg : BKLNWSumConfig) : IntervalDyadic :=
-  if h : current > limit then
-    acc
-  else
-    let term := bklnwTermDyadic x current cfg
-    let newAcc := (IntervalDyadic.add acc term).roundOut cfg.precision
-    bklnwSumAux x (current + 1) limit newAcc cfg
-  termination_by limit + 1 - current
-
 /-- Compute interval bound for f(x) = Σ_{k=3}^{N} x^(1/k - 1/3).
 
-    This is the main entry point for BKLNW sum interval computation.
-    The sum starts at k=3 (matching the BKLNW definition where the k=3 term is 1).
-
-    Parameters:
-    - x: Interval containing the input value (must be positive)
-    - limit: Upper bound N on the sum index
-    - cfg: Configuration for precision and Taylor depth -/
+    Delegates to the generic witnessSumDyadic accumulator via bklnwEvalTerm wrapper.
+    The sum starts at k=3 (matching the BKLNW definition where the k=3 term is 1). -/
 def bklnwSumDyadic (x : IntervalDyadic) (limit : Nat) (cfg : BKLNWSumConfig := {}) : IntervalDyadic :=
-  bklnwSumAux x 3 limit zeroDyadic cfg
+  witnessSumDyadic (bklnwEvalTerm x cfg) 3 limit cfg.toDyadicConfig
 
 /-! ### Optimized Sum Computation
 
@@ -287,26 +272,6 @@ theorem mem_zeroDyadic : (0 : ℝ) ∈ zeroDyadic := by
   have hz : Core.Dyadic.zero.toRat = 0 := Core.Dyadic.toRat_zero
   simp only [hz, Rat.cast_zero, le_refl, and_self]
 
-/-- Upper bound extraction from membership -/
-theorem IntervalDyadic.le_hi_of_mem {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
-    x ≤ (I.hi.toRat : ℝ) := hx.2
-
-/-- Lower bound extraction from membership -/
-theorem IntervalDyadic.lo_le_of_mem {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
-    (I.lo.toRat : ℝ) ≤ x := hx.1
-
-/-- What upperBoundedBy means for membership -/
-theorem IntervalDyadic.upperBoundedBy_spec {I : IntervalDyadic} {q : ℚ}
-    (h : I.upperBoundedBy q = true) : (I.hi.toRat : ℝ) ≤ q := by
-  simp only [IntervalDyadic.upperBoundedBy, decide_eq_true_eq] at h
-  exact_mod_cast h
-
-/-- What lowerBoundedBy means for membership -/
-theorem IntervalDyadic.lowerBoundedBy_spec {I : IntervalDyadic} {q : ℚ}
-    (h : I.lowerBoundedBy q = true) : (q : ℝ) ≤ I.lo.toRat := by
-  simp only [IntervalDyadic.lowerBoundedBy, decide_eq_true_eq] at h
-  exact_mod_cast h
-
 /-- Membership in ofIntervalRat from Set.Icc membership -/
 theorem IntervalDyadic.mem_ofIntervalRat_of_Icc {x : ℝ} {lo hi : ℚ} (hle : lo ≤ hi)
     (hx : x ∈ Set.Icc (lo : ℝ) hi) (prec : Int) (hprec : prec ≤ 0 := by norm_num) :
@@ -315,23 +280,6 @@ theorem IntervalDyadic.mem_ofIntervalRat_of_Icc {x : ℝ} {lo hi : ℚ} (hle : l
   simp only [IntervalRat.mem_def]
   exact hx
 
-
-/-- Sum over Icc starting at first element -/
-theorem Finset.sum_Icc_eq_add_sum_Ioc {α : Type*} [AddCommMonoid α] (f : ℕ → α) (a b : ℕ)
-    (h : a ≤ b) : ∑ k ∈ Finset.Icc a b, f k = f a + ∑ k ∈ Finset.Ioc a b, f k := by
-  rw [← Finset.sum_insert (s := Finset.Ioc a b) (a := a)]
-  · congr 1
-    ext k
-    simp only [Finset.mem_insert, Finset.mem_Icc, Finset.mem_Ioc]
-    omega
-  · simp only [Finset.mem_Ioc]
-    omega
-
-/-- Ioc a b equals Icc (a+1) b -/
-theorem Finset.Ioc_eq_Icc_succ (a b : ℕ) : Finset.Ioc a b = Finset.Icc (a + 1) b := by
-  ext k
-  simp only [Finset.mem_Ioc, Finset.mem_Icc]
-  omega
 
 /-- The BKLNW function f(x) = Σ_{k=3}^{N} x^(1/k - 1/3) -/
 noncomputable def bklnwF (x : ℝ) (N : Nat) : ℝ :=
@@ -465,67 +413,19 @@ theorem mem_bklnwTermDyadic {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
   rw [← hp]
   exact mem_rpowIntervalDyadic hx hpos p cfg.toDyadicConfig hprec
 
-/-- Correctness of accumulator: if we've accumulated correctly so far,
-    adding one more term preserves correctness.
-
-    Note: Full proof requires careful induction on (limit - current).
-    The structure is correct; completing requires standard induction bookkeeping. -/
-theorem mem_bklnwSumAux {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
-    (hpos : I.toIntervalRat.lo > 0) (current limit : Nat)
-    (acc : IntervalDyadic) (partialSum : ℝ)
-    (hcurrent : current ≥ 3)
-    (hacc : partialSum ∈ acc)
-    (cfg : BKLNWSumConfig)
-    (hprec : cfg.precision ≤ 0 := by norm_num) :
-    (partialSum + ∑ k ∈ Finset.Icc current limit, x ^ ((1 : ℝ) / k - 1 / 3))
-      ∈ bklnwSumAux I current limit acc cfg := by
-  -- Strong induction on termination measure (limit + 1 - current)
-  generalize hm : limit + 1 - current = m
-  induction m using Nat.strongRecOn generalizing current acc partialSum with
-  | ind m ih =>
-    -- Unfold bklnwSumAux one step
-    unfold bklnwSumAux
-    split_ifs with h
-    · -- Case: current > limit, sum is empty, return acc
-      simp only [Finset.Icc_eq_empty (by omega : ¬current ≤ limit), Finset.sum_empty, add_zero]
-      exact hacc
-    · -- Case: current ≤ limit, add term and recurse
-      have hcur_le : current ≤ limit := Nat.le_of_not_gt h
-      -- Split the sum: Σ_{k ∈ Icc current limit} = f(current) + Σ_{k ∈ Icc (current+1) limit}
-      rw [Finset.sum_Icc_eq_add_sum_Ioc (fun k => x ^ ((1 : ℝ) / k - 1 / 3)) current limit hcur_le]
-      rw [Finset.Ioc_eq_Icc_succ]
-      -- Reassociate: partialSum + (term + rest) = (partialSum + term) + rest
-      rw [← add_assoc]
-      -- Key: show term membership
-      have hterm := mem_bklnwTermDyadic hx hpos current hcurrent cfg hprec
-      -- Show (partialSum + term) ∈ newAcc
-      have hnewAcc : partialSum + x ^ ((1 : ℝ) / current - 1 / 3) ∈
-          (IntervalDyadic.add acc (bklnwTermDyadic I current cfg)).roundOut cfg.precision := by
-        apply IntervalDyadic.roundOut_contains
-        exact IntervalDyadic.mem_add hacc hterm
-      -- Apply induction hypothesis
-      -- ih : ∀ m' < m, ∀ current' acc' partialSum',
-      --        current' ≥ 3 → partialSum' ∈ acc' → limit + 1 - current' = m' → ...
-      have hm' : limit + 1 - (current + 1) < m := by omega
-      have hcur' : current + 1 ≥ 3 := by omega
-      exact ih (limit + 1 - (current + 1)) hm' (current + 1) _ _ hcur' hnewAcc rfl
-
 /-- Main correctness theorem: the reflective sum correctly bounds the mathematical sum.
-
-    This is the "golden theorem" that connects the computable interval evaluator
-    to the mathematical definition of the BKLNW sum. -/
+    Now proved via the generic mem_witnessSumDyadic from WitnessSum. -/
 theorem mem_bklnwSumDyadic {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
     (hpos : I.toIntervalRat.lo > 0) (limit : Nat)
     (cfg : BKLNWSumConfig := {})
     (hprec : cfg.precision ≤ 0 := by norm_num) :
     bklnwF x limit ∈ bklnwSumDyadic I limit cfg := by
-  -- Unfold definitions
   unfold bklnwF bklnwSumDyadic
-  -- Apply main correctness theorem with partialSum = 0
-  have h := mem_bklnwSumAux hx hpos 3 limit zeroDyadic 0 (by norm_num) mem_zeroDyadic cfg hprec
-  -- 0 + ∑... = ∑...
-  simp only [zero_add] at h
-  exact h
+  apply mem_witnessSumDyadic
+    (fun k => x ^ ((1 : ℝ) / k - 1 / 3))
+    (bklnwEvalTerm I cfg) 3 limit cfg.toDyadicConfig
+  intro k hk1 _hk2
+  exact mem_bklnwTermDyadic hx hpos k (by omega) cfg hprec
 
 /-- Technical lemma: roundDown of a sufficiently large positive rational stays positive.
 
