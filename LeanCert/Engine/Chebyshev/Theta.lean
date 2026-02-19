@@ -471,4 +471,166 @@ theorem checkAllThetaRelError_implies_checkThetaRelError
   go_true_implies_checkThetaRelError start limit bound depth 1 (by omega) 0 0
     (by simp [thetaUB]) (by simp [thetaLB]) h N (by omega) hN_start hNb
 
+
+/-! ### Strengthened checker for real-valued Eθ
+
+For real `x ∈ [N, N+1)`, `θ(x) = θ(N)` but `x` can be as large as `N+1-ε`.
+The upper-bound direction still works from the integer check (worst at `x = N`),
+but the lower bound requires the strengthened condition `θ(N) ≥ (1-a)·(N+1)`.
+
+At the last integer `N = limit` we only need the regular check (x ≤ limit). -/
+
+/-- Strengthened check for one integer `N`, covering all real `x ∈ [N, N+1)`:
+- upper: `thetaUB(N) ≤ (1 + bound) * N`
+- lower: `thetaLB(N) ≥ (1 - bound) * (N + 1)` -/
+def checkThetaRelErrorReal (N : Nat) (bound : Rat) (depth : Nat := 20) : Bool :=
+  decide (thetaUB N depth <= (1 + bound) * (N : Rat)) &&
+  decide ((1 - bound) * ((N : Rat) + 1) <= thetaLB N depth)
+
+/-- If `checkThetaRelErrorReal N bound depth` holds, then for all real `x ∈ [N, N+1)`,
+`|θ(x) - x| ≤ bound * x`. -/
+theorem abs_theta_sub_le_mul_of_checkThetaRelErrorReal (N depth : Nat) (bound : Rat)
+    (hbound : 0 ≤ bound) (hbound1 : bound ≤ 1)
+    (h : checkThetaRelErrorReal N bound depth = true)
+    (x : Real) (hxlo : (N : Real) ≤ x) (hxhi : x < (N : Real) + 1) :
+    |theta x - x| ≤ (bound : Real) * x := by
+  unfold checkThetaRelErrorReal at h
+  rw [Bool.and_eq_true] at h
+  obtain ⟨h1, h2⟩ := h
+  rw [decide_eq_true_eq] at h1 h2
+  have hub := theta_le_thetaUB N depth
+  have hlb := thetaLB_le_theta N depth
+  have hnn : (0 : Real) ≤ x := le_trans (by exact_mod_cast (Nat.zero_le N)) hxlo
+  have hfloor : Nat.floor x = N := by
+    exact Nat.floor_eq_iff hnn |>.mpr ⟨by exact_mod_cast hxlo, by exact_mod_cast hxhi⟩
+  rw [Chebyshev.theta_eq_theta_coe_floor x, hfloor]
+  rw [abs_le]
+  constructor
+  · have hcast : ((1 - bound) * ((N : Rat) + 1) : Real) ≤ (thetaLB N depth : Real) := by
+      exact_mod_cast h2
+    have h1sub : (0 : Real) ≤ 1 - (bound : Real) := by
+      have : (bound : Real) ≤ 1 := by exact_mod_cast hbound1
+      linarith
+    have : (1 - (bound : Real)) * x ≤ (1 - (bound : Real)) * ((N : Real) + 1) :=
+      mul_le_mul_of_nonneg_left (le_of_lt hxhi) h1sub
+    push_cast at hcast ⊢
+    linarith
+  · have hcast : (thetaUB N depth : Real) ≤ ((1 + bound) * (N : Rat) : Real) := by
+      exact_mod_cast h1
+    have h1add : (0 : Real) ≤ 1 + (bound : Real) := by
+      linarith [show (0 : Real) ≤ bound from by exact_mod_cast hbound]
+    have : (1 + (bound : Real)) * (N : Real) ≤ (1 + (bound : Real)) * x :=
+      mul_le_mul_of_nonneg_left hxlo h1add
+    push_cast at hcast ⊢
+    linarith
+
+/-- Efficient O(N) incremental checker for the strengthened real-valued condition.
+For `N = start .. limit-1`: checks `checkThetaRelErrorReal N bound depth`
+  (covers `x ∈ [N, N+1)`)
+For `N = limit`: checks `checkThetaRelError N bound depth`
+  (covers only `x = limit`) -/
+def checkAllThetaRelErrorReal (start limit : Nat) (bound : Rat)
+    (depth : Nat := 20) : Bool :=
+  go start limit bound depth 1 0 0
+where
+  go (start limit : Nat) (bound : Rat) (depth n : Nat) (accUB accLB : Rat) : Bool :=
+    if n > limit then true
+    else
+      let accUB' := accUB + logPrimeUB n depth
+      let accLB' := accLB + logPrimeLB n depth
+      if n < start then
+        go start limit bound depth (n + 1) accUB' accLB'
+      else if n = limit then
+        decide (accUB' <= (1 + bound) * (n : Rat)) &&
+        decide ((1 - bound) * (n : Rat) <= accLB')
+      else
+        if decide (accUB' <= (1 + bound) * (n : Rat)) &&
+           decide ((1 - bound) * ((n : Rat) + 1) <= accLB') then
+          go start limit bound depth (n + 1) accUB' accLB'
+        else false
+  termination_by limit + 1 - n
+
+/-! ### Bridge: checkAllThetaRelErrorReal → pointwise -/
+
+private def go_true_implies_checkAllThetaRelErrorReal
+    (start limit : Nat) (bound : Rat) (depth n : Nat) (hn_pos : 0 < n)
+    (accUB accLB : Rat)
+    (haccUB : accUB = thetaUB (n - 1) depth)
+    (haccLB : accLB = thetaLB (n - 1) depth)
+    (hgo : checkAllThetaRelErrorReal.go start limit bound depth n accUB accLB = true)
+    (m : Nat) (hm : n <= m) (hm_start : start <= m) (hmb : m <= limit) :
+    (if m < limit then checkThetaRelErrorReal m bound depth
+     else checkThetaRelError m bound depth) = true := by
+  unfold checkAllThetaRelErrorReal.go at hgo
+  split at hgo
+  case isTrue hn_gt => omega
+  case isFalse hn_le =>
+    change (let accUB' := accUB + logPrimeUB n depth
+            let accLB' := accLB + logPrimeLB n depth
+            if n < start then _
+            else if n = limit then _
+            else _) = true at hgo
+    simp only at hgo
+    split at hgo
+    case isTrue hn_lt_start =>
+      exact go_true_implies_checkAllThetaRelErrorReal start limit bound depth (n + 1) (by omega)
+        (accUB + logPrimeUB n depth) (accLB + logPrimeLB n depth)
+        (by rw [show n + 1 - 1 = n from by omega]
+            rw [thetaUB_eq_acc n hn_pos depth, haccUB])
+        (by rw [show n + 1 - 1 = n from by omega]
+            rw [thetaLB_eq_acc n hn_pos depth, haccLB])
+        hgo m (by omega) hm_start hmb
+    case isFalse hn_ge_start =>
+      split at hgo
+      case isTrue hn_eq_limit =>
+        have hmn : m = n := by omega
+        rw [if_neg (show ¬(m < limit) from by omega)]
+        subst hmn
+        unfold checkThetaRelError
+        rw [Bool.and_eq_true] at hgo ⊢
+        obtain ⟨hUB, hLB⟩ := hgo
+        rw [decide_eq_true_eq] at hUB hLB
+        exact ⟨decide_eq_true_eq.mpr (by rw [thetaUB_eq_acc m hn_pos depth, ← haccUB]; exact hUB),
+               decide_eq_true_eq.mpr (by rw [thetaLB_eq_acc m hn_pos depth, ← haccLB]; exact hLB)⟩
+      case isFalse hn_ne_limit =>
+        split at hgo
+        case isTrue hcheck =>
+          rw [Bool.and_eq_true] at hcheck
+          obtain ⟨hcheckUB, hcheckLB⟩ := hcheck
+          rw [decide_eq_true_eq] at hcheckUB hcheckLB
+          have hthetaUB_n : thetaUB n depth <= (1 + bound) * (n : Rat) := by
+            rw [thetaUB_eq_acc n hn_pos depth, ← haccUB]; exact hcheckUB
+          have hthetaLB_n : (1 - bound) * ((n : Rat) + 1) <= thetaLB n depth := by
+            rw [thetaLB_eq_acc n hn_pos depth, ← haccLB]; exact hcheckLB
+          by_cases hmn : m = n
+          case pos =>
+            rw [if_pos (show m < limit from by omega)]
+            subst hmn
+            unfold checkThetaRelErrorReal
+            rw [Bool.and_eq_true]
+            exact ⟨decide_eq_true_eq.mpr hthetaUB_n, decide_eq_true_eq.mpr hthetaLB_n⟩
+          case neg =>
+            exact go_true_implies_checkAllThetaRelErrorReal start limit bound depth (n + 1) (by omega)
+              (accUB + logPrimeUB n depth) (accLB + logPrimeLB n depth)
+              (by rw [show n + 1 - 1 = n from by omega]
+                  rw [thetaUB_eq_acc n hn_pos depth, haccUB])
+              (by rw [show n + 1 - 1 = n from by omega]
+                  rw [thetaLB_eq_acc n hn_pos depth, haccLB])
+              hgo m (by omega) hm_start hmb
+        case isFalse =>
+          exact absurd hgo Bool.false_ne_true
+  termination_by limit + 1 - n
+
+/-- If `checkAllThetaRelErrorReal start limit bound depth` returns true, then:
+- for `N ∈ {start, ..., limit-1}`: `checkThetaRelErrorReal N bound depth` holds
+- for `N = limit`: `checkThetaRelError N bound depth` holds -/
+theorem checkAllThetaRelErrorReal_implies
+    (start limit : Nat) (bound : Rat) (depth : Nat)
+    (h : checkAllThetaRelErrorReal start limit bound depth = true)
+    (N : Nat) (hN : 0 < N) (hN_start : start <= N) (hNb : N <= limit) :
+    (if N < limit then checkThetaRelErrorReal N bound depth
+     else checkThetaRelError N bound depth) = true :=
+  go_true_implies_checkAllThetaRelErrorReal start limit bound depth 1 (by omega) 0 0
+    (by simp [thetaUB]) (by simp [thetaLB]) h N (by omega) hN_start hNb
+
 end LeanCert.Engine.ChebyshevTheta
