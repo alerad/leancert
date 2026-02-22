@@ -2,14 +2,45 @@ name: Update Mathlib
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Daily at 6 AM UTC
-  workflow_dispatch:      # Allow manual trigger
+    - cron: '0 6 * * *' # Daily at 6 AM UTC
+  workflow_dispatch:
 
 jobs:
-  update-mathlib:
+  check-for-updates:
     runs-on: ubuntu-latest
+    outputs:
+      is-update-available: ${{ steps.check.outputs.is-update-available }}
+      new-tags: ${{ steps.check.outputs.new-tags }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Update Mathlib
+      - name: Check for available updates
+        id: check
         uses: leanprover-community/mathlib-update-action@v1
+        with:
+          intermediate_releases: stable
+          lake_package_directory: .
+          legacy_update: false
+
+  do-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    needs: check-for-updates
+    if: ${{ needs.check-for-updates.outputs.is-update-available == 'true' }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        tag: ${{ fromJSON(needs.check-for-updates.outputs.new-tags) }}
+    steps:
+      - name: Apply update for ${{ matrix.tag }}
+        id: update
+        uses: leanprover-community/mathlib-update-action/do-update@v1
+        with:
+          tag: ${{ matrix.tag }}
+          on_update_succeeds: pr
+          on_update_fails: issue
+          update_if_modified: lake-manifest.json
+          build_args: --log-level=warning
+          lake_package_directory: .
+          legacy_update: false
