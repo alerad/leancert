@@ -48,13 +48,6 @@ name = "ChebyshevThetaTest"
 roots = ["LeanCert.Test.ChebyshevTheta"]
 precompileModules = false
 
-# Pisano period smoke test
-# Build explicitly with: lake build PisanoTest
-[[lean_lib]]
-name = "PisanoTest"
-roots = ["LeanCert.Test.Pisano"]
-precompileModules = false
-
 [[lean_exe]]
 name = "leancert"
 root = "Main"
