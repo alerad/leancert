@@ -567,6 +567,26 @@ def upperBoundedBy (I : IntervalDyadic) (q : ℚ) : Bool :=
 def lowerBoundedBy (I : IntervalDyadic) (q : ℚ) : Bool :=
   q ≤ I.lo.toRat
 
+/-- Upper bound extraction from membership -/
+theorem le_hi_of_mem {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
+    x ≤ (I.hi.toRat : ℝ) := hx.2
+
+/-- Lower bound extraction from membership -/
+theorem lo_le_of_mem {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
+    (I.lo.toRat : ℝ) ≤ x := hx.1
+
+/-- What upperBoundedBy means: the interval's hi endpoint is ≤ q -/
+theorem upperBoundedBy_spec {I : IntervalDyadic} {q : ℚ}
+    (h : I.upperBoundedBy q = true) : (I.hi.toRat : ℝ) ≤ q := by
+  simp only [upperBoundedBy, decide_eq_true_eq] at h
+  exact_mod_cast h
+
+/-- What lowerBoundedBy means: q is ≤ the interval's lo endpoint -/
+theorem lowerBoundedBy_spec {I : IntervalDyadic} {q : ℚ}
+    (h : I.lowerBoundedBy q = true) : (q : ℝ) ≤ I.lo.toRat := by
+  simp only [lowerBoundedBy, decide_eq_true_eq] at h
+  exact_mod_cast h
+
 /-! ### Helper for Transcendentals -/
 
 /-- Convert from IntervalRat (for transcendental results) -/
