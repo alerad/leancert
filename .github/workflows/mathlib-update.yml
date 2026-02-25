@@ -13,3 +13,8 @@ jobs:
 
       - name: Update Mathlib
         uses: leanprover-community/mathlib-update-action@v1
+        with:
+          # Temporary workaround: avoid semver parsing of this repo's tags.
+          # This bypasses the non-semver tag `v4.28.0.1` until we remove it.
+          # Revert to `all` or `latest` after deleting that tag.
+          intermediate_releases: master
