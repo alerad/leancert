@@ -16,7 +16,10 @@ jobs:
         id: check
         uses: leanprover-community/mathlib-update-action@v1
         with:
-          intermediate_releases: stable
+          # Temporary workaround: avoid semver parsing of this repo's tags.
+          # This bypasses the non-semver tag `v4.28.0.1` until we remove it.
+          # Revert to `all` or `latest` after deleting that tag.
+          intermediate_releases: master
           lake_package_directory: .
           legacy_update: false
 

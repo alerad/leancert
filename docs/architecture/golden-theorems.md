@@ -1,6 +1,8 @@
 # Golden Theorems
 
-LeanCert operates on a **certificate-driven architecture**. The Python side discovers facts, and the Lean side verifies them using **Golden Theorems**.
+LeanCert operates on a **certificate-driven architecture** where computable
+checkers run in Lean, and Golden Theorems lift successful checks to semantic
+theorems over real numbers.
 
 ## Concept
 
@@ -249,13 +251,18 @@ This removes the compiler from the trusted computing base—only the Lean kernel
 
 ## The Certificate Workflow
 
-1. **Python discovers**: Find bounds, roots, or optima
-2. **Python generates certificate**: Parameters that make the checker return `true`
-3. **Lean verifies**: Run the checker via `native_decide`
-4. **Golden theorem applies**: Boolean `true` lifts to semantic proof
+1. **Formulate the goal in Lean**: expression, domain, and target claim
+2. **Run the checker**: evaluate `check... = true` (typically via `native_decide`)
+3. **Apply the Golden Theorem**: lift the boolean result to a semantic theorem
+4. **Complete the proof script**: keep the theorem statement and proof term in Lean
+
+Optional external orchestration now lives in separate repos:
+
+- `https://github.com/alerad/leancert-python`
+- `https://github.com/alerad/leancert-bridge`
 
 ```
-Python                           Lean
+External tooling (optional)      Lean
 ──────                           ────
 find_bounds(x²+sin(x), [0,1])
     │
