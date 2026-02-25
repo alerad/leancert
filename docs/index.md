@@ -56,6 +56,7 @@ lake update
 ## Split Repositories
 
 This repo is Lean-only.
+The Python package and bridge release pipeline were moved out of this repo.
 
 - Python SDK: `https://github.com/alerad/leancert-python`
 - Bridge binaries: `https://github.com/alerad/leancert-bridge`

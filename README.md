@@ -52,6 +52,8 @@ lake exe check-compat
 ## Split Repositories
 
 This repository is Lean-only.
+The former in-repo Python and bridge packaging/workflows were split into
+dedicated repositories.
 
 - Python SDK: `https://github.com/alerad/leancert-python`
 - Bridge binaries (JSON-RPC executable): `https://github.com/alerad/leancert-bridge`

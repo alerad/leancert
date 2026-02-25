@@ -83,5 +83,5 @@ theorem pruning_safe :
 
 | File | Description |
 |------|-------------|
-| `ML/Distillation.lean` | Core verification algorithm |
-| `Examples/ML/Distillation.lean` | Example usage |
+| `LeanCert/ML/Distillation.lean` | Core verification algorithm |
+| `LeanCert/Examples/ML/Distillation.lean` | Example usage |
