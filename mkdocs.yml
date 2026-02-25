@@ -32,14 +32,6 @@ theme:
 
 plugins:
   - search
-  - mkdocstrings:
-      default_handler: python
-      handlers:
-        python:
-          paths: [python]
-          options:
-            show_source: true
-            show_root_heading: true
 
 markdown_extensions:
   - admonition
@@ -67,13 +59,6 @@ nav:
   - Lean Tactics:
     - Reference: tactics.md
     - Root Finding: architecture/root-finding.md
-  - Python SDK:
-    - Solver API: api/solver.md
-    - Configuration: api/config.md
-    - Result Types: api/types.md
-    - Expressions: api/expr.md
-    - PyTorch Export: python/pytorch.md
-    - Bug Validation: python/validation.md
   - Neural Networks:
     - Verification: ml/neural-networks.md
     - Distillation: ml/distillation.md
