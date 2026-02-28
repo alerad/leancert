@@ -155,6 +155,37 @@ def checkPeriod (P Q : Int) (m : Nat) (k : Nat) : Bool :=
   else
     lucasUMod P Q m k == 0 && lucasUMod P Q m (k + 1) % m == 1 % m
 
+/-- Semantic period predicate for Lucas sequences modulo `m`. -/
+def IsLucasPeriod (P Q : Int) (m : Nat) (k : Nat) : Prop :=
+  lucasUMod P Q m k = 0 /\ lucasUMod P Q m (k + 1) % m = 1 % m
+
+/-- Computable checker aligned exactly with `IsLucasPeriod`.
+This is suitable for `native_decide` and bridge-theorem workflows. -/
+def checkPeriodCore (P Q : Int) (m : Nat) (k : Nat) : Bool :=
+  lucasUMod P Q m k == 0 && lucasUMod P Q m (k + 1) % m == 1 % m
+
+/-- Golden-Theorem style bridge: a successful core check implies the semantic predicate. -/
+theorem checkPeriodCore_sound (P Q : Int) (m : Nat) (k : Nat) :
+    checkPeriodCore P Q m k = true -> IsLucasPeriod P Q m k := by
+  intro h
+  unfold checkPeriodCore at h
+  unfold IsLucasPeriod
+  have h' :
+      (lucasUMod P Q m k == 0) = true /\
+        (lucasUMod P Q m (k + 1) % m == 1 % m) = true := by
+    simpa [Bool.and_eq_true] using h
+  have h0 : (lucasUMod P Q m k == 0) = true := h'.1
+  have h1 : (lucasUMod P Q m (k + 1) % m == 1 % m) = true := h'.2
+  exact And.intro (LawfulBEq.eq_of_beq h0) (LawfulBEq.eq_of_beq h1)
+
+/-- Completeness direction for the core checker. -/
+theorem IsLucasPeriod_checkPeriodCore_true (P Q : Int) (m : Nat) (k : Nat) :
+    IsLucasPeriod P Q m k -> checkPeriodCore P Q m k = true := by
+  intro h
+  have h0 : lucasUMod P Q m k = 0 := h.1
+  have h1 : lucasUMod P Q m (k + 1) % m = 1 % m := h.2
+  simp [checkPeriodCore, h0, h1]
+
 /-- Check that `k` is the *minimal* period modulo `m`. -/
 def checkPisanoPeriod (P Q : Int) (m : Nat) (k : Nat) : Bool :=
   k > 0 && checkPeriod P Q m k &&

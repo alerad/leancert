@@ -16,44 +16,44 @@ Covers:
 
 open LeanCert.Engine.Pisano
 
-/-! ### Known Fibonacci Pisano periods `π(p)` -/
+/-! ### Known Fibonacci Pisano periods -/
 
-#eval findPisanoPeriod 1 (-1) 2   -- expect 3
-#eval findPisanoPeriod 1 (-1) 3   -- expect 8
-#eval findPisanoPeriod 1 (-1) 5   -- expect 20
-#eval findPisanoPeriod 1 (-1) 7   -- expect 16
-#eval findPisanoPeriod 1 (-1) 11  -- expect 10
-#eval findPisanoPeriod 1 (-1) 13  -- expect 28
+#guard findPisanoPeriod 1 (-1) 2 = 3
+#guard findPisanoPeriod 1 (-1) 3 = 8
+#guard findPisanoPeriod 1 (-1) 5 = 20
+#guard findPisanoPeriod 1 (-1) 7 = 16
+#guard findPisanoPeriod 1 (-1) 11 = 10
+#guard findPisanoPeriod 1 (-1) 13 = 28
 
 /-! ### Known non-Fibonacci period checks (brute fallback path) -/
 
-#eval findPisanoPeriod 2 (-1) 2   -- expect 2
-#eval findPisanoPeriod 2 (-1) 3   -- expect 8
-#eval findPisanoPeriod 2 (-1) 5   -- expect 12
-#eval findPisanoPeriod 2 (-1) 7   -- expect 6
+#guard findPisanoPeriod 2 (-1) 2 = 2
+#guard findPisanoPeriod 2 (-1) 3 = 8
+#guard findPisanoPeriod 2 (-1) 5 = 12
+#guard findPisanoPeriod 2 (-1) 7 = 6
 
-#eval findPisanoPeriod 3 (-1) 2   -- expect 3
-#eval findPisanoPeriod 3 (-1) 3   -- expect 2
-#eval findPisanoPeriod 3 (-1) 13  -- expect 52
+#guard findPisanoPeriod 3 (-1) 2 = 3
+#guard findPisanoPeriod 3 (-1) 3 = 2
+#guard findPisanoPeriod 3 (-1) 13 = 52
 
-#eval findPisanoPeriod 3 1 2      -- expect 3
-#eval findPisanoPeriod 3 1 3      -- expect 4
-#eval findPisanoPeriod 3 1 5      -- expect 10
+#guard findPisanoPeriod 3 1 2 = 3
+#guard findPisanoPeriod 3 1 3 = 4
+#guard findPisanoPeriod 3 1 5 = 10
 
 /-! ### Prime-power + CRT/lcm path checks -/
 
-#eval findFibPisanoPeriodPrimePow 2 5   -- expect 48 (mod 32)
-#eval findFibPisanoPeriodPrimePow 3 2   -- expect 24 (mod 9)
-#eval findFibPisanoPeriodPrimePow 5 2   -- expect 100 (mod 25)
+#guard findFibPisanoPeriodPrimePow 2 5 = 48
+#guard findFibPisanoPeriodPrimePow 3 2 = 24
+#guard findFibPisanoPeriodPrimePow 5 2 = 100
 
--- `45 = 9 * 5`, coprime factors, so `π(45) = lcm(π(9), π(5))`.
-#eval
-  findFibPisanoPeriod 45 ==
+-- 45 = 9 * 5, coprime factors, so pi(45) = lcm(pi(9), pi(5)).
+#guard
+  findFibPisanoPeriod 45 =
     Nat.lcm (findFibPisanoPeriodPrimePow 3 2) (findFibPisanoPeriodPrimePow 5 1)
 
 /-! ### Optimized engine agrees with brute reference -/
 
-private def checkFibOptimizedMatchesBruteAux : Nat → Nat → Bool
+private def checkFibOptimizedMatchesBruteAux : Nat -> Nat -> Bool
   | 0, _ => true
   | fuel + 1, m =>
     findFibPisanoPeriod m == findPisanoPeriodBrute 1 (-1) m &&
@@ -63,14 +63,22 @@ private def checkFibOptimizedMatchesBruteAux : Nat → Nat → Bool
 def checkFibOptimizedMatchesBrute (count : Nat) (start : Nat := 2) : Bool :=
   checkFibOptimizedMatchesBruteAux count start
 
-#eval checkFibOptimizedMatchesBrute 200
+example : checkFibOptimizedMatchesBrute 200 = true := by native_decide
+
+/-! ### Core checker bridge theorem (Golden-Theorem style) -/
+
+example :
+    LeanCert.Engine.Pisano.IsLucasPeriod 1 (-1) 13 (findPisanoPeriod 1 (-1) 13) := by
+  exact
+    LeanCert.Engine.Pisano.checkPeriodCore_sound 1 (-1) 13
+      (findPisanoPeriod 1 (-1) 13) (by native_decide)
 
 /-! ### Fast-doubling congruence property checks -/
 
 private def lcgStep (x : Nat) : Nat :=
   (1664525 * x + 1013904223) % 4294967296
 
-private def checkFibFastModAgreementAux : Nat → Nat → Bool
+private def checkFibFastModAgreementAux : Nat -> Nat -> Bool
   | 0, _ => true
   | fuel + 1, seed =>
     let s1 := lcgStep seed
@@ -85,7 +93,7 @@ private def checkFibFastModAgreementAux : Nat → Nat → Bool
 def checkFibFastModAgreement (samples : Nat) : Bool :=
   checkFibFastModAgreementAux samples 123456789
 
-private def checkLucasFastModAgreementAux : Nat → Nat → Bool
+private def checkLucasFastModAgreementAux : Nat -> Nat -> Bool
   | 0, _ => true
   | fuel + 1, seed =>
     let s1 := lcgStep seed
@@ -100,38 +108,38 @@ private def checkLucasFastModAgreementAux : Nat → Nat → Bool
 def checkLucasFastModAgreement (samples : Nat) : Bool :=
   checkLucasFastModAgreementAux samples 987654321
 
-#eval checkFibFastModAgreement 3000
-#eval checkLucasFastModAgreement 3000
+example : checkFibFastModAgreement 3000 = true := by native_decide
+example : checkLucasFastModAgreement 3000 = true := by native_decide
 
-/-! ### Rank of apparition (`z(m)`) checks -/
+/-! ### Rank of apparition checks -/
 
-#eval findFibRankOfApparition 2   -- expect 3
-#eval findFibRankOfApparition 3   -- expect 4
-#eval findFibRankOfApparition 5   -- expect 5
-#eval findFibRankOfApparition 7   -- expect 8
+#guard findFibRankOfApparition 2 = 3
+#guard findFibRankOfApparition 3 = 4
+#guard findFibRankOfApparition 5 = 5
+#guard findFibRankOfApparition 7 = 8
 
-#eval checkFibRankDividesPeriod 1000  -- expect true
+example : checkFibRankDividesPeriod 1000 = true := by native_decide
 
 /-! ### Pisano fixed points -/
 
-#eval findPisanoFixedPoints 1 (-1) 200  -- expect [24, 120]
-#eval findPisanoFixedPoints 2 (-1) 200  -- expect [2]
-#eval findPisanoFixedPoints 3 (-1) 200  -- expect [6, 156]
-#eval findPisanoFixedPoints 3 1 200     -- expect [12, 60]
-#eval findPisanoFixedPoints 4 1 200     -- expect [2, 6]
+#guard findPisanoFixedPoints 1 (-1) 200 = [24, 120]
+#guard findPisanoFixedPoints 2 (-1) 200 = [2]
+#guard findPisanoFixedPoints 3 (-1) 200 = [6, 156]
+#guard findPisanoFixedPoints 3 1 200 = [12, 60]
+#guard findPisanoFixedPoints 4 1 200 = [2, 6]
 
 /-! ### Micro-benchmark: optimized Fibonacci period vs brute -/
 
 def benchmarkFibPisano : IO Unit := do
-  let totalStart ← IO.monoMsNow
+  let totalStart <- IO.monoMsNow
   for m in [233, 377, 701, 997] do
-    let t0 ← IO.monoMsNow
+    let t0 <- IO.monoMsNow
     let fast := findFibPisanoPeriod m
-    let t1 ← IO.monoMsNow
+    let t1 <- IO.monoMsNow
     let brute := findPisanoPeriodBrute 1 (-1) m
-    let t2 ← IO.monoMsNow
+    let t2 <- IO.monoMsNow
     IO.println s!"m={m}: fast={fast} ({t1 - t0} ms), brute={brute} ({t2 - t1} ms)"
-  let totalStop ← IO.monoMsNow
+  let totalStop <- IO.monoMsNow
   IO.println s!"benchmark total: {totalStop - totalStart} ms"
 
 #eval benchmarkFibPisano
