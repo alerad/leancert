@@ -428,9 +428,9 @@ theorem intVal_mono {a b : Int} (h : a ≤ b) (e : Int) : intVal a e ≤ intVal 
 /-- intVal is strictly monotone -/
 theorem intVal_strictMono {a b : Int} (h : a < b) (e : Int) : intVal a e < intVal b e := by
   simp only [intVal]
-  apply mul_lt_mul_of_pos_right
-  · exact Int.cast_lt.mpr h
-  · exact zpow_pos (by norm_num : (0 : ℝ) < 2) e
+  have hab : (a : ℝ) < (b : ℝ) := Int.cast_lt.mpr h
+  have hpos : (0 : ℝ) < (2 : ℝ) ^ e := zpow_pos (by norm_num : (0 : ℝ) < 2) e
+  nlinarith
 
 /-- Soundness of the Optimized Forward Pass.
 

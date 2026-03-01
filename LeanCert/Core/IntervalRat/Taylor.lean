@@ -138,19 +138,17 @@ private lemma expTaylorCoeffsAux_eq_range (n k : ℕ) :
                 expTaylorCoeffsAux n (k + 1) ((1 / ratFactorial k) / (k + 1)) := by
                   rfl
         _ = (1 / ratFactorial k) ::
-                expTaylorCoeffsAux n (k + 1) ((ratFactorial k)⁻¹ / (k + 1)) := by
-                  simp [one_div]
+                expTaylorCoeffsAux n (k + 1) (1 / ratFactorial (k + 1)) := by
+                  congr 1
+                  conv_lhs => rw [show (1 : ℚ) / ratFactorial k = (ratFactorial k)⁻¹ from one_div _]
+                  conv_rhs => rw [show (1 : ℚ) / ratFactorial (k + 1) = (ratFactorial (k + 1))⁻¹ from one_div _]
+                  exact congrArg _ hstep
         _ = (1 / ratFactorial k) ::
-                expTaylorCoeffsAux n (k + 1) (ratFactorial (k + 1))⁻¹ := by
-                  simp [hstep]
-        _ = (1 / ratFactorial k) ::
-              (List.range (n + 1)).map (fun i => (ratFactorial (i + (k + 1)))⁻¹) := by
-                  simpa [one_div] using (ih (k + 1))
+              (List.range (n + 1)).map (fun i => 1 / ratFactorial (i + (k + 1))) := by
+                  exact congrArg _ (ih (k + 1))
         _ = (List.range (n + 2)).map (fun i => 1 / ratFactorial (i + k)) := by
-            -- unfold the range map at the front
             have hmap := map_range_succ (fun i => 1 / ratFactorial (i + k)) (n + 1)
-            -- rewrite and simplify
-            simpa [one_div, Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hmap.symm
+            simpa [Nat.add_assoc, Nat.add_left_comm, Nat.add_comm] using hmap.symm
 
 private lemma expTaylorCoeffs_eq_range_map (n : ℕ) :
     expTaylorCoeffs n = (List.range (n + 1)).map (fun i => 1 / ratFactorial i) := by
@@ -843,7 +841,7 @@ theorem exp_taylor_remainder_in_interval {x : ℝ} {I : IntervalRat} (hx : x ∈
   set R := ((3 : ℚ) ^ (Nat.ceil r + 1) * r ^ (n + 1) / ratFactorial (n + 1))
 
   -- Apply Taylor theorem
-  have hexp_smooth : ContDiff ℝ (n + 1) Real.exp := Real.contDiff_exp.of_le le_top
+  have hexp_smooth : ContDiff ℝ (n + 1) Real.exp := Real.contDiff_exp.of_le (le_of_lt (WithTop.coe_lt_top _))
   have hderiv_bound : ∀ y ∈ Set.Icc ((-r : ℚ) : ℝ) (r : ℚ),
       ‖iteratedDeriv (n + 1) Real.exp y‖ ≤ Real.exp r := by
     intro y hy
@@ -896,7 +894,7 @@ theorem sin_taylor_remainder_in_interval {x : ℝ} {I : IntervalRat} (hx : x ∈
   set R := (r ^ (n + 1) / ratFactorial (n + 1))
 
   -- Apply Taylor theorem with M = 1
-  have hsin_smooth : ContDiff ℝ (n + 1) Real.sin := Real.contDiff_sin.of_le le_top
+  have hsin_smooth : ContDiff ℝ (n + 1) Real.sin := Real.contDiff_sin.of_le (le_of_lt (WithTop.coe_lt_top _))
   have hderiv_bound : ∀ y ∈ Set.Icc ((-r : ℚ) : ℝ) (r : ℚ),
       ‖iteratedDeriv (n + 1) Real.sin y‖ ≤ 1 := by
     intro y _; exact (sin_cos_deriv_bound (n + 1) y).1
@@ -938,7 +936,7 @@ theorem cos_taylor_remainder_in_interval {x : ℝ} {I : IntervalRat} (hx : x ∈
   set R := (r ^ (n + 1) / ratFactorial (n + 1))
 
   -- Apply Taylor theorem with M = 1
-  have hcos_smooth : ContDiff ℝ (n + 1) Real.cos := Real.contDiff_cos.of_le le_top
+  have hcos_smooth : ContDiff ℝ (n + 1) Real.cos := Real.contDiff_cos.of_le (le_of_lt (WithTop.coe_lt_top _))
   have hderiv_bound : ∀ y ∈ Set.Icc ((-r : ℚ) : ℝ) (r : ℚ),
       ‖iteratedDeriv (n + 1) Real.cos y‖ ≤ 1 := by
     intro y _; exact (sin_cos_deriv_bound (n + 1) y).2
@@ -1477,10 +1475,21 @@ theorem atanh_taylor_remainder_in_interval {q : ℚ} (hq : |(q : ℝ)| < 1) (n :
           convert zipIdx_range_map
             (fun a b =>
               ((if a % 2 = 1 then ((a : ℚ) : ℚ)⁻¹ else 0 : ℚ) : ℝ) * (q : ℝ) ^ b) (n + 1) using 2
-        rw [h1, h2]
-        exact list_map_sum_eq_finset_sum
+        have h3 := list_map_sum_eq_finset_sum
           (fun i : ℕ =>
             ((if i % 2 = 1 then ((i : ℚ) : ℚ)⁻¹ else 0 : ℚ) : ℝ) * (q : ℝ) ^ i) (n + 1)
+        simp only [← one_div] at h3
+        have step1 : ∀ x ∈ (List.range (n + 1)).zipIdx,
+          ((fun p : ℚ × ℕ => (p.1 : ℝ) * (q : ℝ) ^ p.2) ∘
+            Prod.map (fun i : ℕ => if i % 2 = 1 then 1 / ((i : ℚ) : ℚ) else 0) id) x =
+          (fun p : ℕ × ℕ =>
+            ((if p.1 % 2 = 1 then 1 / ((p.1 : ℚ) : ℚ) else 0 : ℚ) : ℝ) * (q : ℝ) ^ p.2) x := by
+          intro ⟨a, b⟩ _; simp [Function.comp, Prod.map_apply]
+        rw [List.map_congr_left step1]
+        simp only [← one_div] at h2
+        rw [h2]
+        convert h3 using 2 with i
+        simp only [one_div]
 
       -- Step 2: Filter to odd indices (even indices contribute zero).
       have hsum_filter :
@@ -1621,7 +1630,7 @@ theorem atanh_taylor_remainder_in_interval {q : ℚ} (hq : |(q : ℝ)| < 1) (n :
         ≤ ∑' k, |term (k + m)| := h_norm_sum
       _ ≤ ∑' k, geo_term k := h_tail_summable.abs.tsum_le_tsum h_term_bound h_geo_summable
       _ = |(q : ℝ)| ^ (2 * m + 1) * ∑' k, (|(q : ℝ)| ^ 2) ^ k := by
-          simp only [geo_term]; rw [tsum_mul_left]
+          simp only [geo_term]; exact tsum_mul_left
       _ = |(q : ℝ)| ^ (2 * m + 1) / (1 - |(q : ℝ)| ^ 2) := by
           rw [tsum_geometric_of_lt_one (sq_nonneg _) hz_abs_sq]; ring
       _ ≤ |(q : ℝ)| ^ (n + 1) / (1 - |(q : ℝ)| ^ 2) := by
@@ -2061,7 +2070,7 @@ private theorem erfInner_contDiff_nat (n : ℕ) : ContDiff ℝ n erfInner := by
         |>.differentiableAt
     have hderiv_smooth : ContDiff ℝ n (deriv erfInner) := by
       simp only [erfInner_deriv]
-      exact contDiff_exp_neg_sq.of_le le_top
+      exact contDiff_exp_neg_sq.of_le (le_of_lt (WithTop.coe_lt_top _))
     exact contDiff_succ_iff_deriv.mpr ⟨hdiff, by simp, hderiv_smooth⟩
 
 

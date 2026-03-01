@@ -421,8 +421,7 @@ private theorem sqrt_le_max_one {x : ℝ} (hx : 0 ≤ x) : Real.sqrt x ≤ max x
       exact Real.sqrt_lt_sqrt (by norm_num) hgt
     have hsqrt_lt : Real.sqrt x < x := by
       have h1 : Real.sqrt x * Real.sqrt x = x := Real.mul_self_sqrt hx
-      have h2 : Real.sqrt x * 1 < Real.sqrt x * Real.sqrt x :=
-        mul_lt_mul_of_pos_left hsqrt_gt_one hsqrt_pos
+      have h2 : Real.sqrt x * 1 < Real.sqrt x * Real.sqrt x := by nlinarith
       simp only [mul_one] at h2
       linarith
     calc Real.sqrt x ≤ x := le_of_lt hsqrt_lt

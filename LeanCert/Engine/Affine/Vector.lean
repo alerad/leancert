@@ -340,11 +340,10 @@ theorem mem_mean {v_real : List ℝ} {v : AffineVector} {eps : AffineForm.NoiseA
     have : v.isEmpty := List.isEmpty_iff.mpr (List.length_eq_zero_iff.mp h)
     exact hne this
   have hne_real : (v.length : ℝ) ≠ 0 := by exact_mod_cast hne'
-  convert hscale using 1
-  . simp
-  rw [hlen]
-  push_cast
-  field_simp [hne_real]
+  have : (↑(1 / ↑(v.length) : ℚ) : ℝ) * v_real.sum = v_real.sum / v_real.length := by
+    rw [hlen]; push_cast; field_simp [hne_real]
+  rw [this] at hscale
+  exact hscale
 
 /-- Centered is sound: x - mean(x) -/
 theorem mem_centered {v_real : List ℝ} {v : AffineVector} {eps : AffineForm.NoiseAssignment}

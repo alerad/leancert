@@ -242,7 +242,7 @@ theorem cosh_strictAntiOn_nonpos : StrictAntiOn cosh (Iic 0) := by
   intro x hx y hy hxy
   simp only [mem_Iic] at hx hy
   -- Use that cosh is even and decreasing on negative reals
-  calc cosh y = cosh (-(-y)) := by ring_nf
+  calc cosh y = cosh (-(-y)) := by rw [neg_neg]
     _ = cosh (-y) := by rw [Real.cosh_neg]
     _ < cosh (-x) := by
         apply Real.cosh_strictMonoOn

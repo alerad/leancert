@@ -373,7 +373,7 @@ theorem evalFunc1_differentiableAt_of_evalDual? (e : Expr) (hsupp : ExprSupporte
         intro y
         have hcont : Continuous (fun t => Real.exp (-(t^2))) :=
           Real.continuous_exp.comp (continuous_neg.comp (continuous_pow 2))
-        exact (hcont.integral_hasStrictDerivAt 0 y).differentiableAt
+        exact (hcont.integral_hasStrictDerivAt 0 y).hasDerivAt.differentiableAt
       exact herf_diff.differentiableAt.comp x (ih d heq)
   | @sqrt e' hs ih =>
     unfold evalDual?1 evalDual? at hsome
@@ -666,7 +666,7 @@ theorem evalDual?_der_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         intro y
         have hcont : Continuous (fun t => Real.exp (-(t^2))) :=
           Real.continuous_exp.comp (continuous_neg.comp (continuous_pow 2))
-        exact (hcont.integral_hasStrictDerivAt 0 y).differentiableAt
+        exact (hcont.integral_hasStrictDerivAt 0 y).hasDerivAt.differentiableAt
       have heq_comp : (fun t => Real.erf (evalFunc1 e' t)) = Real.erf ∘ evalFunc1 e' := rfl
       rw [evalFunc1_erf, heq_comp, deriv_comp x herf_diff.differentiableAt hd_inner]
       -- deriv erf y = (2/√π) * exp(-y²) by FTC
@@ -679,7 +679,7 @@ theorem evalDual?_der_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
           rw [(hcont.integral_hasStrictDerivAt 0 y).hasDerivAt.deriv]
         · have hcont : Continuous (fun t => Real.exp (-(t^2))) :=
             Real.continuous_exp.comp (continuous_neg.comp (continuous_pow 2))
-          exact (hcont.integral_hasStrictDerivAt 0 y).differentiableAt
+          exact (hcont.integral_hasStrictDerivAt 0 y).hasDerivAt.differentiableAt
       rw [hderiv_erf]
       -- Now goal: (2/√π) * exp(-(f(x))²) * f'(x) ∈ two_div_sqrt_pi * expInterval(-val²) * der
       -- Factor: (2/√π) ∈ two_div_sqrt_pi

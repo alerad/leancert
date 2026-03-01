@@ -425,9 +425,9 @@ private theorem integral_mem_bound_dyadic_list (e : Expr) (hsupp : ExprSupported
     apply integrateInterval1Dyadic_correct e hsupp _ cfg hprec
     · exact hdomall _ (List.getElem_mem hi')
     · apply hInt.mono_set
-      simp only [Set.uIcc_of_le (by exact_mod_cast (parts[i]'hi').le :
+      rw [Set.uIcc_of_le (by exact_mod_cast (parts[i]'hi').le :
         ((parts[i]'hi').lo : ℝ) ≤ (parts[i]'hi').hi)]
-      simp only [Set.uIcc_of_le (by exact_mod_cast I.le : (I.lo : ℝ) ≤ I.hi)]
+      rw [Set.uIcc_of_le (by exact_mod_cast I.le : (I.lo : ℝ) ≤ I.hi)]
       intro x ⟨hxlo, hxhi⟩
       exact ⟨le_trans (by exact_mod_cast lo_le_part_lo parts I hcover i hi') hxlo,
              le_trans hxhi (by exact_mod_cast part_hi_le_hi parts I hcover i hi')⟩

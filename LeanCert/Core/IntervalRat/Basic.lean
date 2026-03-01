@@ -83,8 +83,8 @@ theorem mem_singleton (q : ℚ) : (q : ℝ) ∈ singleton q := by
 def width (I : IntervalRat) : ℚ := I.hi - I.lo
 
 theorem width_nonneg (I : IntervalRat) : 0 ≤ I.width := by
-  simp only [width, sub_nonneg]
-  exact I.le
+  simp only [width]
+  linarith [I.le]
 
 /-- Midpoint of an interval -/
 def midpoint (I : IntervalRat) : ℚ := (I.lo + I.hi) / 2

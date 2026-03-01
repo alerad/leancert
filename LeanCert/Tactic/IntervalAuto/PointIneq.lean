@@ -876,5 +876,27 @@ partial def intervalDecideWithConnectives (depth : Option Nat) : TacticM Unit :=
 
 elab "interval_decide" depth:(num)? : tactic => do
   intervalDecideWithConnectives (depth.map (·.getNat))
+  -- Clean up trivial side goals (e.g. `0 = 0`) that norm_num may leave in some mathlib versions
+  let remainingGoals ← getGoals
+  let mut kept : List MVarId := []
+  for g in remainingGoals do
+    if ← g.isAssigned then continue
+    let gType ← g.getType
+    let gType ← instantiateMVars gType
+    if gType.isAppOfArity ``Eq 3 then
+      let lhsArg := gType.getArg! 1
+      let rhsArg := gType.getArg! 2
+      if (← isDefEq lhsArg rhsArg) then
+        g.assign (← mkEqRefl lhsArg)
+      else
+        try
+          setGoals [g]
+          evalTactic (← `(tactic| norm_num))
+          kept := kept ++ (← getGoals)
+        catch _ =>
+          kept := kept ++ [g]
+    else
+      kept := kept ++ [g]
+  setGoals kept
 
 end LeanCert.Tactic.Auto

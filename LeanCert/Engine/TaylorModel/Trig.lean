@@ -357,7 +357,7 @@ theorem tmSin_correct (J : IntervalRat) (n : ℕ) :
     have hM : ∀ x ∈ Set.Icc a b, ‖iteratedDeriv (n + 1) Real.sin x‖ ≤ 1 := by
       intro x _
       exact (LeanCert.Core.sin_cos_deriv_bound (n + 1) x).1
-    have hf : ContDiff ℝ (n + 1) Real.sin := Real.contDiff_sin.of_le le_top
+    have hf : ContDiff ℝ (n + 1) Real.sin := Real.contDiff_sin.of_le (le_of_lt (WithTop.coe_lt_top _))
     have hTaylor := LeanCert.Core.taylor_remainder_bound hab hca hcb hf hM (by norm_num : (0 : ℝ) ≤ 1) z hz_ab
     simp only [sub_zero] at hTaylor
     have hr_bound : ‖r‖ ≤ 1 * |z| ^ (n + 1) / (n + 1).factorial := by
@@ -414,7 +414,7 @@ theorem tmCos_correct (J : IntervalRat) (n : ℕ) :
     have hM : ∀ x ∈ Set.Icc a b, ‖iteratedDeriv (n + 1) Real.cos x‖ ≤ 1 := by
       intro x _
       exact (LeanCert.Core.sin_cos_deriv_bound (n + 1) x).2
-    have hf : ContDiff ℝ (n + 1) Real.cos := Real.contDiff_cos.of_le le_top
+    have hf : ContDiff ℝ (n + 1) Real.cos := Real.contDiff_cos.of_le (le_of_lt (WithTop.coe_lt_top _))
     have hTaylor := LeanCert.Core.taylor_remainder_bound hab hca hcb hf hM (by norm_num : (0 : ℝ) ≤ 1) z hz_ab
     simp only [sub_zero] at hTaylor
     have hr_bound : ‖r‖ ≤ 1 * |z| ^ (n + 1) / (n + 1).factorial := by
@@ -528,21 +528,21 @@ theorem iteratedDeriv_sinc_zero (n : ℕ) :
           rw [hfunc]
           -- Need: deriv (y * f(y) + c * g(y)) = f + y * f' + c * g'
           have hdiff1 : DifferentiableAt ℝ (fun y => y * iteratedDeriv (k + 1) Real.sinc y) x :=
-            differentiableAt_id.mul (hcd.differentiable_iteratedDeriv (k + 1) (by simp)).differentiableAt
+            differentiableAt_id.mul (hcd.differentiable_iteratedDeriv (k + 1) (WithTop.coe_lt_top _)).differentiableAt
           have hdiff2 : DifferentiableAt ℝ (fun y => (k + 1 : ℝ) * iteratedDeriv k Real.sinc y) x :=
-            (hcd.differentiable_iteratedDeriv k (by simp)).differentiableAt.const_mul _
+            (hcd.differentiable_iteratedDeriv k (WithTop.coe_lt_top _)).differentiableAt.const_mul _
           have hd1 : deriv (fun y => y * iteratedDeriv (k + 1) Real.sinc y) x =
               iteratedDeriv (k + 1) Real.sinc x + x * deriv (iteratedDeriv (k + 1) Real.sinc) x := by
             have h1 : HasDerivAt (fun y : ℝ => y) 1 x := hasDerivAt_id x
             have h2 : HasDerivAt (iteratedDeriv (k + 1) Real.sinc) _ x :=
-              (hcd.differentiable_iteratedDeriv (k + 1) (by simp)).differentiableAt.hasDerivAt
+              (hcd.differentiable_iteratedDeriv (k + 1) (WithTop.coe_lt_top _)).differentiableAt.hasDerivAt
             have := (h1.mul h2).deriv
             simp only [one_mul] at this
             exact this
           have hd2 : deriv (fun y => (k + 1 : ℝ) * iteratedDeriv k Real.sinc y) x =
               (k + 1 : ℝ) * deriv (iteratedDeriv k Real.sinc) x := by
             have h : HasDerivAt (iteratedDeriv k Real.sinc) _ x :=
-              (hcd.differentiable_iteratedDeriv k (by simp)).differentiableAt.hasDerivAt
+              (hcd.differentiable_iteratedDeriv k (WithTop.coe_lt_top _)).differentiableAt.hasDerivAt
             exact (h.const_mul (k + 1 : ℝ)).deriv
           calc deriv (fun y => y * iteratedDeriv (k + 1) Real.sinc y +
                         (k + 1 : ℝ) * iteratedDeriv k Real.sinc y) x

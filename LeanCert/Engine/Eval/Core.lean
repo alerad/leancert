@@ -135,7 +135,7 @@ theorem Real.strictMono_erf : StrictMono Real.erf := by
     rw [heq]
     linarith
   -- Multiply both sides by positive factor
-  exact mul_lt_mul_of_pos_left hineq hfactor
+  nlinarith
 
 /-- Quantitative global bound: `|erf x| ≤ (2257/2000) * |x|`.
     This is conservative but fully proved from the integral definition. -/
@@ -473,7 +473,7 @@ theorem mem_invInterval_pos {x : ℝ} {I : IntervalRat}
   have hhi_ne : (I.hi : ℝ) ≠ 0 := ne_of_gt hhi_pos
   split_ifs with hle
   · -- Case: 1/hi ≤ 1/lo (normal ordering)
-    simp only [Rat.cast_inv, one_div]
+    simp only [Rat.cast_div, Rat.cast_one, one_div]
     constructor
     · -- (I.hi)⁻¹ ≤ x⁻¹ follows from x ≤ I.hi
       exact (inv_le_inv₀ hhi_pos hx_pos).mpr hx.2
@@ -517,7 +517,7 @@ theorem mem_invInterval_neg {x : ℝ} {I : IntervalRat}
   have hhi_neg' : (I.hi : ℝ) < 0 := by exact_mod_cast hneg
   -- For negative x: 1/x is still decreasing, so 1/b ≤ 1/x ≤ 1/a
   split_ifs with hle
-  · simp only [Rat.cast_inv, one_div]
+  · simp only [Rat.cast_div, Rat.cast_one, one_div]
     constructor
     · -- (I.hi)⁻¹ ≤ x⁻¹ when x ≤ hi < 0 (since 1/x is decreasing for negatives)
       exact (inv_le_inv_of_neg hhi_neg' hx_neg).mpr hx.2

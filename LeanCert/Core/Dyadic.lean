@@ -431,8 +431,8 @@ theorem toRat_shiftDown_le (d : Dyadic) (newExp : Int) :
       rw [hnewExp, zpow_add₀ (two_ne_zero), zpow_natCast]
     rw [hpow]
     -- Goal: (m / 2^diff) * (2^d.exp * 2^diff) ≤ m * 2^d.exp
-    have hpos : (0 : ℚ) < 2 ^ d.exponent := zpow_pos (by norm_num : (0 : ℚ) < 2) _
-    have hpow2_pos : (0 : ℚ) < (2 : ℚ) ^ diff := pow_pos (by norm_num : (0 : ℚ) < 2) _
+    have hpos : (0 : ℚ) < 2 ^ d.exponent := zpow_pos (by decide : (0 : ℚ) < 2) _
+    have hpow2_pos : (0 : ℚ) < (2 : ℚ) ^ diff := pow_pos (by decide : (0 : ℚ) < 2) _
     -- Convert hdiv to ℚ: (m / 2^diff) * 2^diff ≤ m
     have hq : (↑(d.mantissa / (2 ^ diff : ℕ)) : ℚ) * ((2 : ℚ) ^ diff) ≤ d.mantissa := by
       have heq : ((2 : ℚ) ^ diff) = ((2 ^ diff : ℕ) : ℚ) := by simp
@@ -472,7 +472,7 @@ theorem toRat_shiftUp_ge (d : Dyadic) (newExp : Int) :
     have hpow : (2 : ℚ) ^ newExp = 2 ^ d.exponent * (2 : ℚ) ^ diff := by
       rw [hnewExp, zpow_add₀ (two_ne_zero), zpow_natCast]
     rw [hpow]
-    have hpos : (0 : ℚ) < 2 ^ d.exponent := zpow_pos (by norm_num : (0 : ℚ) < 2) _
+    have hpos : (0 : ℚ) < 2 ^ d.exponent := zpow_pos (by decide : (0 : ℚ) < 2) _
     -- Convert hceil to ℚ: m ≤ (m/b + 1) * b
     have hq : (d.mantissa : ℚ) ≤ (↑(d.mantissa / (2 ^ diff : ℕ) + 1)) * ((2 : ℚ) ^ diff) := by
       have heq : ((2 : ℚ) ^ diff) = ((2 ^ diff : ℕ) : ℚ) := by simp
@@ -525,7 +525,12 @@ theorem toRat_shiftUp_ge (d : Dyadic) (newExp : Int) :
 /-- Helper: comparing integers reflects comparing rationals when scaled by positive factor -/
 private theorem int_lt_iff_rat_mul_lt (a b : ℤ) (c : ℚ) (hc : 0 < c) :
     a < b ↔ (a : ℚ) * c < (b : ℚ) * c :=
-    ⟨λ h ↦ mul_lt_mul_of_pos_right (Int.cast_lt.mpr h) hc, λ h ↦ Int.cast_lt.mp ((Rat.mul_lt_mul_right hc).mp h)⟩
+    ⟨λ h ↦ by
+       have hab : (a : ℚ) < (b : ℚ) := by exact_mod_cast h
+       exact Rat.mul_lt_mul_of_pos_right hab hc,
+     λ h ↦ by
+       have := Rat.lt_of_mul_lt_mul_right h (le_of_lt hc)
+       exact_mod_cast this⟩
 
 private theorem int_eq_iff_rat_mul_eq (a b : ℤ) (c : ℚ) (hc : c ≠ 0) :
     a = b ↔ (a : ℚ) * c = (b : ℚ) * c := by
@@ -619,7 +624,7 @@ private theorem aligned_lt_iff_toRat_lt_case1 (d₁ d₂ : Dyadic) (h : d₁.exp
   -- Key: 2^e₂ = 2^shift * 2^e₁
   have hpow : (2 : ℚ) ^ d₂.exponent = (2 : ℚ) ^ (shift : ℤ) * 2 ^ d₁.exponent := by
     rw [← zpow_add₀ (two_ne_zero : (2 : ℚ) ≠ 0), hshift]; congr 1; omega
-  have hpos : (0 : ℚ) < 2 ^ d₁.exponent := zpow_pos (by norm_num : (0 : ℚ) < 2) _
+  have hpos : (0 : ℚ) < 2 ^ d₁.exponent := zpow_pos (by decide : (0 : ℚ) < 2) _
   -- Rewrite RHS: m₂ * 2^e₂ = m₂ * (2^shift * 2^e₁) = (m₂ * 2^shift) * 2^e₁
   have hrhs : (d₂.mantissa : ℚ) * 2 ^ d₂.exponent = d₂.mantissa * (2 : ℚ) ^ shift * 2 ^ d₁.exponent := by
     rw [hpow, zpow_natCast, mul_assoc]
@@ -648,7 +653,7 @@ private theorem aligned_gt_iff_toRat_gt_case1 (d₁ d₂ : Dyadic) (h : d₁.exp
   rw [toRat_eq, toRat_eq]
   have hpow : (2 : ℚ) ^ d₂.exponent = (2 : ℚ) ^ (shift : ℤ) * 2 ^ d₁.exponent := by
     rw [← zpow_add₀ (two_ne_zero : (2 : ℚ) ≠ 0), hshift]; congr 1; omega
-  have hpos : (0 : ℚ) < 2 ^ d₁.exponent := zpow_pos (by norm_num : (0 : ℚ) < 2) _
+  have hpos : (0 : ℚ) < 2 ^ d₁.exponent := zpow_pos (by decide : (0 : ℚ) < 2) _
   have hrhs : (d₂.mantissa : ℚ) * 2 ^ d₂.exponent = d₂.mantissa * (2 : ℚ) ^ shift * 2 ^ d₁.exponent := by
     rw [hpow, zpow_natCast, mul_assoc]
   rw [hrhs, int_gt_iff_rat_mul_gt _ _ _ hpos, shiftLeftInt_toRat]
@@ -662,7 +667,7 @@ private theorem aligned_lt_iff_toRat_lt_case2 (d₁ d₂ : Dyadic) (h : d₁.exp
   rw [toRat_eq, toRat_eq]
   have hpow : (2 : ℚ) ^ d₁.exponent = (2 : ℚ) ^ (shift : ℤ) * 2 ^ d₂.exponent := by
     rw [← zpow_add₀ (two_ne_zero : (2 : ℚ) ≠ 0), hshift]; congr 1; omega
-  have hpos : (0 : ℚ) < 2 ^ d₂.exponent := zpow_pos (by norm_num : (0 : ℚ) < 2) _
+  have hpos : (0 : ℚ) < 2 ^ d₂.exponent := zpow_pos (by decide : (0 : ℚ) < 2) _
   -- Rewrite LHS: m₁ * 2^e₁ = m₁ * (2^shift * 2^e₂) = (m₁ * 2^shift) * 2^e₂
   have hlhs : (d₁.mantissa : ℚ) * 2 ^ d₁.exponent = d₁.mantissa * (2 : ℚ) ^ shift * 2 ^ d₂.exponent := by
     rw [hpow, zpow_natCast, mul_assoc]
@@ -689,7 +694,7 @@ private theorem aligned_gt_iff_toRat_gt_case2 (d₁ d₂ : Dyadic) (h : d₁.exp
   rw [toRat_eq, toRat_eq]
   have hpow : (2 : ℚ) ^ d₁.exponent = (2 : ℚ) ^ (shift : ℤ) * 2 ^ d₂.exponent := by
     rw [← zpow_add₀ (two_ne_zero : (2 : ℚ) ≠ 0), hshift]; congr 1; omega
-  have hpos : (0 : ℚ) < 2 ^ d₂.exponent := zpow_pos (by norm_num : (0 : ℚ) < 2) _
+  have hpos : (0 : ℚ) < 2 ^ d₂.exponent := zpow_pos (by decide : (0 : ℚ) < 2) _
   have hlhs : (d₁.mantissa : ℚ) * 2 ^ d₁.exponent = d₁.mantissa * (2 : ℚ) ^ shift * 2 ^ d₂.exponent := by
     rw [hpow, zpow_natCast, mul_assoc]
   rw [hlhs, int_gt_iff_rat_mul_gt _ _ _ hpos, shiftLeftInt_toRat]
@@ -862,7 +867,7 @@ theorem toRat_scale2 (d : Dyadic) (n : Int) :
 theorem toRat_scale2_le_scale2 (d₁ d₂ : Dyadic) (n : Int) (h : d₁.toRat ≤ d₂.toRat) :
     (d₁.scale2 n).toRat ≤ (d₂.scale2 n).toRat := by
   rw [toRat_scale2, toRat_scale2]
-  exact mul_le_mul_of_nonneg_right h (zpow_nonneg (by norm_num : (0 : ℚ) ≤ 2) n)
+  exact mul_le_mul_of_nonneg_right h (zpow_nonneg (by decide : (0 : ℚ) ≤ 2) n)
 
 /-! ### Square Root Operations -/
 
@@ -1023,7 +1028,7 @@ theorem sqrtDown_le_sqrtUp (d : Dyadic) (prec : Int) (hd : 0 ≤ d.mantissa) :
   · -- Non-perfect: sqrtDown returns s, sqrtUp returns s+1
     simp only [hperfect, ↓reduceIte]
     rw [toRat_eq, toRat_eq]
-    apply mul_le_mul_of_nonneg_right _ (le_of_lt (zpow_pos (by norm_num : (0 : ℚ) < 2) _))
+    apply mul_le_mul_of_nonneg_right _ (le_of_lt (zpow_pos (by decide : (0 : ℚ) < 2) _))
     simp only [Int.cast_add, Int.cast_one]
     exact le_add_of_nonneg_right (by norm_num : (0 : ℚ) ≤ 1)
 

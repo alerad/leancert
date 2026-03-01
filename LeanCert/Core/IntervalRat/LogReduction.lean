@@ -36,6 +36,13 @@ For m ∈ [1/2, 2], we have (m-1)/(m+1) ∈ [-1/3, 1/3], where atanh converges v
 
 namespace LeanCert.Core.LogReduction
 
+/-! ### Multiplication monotonicity instances for rc1 compatibility -/
+private instance : MulPosStrictMono ℚ where
+  mul_lt_mul_of_pos_right := fun {_c} hc {_a _b} hab => Rat.mul_lt_mul_of_pos_right hab hc
+
+private instance : PosMulStrictMono ℚ where
+  mul_lt_mul_of_pos_left := fun {_a} ha {_b _c} hbc => Rat.mul_lt_mul_of_pos_left hbc ha
+
 /-! ### Argument Reduction -/
 
 /-- Find k such that q * 2^(-k) is approximately in [1/2, 2].
@@ -99,7 +106,7 @@ theorem reduced_bounds_weak {q : ℚ} (hq : 0 < q) :
   · -- Lower bound: 1/4 ≤ m
     have h_simp : (q.num.natAbs : ℚ) / q.den * (2 ^ d / 2 ^ n) =
                   (q.num.natAbs * 2 ^ d) / (q.den * 2 ^ n) := by field_simp
-    rw [h_simp, one_div, le_div_iff₀ (by positivity : (0 : ℚ) < q.den * 2 ^ n)]
+    rw [h_simp, le_div_iff₀ (by positivity : (0 : ℚ) < q.den * 2 ^ n)]
     have key : (q.den : ℚ) * 2 ^ n / 4 < q.num.natAbs * 2 ^ d := by
       have h1 : (q.den : ℚ) * 2 ^ n / 4 < 2 ^ (d + 1) * 2 ^ n / 4 := by
         apply div_lt_div_of_pos_right _ (by norm_num : (0 : ℚ) < 4)
@@ -164,7 +171,7 @@ theorem reduced_bounds {q : ℚ} (hq : 0 < q) :
   · -- Lower bound: 1/2 ≤ m
     have h_simp : (q.num.natAbs : ℚ) / q.den * (2 ^ d / 2 ^ n) =
                   (q.num.natAbs * 2 ^ d) / (q.den * 2 ^ n) := by field_simp
-    rw [h_simp, one_div, le_div_iff₀ (by positivity : (0 : ℚ) < q.den * 2 ^ n)]
+    rw [h_simp, le_div_iff₀ (by positivity : (0 : ℚ) < q.den * 2 ^ n)]
     -- Goal: (1/2) * (den * 2^n) ≤ natAbs * 2^d, i.e., den * 2^n / 2 ≤ natAbs * 2^d
     have key : (q.den : ℚ) * 2 ^ n / 2 < q.num.natAbs * 2 ^ d := by
       have h1 : (q.den : ℚ) * 2 ^ n / 2 < 2 ^ (d + 1) * 2 ^ n / 2 := by

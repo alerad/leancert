@@ -81,12 +81,13 @@ theorem Real.atanh_strictMonoOn : StrictMonoOn Real.atanh (Set.Ioo (-1) 1) := by
   have hy2 : 0 < 1 - y := by linarith [hy.2]
   have hargx : 0 < (1 + x) / (1 - x) := div_pos hx1 hx2
   have hargy : 0 < (1 + y) / (1 - y) := div_pos hy1 hy2
-  gcongr 1
-  rw [Real.log_lt_log_iff hargx hargy]
-  -- Need (1+x)/(1-x) < (1+y)/(1-y) when x < y
-  rw [div_lt_div_iff₀ hx2 hy2]
-  ring_nf
-  linarith
+  have hlog : Real.log ((1 + x) / (1 - x)) < Real.log ((1 + y) / (1 - y)) := by
+    rw [Real.log_lt_log_iff hargx hargy]
+    -- Need (1+x)/(1-x) < (1+y)/(1-y) when x < y
+    rw [div_lt_div_iff₀ hx2 hy2]
+    ring_nf
+    linarith
+  nlinarith
 
 /-- atanh is monotone on (-1, 1): if x ≤ y then atanh x ≤ atanh y -/
 theorem Real.atanh_mono {x y : ℝ} (hx : |x| < 1) (hy : |y| < 1) (hxy : x ≤ y) :

@@ -236,8 +236,8 @@ def invExtended (I : IntervalRat) (large_bound : ℚ := defaultLargeBound) : Ext
     -- Case 2: Strictly negative interval [1/hi, 1/lo]
     have hlo_neg : I.lo < 0 := lt_of_le_of_lt I.le hneg
     ExtendedInterval.singleton ⟨1 / I.hi, 1 / I.lo, by
-      rw [one_div, one_div]
-      exact (inv_le_inv_of_neg hneg hlo_neg).mpr I.le⟩
+      show 1 / I.hi ≤ 1 / I.lo
+      exact one_div_le_one_div_of_neg_of_le hneg I.le⟩
   else if _hstraddle : I.lo < 0 ∧ 0 < I.hi then
     -- Case 3: Straddles zero → split into two branches
     -- Use mkSafeInterval to guarantee well-formedness

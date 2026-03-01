@@ -328,11 +328,9 @@ theorem mem_sqrt {a : AffineForm} {eps : NoiseAssignment} {v : ℝ}
     · -- |sqrt v - mid| ≤ |rad|
       rw [habs_rad]
       have hmid_real : (((0 + max I.hi 1) / 2 : ℚ) : ℝ) = max (I.hi : ℝ) 1 / 2 := by
-        simp only [Rat.cast_div, Rat.cast_max, Rat.cast_one, zero_add]
-        ring
+        push_cast; ring
       have hrad_real : (((max I.hi 1 - 0) / 2 : ℚ) : ℝ) = max (I.hi : ℝ) 1 / 2 := by
-        simp only [Rat.cast_div, Rat.cast_max, Rat.cast_one, sub_zero]
-        ring
+        push_cast; ring
       rw [abs_le]
       constructor
       · -- -rad ≤ sqrt v - mid
@@ -389,12 +387,10 @@ theorem mem_sqrt' {a : AffineForm} {eps : NoiseAssignment} {v : ℝ}
       rw [habs_rad, abs_le]
       have hmid_real : (((0 + max a.toInterval.hi 1) / 2 : ℚ) : ℝ) =
           max (a.toInterval.hi : ℝ) 1 / 2 := by
-        simp only [Rat.cast_div, Rat.cast_max, Rat.cast_one, zero_add]
-        ring
+        push_cast; ring
       have hrad_real : (((max a.toInterval.hi 1 - 0) / 2 : ℚ) : ℝ) =
           max (a.toInterval.hi : ℝ) 1 / 2 := by
-        simp only [Rat.cast_div, Rat.cast_max, Rat.cast_one, sub_zero]
-        ring
+        push_cast; ring
       constructor
       · rw [hmid_real, hrad_real]
         linarith
