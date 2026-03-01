@@ -1079,7 +1079,7 @@ theorem const_evalSet_correct (q : ℚ) (domain : IntervalRat) :
   intro x hx
   simp only [TaylorModel.evalSet, Set.mem_setOf_eq, TaylorModel.const]
   refine ⟨0, ?_, ?_⟩
-  · simpa using (IntervalRat.mem_singleton (0 : ℚ))
+  · exact_mod_cast IntervalRat.mem_singleton (0 : ℚ)
   · simp
 
 /-- Identity TM correctness for evalSet: x ∈ identity.evalSet x. -/
@@ -1088,7 +1088,7 @@ theorem identity_evalSet_correct (domain : IntervalRat) :
   intro x hx
   simp only [TaylorModel.evalSet, Set.mem_setOf_eq, TaylorModel.identity]
   refine ⟨0, ?_, ?_⟩
-  · simpa using (IntervalRat.mem_singleton (0 : ℚ))
+  · exact_mod_cast IntervalRat.mem_singleton (0 : ℚ)
   · simp
 
 /-- Negation preserves evalSet membership. -/

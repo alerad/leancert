@@ -134,9 +134,9 @@ theorem iteratedDeriv_log1p {n : ℕ} (hn : n ≠ 0) {y : ℝ} (hy : -1 < y) :
 theorem iteratedDeriv_log1p_zero {n : ℕ} (hn : n ≠ 0) :
     iteratedDeriv n (fun x => Real.log (1 + x)) 0 = ((-1 : ℝ)^(n - 1)) * (n - 1).factorial := by
   have h := iteratedDeriv_log1p hn (by norm_num : (-1 : ℝ) < 0)
-  simp only [add_zero, one_zpow] at h
+  simp only [add_zero] at h
   rw [h]
-  ring
+  simp
 
 /-- The coefficients of log1pTaylorPoly match the Taylor coefficients of log(1+x). -/
 theorem log1pTaylorCoeffs_eq_deriv (n i : ℕ) (hi_pos : 0 < i) (hi_le : i ≤ n) :
@@ -222,7 +222,7 @@ theorem log1p_taylor_remainder_bound (J : IntervalRat) (n : ℕ) (z : ℝ)
 
   -- Apply Taylor's theorem with remainder bound
   have hlog1p_smooth : ContDiffOn ℝ (n + 1) (fun x => Real.log (1 + x)) (Set.Ioi (-1)) := by
-    apply (Real.contDiffOn_log.comp _ fun x hx => by simp [Set.mem_Ioi] at hx ⊢; linarith).of_le le_top
+    apply (Real.contDiffOn_log.comp _ fun x hx => by simp [Set.mem_Ioi] at hx ⊢; linarith).of_le (le_of_lt (WithTop.coe_lt_top _))
     exact (contDiff_const.add contDiff_id).contDiffOn
 
   have hI'_sub : Set.Icc a' b' ⊆ Set.Ioi (-1 : ℝ) := fun y hy => lt_of_lt_of_le ha'_gt_neg1 hy.1
@@ -507,7 +507,8 @@ theorem symmetricLogCombination_bounded (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 
   -- For t ∈ (0, ε), t is in U ∩ (0, ∞) ⊆ s, so |g(t) - 1| < 1
   by_cases ht_small : t < ε
   · -- Case 1: t < ε, use the limit
-    have ht_in_U : t ∈ U := hε_ball (by simp [abs_of_pos ht_pos, ht_small])
+    have hdist : dist t 0 = t := by rw [Real.dist_eq, sub_zero, abs_of_pos ht_pos]
+    have ht_in_U : t ∈ U := hε_ball (by rw [Metric.mem_ball, hdist]; exact ht_small)
     have ht_in_s : t ∈ s := hU_sub ⟨ht_in_U, Set.mem_Ioi.mpr ht_pos⟩
     have hdist := hs t ht_in_s
     rw [Real.dist_eq] at hdist

@@ -251,7 +251,7 @@ theorem tmExp_correct (J : IntervalRat) (n : ℕ) :
     have hM : ∀ x ∈ Set.Icc a b, ‖iteratedDeriv (n + 1) Real.exp x‖ ≤ M := by
       intro x hx
       exact LeanCert.Core.exp_deriv_bound hab (n + 1) x hx
-    have hf : ContDiff ℝ (n + 1) Real.exp := Real.contDiff_exp.of_le le_top
+    have hf : ContDiff ℝ (n + 1) Real.exp := Real.contDiff_exp.of_le (le_of_lt (WithTop.coe_lt_top _))
     have hTaylor := LeanCert.Core.taylor_remainder_bound hab hca hcb hf hM hM_pos z hz_ab
     simp only [sub_zero] at hTaylor
     have hr_bound : ‖r‖ ≤ M * |z| ^ (n + 1) / (n + 1).factorial := by
@@ -362,7 +362,7 @@ theorem log_taylor_remainder_bound' (J : IntervalRat) (c : ℚ) (n : ℕ) (z : �
     exact lt_of_lt_of_le ha_pos hy.1
 
   have hlog_smooth : ContDiffOn ℝ (n + 1) Real.log (Set.Ioi 0) := by
-    apply (Real.contDiffOn_log.of_le le_top).mono
+    apply (Real.contDiffOn_log.of_le (le_of_lt (WithTop.coe_lt_top _))).mono
     intro y hy
     simp only [Set.mem_Ioi, Set.mem_compl_iff, Set.mem_singleton_iff] at hy ⊢
     exact ne_of_gt hy

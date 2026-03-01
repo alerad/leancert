@@ -843,7 +843,7 @@ theorem exp_taylor_remainder_in_interval {x : ℝ} {I : IntervalRat} (hx : x ∈
   set R := ((3 : ℚ) ^ (Nat.ceil r + 1) * r ^ (n + 1) / ratFactorial (n + 1))
 
   -- Apply Taylor theorem
-  have hexp_smooth : ContDiff ℝ (n + 1) Real.exp := Real.contDiff_exp.of_le le_top
+  have hexp_smooth : ContDiff ℝ (n + 1) Real.exp := Real.contDiff_exp.of_le (le_of_lt (WithTop.coe_lt_top _))
   have hderiv_bound : ∀ y ∈ Set.Icc ((-r : ℚ) : ℝ) (r : ℚ),
       ‖iteratedDeriv (n + 1) Real.exp y‖ ≤ Real.exp r := by
     intro y hy
@@ -896,7 +896,7 @@ theorem sin_taylor_remainder_in_interval {x : ℝ} {I : IntervalRat} (hx : x ∈
   set R := (r ^ (n + 1) / ratFactorial (n + 1))
 
   -- Apply Taylor theorem with M = 1
-  have hsin_smooth : ContDiff ℝ (n + 1) Real.sin := Real.contDiff_sin.of_le le_top
+  have hsin_smooth : ContDiff ℝ (n + 1) Real.sin := Real.contDiff_sin.of_le (le_of_lt (WithTop.coe_lt_top _))
   have hderiv_bound : ∀ y ∈ Set.Icc ((-r : ℚ) : ℝ) (r : ℚ),
       ‖iteratedDeriv (n + 1) Real.sin y‖ ≤ 1 := by
     intro y _; exact (sin_cos_deriv_bound (n + 1) y).1
@@ -938,7 +938,7 @@ theorem cos_taylor_remainder_in_interval {x : ℝ} {I : IntervalRat} (hx : x ∈
   set R := (r ^ (n + 1) / ratFactorial (n + 1))
 
   -- Apply Taylor theorem with M = 1
-  have hcos_smooth : ContDiff ℝ (n + 1) Real.cos := Real.contDiff_cos.of_le le_top
+  have hcos_smooth : ContDiff ℝ (n + 1) Real.cos := Real.contDiff_cos.of_le (le_of_lt (WithTop.coe_lt_top _))
   have hderiv_bound : ∀ y ∈ Set.Icc ((-r : ℚ) : ℝ) (r : ℚ),
       ‖iteratedDeriv (n + 1) Real.cos y‖ ≤ 1 := by
     intro y _; exact (sin_cos_deriv_bound (n + 1) y).2
@@ -2058,10 +2058,10 @@ private theorem erfInner_contDiff_nat (n : ℕ) : ContDiff ℝ n erfInner := by
     -- C^(n+1) from C^n of derivative
     have hdiff : Differentiable ℝ erfInner := fun x =>
       (Real.continuous_exp.comp (continuous_neg.comp (continuous_pow 2))).integral_hasStrictDerivAt 0 x
-        |>.differentiableAt
+        |>.hasDerivAt.differentiableAt
     have hderiv_smooth : ContDiff ℝ n (deriv erfInner) := by
       simp only [erfInner_deriv]
-      exact contDiff_exp_neg_sq.of_le le_top
+      exact contDiff_exp_neg_sq.of_le (le_of_lt (WithTop.coe_lt_top _))
     exact contDiff_succ_iff_deriv.mpr ⟨hdiff, by simp, hderiv_smooth⟩
 
 

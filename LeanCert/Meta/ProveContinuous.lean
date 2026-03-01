@@ -299,7 +299,7 @@ theorem exprSupportedCore_continuousOn (e : LExpr) (hsupp : LeanCert.Engine.Expr
         intro y
         have hcont : Continuous (fun t => Real.exp (-(t^2))) :=
           Real.continuous_exp.comp (continuous_neg.comp (continuous_pow 2))
-        exact (hcont.integral_hasStrictDerivAt 0 y).differentiableAt
+        exact (hcont.integral_hasStrictDerivAt 0 y).hasDerivAt.differentiableAt
       exact hdiff.continuous
     exact herf_cont.comp_continuousOn (ih hdom)
   | @log arg _ ih =>

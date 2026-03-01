@@ -993,7 +993,7 @@ theorem tmSinh_correct (J : IntervalRat) (n : ℕ) :
     have hM : ∀ x ∈ Set.Icc a b, ‖iteratedDeriv (n + 1) Real.sinh x‖ ≤ M := by
       intro x hx
       exact (LeanCert.Core.sinh_cosh_deriv_bound hab (n + 1) x hx).1
-    have hf : ContDiff ℝ (n + 1) Real.sinh := Real.contDiff_sinh.of_le le_top
+    have hf : ContDiff ℝ (n + 1) Real.sinh := Real.contDiff_sinh.of_le (le_of_lt (WithTop.coe_lt_top _))
     have hTaylor := LeanCert.Core.taylor_remainder_bound hab hca hcb hf hM hM_pos z hz_ab
     simp only [sub_zero] at hTaylor
     have hr_bound : ‖r‖ ≤ M * |z| ^ (n + 1) / (n + 1).factorial := by
@@ -1008,10 +1008,10 @@ theorem tmSinh_correct (J : IntervalRat) (n : ℕ) :
       simp only [ha_def, hb_def, hradius_real]
       apply max_le
       · calc |min (J.lo : ℝ) 0| ≤ max |(J.lo : ℝ)| |(0 : ℝ)| := abs_min_le_max_abs_abs
-          _ = max |(J.lo : ℝ)| 0 := by simp
+          _ = max |(J.lo : ℝ)| 0 := by rw [abs_zero]
           _ ≤ max |(J.lo : ℝ)| |(J.hi : ℝ)| := max_le_max_left _ (abs_nonneg _)
       · calc |max (J.hi : ℝ) 0| ≤ max |(J.hi : ℝ)| |(0 : ℝ)| := abs_max_le_max_abs_abs
-          _ = max |(J.hi : ℝ)| 0 := by simp
+          _ = max |(J.hi : ℝ)| 0 := by rw [abs_zero]
           _ ≤ max |(J.lo : ℝ)| |(J.hi : ℝ)| := max_le (le_max_right _ _) (le_max_of_le_left (abs_nonneg _))
     have hM_le : M ≤ Real.exp radius := Real.exp_le_exp.mpr hab_le_radius
     have hradius_nn : 0 ≤ (radius : ℝ) := by
@@ -1074,7 +1074,7 @@ theorem tmCosh_correct (J : IntervalRat) (n : ℕ) :
     have hM : ∀ x ∈ Set.Icc a b, ‖iteratedDeriv (n + 1) Real.cosh x‖ ≤ M := by
       intro x hx
       exact (LeanCert.Core.sinh_cosh_deriv_bound hab (n + 1) x hx).2
-    have hf : ContDiff ℝ (n + 1) Real.cosh := Real.contDiff_cosh.of_le le_top
+    have hf : ContDiff ℝ (n + 1) Real.cosh := Real.contDiff_cosh.of_le (le_of_lt (WithTop.coe_lt_top _))
     have hTaylor := LeanCert.Core.taylor_remainder_bound hab hca hcb hf hM hM_pos z hz_ab
     simp only [sub_zero] at hTaylor
     have hr_bound : ‖r‖ ≤ M * |z| ^ (n + 1) / (n + 1).factorial := by
@@ -1089,10 +1089,10 @@ theorem tmCosh_correct (J : IntervalRat) (n : ℕ) :
       simp only [ha_def, hb_def, hradius_real]
       apply max_le
       · calc |min (J.lo : ℝ) 0| ≤ max |(J.lo : ℝ)| |(0 : ℝ)| := abs_min_le_max_abs_abs
-          _ = max |(J.lo : ℝ)| 0 := by simp
+          _ = max |(J.lo : ℝ)| 0 := by rw [abs_zero]
           _ ≤ max |(J.lo : ℝ)| |(J.hi : ℝ)| := max_le_max_left _ (abs_nonneg _)
       · calc |max (J.hi : ℝ) 0| ≤ max |(J.hi : ℝ)| |(0 : ℝ)| := abs_max_le_max_abs_abs
-          _ = max |(J.hi : ℝ)| 0 := by simp
+          _ = max |(J.hi : ℝ)| 0 := by rw [abs_zero]
           _ ≤ max |(J.lo : ℝ)| |(J.hi : ℝ)| := max_le (le_max_right _ _) (le_max_of_le_left (abs_nonneg _))
     have hM_le : M ≤ Real.exp radius := Real.exp_le_exp.mpr hab_le_radius
     have hradius_nn : 0 ≤ (radius : ℝ) := by

@@ -37,6 +37,24 @@ with Mathlib's calculus lemmas.
 
 namespace LeanCert.Core
 
+/-! ### WithTop ℕ∞ coercion helpers for mathlib v4.29 -/
+section WithTopENatCast
+
+-- The coercion ℕ → WithTop ℕ∞ goes through ℕ → ℕ∞ → WithTop ℕ∞
+-- Many Nat.cast_* lemmas need AddLeftMono (WithTop ℕ∞) which isn't available,
+-- so we go through the two-step coercion explicitly.
+
+private lemma withTopENat_ne_zero {n : ℕ} (h : n ≠ 0) : (n : WithTop ℕ∞) ≠ 0 := by
+  exact_mod_cast (show (n : ℕ∞) ≠ 0 by exact_mod_cast h)
+
+private lemma withTopENat_lt {m n : ℕ} (h : m < n) : (m : WithTop ℕ∞) < (n : WithTop ℕ∞) := by
+  exact WithTop.coe_lt_coe.mpr (show (m : ℕ∞) < (n : ℕ∞) by exact_mod_cast h)
+
+private lemma withTopENat_le {m n : ℕ} (h : m ≤ n) : (m : WithTop ℕ∞) ≤ (n : WithTop ℕ∞) := by
+  exact WithTop.coe_le_coe.mpr (show (m : ℕ∞) ≤ (n : ℕ∞) by exact_mod_cast h)
+
+end WithTopENatCast
+
 /-! ### Taylor approximation structure -/
 
 /-- A Taylor approximation of a function on an interval.
@@ -132,9 +150,9 @@ lemma iteratedDerivWithin_Icc_left_eq_iteratedDeriv {f : ℝ → ℝ} {c x : ℝ
   induction n generalizing f with
   | zero => simp only [iteratedDerivWithin_zero, iteratedDeriv_zero]
   | succ n ih =>
-    have hf_n : ContDiff ℝ n f := hf.of_le (by simp : (n : WithTop ℕ∞) ≤ (n + 1 : ℕ))
+    have hf_n : ContDiff ℝ n f := hf.of_le (withTopENat_le (Nat.le_succ n) : (n : WithTop ℕ∞) ≤ (n + 1 : ℕ))
     rw [iteratedDerivWithin_succ', iteratedDeriv_succ']
-    have h_ne_zero : ((n : ℕ) + 1 : WithTop ℕ∞) ≠ 0 := by simp
+    have h_ne_zero : ((n : ℕ) + 1 : WithTop ℕ∞) ≠ 0 := withTopENat_ne_zero (Nat.succ_ne_zero n)
     have h_eq_derivWithin : EqOn (derivWithin f (Icc c x)) (deriv f) (Icc c x) := by
       intro y hy
       rcases eq_or_ne y c with rfl | hne_c
@@ -170,9 +188,9 @@ lemma iteratedDerivWithin_Icc_left_eq_iteratedDeriv_of_isOpen {f : ℝ → ℝ} 
   induction n generalizing f with
   | zero => simp only [iteratedDerivWithin_zero, iteratedDeriv_zero]
   | succ n ih =>
-    have hf_n : ContDiffOn ℝ n f U := hf.of_le (by simp : (n : WithTop ℕ∞) ≤ (n + 1 : ℕ))
+    have hf_n : ContDiffOn ℝ n f U := hf.of_le (withTopENat_le (Nat.le_succ n) : (n : WithTop ℕ∞) ≤ (n + 1 : ℕ))
     rw [iteratedDerivWithin_succ', iteratedDeriv_succ']
-    have h_ne_zero : ((n : ℕ) + 1 : WithTop ℕ∞) ≠ 0 := by simp
+    have h_ne_zero : ((n : ℕ) + 1 : WithTop ℕ∞) ≠ 0 := withTopENat_ne_zero (Nat.succ_ne_zero n)
     -- For each y in Icc c x, derivWithin f = deriv f
     have h_eq_derivWithin : EqOn (derivWithin f (Icc c x)) (deriv f) (Icc c x) := by
       intro y hy
@@ -217,13 +235,12 @@ theorem taylor_remainder_bound_on_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : �
   have hcU : c ∈ U := hI_sub hcI
   have hf_on : ContDiffOn ℝ (m + 1) f (Icc c x) := hf.mono hI_sub_U
   have hf_on_m : ContDiffOn ℝ m f (Icc c x) := by
-    have hm_le : (m : WithTop ℕ∞) ≤ (m + 1 : ℕ) := by simp
+    have hm_le : (m : WithTop ℕ∞) ≤ (m + 1 : ℕ) := withTopENat_le (Nat.le_succ m)
     exact hf_on.of_le hm_le
   have hf_diff : DifferentiableOn ℝ (iteratedDerivWithin m f (Icc c x)) (Ioo c x) := by
     have huniq := uniqueDiffOn_Icc hcx
     have hm_lt : (m : WithTop ℕ∞) < (m + 1 : ℕ) := by
-      have : (m : ℕ) < m + 1 := Nat.lt_succ_self m
-      exact_mod_cast this
+      exact withTopENat_lt (Nat.lt_succ_self m)
     have hdiff := hf_on.differentiableOn_iteratedDerivWithin hm_lt huniq
     exact hdiff.mono Ioo_subset_Icc_self
   obtain ⟨ξ, hξ_mem, hLagrange⟩ := taylor_mean_remainder_lagrange hcx hf_on_m hf_diff
@@ -239,7 +256,7 @@ theorem taylor_remainder_bound_on_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : �
       have hi_lt : i < m + 1 := mem_range.mp hi
       have hi_le : (i : WithTop ℕ∞) ≤ (m + 1 : ℕ) := by
         have : (i : ℕ) ≤ m := Nat.lt_succ_iff.mp hi_lt
-        exact le_of_lt (by exact_mod_cast Nat.lt_add_one_of_le this)
+        exact withTopENat_le (le_of_lt (Nat.lt_add_one_of_le this))
       exact iteratedDerivWithin_Icc_left_eq_iteratedDeriv_of_isOpen hU_open hcU hcx hI_sub_U (hf.of_le hi_le)
     rw [hderiv_c]
     simp only [smul_eq_mul]
@@ -278,9 +295,9 @@ private lemma iteratedDeriv_translate_of_contDiffOn {f : ℝ → ℝ} {k : ℝ} 
     -- Derivative equality in a neighborhood of t
     have h_deriv_eq_near : ∀ᶠ y in nhds t, deriv (fun z => f (z + k)) y = deriv f (y + k) := by
       filter_upwards [h_nhds_mem] with y hy_mem
-      have hf' : ContDiffOn ℝ 1 f U := hf.of_le (by norm_cast; omega)
+      have hf' : ContDiffOn ℝ 1 f U := hf.of_le (withTopENat_le (Nat.one_le_iff_ne_zero.mpr (Nat.succ_ne_zero n)))
       have hdiff : DifferentiableAt ℝ f (y + k) :=
-        (hf'.differentiableOn one_ne_zero).differentiableAt (hU_open.mem_nhds hy_mem)
+        (hf'.differentiableOn (withTopENat_ne_zero one_ne_zero)).differentiableAt (hU_open.mem_nhds hy_mem)
       have hlin : DifferentiableAt ℝ (fun z => z + k) y :=
         differentiableAt_id.add (differentiableAt_const _)
       have h := deriv_comp y hdiff hlin
@@ -302,7 +319,7 @@ lemma iteratedDeriv_reflect_of_contDiffOn {f : ℝ → ℝ} {c : ℝ} {n : ℕ} 
     iteratedDeriv n (fun s => f (2 * c - s)) t = (-1 : ℝ) ^ n * iteratedDeriv n f (2 * c - t) := by
   -- Rewrite as f ∘ (· + 2c) ∘ (- ·)
   have heq : (fun s => f (2 * c - s)) = (fun s => (fun y => f (y + 2 * c)) (-s)) := by
-    ext s; ring_nf
+    ext s; ring
   rw [heq]
   rw [iteratedDeriv_comp_neg n (fun y => f (y + 2 * c)) t]
   simp only [smul_eq_mul]
@@ -343,7 +360,7 @@ theorem taylor_remainder_bound_on_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : �
     -- g = f ∘ (2c - ·) and (2c - ·) maps V into U
     have hmaps : Set.MapsTo (fun t => 2 * c - t) V U := fun t ht => ht
     have hlin_on : ContDiffOn ℝ (m + 1) (fun t => 2 * c - t) V :=
-      (hlin.contDiffOn.mono (Set.subset_univ _)).of_le le_top
+      (hlin.contDiffOn.mono (Set.subset_univ _)).of_le (le_of_lt (WithTop.coe_lt_top _))
     exact ContDiffOn.comp hf hlin_on hmaps
   -- The interval [c, 2c-x]
   have h_interval_lt : c < 2 * c - x := by linarith
@@ -400,7 +417,7 @@ theorem taylor_remainder_bound_on_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : �
     have hcU : c ∈ U := hI_sub ⟨le_trans hx.1 (le_of_lt hxc), hcb⟩
     have h2cc : 2 * c - c = c := by ring
     rw [← h2cc] at hcU
-    have hfi : ContDiffOn ℝ i f U := hf.of_le (by exact_mod_cast hi)
+    have hfi : ContDiffOn ℝ i f U := hf.of_le (withTopENat_le hi)
     have hrefl := iteratedDeriv_reflect_of_contDiffOn hU_open hfi c hcU
     simp only [h2cc] at hrefl
     exact hrefl
@@ -485,21 +502,21 @@ relate to f's derivatives. -/
 lemma iteratedDeriv_reflect {f : ℝ → ℝ} {c : ℝ} {n : ℕ} (hf : ContDiff ℝ n f) (t : ℝ) :
     iteratedDeriv n (fun s => f (2 * c - s)) t = (-1 : ℝ) ^ n * iteratedDeriv n f (2 * c - t) := by
   have heq : (fun s => f (2 * c - s)) = (fun s => (fun x => f (x + 2 * c)) (-s)) := by
-    ext s; ring_nf
+    ext s; ring
   rw [heq]
   rw [iteratedDeriv_comp_neg n (fun x => f (x + 2 * c)) t]
   simp only [smul_eq_mul]
   congr 1
   clear heq
   induction n generalizing f with
-  | zero => simp only [iteratedDeriv_zero]; ring_nf
+  | zero => simp only [iteratedDeriv_zero]; ring
   | succ n ih =>
     rw [iteratedDeriv_succ', iteratedDeriv_succ']
     have hf' : ContDiff ℝ (n + 1) f := hf
     have hderiv_eq : deriv (fun x => f (x + 2 * c)) = fun x => deriv f (x + 2 * c) := by
       ext x
       have hdiff : DifferentiableAt ℝ f (x + 2 * c) :=
-        (hf'.differentiable (by simp : ((n : ℕ) + 1 : WithTop ℕ∞) ≠ 0)).differentiableAt
+        (hf'.differentiable (withTopENat_ne_zero (Nat.succ_ne_zero n))).differentiableAt
       have hlin : DifferentiableAt ℝ (fun y => y + 2 * c) x :=
         differentiableAt_id.add (differentiableAt_const _)
       have h1 := deriv_comp x hdiff hlin
@@ -533,13 +550,12 @@ theorem taylor_remainder_bound_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
   have hI_sub : Icc c x ⊆ Icc a b := Icc_subset_Icc hca hx.2
   have hf_on : ContDiffOn ℝ (m + 1) f (Icc c x) := hf.contDiffOn.mono hI_sub
   have hf_on_m : ContDiffOn ℝ m f (Icc c x) := by
-    have hm_le : (m : WithTop ℕ∞) ≤ (m + 1 : ℕ) := by simp
+    have hm_le : (m : WithTop ℕ∞) ≤ (m + 1 : ℕ) := withTopENat_le (Nat.le_succ m)
     exact hf_on.of_le hm_le
   have hf_diff : DifferentiableOn ℝ (iteratedDerivWithin m f (Icc c x)) (Ioo c x) := by
     have huniq := uniqueDiffOn_Icc hcx
     have hm_lt : (m : WithTop ℕ∞) < (m + 1 : ℕ) := by
-      have : (m : ℕ) < m + 1 := Nat.lt_succ_self m
-      exact_mod_cast this
+      exact withTopENat_lt (Nat.lt_succ_self m)
     have hdiff := hf_on.differentiableOn_iteratedDerivWithin hm_lt huniq
     exact hdiff.mono Ioo_subset_Icc_self
   obtain ⟨ξ, hξ_mem, hLagrange⟩ := taylor_mean_remainder_lagrange hcx hf_on_m hf_diff
@@ -555,7 +571,7 @@ theorem taylor_remainder_bound_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
       have hi_lt : i < m + 1 := mem_range.mp hi
       have hi_le : (i : WithTop ℕ∞) ≤ (m + 1 : ℕ) := by
         have : (i : ℕ) ≤ m := Nat.lt_succ_iff.mp hi_lt
-        exact le_of_lt (by exact_mod_cast Nat.lt_add_one_of_le this)
+        exact withTopENat_le (le_of_lt (Nat.lt_add_one_of_le this))
       exact iteratedDerivWithin_Icc_left_eq_iteratedDeriv hcx (hf.of_le hi_le)
     rw [hderiv_c]
     simp only [smul_eq_mul]
@@ -596,19 +612,18 @@ theorem taylor_remainder_bound_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
   -- g is smooth
   have hg_smooth : ContDiff ℝ (m + 1) g := by
     have hlin : ContDiff ℝ ⊤ (fun t => 2 * c - t) := contDiff_const.sub contDiff_id
-    exact hf.comp (hlin.of_le le_top)
+    exact hf.comp (hlin.of_le (le_of_lt (WithTop.coe_lt_top _)))
   -- The interval [c, 2c - x]
   have h_interval_lt : c < 2 * c - x := by linarith
   -- Apply taylor_mean_remainder_lagrange to g on [c, 2c - x]
   have hg_on : ContDiffOn ℝ (m + 1) g (Icc c (2 * c - x)) := hg_smooth.contDiffOn
   have hg_on_m : ContDiffOn ℝ m g (Icc c (2 * c - x)) := by
-    have hm_le : (m : WithTop ℕ∞) ≤ (m + 1 : ℕ) := by norm_cast; omega
+    have hm_le : (m : WithTop ℕ∞) ≤ (m + 1 : ℕ) := withTopENat_le (Nat.le_succ m)
     exact hg_on.of_le hm_le
   have hg_diff : DifferentiableOn ℝ (iteratedDerivWithin m g (Icc c (2 * c - x))) (Ioo c (2 * c - x)) := by
     have huniq := uniqueDiffOn_Icc h_interval_lt
     have hm_lt : (m : WithTop ℕ∞) < (m + 1 : ℕ) := by
-      have : (m : ℕ) < m + 1 := Nat.lt_succ_self m
-      exact_mod_cast this
+      exact withTopENat_lt (Nat.lt_succ_self m)
     have hdiff := hg_on.differentiableOn_iteratedDerivWithin hm_lt huniq
     exact hdiff.mono Ioo_subset_Icc_self
   obtain ⟨ξ', hξ'_mem, hLagrange⟩ := taylor_mean_remainder_lagrange h_interval_lt hg_on_m hg_diff
@@ -626,9 +641,8 @@ theorem taylor_remainder_bound_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
     intro k hk
     have hg_eq : g = fun s => f (2 * c - s) := hg_def
     rw [hg_eq]
-    rw [iteratedDeriv_reflect (hf.of_le (by exact_mod_cast hk)) c]
-    congr 1
-    ring_nf
+    rw [iteratedDeriv_reflect (hf.of_le (withTopENat_le hk)) c]
+    simp only [two_mul, add_sub_cancel_left]
   -- Key: taylorWithinEval g m (Icc c (2c-x)) c (2c-x) = ∑ ... of f's Taylor coeffs
   have hTaylor_g_to_f : taylorWithinEval g m (Icc c (2 * c - x)) c (2 * c - x) =
                         ∑ i ∈ range (m + 1), (iteratedDeriv i f c / i.factorial) * (x - c) ^ i := by
@@ -639,7 +653,7 @@ theorem taylor_remainder_bound_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
     have hi_le : i ≤ m + 1 := le_of_lt hi_lt
     have hi_le' : (i : WithTop ℕ∞) ≤ (m + 1 : ℕ) := by
       have : (i : ℕ) ≤ m := Nat.lt_succ_iff.mp hi_lt
-      exact le_of_lt (by exact_mod_cast Nat.lt_add_one_of_le this)
+      exact withTopENat_le (le_of_lt (Nat.lt_add_one_of_le this))
     have hderiv_c : iteratedDerivWithin i g (Icc c (2 * c - x)) c = iteratedDeriv i g c :=
       iteratedDerivWithin_Icc_left_eq_iteratedDeriv h_interval_lt (hg_smooth.of_le hi_le')
     rw [hderiv_c, hg_deriv i hi_le]
