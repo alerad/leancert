@@ -9,7 +9,8 @@ import LeanCert.Tactic.FinSumBound
 # Tests for `finsum_bound`
 
 Verifies that the `finsum_bound` tactic can prove bounds on finite sums
-with O(1) proof size via `native_decide`.
+with O(1) proof size via `native_decide`. Covers auto-reify mode, witness mode
+(`using`), auto-hmem witness mode (`auto`), Fin n sums, and various Finset types.
 -/
 
 namespace LeanCert.Test.FinSumBound
@@ -82,6 +83,26 @@ example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.exp (Real.log ↑k) ≤ 56 := 
 
 -- Triple nesting: exp(1/(1 + exp(-k)))
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp ((1 : ℝ) / ((1 : ℝ) + Real.exp (-(↑k : ℝ)))) ≤ 14 := by
+  finsum_bound
+
+-- Absolute value: |sin(k)| ≤ 1 per term, so ∑ |sin(k)| ≤ 10
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, |Real.sin ↑k| ≤ 10 := by
+  finsum_bound
+
+-- Rat.cast: body contains ↑(q : ℚ) cast to ℝ
+example : ∑ _k ∈ Finset.Icc (1 : ℕ) 5, ((1/3 : ℚ) : ℝ) ≤ 2 := by
+  finsum_bound
+
+-- Rat.cast in arithmetic: ↑(q : ℚ) * sin(k)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, ((1/2 : ℚ) : ℝ) * Real.sin ↑k ≤ 3 := by
+  finsum_bound
+
+-- Int.cast: body contains ↑(z : ℤ) multiplied with k
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 3, ((-1 : ℤ) : ℝ) * Real.sin ↑k ≤ 1 := by
+  finsum_bound
+
+-- Int.cast + constant: ↑(-2 : ℤ) + 3 reified structurally (not constant-folded)
+example : ∑ _k ∈ Finset.Icc (1 : ℕ) 3, (((-2 : ℤ) : ℝ) + 3) ≤ 4 := by
   finsum_bound
 
 /-! ## Tier 3: Witness mode (`finsum_bound using`)
@@ -198,5 +219,51 @@ example : ∑ k ∈ ({2, 3, 5, 7} : Finset ℕ), (1 : ℝ) / (↑k * Real.log �
 
 -- Nested exp on explicit finset: exp(exp(1/k))
 example : ∑ k ∈ ({1, 2, 3} : Finset ℕ), Real.exp (Real.exp ((1 : ℝ) / ↑k)) ≤ 26 := by finsum_bound
+
+/-! ## Tier 5: Fin n sums (auto-rewrite via `tryRewriteFinSum`)
+
+`finsum_bound` detects `∑ i : Fin n, f i` goals, extracts the body lambda,
+replaces `Fin.val i` with a fresh ℕ variable to build `g : ℕ → β`, and
+rewrites via `Fin.sum_univ_eq_sum_range g`. This handles arbitrary bodies
+(not just simple `↑i`), unlike `simp only [Fin.sum_univ_eq_sum_range]` which
+requires first-order matching. -/
+
+-- Fin sum: simple coercion body
+example : ∑ i : Fin 10, (↑i : ℝ) ≤ 46 := by finsum_bound
+
+-- Fin sum: lower bound
+example : (44 : ℝ) ≤ ∑ i : Fin 10, (↑i : ℝ) := by finsum_bound
+
+-- Fin sum: transcendental body (exp ↑i — needs meta-level Fin.val extraction)
+example : ∑ i : Fin 5, Real.exp (↑i : ℝ) ≤ 234 := by finsum_bound
+
+-- Fin sum: witness mode (Fin → range rewrite, then list path)
+example : ∑ i : Fin 5, Real.exp (↑i : ℝ) ≤ 234 := by
+  finsum_bound using expEval (fun k _ => expEval_correct k _)
+
+/-! ## Tier 6: Auto-hmem witness mode (`finsum_bound auto`)
+
+The `auto` keyword provides a witness evaluator without a manual hmem proof.
+The tactic auto-proves `f k ∈ evalTerm k cfg` via `simp [mem_def] + push_cast + norm_num`.
+This works when the evaluator returns singletons where membership reduces to
+`d.toRat ≤ x ∧ x ≤ d.toRat` with `x = ↑(d.toRat)`. -/
+
+/-- Singleton evaluator: returns the exact value 1 for every k. -/
+def constOneEval (_k : Nat) (_cfg : DyadicConfig) : IntervalDyadic :=
+  IntervalDyadic.singleton ⟨1, 0⟩
+
+-- Auto-hmem: constant body, singleton evaluator
+example : ∑ _k ∈ Finset.Icc (1 : ℕ) 5, (1 : ℝ) ≤ 6 := by
+  finsum_bound auto constOneEval
+
+/-! ## Tier 7: ↑(q : ℚ) bound targets (extractRatFromReal with toRat? fallback) -/
+
+-- ↑(q : ℚ) as bound target (was failing before toRat? fix)
+example : ∑ _k ∈ Finset.Icc (1 : ℕ) 3, (1 : ℝ) / 1000 ≤ ↑(9/500 : ℚ) := by
+  finsum_bound
+
+-- ↑(q : ℚ) in body (already worked via Rat.cast pattern in toRat?)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, ↑(9/500 : ℚ) * Real.sin (↑k : ℝ) ≤ 1 := by
+  finsum_bound
 
 end LeanCert.Test.FinSumBound

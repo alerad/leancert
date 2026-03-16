@@ -6,6 +6,7 @@ Authors: LeanCert Contributors
 import Lean
 import LeanCert.Engine.WitnessSum
 import LeanCert.Tactic.IntervalAuto
+import LeanCert.Tactic.BridgeNative
 
 /-!
 # `finsum_witness`: Tactic for Witness-Based Finite Sum Bounds
@@ -256,39 +257,11 @@ private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Sy
       #[wGoal.bodyLambda, evalTermExpr, wGoal.aExpr, wGoal.bExpr,
         targetExpr, cfgExpr, hmemExpr, checkMVar]
 
-    let proofTy ← inferType proof
-    if ← isDefEq proofTy goalType then
-      goal.assign proof
-      replaceMainGoal [checkMVar.mvarId!]
-      evalTactic (← `(tactic| native_decide))
-    else
-      trace[finsum_witness] "Direct defEq failed, using suffices fallback"
-
-      let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
-      let converterMVar ← mkFreshExprMVar
-        (some (← mkArrow proofTy goalType)) (kind := .syntheticOpaque)
-      goal.assign (mkApp converterMVar suffMVar)
-
-      suffMVar.mvarId!.assign proof
-
-      setGoals [checkMVar.mvarId!]
-      try
-        evalTactic (← `(tactic| native_decide))
-      catch e =>
-        throwError "finsum_witness: native_decide failed on certificate check. \
-          The bound may be too tight for precision ({prec}).\n\
-          Try: `finsum_witness ... 100`.\n{e.toMessageData}"
-
-      setGoals [converterMVar.mvarId!]
-      try
-        evalTactic (← `(tactic| intro h; exact h))
-      catch _ =>
-        try
-          evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
-        catch _ =>
-          throwError "finsum_witness: could not convert proof type to goal type.\n\
-            Proof type: {← ppExpr proofTy}\n\
-            Goal type: {← ppExpr goalType}"
+    -- Apply bridge + native_decide (with converter fallback)
+    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_witness" #[
+      do evalTactic (← `(tactic| intro h; exact h)),
+      do evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
+    ]
 
 /-- Core implementation of `finsum_witness` for arbitrary Finsets (list path). -/
 private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn : Syntax)
@@ -343,39 +316,11 @@ private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn
       #[wGoal.bodyLambda, evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr,
         targetExpr, cfgExpr, hmemExpr, checkMVar]
 
-    let proofTy ← inferType proof
-    if ← isDefEq proofTy goalType then
-      goal.assign proof
-      replaceMainGoal [checkMVar.mvarId!]
-      evalTactic (← `(tactic| native_decide))
-    else
-      trace[finsum_witness] "Direct defEq failed (list path), using suffices fallback"
-
-      let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
-      let converterMVar ← mkFreshExprMVar
-        (some (← mkArrow proofTy goalType)) (kind := .syntheticOpaque)
-      goal.assign (mkApp converterMVar suffMVar)
-
-      suffMVar.mvarId!.assign proof
-
-      setGoals [checkMVar.mvarId!]
-      try
-        evalTactic (← `(tactic| native_decide))
-      catch e =>
-        throwError "finsum_witness: native_decide failed on certificate check. \
-          The bound may be too tight for precision ({prec}).\n\
-          Try: `finsum_witness ... 100`.\n{e.toMessageData}"
-
-      setGoals [converterMVar.mvarId!]
-      try
-        evalTactic (← `(tactic| intro h; exact h))
-      catch _ =>
-        try
-          evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
-        catch _ =>
-          throwError "finsum_witness: could not convert proof type to goal type.\n\
-            Proof type: {← ppExpr proofTy}\n\
-            Goal type: {← ppExpr goalType}"
+    -- Apply bridge + native_decide (with converter fallback)
+    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_witness" #[
+      do evalTactic (← `(tactic| intro h; exact h)),
+      do evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
+    ]
 
 /-- Main dispatch: try Icc path first, then list path. -/
 def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit := do
@@ -393,6 +338,193 @@ def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit
     return
 
   throwError "finsum_witness: goal is not of the form \
+    `∑ k ∈ S, f k ≤ target` or `target ≤ ∑ k ∈ S, f k` \
+    where S is a recognized Finset (Icc, Ico, Ioc, Ioo, range, or explicit)"
+
+/-- Try to auto-prove an hmem metavar using several strategies.
+    Works best when the evaluator returns singletons or tight intervals
+    where membership reduces to decidable ℚ comparisons. -/
+private def tryAutoProveHmem (hmemMVar : MVarId) : TacticM Unit := do
+  -- Strategy 1: simp [mem_def] + split into ≤ components + cast to ℚ + native_decide
+  -- Works for constant evaluators (no free variables in the comparison)
+  setGoals [hmemMVar]
+  try
+    evalTactic (← `(tactic|
+      intros;
+      simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
+      refine ⟨?_, ?_⟩ <;> exact_mod_cast (by native_decide)))
+    return
+  catch _ => pure ()
+  -- Strategy 2: interval_cases to enumerate k, then per-case native_decide
+  -- Works for k-dependent evaluators on Icc (bounds are concrete literals)
+  setGoals [hmemMVar]
+  try
+    evalTactic (← `(tactic|
+      intro k hlo hhi;
+      interval_cases k <;> {
+        simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
+        refine ⟨?_, ?_⟩ <;> exact_mod_cast (by native_decide)
+      }))
+    return
+  catch _ => pure ()
+  -- Strategy 3: fin_cases for list path (1 premise: k ∈ S)
+  setGoals [hmemMVar]
+  try
+    evalTactic (← `(tactic|
+      intro k hk;
+      fin_cases hk <;> {
+        simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
+        refine ⟨?_, ?_⟩ <;> exact_mod_cast (by native_decide)
+      }))
+    return
+  catch _ => pure ()
+  -- All strategies failed
+  let hmemTy ← hmemMVar.getType
+  throwError "finsum_bound auto: could not auto-prove membership.\n\
+    Expected type: {← ppExpr hmemTy}\n\
+    Provide hmem explicitly: `finsum_bound using evalTerm hmemProof`"
+
+/-- Core implementation of `finsum_bound auto` for Icc goals. -/
+private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax)
+    (prec : Int) : TacticM Unit := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+
+  goal.withContext do
+    let some target ← Auto.extractRatFromReal wGoal.targetExpr
+      | throwError "finsum_bound auto: could not extract rational from bound \
+          `{← ppExpr wGoal.targetExpr}`"
+    let targetExpr := toExpr target
+
+    let precExpr := toExpr prec
+    let depthExpr := toExpr (10 : Nat)
+    let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr, toExpr (0 : Nat)]
+
+    let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
+      (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
+    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+
+    -- Build hmem type: ∀ k, a ≤ k → k ≤ b → f k ∈ evalTerm k cfg
+    let natTy := Lean.mkConst ``Nat
+    let hmemTy ← withLocalDeclD `k natTy fun k => do
+      let akTy ← mkAppM ``LE.le #[wGoal.aExpr, k]
+      let kbTy ← mkAppM ``LE.le #[k, wGoal.bExpr]
+      let fk := (Lean.mkApp wGoal.bodyLambda k).headBeta
+      let evalk := Lean.mkApp (Lean.mkApp evalTermExpr k) cfgExpr
+      let memTy ← mkAppM ``Membership.mem #[evalk, fk]
+      let body ← mkArrow akTy (← mkArrow kbTy memTy)
+      mkForallFVars #[k] body
+
+    -- Auto-prove hmem
+    let hmemMVar ← mkFreshExprMVar (some hmemTy) (kind := .syntheticOpaque)
+    let savedGoals ← getGoals
+    tryAutoProveHmem hmemMVar.mvarId!
+    setGoals savedGoals
+
+    let hmemExpr := hmemMVar
+
+    -- Rest is identical to finSumWitnessIccCore
+    let checkExpr ← if wGoal.isUpper then
+      mkAppM ``checkWitnessSumUpperBound
+        #[evalTermExpr, wGoal.aExpr, wGoal.bExpr, targetExpr, cfgExpr]
+    else
+      mkAppM ``checkWitnessSumLowerBound
+        #[evalTermExpr, wGoal.aExpr, wGoal.bExpr, targetExpr, cfgExpr]
+
+    let checkEqTrue ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
+    let checkMVar ← mkFreshExprMVar (some checkEqTrue) (kind := .syntheticOpaque)
+
+    let bridgeThm := if wGoal.isUpper then
+      ``verify_witness_sum_upper
+    else
+      ``verify_witness_sum_lower
+    let proof ← mkAppM bridgeThm
+      #[wGoal.bodyLambda, evalTermExpr, wGoal.aExpr, wGoal.bExpr,
+        targetExpr, cfgExpr, hmemExpr, checkMVar]
+
+    -- Apply bridge + native_decide (with converter fallback)
+    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound auto" #[
+      do evalTactic (← `(tactic| intro h; exact h)),
+      do evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
+    ]
+
+/-- Core implementation of `finsum_bound auto` for arbitrary Finsets (list path). -/
+private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : Syntax)
+    (prec : Int) : TacticM Unit := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+
+  goal.withContext do
+    let some target ← Auto.extractRatFromReal wGoal.targetExpr
+      | throwError "finsum_bound auto: could not extract rational from bound \
+          `{← ppExpr wGoal.targetExpr}`"
+    let targetExpr := toExpr target
+
+    let precExpr := toExpr prec
+    let depthExpr := toExpr (10 : Nat)
+    let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr, toExpr (0 : Nat)]
+
+    let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
+      (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
+    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+
+    -- Build hmem type: ∀ k, k ∈ S → f k ∈ evalTerm k cfg
+    let natTy := Lean.mkConst ``Nat
+    let hmemTy ← withLocalDeclD `k natTy fun k => do
+      let memSTy ← mkAppM ``Membership.mem #[wGoal.finsetExpr, k]
+      let fk := (Lean.mkApp wGoal.bodyLambda k).headBeta
+      let evalk := Lean.mkApp (Lean.mkApp evalTermExpr k) cfgExpr
+      let memEvalTy ← mkAppM ``Membership.mem #[evalk, fk]
+      let body ← mkArrow memSTy memEvalTy
+      mkForallFVars #[k] body
+
+    -- Auto-prove hmem
+    let hmemMVar ← mkFreshExprMVar (some hmemTy) (kind := .syntheticOpaque)
+    let savedGoals ← getGoals
+    tryAutoProveHmem hmemMVar.mvarId!
+    setGoals savedGoals
+
+    let hmemExpr := hmemMVar
+
+    -- Rest is identical to finSumWitnessListCore
+    let checkExpr ← if wGoal.isUpper then
+      mkAppM ``checkWitnessSumUpperBoundListFull
+        #[evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr, targetExpr, cfgExpr]
+    else
+      mkAppM ``checkWitnessSumLowerBoundListFull
+        #[evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr, targetExpr, cfgExpr]
+
+    let checkEqTrue ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
+    let checkMVar ← mkFreshExprMVar (some checkEqTrue) (kind := .syntheticOpaque)
+
+    let bridgeThm := if wGoal.isUpper then
+      ``verify_witness_sum_upper_list_full
+    else
+      ``verify_witness_sum_lower_list_full
+    let proof ← mkAppM bridgeThm
+      #[wGoal.bodyLambda, evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr,
+        targetExpr, cfgExpr, hmemExpr, checkMVar]
+
+    -- Apply bridge + native_decide (with converter fallback)
+    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound auto" #[
+      do evalTactic (← `(tactic| intro h; exact h)),
+      do evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
+    ]
+
+/-- Main dispatch for auto-hmem mode: try Icc path first, then list path. -/
+def finSumWitnessAutoCore (evalTermSyn : Syntax) (prec : Int) : TacticM Unit := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+
+  if let some wGoal := parseWitnessGoal goalType then
+    finSumWitnessAutoIccCore wGoal evalTermSyn prec
+    return
+
+  if let some wGoalList := ← parseWitnessGoalList goalType then
+    finSumWitnessAutoListCore wGoalList evalTermSyn prec
+    return
+
+  throwError "finsum_bound auto: goal is not of the form \
     `∑ k ∈ S, f k ≤ target` or `target ≤ ∑ k ∈ S, f k` \
     where S is a recognized Finset (Icc, Ico, Ioc, Ioo, range, or explicit)"
 

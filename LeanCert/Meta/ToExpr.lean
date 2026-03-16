@@ -125,6 +125,10 @@ def mkExprErf (e : Lean.Expr) : MetaM Lean.Expr :=
 def mkExprSqrt (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.sqrt #[e]
 
+/-- Build `LeanCert.Core.Expr.abs e` (= `Expr.sqrt (Expr.mul e e)`). -/
+def mkExprAbs (e : Lean.Expr) : MetaM Lean.Expr :=
+  mkAppM ``LeanCert.Core.Expr.abs #[e]
+
 /-- Build `LeanCert.Core.Expr.sinh e`. -/
 def mkExprSinh (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.sinh #[e]
@@ -232,6 +236,24 @@ where
       | some qnum, some qden => return some (qnum / qden)
       | _, _ => return none
 
+    -- Rat.cast α inst q => extract q (handles ↑(q : ℚ) : ℝ)
+    | Rat.cast _ _ q => toRat? q
+
+    -- RatCast.ratCast α inst q (alternative form)
+    | RatCast.ratCast _ _ q => toRat? q
+
+    -- Nat.cast α inst n => extract n (handles ↑(n : ℕ) : ℝ)
+    | Nat.cast _ _ n => toRat? n
+
+    -- NatCast.natCast α inst n (alternative form)
+    | NatCast.natCast _ _ n => toRat? n
+
+    -- Int.cast α inst z => extract z (handles ↑(z : ℤ) : ℝ)
+    | Int.cast _ _ z => toRat? z
+
+    -- IntCast.intCast α inst z (alternative form)
+    | IntCast.intCast _ _ z => toRat? z
+
     -- OfScientific.ofScientific α inst mantissa exponentSign decimalExponent
     -- Represents: mantissa * 10^(if exponentSign then -decimalExponent else decimalExponent)
     -- E.g., 2.5 = 25 * 10^(-1) → mantissa=25, exponentSign=true, decimalExponent=1
@@ -260,23 +282,32 @@ the corresponding LeanCert AST.
 
 Logic:
 1. Check if it's a variable in our context
-2. Check if it's a constant number
-3. Check if it's a known arithmetic operator (+, *, -, /)
-4. Check if it's a known transcendental (sin, cos, exp, log, etc.)
-5. Fail if unrecognized
--/
+2. Try to match a known operator/function (+, *, -, /, sin, cos, exp, etc.)
+3. Check if it's a numeric constant (ℕ, ℤ, ℚ literals and casts)
+4. Reduce with whnf and retry
+5. Unfold definitions and retry
+
+**Important**: Step 2 (operator matching) must come before step 3 (numeric constant).
+Otherwise `toRat?` eagerly constant-folds compound expressions like `↑(-2 : ℤ) + 3`
+into `const(1)`, losing the syntactic structure needed by the bridge converter.
+With operators first, this reifies as `add(const(-2), const(3))` which the bridge
+can match against the goal. -/
 partial def toLeanCertExpr (e : Lean.Expr) : TranslateM Lean.Expr := do
   -- 1. Check if it is a free variable in our context
   if let some idx ← findVarIdx? e then
     return ← mkExprVar idx
 
-  -- 2. Check if it is a numeric constant
-  if let some q ← toRat? e then
-    return ← mkExprConst q
-
-  -- 3. Try to match on unreduced expression first (important!)
+  -- 2. Try to match on unreduced expression first (important!)
+  -- This must come BEFORE toRat? so that compound expressions like
+  -- `↑(-2 : ℤ) + 3` are reified structurally (as add(const(-2), const(3)))
+  -- rather than constant-folded by toRat? (which would produce const(1),
+  -- losing the structure needed for the bridge converter to match the goal).
   if let some result ← tryMatchExpr e then
     return result
+
+  -- 3. Check if it is a numeric constant (leaf values only at this point)
+  if let some q ← toRat? e then
+    return ← mkExprConst q
 
   -- 4. If no match, try reducing with whnf and matching again
   let eReduced ← whnf e
@@ -439,6 +470,12 @@ where
 
     -- The constant π
     | Real.pi => return some (← mkExprPi)
+
+    -- Absolute value: |x| → sqrt(x * x)
+    | abs _ _ _ x =>
+      let ex ← toLeanCertExpr x
+      let ex_sq ← mkExprMul ex ex
+      return some (← mkExprSqrt ex_sq)
 
     | _ => return none
 

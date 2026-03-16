@@ -9,12 +9,17 @@ import LeanCert.Meta.ToExpr
 import LeanCert.Meta.ProveSupported
 import LeanCert.Tactic.IntervalAuto
 import LeanCert.Tactic.FinSumWitness
+import LeanCert.Tactic.BridgeNative
+import Mathlib.Algebra.BigOperators.Fin
 
 /-!
 # `finsum_bound`: O(1) Proof-Size Tactic for Finite Sum Bounds
 
-Proves bounds of the form `∑ k ∈ Finset.Icc a b, f k ≤ target` (or `≥`)
+Proves bounds of the form `∑ k ∈ S, f k ≤ target` (or `≥`)
 using `native_decide` with O(1) proof size, regardless of the number of terms.
+
+Supports `Finset.Icc`, `Ico`, `Ioc`, `Ioo`, `range`, explicit sets `{a,b,c}`,
+and `∑ i : Fin n, f ↑i` (auto-rewrites to `Finset.range`).
 
 ## Motivation
 
@@ -33,15 +38,23 @@ example : ∑ k ∈ Finset.Icc 1 100, (1 : ℝ) / (k * k) ≤ 2 := by
 example : (4 : ℝ) ≤ ∑ k ∈ Finset.Icc 1 100, 1 / k := by
   finsum_bound
 
+-- Fin n sums (auto-rewritten to Finset.range)
+example : ∑ i : Fin 5, Real.exp (↑i : ℝ) ≤ 234 := by
+  finsum_bound
+
 -- Higher precision
 example : ∑ k ∈ Finset.Icc 1 500, (1 : ℝ) / (k * k) ≤ 2 := by
   finsum_bound 100
+
+-- Witness mode with auto-proved membership
+example : ∑ _k ∈ Finset.Icc 1 5, (1 : ℝ) ≤ 6 := by
+  finsum_bound auto constOneEval
 ```
 
 ## Architecture
 
 ```
-Parse goal → reify body (ℕ → ℝ) to Core.Expr
+(Fin n rewrite) → Parse goal → reify body (ℕ → ℝ) to Core.Expr
   → build ExprSupportedCore or ExprSupportedWithInv proof
   → build DyadicConfig
   → checkFinSumUpperBoundFull/LowerBoundFull : Bool (domain + bound)
@@ -222,8 +235,22 @@ private def parseFinSumGoalList (goalType : Lean.Expr) : MetaM (Option FinSumGoa
 
 /-! ## Body Reification -/
 
+/-- Check if an expression is `k` or `Fin.val k` (or similar coercions) for the given fvar. -/
+private def isFVarOrFinVal (e : Lean.Expr) (kFVarId : FVarId) : Bool :=
+  if e.isFVar && e.fvarId! == kFVarId then true
+  else
+    -- Check for Fin.val k / Fin.toNat k
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+    if args.size ≥ 1 then
+      let lastArg := args.back!
+      lastArg.isFVar && lastArg.fvarId! == kFVarId &&
+        (fn.isConstOf ``Fin.val || fn.isConstOf ``Fin.toNat)
+    else false
+
 /-- Replace occurrences of `Nat.cast k` (where `k` is the given fvar) with
-    a replacement expression. Checks both `Nat.cast` and `NatCast.natCast` forms. -/
+    a replacement expression. Also handles `Nat.cast (Fin.val k)` for Fin-indexed sums.
+    Checks both `Nat.cast` and `NatCast.natCast` forms. -/
 private def replaceNatCast (body : Lean.Expr) (kFVarId : FVarId)
     (replacement : Lean.Expr) : Lean.Expr :=
   body.replace fun e =>
@@ -231,7 +258,7 @@ private def replaceNatCast (body : Lean.Expr) (kFVarId : FVarId)
     let args := e.getAppArgs
     if args.size ≥ 1 then
       let lastArg := args.back!
-      if lastArg.isFVar && lastArg.fvarId! == kFVarId then
+      if isFVarOrFinVal lastArg kFVarId then
         if fn.isConstOf ``Nat.cast || fn.isConstOf ``NatCast.natCast then
           some replacement
         else none
@@ -323,51 +350,17 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int) (taylorDepth :
       #[ast, supportProof, fsGoal.aExpr, fsGoal.bExpr, targetExpr, cfgExpr,
         precLeZeroProof, checkMVar]
 
-    -- Try direct assignment (works if Expr.eval defEq to user's body AND target cast matches)
-    let proofTy ← inferType proof
-    if ← isDefEq proofTy goalType then
-      goal.assign proof
-      replaceMainGoal [checkMVar.mvarId!]
-      evalTactic (← `(tactic| native_decide))
-    else
-      -- DefEq failed. Use suffices: prove the Expr.eval form, then convert to user's form.
-      trace[finsum_bound] "Direct defEq failed, using suffices + simp fallback"
-
-      -- Strategy: goal.assign (converter suffMVar) where converter : proofTy → goalType
-      let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
-      let converterMVar ← mkFreshExprMVar
-        (some (← mkArrow proofTy goalType)) (kind := .syntheticOpaque)
-      goal.assign (mkApp converterMVar suffMVar)
-
-      -- 1. Solve suffMVar: assign the bridge theorem proof
-      suffMVar.mvarId!.assign proof
-
-      -- 2. Solve checkMVar with native_decide
-      setGoals [checkMVar.mvarId!]
-      try
-        evalTactic (← `(tactic| native_decide))
-      catch e =>
-        throwError "finsum_bound: native_decide failed on certificate check. \
-          The bound may be too tight for precision ({prec}).\n\
-          Try: `finsum_bound 100`.\n{e.toMessageData}"
-
-      -- 3. Solve converterMVar: proofTy → goalType
-      setGoals [converterMVar.mvarId!]
-      try
-        evalTactic (← `(tactic|
-          intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
-            div_eq_mul_inv] at h ⊢;
-          norm_num at h ⊢; exact h))
-      catch _ =>
-        try
-          evalTactic (← `(tactic|
-            intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
-              div_eq_mul_inv] at h ⊢;
-            push_cast at h ⊢; linarith))
-        catch _ =>
-          throwError "finsum_bound: could not convert Expr.eval form to the user's goal.\n\
-            Proof type: {← ppExpr proofTy}\n\
-            Goal type: {← ppExpr goalType}"
+    -- Apply bridge + native_decide (with converter fallback)
+    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound" #[
+      do evalTactic (← `(tactic|
+        intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
+        norm_num at h ⊢; exact h)),
+      do evalTactic (← `(tactic|
+        intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
+        push_cast at h ⊢; linarith))
+    ]
 
 /-- Core implementation of `finsum_bound` for arbitrary Finsets (list path). -/
 private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
@@ -419,47 +412,68 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int) (taylorDe
       #[ast, supportProof, fsGoal.finsetExpr, fsGoal.indicesExpr, targetExpr, cfgExpr,
         precLeZeroProof, checkMVar]
 
-    -- Try direct assignment
-    let proofTy ← inferType proof
-    if ← isDefEq proofTy goalType then
-      goal.assign proof
-      replaceMainGoal [checkMVar.mvarId!]
-      evalTactic (← `(tactic| native_decide))
-    else
-      -- Suffices fallback (same pattern as Icc path)
-      trace[finsum_bound] "Direct defEq failed (list path), using suffices + simp fallback"
+    -- Apply bridge + native_decide (with converter fallback)
+    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound" #[
+      do evalTactic (← `(tactic|
+        intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
+        norm_num at h ⊢; exact h)),
+      do evalTactic (← `(tactic|
+        intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
+        push_cast at h ⊢; linarith))
+    ]
 
-      let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
-      let converterMVar ← mkFreshExprMVar
-        (some (← mkArrow proofTy goalType)) (kind := .syntheticOpaque)
-      goal.assign (mkApp converterMVar suffMVar)
-
-      suffMVar.mvarId!.assign proof
-
-      setGoals [checkMVar.mvarId!]
-      try
-        evalTactic (← `(tactic| native_decide))
-      catch e =>
-        throwError "finsum_bound: native_decide failed on certificate check. \
-          The bound may be too tight for precision ({prec}).\n\
-          Try: `finsum_bound 100`.\n{e.toMessageData}"
-
-      setGoals [converterMVar.mvarId!]
-      try
-        evalTactic (← `(tactic|
-          intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
-            div_eq_mul_inv] at h ⊢;
-          norm_num at h ⊢; exact h))
-      catch _ =>
-        try
-          evalTactic (← `(tactic|
-            intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
-              div_eq_mul_inv] at h ⊢;
-            push_cast at h ⊢; linarith))
-        catch _ =>
-          throwError "finsum_bound: could not convert Expr.eval form to the user's goal.\n\
-            Proof type: {← ppExpr proofTy}\n\
-            Goal type: {← ppExpr goalType}"
+/-- Try to detect `Finset.sum Finset.univ f` where `univ` is over `Fin n` in the goal,
+    and rewrite using `Fin.sum_univ_eq_sum_range f` to convert to a `Finset.range` sum.
+    Unlike `simp only [Fin.sum_univ_eq_sum_range]`, this handles arbitrary bodies
+    by explicitly providing the function argument `f`. -/
+private def tryRewriteFinSum : TacticM Unit := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let_expr LE.le _ _ lhs rhs := goalType | return
+  -- Check both sides for a Fin sum
+  let findFinSum (e : Lean.Expr) : Option Lean.Expr := do
+    let fn := e.getAppFn
+    let args := e.getAppArgs
+    if fn.isConstOf ``Finset.sum && args.size ≥ 5 then
+      let s := args[3]!  -- the Finset
+      let f := args[4]!  -- the body
+      let sfn := s.getAppFn
+      if sfn.isConstOf ``Finset.univ then
+        let sargs := s.getAppArgs
+        let typeArg := sargs[0]!  -- should be Fin n
+        if typeArg.isAppOf ``Fin then
+          return f
+    none
+  let bodyOpt := findFinSum lhs <|> findFinSum rhs
+  let some body := bodyOpt | return
+  -- body : Fin n → β. We need f : ℕ → β such that body i = f (Fin.val i).
+  -- Extract by: lambdaTelescope body, replace Fin.val i with fresh ℕ var.
+  let f ← lambdaTelescope body fun vars innerBody => do
+    if vars.size < 1 then return body
+    let finVar := vars[0]!
+    let natTy := Lean.mkConst ``Nat
+    withLocalDeclD `k natTy fun k => do
+      -- Replace all occurrences of Fin.val finVar (and the composed Fin→ℕ coercion)
+      -- with k
+      let body' := innerBody.replace fun e =>
+        let fn := e.getAppFn
+        let args := e.getAppArgs
+        if args.size ≥ 1 then
+          let lastArg := args.back!
+          if lastArg.isFVar && lastArg.fvarId! == finVar.fvarId! then
+            if fn.isConstOf ``Fin.val || fn.isConstOf ``Fin.toNat then
+              some k
+            else none
+          else none
+        else none
+      mkLambdaFVars #[k] body'
+  -- Rewrite: rw [Fin.sum_univ_eq_sum_range f]
+  let rwLemma ← mkAppM ``Fin.sum_univ_eq_sum_range #[f]
+  let result ← goal.rewrite goalType rwLemma
+  let newGoal ← goal.replaceTargetEq result.eNew result.eqProof
+  replaceMainGoal (newGoal :: result.mvarIds)
 
 /-- Main dispatch: try Icc path first, then list path. -/
 private def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
@@ -483,25 +497,39 @@ private def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := d
 
     Handles goals:
     - `∑ k ∈ Finset.Icc a b, f k ≤ target` (and Ico, Ioc, Ioo, range, {a,b,c})
+    - `∑ i : Fin n, f i ≤ target` (auto-rewrites to `Finset.range` via `tryRewriteFinSum`)
     - `target ≤ ∑ k ∈ S, f k`
 
     Usage:
     - `finsum_bound` — auto-reify, default 53-bit precision
     - `finsum_bound 80` — auto-reify, 80-bit precision
     - `finsum_bound using myEval (fun k _ _ => myProof k _)` — witness mode
-    - `finsum_bound using myEval myProof 100` — witness mode, 100-bit precision -/
+    - `finsum_bound using myEval myProof 100` — witness mode, 100-bit precision
+    - `finsum_bound auto myEval` — witness mode, auto-prove membership
+    - `finsum_bound auto myEval 80` — auto-hmem, 80-bit precision -/
 syntax (name := finSumBound) "finsum_bound" ("using" term:max term:max)? (num)? : tactic
+syntax (name := finSumBoundAuto) "finsum_bound" "auto" term:max (num)? : tactic
 
 elab_rules : tactic
   | `(tactic| finsum_bound using $evalTerm:term $hmem:term $[$prec:num]?) => do
     let precision : Int := match prec with
       | some n => -(n.getNat : Int)
       | none => -53
+    -- Try rewriting Fin n sums to Finset.range before witness dispatch
+    try tryRewriteFinSum catch _ => pure ()
     finSumWitnessCore evalTerm hmem precision
   | `(tactic| finsum_bound $[$prec:num]?) => do
     let precision : Int := match prec with
       | some n => -(n.getNat : Int)
       | none => -53
+    -- Try rewriting Fin n sums to Finset.range before main dispatch
+    try tryRewriteFinSum catch _ => pure ()
     finSumBoundCore precision 10
+  | `(tactic| finsum_bound auto $evalTerm:term $[$prec:num]?) => do
+    let precision : Int := match prec with
+      | some n => -(n.getNat : Int)
+      | none => -53
+    try tryRewriteFinSum catch _ => pure ()
+    finSumWitnessAutoCore evalTerm precision
 
 end LeanCert.Tactic
