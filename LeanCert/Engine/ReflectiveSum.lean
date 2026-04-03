@@ -101,12 +101,27 @@ def bklnwEvalTerm (x : IntervalDyadic) (cfg : BKLNWSumConfig)
 /-- Zero interval for accumulator initialization -/
 def zeroDyadic : IntervalDyadic := IntervalDyadic.singleton Core.Dyadic.zero
 
+/-- Recursive accumulator for BKLNW sum.
+
+    Computes Σ_{k=current}^{limit} x^(1/k - 1/3) by iterating and accumulating.
+    Each iteration adds one term to the accumulator interval.
+
+    Termination: limit - current decreases at each recursive call. -/
+def bklnwSumAux (x : IntervalDyadic) (current limit : Nat)
+    (acc : IntervalDyadic) (cfg : BKLNWSumConfig) : IntervalDyadic :=
+  if h : current > limit then
+    acc
+  else
+    let term := bklnwTermDyadic x current cfg
+    let newAcc := (IntervalDyadic.add acc term).roundOut cfg.precision
+    bklnwSumAux x (current + 1) limit newAcc cfg
+  termination_by limit + 1 - current
+
 /-- Compute interval bound for f(x) = Σ_{k=3}^{N} x^(1/k - 1/3).
 
-    Delegates to the generic witnessSumDyadic accumulator via bklnwEvalTerm wrapper.
     The sum starts at k=3 (matching the BKLNW definition where the k=3 term is 1). -/
 def bklnwSumDyadic (x : IntervalDyadic) (limit : Nat) (cfg : BKLNWSumConfig := {}) : IntervalDyadic :=
-  witnessSumDyadic (bklnwEvalTerm x cfg) 3 limit cfg.toDyadicConfig
+  bklnwSumAux x 3 limit zeroDyadic cfg
 
 /-! ### Optimized Sum Computation
 
@@ -413,14 +428,30 @@ theorem mem_bklnwTermDyadic {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
   rw [← hp]
   exact mem_rpowIntervalDyadic hx hpos p cfg.toDyadicConfig hprec
 
+/-- `bklnwSumAux` is definitionally equal to `witnessSumAux` with `bklnwEvalTerm`. -/
+theorem bklnwSumAux_eq_witnessSumAux (I : IntervalDyadic) (current limit : Nat)
+    (acc : IntervalDyadic) (cfg : BKLNWSumConfig) :
+    bklnwSumAux I current limit acc cfg =
+      witnessSumAux (bklnwEvalTerm I cfg) current limit acc cfg.toDyadicConfig := by
+  generalize hm : limit + 1 - current = m
+  induction m using Nat.strongRecOn generalizing current acc with
+  | ind m ih =>
+    unfold bklnwSumAux witnessSumAux
+    by_cases hcur : current > limit
+    · simp [hcur]
+    · simp only [hcur, ↓reduceDIte, ↓reduceIte, bklnwEvalTerm,
+        BKLNWSumConfig.toDyadicConfig]
+      exact ih (limit + 1 - (current + 1)) (by omega) (current + 1) _ rfl
+
 /-- Main correctness theorem: the reflective sum correctly bounds the mathematical sum.
-    Now proved via the generic mem_witnessSumDyadic from WitnessSum. -/
+    Proved via the generic mem_witnessSumDyadic from WitnessSum. -/
 theorem mem_bklnwSumDyadic {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
     (hpos : I.toIntervalRat.lo > 0) (limit : Nat)
     (cfg : BKLNWSumConfig := {})
     (hprec : cfg.precision ≤ 0 := by norm_num) :
     bklnwF x limit ∈ bklnwSumDyadic I limit cfg := by
   unfold bklnwF bklnwSumDyadic
+  rw [bklnwSumAux_eq_witnessSumAux]
   apply mem_witnessSumDyadic
     (fun k => x ^ ((1 : ℝ) / k - 1 / 3))
     (bklnwEvalTerm I cfg) 3 limit cfg.toDyadicConfig
