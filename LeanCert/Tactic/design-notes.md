@@ -263,7 +263,7 @@ Layer 2: Tactic (FinSumBound.lean)
   mkDomainValidProof : structural recursion on AST for domain validity
   finSumBoundCore : orchestrate reify → support → config → check → bridge
 
-Layer 3: Tests (FinSumBoundTest.lean)
+Layer 3: Tests (FinSumBound.lean)
   Constants, index sums, transcendentals, lower bounds, large N
 ```
 
@@ -512,7 +512,7 @@ of `verify_witness_sum_upper`. This is a follow-up task.
 
 - `Engine/WitnessSum.lean` — accumulator, checkers, correctness, bridge theorems
 - `Tactic/FinSumWitness.lean` — `finsum_witness` tactic
-- `Test/WitnessSumTest.lean` — tests with constant witness + direct bridge use
+- `Test/WitnessSum.lean` — tests with constant witness + direct bridge use
 
 ## finsum_bound Tier 4: Arbitrary Finite Sets (Feb 2026)
 
@@ -675,7 +675,7 @@ example : ∑ k ∈ ({1, 10, 100} : Finset ℕ), Real.exp (-(↑k : ℝ)) ≤ 1 
 - `Engine/WitnessSum.lean` — list-based witness accumulator + combined checkers (~100 lines)
 - `Tactic/FinSumBound.lean` — Finset extraction, list path dispatch, div_eq_mul_inv converter fix
 - `Tactic/FinSumWitness.lean` — Finset extraction (duplicated), list path dispatch
-- `Test/FinSumBoundTest.lean` — Tier 4 tests (range, Ico, Ioc, explicit sets, inv, exp, lower bounds)
+- `Test/FinSumBound.lean` — Tier 4 tests (range, Ico, Ioc, explicit sets, inv, exp, lower bounds)
 
 ## Fin n sum support: unified `finsum_bound` (Feb 2026)
 

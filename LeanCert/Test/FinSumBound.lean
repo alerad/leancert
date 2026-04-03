@@ -15,19 +15,21 @@ with O(1) proof size via `native_decide`. Covers auto-reify mode, witness mode
 
 namespace LeanCert.Test.FinSumBound
 
--- Basic: sum of constants (upper)
+/-! ### Basic Icc sums -/
+
+-- Sum of constants (upper)
 example : ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 11 := by
   finsum_bound
 
--- Basic: sum of constants (lower)
+-- Sum of constants (lower)
 example : (1 : ℝ) ≤ ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) := by
   finsum_bound
 
--- Edge: singleton sum
+-- Singleton sum
 example : ∑ _k ∈ Finset.Icc 5 5, (1 : ℝ) ≤ 2 := by
   finsum_bound
 
--- Edge: empty sum
+-- Empty sum
 example : ∑ _k ∈ Finset.Icc 5 3, (1 : ℝ) ≤ 1 := by
   finsum_bound
 
@@ -43,7 +45,7 @@ example : ∑ _k ∈ Finset.Icc 1 5, Real.exp (1 : ℝ) ≤ 15 := by
 example : ∑ _k ∈ Finset.Icc 1 100, (1 : ℝ) ≤ 101 := by
   finsum_bound
 
-/-! ## Tier 2: Bodies with inv/log (domain validity checked per-k) -/
+/-! ### Bodies with inv/log (domain validity checked per-k) -/
 
 -- inv: ∑ 1/(k*k) upper bound (uses ExprSupportedWithInv)
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 100, (1 : ℝ) / (↑k * ↑k) ≤ 2 := by
@@ -64,6 +66,8 @@ example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.exp ((1 : ℝ) / ↑k) ≤ 20 
 -- Larger N with inv (stress test O(1) proof size)
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 500, (1 : ℝ) / (↑k * ↑k) ≤ 2 := by
   finsum_bound
+
+/-! ### Nested evaluations -/
 
 -- Nested exp: exp(exp(1/k))
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp (Real.exp ((1 : ℝ) / ↑k)) ≤ 35 := by
@@ -89,6 +93,8 @@ example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp ((1 : ℝ) / ((1 : ℝ) + R
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, |Real.sin ↑k| ≤ 10 := by
   finsum_bound
 
+/-! ### Rational and integer casts -/
+
 -- Rat.cast: body contains ↑(q : ℚ) cast to ℝ
 example : ∑ _k ∈ Finset.Icc (1 : ℕ) 5, ((1/3 : ℚ) : ℝ) ≤ 2 := by
   finsum_bound
@@ -105,9 +111,9 @@ example : ∑ k ∈ Finset.Icc (1 : ℕ) 3, ((-1 : ℤ) : ℝ) * Real.sin ↑k �
 example : ∑ _k ∈ Finset.Icc (1 : ℕ) 3, (((-2 : ℤ) : ℝ) + 3) ≤ 4 := by
   finsum_bound
 
-/-! ## Tier 3: Witness mode (`finsum_bound using`)
+/-! ### Witness mode (`finsum_bound using`)
 
-Unlike the automatic mode (Tier 1–2), witness mode lets the user supply
+Unlike the automatic mode, witness mode lets the user supply
 a custom per-term interval evaluator.  The evaluators below use the
 engine's `evalSumTermDyadic` which calls `evalIntervalDyadic`—producing
 *real* intervals with dyadic rounding error, not point singletons. -/
@@ -159,39 +165,39 @@ theorem invSqEval_correct (k : Nat) (cfg : DyadicConfig)
   exact mem_evalSumTermDyadic_withInv (.inv (.mul (.var 0) (.var 0)))
     (.inv (.mul (.var 0) (.var 0))) k cfg hprec hdom
 
--- Witness: exp(k) upper bound (trivial domain, no inv/log)
+-- exp(k) upper bound (trivial domain, no inv/log)
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp (↑k : ℝ) ≤ 234 := by
   finsum_bound using expEval (fun k _ _ => expEval_correct k _)
 
--- Witness: exp(k) lower bound
+-- exp(k) lower bound
 example : (233 : ℝ) ≤ ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp (↑k : ℝ) := by
   finsum_bound using expEval (fun k _ _ => expEval_correct k _)
 
--- Witness: 1/k upper bound (domain check via native_decide)
+-- 1/k upper bound (domain check via native_decide)
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (1 : ℝ) / ↑k ≤ 4 := by
   finsum_bound using invEval (fun k ha hb => invEval_correct k {} (hdom :=
     checkDomainValidAll_correct (.inv (.var 0)) 1 10 {} (by native_decide) k ha hb))
 
--- Witness: 1/k lower bound
+-- 1/k lower bound
 example : (1 : ℝ) ≤ ∑ k ∈ Finset.Icc (1 : ℕ) 10, (1 : ℝ) / ↑k := by
   finsum_bound using invEval (fun k ha hb => invEval_correct k {} (hdom :=
     checkDomainValidAll_correct (.inv (.var 0)) 1 10 {} (by native_decide) k ha hb))
 
--- Witness: exp(1/k) upper bound (nested inv inside exp, domain check)
+-- exp(1/k) upper bound (nested inv inside exp, domain check)
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, Real.exp ((1 : ℝ) / ↑k) ≤ 20 := by
   finsum_bound using expInvEval (fun k ha hb => expInvEval_correct k {} (hdom :=
     checkDomainValidAll_correct (.exp (.inv (.var 0))) 1 10 {} (by native_decide) k ha hb))
 
--- Witness: 1/(k*k) on 100 terms (stress test)
+-- 1/(k*k) on 100 terms (stress test)
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 100, (1 : ℝ) / (↑k * ↑k) ≤ 2 := by
   finsum_bound using invSqEval (fun k ha hb => invSqEval_correct k {} (hdom :=
     checkDomainValidAll_correct (.inv (.mul (.var 0) (.var 0))) 1 100 {} (by native_decide) k ha hb))
 
--- Witness: empty range
+-- Empty range
 example : ∑ k ∈ Finset.Icc (5 : ℕ) 3, Real.exp (↑k : ℝ) ≤ 1 := by
   finsum_bound using expEval (fun k _ _ => expEval_correct k _)
 
-/-! ## Tier 4: Arbitrary finite sets (list path) -/
+/-! ### Arbitrary finite sets (list path) -/
 
 -- Finset.range
 example : ∑ _k ∈ Finset.range 10, (1 : ℝ) ≤ 11 := by finsum_bound
@@ -220,7 +226,7 @@ example : ∑ k ∈ ({2, 3, 5, 7} : Finset ℕ), (1 : ℝ) / (↑k * Real.log �
 -- Nested exp on explicit finset: exp(exp(1/k))
 example : ∑ k ∈ ({1, 2, 3} : Finset ℕ), Real.exp (Real.exp ((1 : ℝ) / ↑k)) ≤ 26 := by finsum_bound
 
-/-! ## Tier 5: Fin n sums (auto-rewrite via `tryRewriteFinSum`)
+/-! ### Fin n sums (auto-rewrite via `tryRewriteFinSum`)
 
 `finsum_bound` detects `∑ i : Fin n, f i` goals, extracts the body lambda,
 replaces `Fin.val i` with a fresh ℕ variable to build `g : ℕ → β`, and
@@ -228,20 +234,20 @@ rewrites via `Fin.sum_univ_eq_sum_range g`. This handles arbitrary bodies
 (not just simple `↑i`), unlike `simp only [Fin.sum_univ_eq_sum_range]` which
 requires first-order matching. -/
 
--- Fin sum: simple coercion body
+-- Simple coercion body
 example : ∑ i : Fin 10, (↑i : ℝ) ≤ 46 := by finsum_bound
 
--- Fin sum: lower bound
+-- Lower bound
 example : (44 : ℝ) ≤ ∑ i : Fin 10, (↑i : ℝ) := by finsum_bound
 
--- Fin sum: transcendental body (exp ↑i — needs meta-level Fin.val extraction)
+-- Transcendental body (exp ↑i — needs meta-level Fin.val extraction)
 example : ∑ i : Fin 5, Real.exp (↑i : ℝ) ≤ 234 := by finsum_bound
 
--- Fin sum: witness mode (Fin → range rewrite, then list path)
+-- Witness mode (Fin → range rewrite, then list path)
 example : ∑ i : Fin 5, Real.exp (↑i : ℝ) ≤ 234 := by
   finsum_bound using expEval (fun k _ => expEval_correct k _)
 
-/-! ## Tier 6: Auto-hmem witness mode (`finsum_bound auto`)
+/-! ### Auto-hmem witness mode (`finsum_bound auto`)
 
 The `auto` keyword provides a witness evaluator without a manual hmem proof.
 The tactic auto-proves `f k ∈ evalTerm k cfg` via `simp [mem_def] + push_cast + norm_num`.
@@ -252,11 +258,11 @@ This works when the evaluator returns singletons where membership reduces to
 def constOneEval (_k : Nat) (_cfg : DyadicConfig) : IntervalDyadic :=
   IntervalDyadic.singleton ⟨1, 0⟩
 
--- Auto-hmem: constant body, singleton evaluator
+-- Constant body, singleton evaluator
 example : ∑ _k ∈ Finset.Icc (1 : ℕ) 5, (1 : ℝ) ≤ 6 := by
   finsum_bound auto constOneEval
 
-/-! ## Tier 7: ↑(q : ℚ) bound targets (extractRatFromReal with toRat? fallback) -/
+/-! ### Rational bound targets (`extractRatFromReal` with `toRat?` fallback) -/
 
 -- ↑(q : ℚ) as bound target (was failing before toRat? fix)
 example : ∑ _k ∈ Finset.Icc (1 : ℕ) 3, (1 : ℝ) / 1000 ≤ ↑(9/500 : ℚ) := by
