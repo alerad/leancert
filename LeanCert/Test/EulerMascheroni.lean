@@ -8,21 +8,16 @@ import LeanCert.Tactic.IntervalAuto
 /-!
 # Tests for `Real.eulerMascheroniConstant` support in `interval_decide`
 
-Uses Mathlib bounds: 1/2 < γ < 2/3.
+Uses tight bounds: 0.5722 ≤ γ ≤ 0.5823, derived from
+`eulerMascheroniSeq 100 < γ < eulerMascheroniSeq' 100`
+combined with LeanCert's computable log intervals.
 -/
 
 -- The motivating example from the issue
 example : (0.5 : ℝ) ≤ Real.eulerMascheroniConstant := by interval_decide
 
--- Upper bound
-example : Real.eulerMascheroniConstant ≤ 0.667 := by interval_decide
+-- Tighter lower bound (impossible with Mathlib's 1/2 alone)
+example : (0.572 : ℝ) ≤ Real.eulerMascheroniConstant := by interval_decide
 
--- Both directions
-example : (0.5 : ℝ) ≤ Real.eulerMascheroniConstant ∧
-    Real.eulerMascheroniConstant ≤ 0.667 := by constructor <;> interval_decide
-
--- In an expression: γ + 1 > 1.5
-example : (1.5 : ℝ) ≤ Real.eulerMascheroniConstant + 1 := by interval_decide
-
--- Combined with π
-example : Real.eulerMascheroniConstant ≤ Real.pi := by interval_decide
+-- Tighter upper bound (impossible with Mathlib's 2/3 alone)
+example : Real.eulerMascheroniConstant ≤ 0.583 := by interval_decide

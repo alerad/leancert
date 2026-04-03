@@ -409,23 +409,49 @@ theorem mem_piInterval : Real.pi ∈ piInterval := by
     linarith
 
 /-- Interval enclosure for the Euler–Mascheroni constant γ.
-    Uses bounds from Mathlib: 1/2 < γ < 2/3. -/
+    Tight bounds derived from `eulerMascheroniSeq 100 < γ < eulerMascheroniSeq' 100`
+    combined with LeanCert's computable log intervals. -/
 def eulerMascheroniInterval : IntervalRat :=
-  ⟨1/2, 2/3, by norm_num⟩
+  ⟨5722/10000, 5823/10000, by norm_num⟩
+
+/-- Helper: log(101) ≤ (logPointComputable 101 30).hi, and that hi ≤ harmonic(100) - 5722/10000. -/
+private theorem eulerMascheroniSeq_100_ge :
+    (5722/10000 : ℝ) ≤ Real.eulerMascheroniSeq 100 := by
+  have hlog := (IntervalRat.mem_logPointComputable (by norm_num : (101 : ℚ) > 0) 30).2
+  -- hlog : Real.log ↑101 ≤ ↑(logPointComputable 101 30).hi
+  have hcmp : (IntervalRat.logPointComputable 101 30).hi ≤ harmonic 100 - 5722/10000 := by
+    native_decide
+  have : Real.eulerMascheroniSeq 100 = ↑(harmonic 100 : ℚ) - Real.log 101 := by
+    simp [Real.eulerMascheroniSeq]; ring
+  rw [this]
+  have hle : Real.log 101 ≤ ↑(harmonic 100 : ℚ) - ↑(5722/10000 : ℚ) :=
+    le_trans hlog (by exact_mod_cast hcmp)
+  push_cast at hle ⊢; linarith
+
+/-- Helper: harmonic(100) - 5823/10000 ≤ (logPointComputable 100 30).lo ≤ log(100). -/
+private theorem eulerMascheroniSeq'_100_le :
+    Real.eulerMascheroniSeq' 100 ≤ (5823/10000 : ℝ) := by
+  have hlog := (IntervalRat.mem_logPointComputable (by norm_num : (100 : ℚ) > 0) 30).1
+  have hcmp : harmonic 100 - 5823/10000 ≤ (IntervalRat.logPointComputable 100 30).lo := by
+    native_decide
+  have : Real.eulerMascheroniSeq' 100 = ↑(harmonic 100 : ℚ) - Real.log 100 := by
+    simp [Real.eulerMascheroniSeq']
+  rw [this]
+  have hle : ↑(harmonic 100 : ℚ) - ↑(5823/10000 : ℚ) ≤ Real.log 100 :=
+    le_trans (by exact_mod_cast hcmp) hlog
+  push_cast at hle ⊢; linarith
 
 /-- Correctness of Euler–Mascheroni interval: γ ∈ eulerMascheroniInterval -/
 theorem mem_eulerMascheroniInterval :
     Real.eulerMascheroniConstant ∈ eulerMascheroniInterval := by
   simp only [IntervalRat.mem_def, eulerMascheroniInterval]
   constructor
-  · -- Lower bound from 1/2 < γ
-    have h := Real.one_half_lt_eulerMascheroniConstant
-    simp only [Rat.cast_div, Rat.cast_ofNat] at *
-    linarith
-  · -- Upper bound from γ < 2/3
-    have h := Real.eulerMascheroniConstant_lt_two_thirds
-    simp only [Rat.cast_div, Rat.cast_ofNat] at *
-    linarith
+  · -- Lower: 5722/10000 ≤ eulerMascheroniSeq 100 < γ
+    have := Real.eulerMascheroniSeq_lt_eulerMascheroniConstant 100
+    linarith [eulerMascheroniSeq_100_ge]
+  · -- Upper: γ < eulerMascheroniSeq' 100 ≤ 5823/10000
+    have := Real.eulerMascheroniConstant_lt_eulerMascheroniSeq' 100
+    linarith [eulerMascheroniSeq'_100_le]
 
 end LeanCert.Engine
 
