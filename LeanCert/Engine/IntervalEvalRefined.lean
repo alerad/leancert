@@ -199,7 +199,7 @@ noncomputable def evalIntervalRefined (e : Expr) (ρ : IntervalEnv) : IntervalRa
   | Expr.cosh e => coshInterval (evalIntervalRefined e ρ)
   | Expr.tanh e => tanhInterval (evalIntervalRefined e ρ)
   | Expr.sqrt e => (evalIntervalRefined e ρ).sqrtInterval
-  | Expr.pi => piInterval
+  | Expr.namedConst c => c.interval
 
 /-- Single-variable refined interval evaluation -/
 noncomputable def evalIntervalRefined1 (e : Expr) (I : IntervalRat) : IntervalRat :=
@@ -284,7 +284,7 @@ noncomputable def evalDualRefined (e : Expr) (ρ : DualEnv) : DualInterval :=
   | Expr.cosh e => DualInterval.cosh (evalDualRefined e ρ)
   | Expr.tanh e => DualInterval.tanh (evalDualRefined e ρ)
   | Expr.sqrt e => DualInterval.sqrt (evalDualRefined e ρ)
-  | Expr.pi => DualInterval.piConst
+  | Expr.namedConst c => DualInterval.ofMathConst c
 
 /-- Single-variable refined dual evaluation -/
 noncomputable def evalDualRefined1 (e : Expr) (I : IntervalRat) : DualInterval :=

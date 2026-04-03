@@ -481,8 +481,8 @@ def evalExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : Ex
       liftUnary tanhInterval (evalExtended e ρ cfg)
   | Expr.sqrt e =>
       liftUnary IntervalRat.sqrtInterval (evalExtended e ρ cfg)
-  | Expr.pi =>
-      ExtendedInterval.singleton piInterval
+  | Expr.namedConst c =>
+      ExtendedInterval.singleton c.interval
 
 /-- Convenience function for single-variable extended evaluation -/
 def evalExtended1 (e : Expr) (I : IntervalRat) (cfg : ExtendedConfig := {}) : ExtendedInterval :=
@@ -522,7 +522,7 @@ def evalDomainValidExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig 
   | Expr.cosh e => evalDomainValidExtended e ρ cfg
   | Expr.tanh e => evalDomainValidExtended e ρ cfg
   | Expr.sqrt e => evalDomainValidExtended e ρ cfg
-  | Expr.pi => True
+  | Expr.namedConst _ => True
 
 /-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
 theorem evalDomainValidExtended_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
@@ -656,10 +656,10 @@ theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
     · simp only [List.mem_map]
       exact ⟨I, hI_filter, rfl⟩
     · exact IntervalRat.mem_logComputable hx_in_I hI_lo_pos cfg.taylorDepth
-  | pi =>
-    simp only [Expr.eval_pi, evalExtended]
+  | namedConst c =>
+    simp only [Expr.eval_namedConst, evalExtended]
     rw [ExtendedInterval.mem_singleton]
-    exact mem_piInterval
+    exact c.mem_interval
 
 /-! ## Utility: Hull Soundness -/
 

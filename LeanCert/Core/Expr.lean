@@ -10,6 +10,7 @@ import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Arsinh
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
+import Mathlib.NumberTheory.Harmonic.EulerMascheroni
 import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 
@@ -230,6 +231,29 @@ theorem Real.neg_one_le_erf (x : ℝ) : -1 ≤ Real.erf x := by
           _ = 1 := by field_simp
     linarith
 
+/-- Named mathematical constants with known interval bounds.
+    Adding a new constant (e.g., Catalan's) only requires extending this enum
+    and its lookup tables — zero evaluator files need updating. -/
+inductive MathConst where
+  | pi
+  | eulerMascheroni
+  deriving Repr, DecidableEq, Inhabited
+
+/-- The real value of a named mathematical constant. -/
+noncomputable def MathConst.toReal : MathConst → ℝ
+  | .pi => Real.pi
+  | .eulerMascheroni => Real.eulerMascheroniConstant
+
+/-- Float approximation for heuristic evaluation (unverified). -/
+def MathConst.toFloat : MathConst → Float
+  | .pi => 3.141592653589793
+  | .eulerMascheroni => 0.5772156649015329
+
+/-- Rational approximation for display/debugging (unverified). -/
+def MathConst.toRatApprox : MathConst → ℚ
+  | .pi => 157 / 50
+  | .eulerMascheroni => 577 / 1000
+
 /-- Unified AST for real-valued expressions. -/
 inductive Expr where
   /-- Rational constant -/
@@ -270,8 +294,8 @@ inductive Expr where
   | tanh (e : Expr)
   /-- Square root (partial: undefined for x < 0) -/
   | sqrt (e : Expr)
-  /-- The mathematical constant π -/
-  | pi
+  /-- A named mathematical constant (π, γ, …) looked up from a table. -/
+  | namedConst (c : MathConst)
   deriving Repr, DecidableEq, Inhabited
 
 namespace Expr
@@ -312,7 +336,7 @@ noncomputable def eval (ρ : Nat → ℝ) : Expr → ℝ
   | cosh e => Real.cosh (eval ρ e)
   | tanh e => Real.tanh (eval ρ e)
   | sqrt e => Real.sqrt (eval ρ e)
-  | pi => Real.pi
+  | namedConst c => c.toReal
 
 /-- Update variable assignment at a specific index -/
 def updateVar (ρ : Nat → ℝ) (idx : Nat) (x : ℝ) : Nat → ℝ :=
@@ -362,7 +386,7 @@ def freeVars : Expr → Finset Nat
   | cosh e => freeVars e
   | tanh e => freeVars e
   | sqrt e => freeVars e
-  | pi => ∅
+  | namedConst _ => ∅
 
 /-- An expression is closed if it has no free variables -/
 def isClosed (e : Expr) : Prop := freeVars e = ∅
@@ -429,7 +453,14 @@ theorem eval_tanh (ρ : Nat → ℝ) (e : Expr) : eval ρ (tanh e) = Real.tanh (
 theorem eval_sqrt (ρ : Nat → ℝ) (e : Expr) : eval ρ (sqrt e) = Real.sqrt (eval ρ e) := rfl
 
 @[simp]
-theorem eval_pi (ρ : Nat → ℝ) : eval ρ pi = Real.pi := rfl
+theorem eval_namedConst (ρ : Nat → ℝ) (c : MathConst) :
+    eval ρ (namedConst c) = c.toReal := rfl
+
+/-- Backward-compat alias for simp lists referencing `eval_pi`. -/
+theorem eval_pi (ρ : Nat → ℝ) : eval ρ (namedConst .pi) = Real.pi := rfl
+
+theorem eval_eulerMascheroni (ρ : Nat → ℝ) :
+    eval ρ (namedConst .eulerMascheroni) = Real.eulerMascheroniConstant := rfl
 
 @[simp]
 theorem eval_sub (ρ : Nat → ℝ) (e₁ e₂ : Expr) :
@@ -597,7 +628,7 @@ def usesOnlyVar0 : Expr → Bool
   | cosh e => e.usesOnlyVar0
   | tanh e => e.usesOnlyVar0
   | sqrt e => e.usesOnlyVar0
-  | pi => true
+  | namedConst _ => true
 
 /-- If two environments agree on variable 0, then a usesOnlyVar0 expression evaluates the same -/
 theorem eval_usesOnlyVar0_eq (e : Expr) (he : e.usesOnlyVar0 = true)
@@ -659,7 +690,7 @@ theorem eval_usesOnlyVar0_eq (e : Expr) (he : e.usesOnlyVar0 = true)
   | sqrt e ih =>
     simp only [usesOnlyVar0] at he
     simp only [eval_sqrt, ih he]
-  | pi => rfl
+  | namedConst _ => rfl
 
 /-- For single-variable expressions, `fun n => if n = 0 then x else 0` and `fun _ => x`
     give the same evaluation result. -/

@@ -214,9 +214,17 @@ theorem evalFunc1_const (q : ℚ) : evalFunc1 (Expr.const q) = fun _ => (q : ℝ
 @[simp]
 theorem evalFunc1_var (i : ℕ) : evalFunc1 (Expr.var i) = id := rfl
 
+/-- Helper lemma: evalFunc1 for namedConst (constant function) -/
+@[simp]
+theorem evalFunc1_namedConst (c : MathConst) : evalFunc1 (Expr.namedConst c) = fun _ => c.toReal := rfl
+
 /-- Helper lemma: evalFunc1 for pi (constant function) -/
 @[simp]
-theorem evalFunc1_pi : evalFunc1 Expr.pi = fun _ => Real.pi := rfl
+theorem evalFunc1_pi : evalFunc1 (Expr.namedConst .pi) = fun _ => Real.pi := rfl
+
+/-- Helper lemma: evalFunc1 for eulerMascheroni (constant function) -/
+@[simp]
+theorem evalFunc1_eulerMascheroni : evalFunc1 (Expr.namedConst .eulerMascheroni) = fun _ => Real.eulerMascheroniConstant := rfl
 
 /-- Helper: the dual environment evaluation gives correct derivative.
     This connects the interval-based AD to actual calculus derivatives.

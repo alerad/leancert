@@ -196,7 +196,7 @@ def exprContinuousDomainValid (e : LExpr) (s : Set ℝ) : Prop :=
   | LeanCert.Core.Expr.cosh e => exprContinuousDomainValid e s
   | LeanCert.Core.Expr.tanh e => exprContinuousDomainValid e s
   | LeanCert.Core.Expr.sqrt e => exprContinuousDomainValid e s
-  | LeanCert.Core.Expr.pi => True
+  | LeanCert.Core.Expr.namedConst _ => True
 
 /-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
 theorem exprContinuousDomainValid_of_ExprSupported {e : LExpr}
@@ -315,7 +315,7 @@ theorem exprSupportedCore_continuousOn (e : LExpr) (hsupp : LeanCert.Engine.Expr
       simp only [Set.mem_compl_iff, Set.mem_singleton_iff]
       exact ne_of_gt (hdom.2 x hx)
     exact Real.continuousOn_log.comp harg_cont hs_maps
-  | pi =>
+  | namedConst _ =>
     simp only [LeanCert.Core.Expr.eval]
     exact continuousOn_const
 

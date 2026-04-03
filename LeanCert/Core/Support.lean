@@ -61,7 +61,7 @@ inductive ExprSupportedCore : Expr → Prop where
   | cosh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.cosh e)
   | tanh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.tanh e)
   | erf {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.erf e)
-  | pi : ExprSupportedCore Expr.pi
+  | namedConst (c : MathConst) : ExprSupportedCore (Expr.namedConst c)
 
 /-! ### Extended supported expression subset (with exp) -/
 
@@ -118,7 +118,7 @@ inductive ExprSupportedWithInv : Expr → Prop where
   | sinc {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.sinc e)
   | erf {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.erf e)
   | sqrt {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.sqrt e)
-  | pi : ExprSupportedWithInv Expr.pi
+  | namedConst (c : MathConst) : ExprSupportedWithInv (Expr.namedConst c)
 
 /-- ExprSupported implies ExprSupportedWithInv -/
 theorem ExprSupported.toWithInv {e : Expr} (h : ExprSupported e) : ExprSupportedWithInv e := by

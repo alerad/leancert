@@ -268,7 +268,7 @@ def evalIntervalDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig :
   | Expr.cosh e => coshIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
   | Expr.tanh e => tanhIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
   | Expr.sqrt e => sqrtIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.pi => IntervalDyadic.ofIntervalRat piInterval cfg.precision
+  | Expr.namedConst c => IntervalDyadic.ofIntervalRat c.interval cfg.precision
 
 /-! ### Correctness -/
 
@@ -304,7 +304,7 @@ def evalDomainValidDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfi
   | Expr.cosh e => evalDomainValidDyadic e ρ cfg
   | Expr.tanh e => evalDomainValidDyadic e ρ cfg
   | Expr.sqrt e => evalDomainValidDyadic e ρ cfg
-  | Expr.pi => True
+  | Expr.namedConst _ => True
 
 /-- Computable (Bool) domain validity check for Dyadic evaluation. -/
 def checkDomainValidDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig := {}) : Bool :=
@@ -333,7 +333,7 @@ def checkDomainValidDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConf
   | Expr.cosh e => checkDomainValidDyadic e ρ cfg
   | Expr.tanh e => checkDomainValidDyadic e ρ cfg
   | Expr.sqrt e => checkDomainValidDyadic e ρ cfg
-  | Expr.pi => true
+  | Expr.namedConst _ => true
 
 theorem checkDomainValidDyadic_correct (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig) :
     checkDomainValidDyadic e ρ cfg = true → evalDomainValidDyadic e ρ cfg := by
@@ -369,7 +369,7 @@ theorem checkDomainValidDyadic_correct (e : Expr) (ρ : IntervalDyadicEnv) (cfg 
   | cosh e ih => simp only [checkDomainValidDyadic, evalDomainValidDyadic]; exact ih
   | tanh e ih => simp only [checkDomainValidDyadic, evalDomainValidDyadic]; exact ih
   | sqrt e ih => simp only [checkDomainValidDyadic, evalDomainValidDyadic]; exact ih
-  | pi => intro; trivial
+  | namedConst _ => intro; trivial
 
 /-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
 theorem evalDomainValidDyadic_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
@@ -497,9 +497,9 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [hpos, ↓reduceIte]
     have hlog := IntervalRat.mem_logComputable hrat hpos cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hlog cfg.precision hprec
-  | pi =>
-    simp only [Expr.eval_pi, evalIntervalDyadic]
-    exact IntervalDyadic.mem_ofIntervalRat mem_piInterval cfg.precision hprec
+  | namedConst c =>
+    simp only [Expr.eval_namedConst, evalIntervalDyadic]
+    exact IntervalDyadic.mem_ofIntervalRat c.mem_interval cfg.precision hprec
 
 /-- Correctness theorem for Dyadic evaluation with ExprSupportedWithInv.
 
@@ -606,9 +606,9 @@ theorem evalIntervalDyadic_correct_withInv (e : Expr) (hsupp : ExprSupportedWith
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_sqrt, evalIntervalDyadic, sqrtIntervalDyadic]
     exact IntervalDyadic.mem_sqrt' (ih hdom) cfg.precision
-  | pi =>
-    simp only [Expr.eval_pi, evalIntervalDyadic]
-    exact IntervalDyadic.mem_ofIntervalRat mem_piInterval cfg.precision hprec
+  | namedConst c =>
+    simp only [Expr.eval_namedConst, evalIntervalDyadic]
+    exact IntervalDyadic.mem_ofIntervalRat c.mem_interval cfg.precision hprec
 
 /-! ### Convenience Functions -/
 

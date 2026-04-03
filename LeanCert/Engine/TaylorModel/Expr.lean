@@ -294,11 +294,9 @@ noncomputable def fromExpr (e : Expr) (domain : IntervalRat) (degree : ℕ) : Ta
   | Expr.sqrt e =>
       -- sqrt? always succeeds, so we can safely extract
       (sqrt? (fromExpr e domain degree)).getD (const 0 domain)
-  | Expr.pi =>
-      -- Pi is represented as a constant Taylor model with the pi interval as remainder
-      -- We use the pi interval [3.14, 3.15] which encloses Real.pi
+  | Expr.namedConst c =>
       { poly := 0
-        remainder := LeanCert.Engine.piInterval
+        remainder := c.interval
         center := domain.lo + (domain.hi - domain.lo) / 2
         domain := domain }
 
@@ -365,10 +363,9 @@ noncomputable def fromExpr? (e : Expr) (domain : IntervalRat) (degree : ℕ) :
   | Expr.sqrt e => do
       let tm ← fromExpr? e domain degree
       sqrt? tm
-  | Expr.pi =>
-      -- Pi is a constant Taylor model with pi interval as remainder
+  | Expr.namedConst c =>
       some { poly := 0
-             remainder := LeanCert.Engine.piInterval
+             remainder := c.interval
              center := domain.midpoint
              domain := domain }
 
@@ -540,7 +537,7 @@ theorem fromExpr?_center (e : Expr) (domain : IntervalRat) (degree : ℕ)
         simp only [Option.some.injEq] at h
         cases h
         exact ih degree tm0 h0
-  | pi =>
+  | namedConst _ =>
       intro tm h
       simp [TaylorModel.fromExpr?] at h
       cases h
@@ -977,7 +974,7 @@ theorem fromExpr?_domain (e : Expr) (domain : IntervalRat) (degree : ℕ)
         simp only [Option.some.injEq] at h
         cases h
         exact ih degree tm0 h0
-  | pi =>
+  | namedConst _ =>
       intro tm h
       simp [TaylorModel.fromExpr?] at h
       cases h
@@ -1248,12 +1245,12 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
         · -- sqrt of argument is in sqrtIntervalTight
           exact IntervalRat.mem_sqrtIntervalTight' h_arg_in_bound
         · simp only [Polynomial.aeval_zero]; ring
-  | pi =>
+  | namedConst c =>
       simp [TaylorModel.fromExpr?] at h
       cases h
       intro x _hx
-      simp only [Expr.eval_pi, TaylorModel.evalSet, Set.mem_setOf_eq]
-      refine ⟨Real.pi, mem_piInterval, ?_⟩
+      simp only [Expr.eval_namedConst, TaylorModel.evalSet, Set.mem_setOf_eq]
+      refine ⟨c.toReal, c.mem_interval, ?_⟩
       simp only [Polynomial.aeval_zero]; ring
 
 /-- fromExpr? produces correct Taylor models when it succeeds. -/

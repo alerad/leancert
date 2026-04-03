@@ -162,9 +162,17 @@ def mkExprCosh (e : Lean.Expr) : MetaM Lean.Expr :=
 def mkExprTanh (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.tanh #[e]
 
-/-- Build `LeanCert.Core.Expr.pi`. -/
+/-- Build `LeanCert.Core.Expr.namedConst c`. -/
+def mkExprNamedConst (c : Lean.Expr) : MetaM Lean.Expr :=
+  mkAppM ``LeanCert.Core.Expr.namedConst #[c]
+
+/-- Build `LeanCert.Core.Expr.namedConst .pi`. -/
 def mkExprPi : MetaM Lean.Expr :=
-  mkAppM ``LeanCert.Core.Expr.pi #[]
+  mkExprNamedConst (mkConst ``LeanCert.Core.MathConst.pi)
+
+/-- Build `LeanCert.Core.Expr.namedConst .eulerMascheroni`. -/
+def mkExprEulerMascheroni : MetaM Lean.Expr :=
+  mkExprNamedConst (mkConst ``LeanCert.Core.MathConst.eulerMascheroni)
 
 /-- Build max(a,b) via `(a + b + |b - a|) / 2` in existing Expr constructors. -/
 def mkExprMaxViaAbs (a b : Lean.Expr) : MetaM Lean.Expr := do
@@ -278,7 +286,9 @@ where
 
     -- Nullary constants
     if headName == ``Real.pi then
-      return some (← mkExprPi)
+      return some (← mkExprNamedConst (mkConst ``LeanCert.Core.MathConst.pi))
+    if headName == ``Real.eulerMascheroniConstant then
+      return some (← mkExprNamedConst (mkConst ``LeanCert.Core.MathConst.eulerMascheroni))
 
     -- Unary operations dispatched from a table
     if let some mk := lookupUnary headName then
@@ -408,7 +418,7 @@ where
                 • Transcendentals: Real.sin, Real.cos, Real.exp, Real.log,\n\
                   Real.sqrt, Real.arctan, Real.arsinh, Real.atanh,\n\
                   Real.sinc, Real.erf, Real.sinh, Real.cosh, Real.tanh\n\
-                • Constants: rational numbers, Real.pi\n\n\
+                • Constants: rational numbers, Real.pi, Real.eulerMascheroniConstant\n\n\
                 Suggestions:\n\
                 • Normalize first with `interval_norm`\n\
                 • Unfold custom definitions with `simp only [myDef]`\n\
