@@ -68,7 +68,7 @@ noncomputable def evalInterval (e : Expr) (ρ : IntervalEnv) : IntervalRat :=
   | Expr.cosh _ => default  -- cosh unbounded; use evalIntervalCore for tight bounds
   | Expr.tanh _ => default  -- tanh bounded but not in ExprSupported; use evalIntervalCore
   | Expr.sqrt e => IntervalRat.sqrtInterval (evalInterval e ρ)
-  | Expr.pi => piInterval
+  | Expr.namedConst c => c.interval
 
 /-- Fundamental correctness theorem for extended evaluation.
 
@@ -218,7 +218,7 @@ def evalInterval? (e : Expr) (ρ : IntervalEnv) : Option IntervalRat :=
       match evalInterval? e ρ with
       | some I => some (IntervalRat.sqrtInterval I)
       | none => none
-  | Expr.pi => some piInterval
+  | Expr.namedConst c => some c.interval
 
 /-- Main correctness theorem for evalInterval? (approach 1 from plan).
 
@@ -408,11 +408,11 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_sqrt]
       exact IntervalRat.mem_sqrtInterval' (ih I' heq)
-  | pi =>
+  | namedConst c =>
     simp only [evalInterval?] at hsome
     cases hsome
-    simp only [Expr.eval_pi]
-    exact mem_piInterval
+    simp only [Expr.eval_namedConst]
+    exact c.mem_interval
 
 /-- Single-variable version of evalInterval? -/
 def evalInterval?1 (e : Expr) (I : IntervalRat) : Option IntervalRat :=

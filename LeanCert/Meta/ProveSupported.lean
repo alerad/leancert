@@ -306,9 +306,9 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let h ← mkSupportedCoreProof e
     mkAppM ``LeanCert.Core.ExprSupportedCore.erf #[h]
 
-  else if fn.isConstOf ``LeanCert.Core.Expr.pi then
-    -- Expr.pi => ExprSupportedCore.pi
-    pure <| Lean.mkConst ``LeanCert.Core.ExprSupportedCore.pi
+  else if fn.isConstOf ``LeanCert.Core.Expr.namedConst then
+    let c := args[0]!
+    mkAppM ``LeanCert.Core.ExprSupportedCore.namedConst #[c]
 
   else
     throwError "Cannot generate ExprSupportedCore proof for: {e_ast}\n\
@@ -412,9 +412,9 @@ partial def mkSupportedWithInvProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let h ← mkSupportedWithInvProof e
     mkAppM ``LeanCert.Core.ExprSupportedWithInv.sqrt #[h]
 
-  else if fn.isConstOf ``LeanCert.Core.Expr.pi then
-    -- Expr.pi => ExprSupportedWithInv.pi
-    pure <| Lean.mkConst ``LeanCert.Core.ExprSupportedWithInv.pi
+  else if fn.isConstOf ``LeanCert.Core.Expr.namedConst then
+    let c := args[0]!
+    mkAppM ``LeanCert.Core.ExprSupportedWithInv.namedConst #[c]
 
   else
     throwError "Cannot generate ExprSupportedWithInv proof for: {e_ast}\n\

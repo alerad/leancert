@@ -314,7 +314,7 @@ def Expr.usesOnlyVar0 : Expr → Bool
   | .cosh e => e.usesOnlyVar0
   | .tanh e => e.usesOnlyVar0
   | .sqrt e => e.usesOnlyVar0
-  | .pi => true
+  | .namedConst _ => true
 
 /-- If an expression uses only var 0, evaluation depends only on ρ 0 -/
 theorem Expr.eval_usesOnlyVar0 (e : Expr) (he : e.usesOnlyVar0 = true)
@@ -353,7 +353,7 @@ theorem Expr.eval_usesOnlyVar0 (e : Expr) (he : e.usesOnlyVar0 = true)
   | cosh e ih => simp only [Expr.eval, ih he]
   | tanh e ih => simp only [Expr.eval, ih he]
   | sqrt e ih => simp only [Expr.eval, ih he]
-  | pi => rfl
+  | namedConst _ => rfl
 
 /-! ### Tactic-facing lemmas for adaptive bound verification -/
 

@@ -48,6 +48,16 @@ def piConst : DualInterval :=
   { val := piInterval
     der := IntervalRat.singleton 0 }
 
+/-- Dual interval for the Euler–Mascheroni constant γ (derivative is zero) -/
+def eulerMascheroniConst : DualInterval :=
+  { val := eulerMascheroniInterval
+    der := IntervalRat.singleton 0 }
+
+/-- Dual interval for a named mathematical constant (derivative is zero) -/
+def ofMathConst (c : MathConst) : DualInterval :=
+  { val := c.interval
+    der := IntervalRat.singleton 0 }
+
 /-- Dual interval for the variable we're differentiating with respect to -/
 def varActive (I : IntervalRat) : DualInterval :=
   { val := I

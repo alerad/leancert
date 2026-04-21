@@ -408,6 +408,73 @@ theorem mem_piInterval : Real.pi ∈ piInterval := by
     simp only [Rat.cast_div, Rat.cast_ofNat] at *
     linarith
 
+/-- Interval enclosure for the Euler–Mascheroni constant γ.
+    Tight bounds derived from `eulerMascheroniSeq 100 < γ < eulerMascheroniSeq' 100`
+    combined with LeanCert's computable log intervals. -/
+def eulerMascheroniInterval : IntervalRat :=
+  ⟨5722/10000, 5823/10000, by norm_num⟩
+
+/-- Helper: log(101) ≤ (logPointComputable 101 30).hi, and that hi ≤ harmonic(100) - 5722/10000. -/
+private theorem eulerMascheroniSeq_100_ge :
+    (5722/10000 : ℝ) ≤ Real.eulerMascheroniSeq 100 := by
+  have hlog := (IntervalRat.mem_logPointComputable (by norm_num : (101 : ℚ) > 0) 30).2
+  -- hlog : Real.log ↑101 ≤ ↑(logPointComputable 101 30).hi
+  have hcmp : (IntervalRat.logPointComputable 101 30).hi ≤ harmonic 100 - 5722/10000 := by
+    native_decide
+  have : Real.eulerMascheroniSeq 100 = ↑(harmonic 100 : ℚ) - Real.log 101 := by
+    simp [Real.eulerMascheroniSeq]; ring
+  rw [this]
+  have hle : Real.log 101 ≤ ↑(harmonic 100 : ℚ) - ↑(5722/10000 : ℚ) :=
+    le_trans hlog (by exact_mod_cast hcmp)
+  push_cast at hle ⊢; linarith
+
+/-- Helper: harmonic(100) - 5823/10000 ≤ (logPointComputable 100 30).lo ≤ log(100). -/
+private theorem eulerMascheroniSeq'_100_le :
+    Real.eulerMascheroniSeq' 100 ≤ (5823/10000 : ℝ) := by
+  have hlog := (IntervalRat.mem_logPointComputable (by norm_num : (100 : ℚ) > 0) 30).1
+  have hcmp : harmonic 100 - 5823/10000 ≤ (IntervalRat.logPointComputable 100 30).lo := by
+    native_decide
+  have : Real.eulerMascheroniSeq' 100 = ↑(harmonic 100 : ℚ) - Real.log 100 := by
+    simp [Real.eulerMascheroniSeq']
+  rw [this]
+  have hle : ↑(harmonic 100 : ℚ) - ↑(5823/10000 : ℚ) ≤ Real.log 100 :=
+    le_trans (by exact_mod_cast hcmp) hlog
+  push_cast at hle ⊢; linarith
+
+/-- Correctness of Euler–Mascheroni interval: γ ∈ eulerMascheroniInterval -/
+theorem mem_eulerMascheroniInterval :
+    Real.eulerMascheroniConstant ∈ eulerMascheroniInterval := by
+  simp only [IntervalRat.mem_def, eulerMascheroniInterval]
+  constructor
+  · -- Lower: 5722/10000 ≤ eulerMascheroniSeq 100 < γ
+    have := Real.eulerMascheroniSeq_lt_eulerMascheroniConstant 100
+    linarith [eulerMascheroniSeq_100_ge]
+  · -- Upper: γ < eulerMascheroniSeq' 100 ≤ 5823/10000
+    have := Real.eulerMascheroniConstant_lt_eulerMascheroniSeq' 100
+    linarith [eulerMascheroniSeq'_100_le]
+
+end LeanCert.Engine
+
+namespace LeanCert.Core.MathConst
+open LeanCert.Engine
+
+/-- Centralized interval lookup for named mathematical constants.
+    Extending this table is the ONLY change needed to add a new constant. -/
+def interval : MathConst → IntervalRat
+  | .pi => piInterval
+  | .eulerMascheroni => eulerMascheroniInterval
+
+/-- Correctness: the real value of every named constant is in its interval. -/
+theorem mem_interval (c : MathConst) : c.toReal ∈ c.interval := by
+  cases c with
+  | pi => exact mem_piInterval
+  | eulerMascheroni => exact mem_eulerMascheroniInterval
+
+end LeanCert.Core.MathConst
+
+namespace LeanCert.Engine
+open LeanCert.Core
+
 /-- Interval bound for sinh using computable Taylor series for exp.
     sinh(x) = (exp(x) - exp(-x)) / 2, and sinh is strictly monotonic.
     This computes tight bounds using the verified exp implementation. -/
@@ -617,7 +684,7 @@ def evalIntervalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : In
   | Expr.cosh e => coshInterval (evalIntervalCore e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => tanhInterval (evalIntervalCore e ρ cfg)  -- Tight bounds: [-1, 1]
   | Expr.sqrt e => IntervalRat.sqrtIntervalTightPrec (evalIntervalCore e ρ cfg)
-  | Expr.pi => piInterval
+  | Expr.namedConst c => c.interval
 
 /-- Computable interval evaluator with division support.
 
@@ -670,7 +737,7 @@ def evalIntervalCoreWithDiv (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {
   | Expr.cosh e => coshInterval (evalIntervalCoreWithDiv e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => tanhInterval (evalIntervalCoreWithDiv e ρ cfg)  -- Tight bounds: [-1, 1]
   | Expr.sqrt e => IntervalRat.sqrtIntervalTightPrec (evalIntervalCoreWithDiv e ρ cfg)
-  | Expr.pi => piInterval
+  | Expr.namedConst c => c.interval
 
 /-- A real environment is contained in an interval environment -/
 def envMem (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) : Prop :=
@@ -703,7 +770,7 @@ def evalDomainValid (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : Pro
   | Expr.cosh e => evalDomainValid e ρ cfg
   | Expr.tanh e => evalDomainValid e ρ cfg
   | Expr.sqrt e => evalDomainValid e ρ cfg
-  | Expr.pi => True
+  | Expr.namedConst _ => True
 
 /-- Single-variable domain validity -/
 def evalDomainValid1 (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : Prop :=
@@ -731,7 +798,7 @@ def checkDomainValid (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : Bo
   | Expr.cosh e => checkDomainValid e ρ cfg
   | Expr.tanh e => checkDomainValid e ρ cfg
   | Expr.sqrt e => checkDomainValid e ρ cfg
-  | Expr.pi => true
+  | Expr.namedConst _ => true
 
 /-- Single-variable domain check -/
 def checkDomainValid1 (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : Bool :=
@@ -811,7 +878,7 @@ theorem checkDomainValid_correct (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig
     simp only [checkDomainValid] at h
     simp only [evalDomainValid]
     exact ih h
-  | pi => trivial
+  | namedConst _ => trivial
 
 /-- checkDomainValid1 = true implies evalDomainValid1 -/
 theorem checkDomainValid1_correct (e : Expr) (I : IntervalRat) (cfg : EvalConfig)
@@ -895,7 +962,7 @@ theorem evalDomainValid_iff_checkDomainValid (e : Expr) (ρ : IntervalEnv) (cfg 
       simp only [evalDomainValid] at h
       simp only [checkDomainValid]
       exact ih h
-    | pi => rfl
+    | namedConst _ => rfl
   · -- checkDomainValid → evalDomainValid
     exact checkDomainValid_correct e ρ cfg
 
@@ -994,9 +1061,9 @@ theorem evalIntervalCore_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [evalDomainValid] at hdom
     simp only [Expr.eval_erf, evalIntervalCore]
     exact mem_erfInterval (ih hdom) cfg.taylorDepth
-  | pi =>
-    simp only [Expr.eval_pi, evalIntervalCore]
-    exact mem_piInterval
+  | namedConst c =>
+    simp only [Expr.eval_namedConst, evalIntervalCore]
+    exact c.mem_interval
 
 /-! ### Convenience functions -/
 

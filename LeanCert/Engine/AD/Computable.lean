@@ -112,7 +112,7 @@ def evalDualCore (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : DualInterv
   | Expr.cosh e => DualInterval.coshCore (evalDualCore e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => DualInterval.tanhCore (evalDualCore e ρ cfg) cfg.taylorDepth
   | Expr.sqrt e => DualInterval.sqrt (evalDualCore e ρ cfg)
-  | Expr.pi => DualInterval.piConst
+  | Expr.namedConst c => DualInterval.ofMathConst c
 
 /-- Computable single-variable derivative interval -/
 def derivIntervalCore (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
@@ -142,7 +142,7 @@ def evalDomainValidDual (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : Pro
   | Expr.cosh e => evalDomainValidDual e ρ cfg
   | Expr.tanh e => evalDomainValidDual e ρ cfg
   | Expr.sqrt e => evalDomainValidDual e ρ cfg
-  | Expr.pi => True
+  | Expr.namedConst _ => True
 
 /-- Correctness theorem for computable dual value component.
 
@@ -208,9 +208,9 @@ theorem evalDualCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_log, evalDualCore, DualInterval.logCore]
     exact IntervalRat.mem_logComputable (ih hdom.1) hdom.2 cfg.taylorDepth
-  | pi =>
-    simp only [Expr.eval_pi, evalDualCore, DualInterval.piConst]
-    exact mem_piInterval
+  | namedConst c =>
+    simp only [Expr.eval_namedConst, evalDualCore, DualInterval.ofMathConst]
+    exact c.mem_interval
 
 /-- For ExprSupported expressions (which exclude log), domain validity is trivially true.
     This is because ExprSupported has no log constructor. -/

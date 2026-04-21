@@ -148,8 +148,8 @@ def evalIntervalAffine (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) : 
   | Expr.erf e =>
       -- erf bounded in [-1, 1]
       { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
-  | Expr.pi =>
-      let I := piInterval
+  | Expr.namedConst c =>
+      let I := c.interval
       let mid := (I.lo + I.hi) / 2
       let rad := (I.hi - I.lo) / 2
       { c0 := mid, coeffs := [], r := |rad|, r_nonneg := abs_nonneg _ }
@@ -200,7 +200,7 @@ def evalDomainValidAffine (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {})
   | Expr.cosh e => evalDomainValidAffine e ρ cfg
   | Expr.tanh e => evalDomainValidAffine e ρ cfg
   | Expr.sqrt e => evalDomainValidAffine e ρ cfg
-  | Expr.pi => True
+  | Expr.namedConst _ => True
 
 /-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
 theorem evalDomainValidAffine_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
@@ -317,9 +317,9 @@ theorem evalIntervalAffine_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [Expr.eval_log, evalIntervalAffine, hpos]
     have hlog_in := IntervalRat.mem_logComputable hv_in_I hpos cfg.taylorDepth
     exact AffineForm.mem_affine_of_interval (eps := eps) hlog_in
-  | pi =>
-    simp only [Expr.eval_pi, evalIntervalAffine]
-    simpa using (AffineForm.mem_affine_of_interval (eps := eps) mem_piInterval)
+  | namedConst c =>
+    simp only [Expr.eval_namedConst, evalIntervalAffine]
+    simpa using (AffineForm.mem_affine_of_interval (eps := eps) c.mem_interval)
 
 /-- Corollary: The interval produced by toInterval contains the true value.
 
