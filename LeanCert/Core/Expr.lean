@@ -482,6 +482,14 @@ theorem eval_abs (ρ : Nat → ℝ) (e : Expr) :
     eval ρ (abs e) = |eval ρ e| := by
   simp only [abs, eval_sqrt, eval_mul, ← sq, Real.sqrt_sq_eq_abs]
 
+/-- Evaluation of sqrt(x * x) = |x| (unfolded form of `abs`). -/
+theorem eval_sqrt_mul_self_eq_abs (ρ : Nat → ℝ) (e : Expr) :
+    eval ρ (sqrt (mul e e)) = |eval ρ e| := eval_abs ρ e
+
+/-- `√(x * x) = |x|` — LeanCert-namespaced alias of `Real.sqrt_mul_self_eq_abs`. -/
+theorem sqrt_mul_self_eq_abs (x : ℝ) : Real.sqrt (x * x) = |x| :=
+  Real.sqrt_mul_self_eq_abs x
+
 /-- For positive x, sqrt(x²) = x -/
 theorem eval_sqrt_sq_of_pos (ρ : Nat → ℝ) (e : Expr) (hpos : 0 < eval ρ e) :
     eval ρ (sqrt (mul e e)) = eval ρ e := by

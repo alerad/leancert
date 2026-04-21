@@ -31,6 +31,10 @@ import LeanCert.Engine.IntervalEvalDyadic
 import LeanCert.Engine.CompPoly
 -- v1.2: Reflective sum evaluator (O(1) proof size for finite sums)
 import LeanCert.Engine.ReflectiveSum
+-- v1.3: General finite sum evaluator (O(1) proof size for any Core.Expr body)
+import LeanCert.Engine.FinSumDyadic
+-- v1.3: Witness-based finite sum evaluator (user-provided per-term evaluator)
+import LeanCert.Engine.WitnessSum
 
 -- Global Optimization
 import LeanCert.Engine.Optimization.Box
@@ -69,6 +73,10 @@ import LeanCert.Tactic.Bound
 import LeanCert.Tactic.VecSimp
 -- Finset sum expansion (intervals, explicit sets, and Fin sums)
 import LeanCert.Tactic.FinSumExpand
+-- O(1) proof-size finite sum bounds via native_decide
+import LeanCert.Tactic.FinSumBound
+-- Witness-based finite sum bounds (user-provided evaluator + correctness proof)
+import LeanCert.Tactic.FinSumWitness
 
 -- Discovery Mode
 import LeanCert.Discovery
