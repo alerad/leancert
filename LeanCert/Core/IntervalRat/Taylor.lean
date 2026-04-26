@@ -2058,7 +2058,7 @@ private theorem erfInner_contDiff_nat (n : ℕ) : ContDiff ℝ n erfInner := by
     -- C^(n+1) from C^n of derivative
     have hdiff : Differentiable ℝ erfInner := fun x =>
       (Real.continuous_exp.comp (continuous_neg.comp (continuous_pow 2))).integral_hasStrictDerivAt 0 x
-        |>.differentiableAt
+        |>.hasStrictFDerivAt.differentiableAt
     have hderiv_smooth : ContDiff ℝ n (deriv erfInner) := by
       simp only [erfInner_deriv]
       exact contDiff_exp_neg_sq.of_le le_top
