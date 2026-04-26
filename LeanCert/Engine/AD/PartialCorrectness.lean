@@ -797,7 +797,7 @@ theorem evalDual?_der_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
                 _ = ↑(1 / (2 * d.val.lo)) := by push_cast; ring
           · -- d.val.lo > 1
             next hgt_one =>
-            push_neg at hgt_one
+            push Not at hgt_one
             constructor
             · simp only [Rat.cast_zero]
               exact hcoef_pos

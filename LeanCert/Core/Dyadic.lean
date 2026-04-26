@@ -348,7 +348,7 @@ theorem toRat_eq (d : Dyadic) : d.toRat = d.mantissa * (2 : ℚ) ^ d.exponent :=
     simp only [Nat.cast_pow, Nat.cast_ofNat, Int.cast_pow, Int.cast_ofNat,
                Int.toNat_natCast]
   · -- Case: exponent < 0
-    push_neg at h
+    push Not at h
     have hpos : 0 ≤ -d.exponent := Int.neg_nonneg.mpr (le_of_lt h)
     -- (-d.exponent).toNat = the natural number n such that d.exponent = -n
     set n := (-d.exponent).toNat with hn_def
@@ -415,7 +415,7 @@ theorem toRat_shiftDown_le (d : Dyadic) (newExp : Int) :
   split_ifs with h
   · exact le_refl _
   · -- newExp > d.exponent
-    push_neg at h
+    push Not at h
     set diff := (newExp - d.exponent).toNat with hdiff_def
     have hdiff : (diff : ℤ) = newExp - d.exponent := by
       rw [hdiff_def, Int.toNat_of_nonneg]; omega
@@ -456,7 +456,7 @@ theorem toRat_shiftUp_ge (d : Dyadic) (newExp : Int) :
   split_ifs with h hlowbits
   · exact le_refl _
   · -- Case: Lost bits, added 1
-    push_neg at h
+    push Not at h
     set diff := (newExp - d.exponent).toNat with hdiff_def
     have hdiff : (diff : ℤ) = newExp - d.exponent := by
       rw [hdiff_def, Int.toNat_of_nonneg]; omega
@@ -489,7 +489,7 @@ theorem toRat_shiftUp_ge (d : Dyadic) (newExp : Int) :
             mul_le_mul_of_nonneg_right hq (le_of_lt hpos)
       _ = ↑(d.mantissa / (2 ^ diff : ℕ) + 1) * (2 : ℚ) ^ diff * 2 ^ d.exponent := by rfl
   · -- Case: No lost bits, exact (equality)
-    push_neg at h
+    push Not at h
     set diff := (newExp - d.exponent).toNat with hdiff_def
     have hdiff : (diff : ℤ) = newExp - d.exponent := by
       rw [hdiff_def, Int.toNat_of_nonneg]; omega
@@ -550,8 +550,7 @@ private theorem shiftLeftInt_toRat (m : ℤ) (n : ℕ) :
 private theorem ord_compare_int_lt (a b : ℤ) : Ord.compare a b = .lt ↔ a < b := by
   constructor
   · intro h
-    by_contra hge
-    push_neg at hge
+    by_contra! hge
     have hcases := lt_or_eq_of_le hge
     cases hcases with
     | inl hgt =>
@@ -581,8 +580,7 @@ private theorem ord_compare_int_eq (a b : ℤ) : Ord.compare a b = .eq ↔ a = b
 private theorem ord_compare_int_gt (a b : ℤ) : Ord.compare a b = .gt ↔ a > b := by
   constructor
   · intro h
-    by_contra hle
-    push_neg at hle
+    by_contra! hle
     have hcases := lt_or_eq_of_le hle
     cases hcases with
     | inl hlt =>
@@ -599,8 +597,7 @@ private theorem ord_compare_ne_gt_iff (a b : ℤ) : (Ord.compare a b != .gt) = t
   rw [bne_iff_ne, ne_eq]
   constructor
   · intro h
-    by_contra hgt
-    push_neg at hgt
+    by_contra! hgt
     have := ord_compare_int_gt a b |>.mpr hgt
     exact h this
   · intro hle hgt
@@ -704,38 +701,34 @@ theorem le_iff_toRat_le (d₁ d₂ : Dyadic) :
     rw [ord_compare_ne_gt_iff]
     constructor
     · intro hle
-      by_cases hlt : d₁.mantissa < shiftLeftInt d₂.mantissa shift
+      by_cases! hlt : d₁.mantissa < shiftLeftInt d₂.mantissa shift
       · exact le_of_lt ((aligned_lt_iff_toRat_lt_case1 d₁ d₂ h).mp hlt)
-      · push_neg at hlt
-        have heq_or_gt := lt_or_eq_of_le hlt
+      · have heq_or_gt := lt_or_eq_of_le hlt
         cases heq_or_gt with
         | inl hgt =>
           exfalso; exact not_lt.mpr hle hgt
         | inr heq =>
           exact le_of_eq ((aligned_eq_iff_toRat_eq_case1 d₁ d₂ h).mp heq.symm)
     · intro hle
-      by_contra hgt
-      push_neg at hgt
+      by_contra! hgt
       have hgt' := (aligned_gt_iff_toRat_gt_case1 d₁ d₂ h).mp hgt
       exact not_lt.mpr hle hgt'
   · -- Case: d₁.exponent > d₂.exponent
-    push_neg at h
+    push Not at h
     set shift := (d₁.exponent - d₂.exponent).toNat
     rw [ord_compare_ne_gt_iff]
     constructor
     · intro hle
-      by_cases hlt : shiftLeftInt d₁.mantissa shift < d₂.mantissa
+      by_cases! hlt : shiftLeftInt d₁.mantissa shift < d₂.mantissa
       · exact le_of_lt ((aligned_lt_iff_toRat_lt_case2 d₁ d₂ h).mp hlt)
-      · push_neg at hlt
-        have heq_or_gt := lt_or_eq_of_le hlt
+      · have heq_or_gt := lt_or_eq_of_le hlt
         cases heq_or_gt with
         | inl hgt =>
           exfalso; exact not_lt.mpr hle hgt
         | inr heq =>
           exact le_of_eq ((aligned_eq_iff_toRat_eq_case2 d₁ d₂ h).mp heq.symm)
     · intro hle
-      by_contra hgt
-      push_neg at hgt
+      by_contra! hgt
       have hgt' := (aligned_gt_iff_toRat_gt_case2 d₁ d₂ h).mp hgt
       exact not_lt.mpr hle hgt'
 
@@ -745,7 +738,7 @@ theorem compare_lt_iff (d₁ d₂ : Dyadic) :
   unfold compare
   split_ifs with h
   · rw [ord_compare_int_lt]; exact aligned_lt_iff_toRat_lt_case1 d₁ d₂ h
-  · push_neg at h; rw [ord_compare_int_lt]; exact aligned_lt_iff_toRat_lt_case2 d₁ d₂ h
+  · push Not at h; rw [ord_compare_int_lt]; exact aligned_lt_iff_toRat_lt_case2 d₁ d₂ h
 
 /-- compare reflects toRat ordering: gt case -/
 theorem compare_gt_iff (d₁ d₂ : Dyadic) :
@@ -753,7 +746,7 @@ theorem compare_gt_iff (d₁ d₂ : Dyadic) :
   unfold compare
   split_ifs with h
   · rw [ord_compare_int_gt]; exact aligned_gt_iff_toRat_gt_case1 d₁ d₂ h
-  · push_neg at h; rw [ord_compare_int_gt]; exact aligned_gt_iff_toRat_gt_case2 d₁ d₂ h
+  · push Not at h; rw [ord_compare_int_gt]; exact aligned_gt_iff_toRat_gt_case2 d₁ d₂ h
 
 /-- compare reflects toRat ordering: eq case -/
 theorem compare_eq_iff (d₁ d₂ : Dyadic) :
@@ -761,7 +754,7 @@ theorem compare_eq_iff (d₁ d₂ : Dyadic) :
   unfold compare
   split_ifs with h
   · rw [ord_compare_int_eq]; exact aligned_eq_iff_toRat_eq_case1 d₁ d₂ h
-  · push_neg at h; rw [ord_compare_int_eq]; exact aligned_eq_iff_toRat_eq_case2 d₁ d₂ h
+  · push Not at h; rw [ord_compare_int_eq]; exact aligned_eq_iff_toRat_eq_case2 d₁ d₂ h
 
 /-! ### Min/Max Lemmas -/
 
@@ -961,11 +954,10 @@ theorem sqrtDown_nonneg (d : Dyadic) (prec : Int) (hd : 0 ≤ d.mantissa) :
       d.mantissa * (pow2Nat shift.toNat : Int)
     else
       d.mantissa / (pow2Nat (-shift).toNat : Int)) := by
-    by_cases hsh : shift ≥ 0
+    by_cases! hsh : shift ≥ 0
     · simp only [hsh, ↓reduceIte]
       exact sqrt_scaled_shift_nonneg hd hsh
-    · push_neg at hsh
-      simp only [not_le.mpr hsh, ↓reduceIte]
+    · simp only [not_le.mpr hsh, ↓reduceIte]
       exact Int.ediv_nonneg hd (Int.natCast_nonneg _)
   exact intSqrt_nonneg hm_nonneg
 
@@ -978,11 +970,10 @@ theorem sqrtUp_nonneg (d : Dyadic) (prec : Int) (hd : 0 ≤ d.mantissa) :
       d.mantissa * (pow2Nat shift.toNat : Int)
     else
       d.mantissa / (pow2Nat (-shift).toNat : Int)) := by
-    by_cases hsh : shift ≥ 0
+    by_cases! hsh : shift ≥ 0
     · simp only [hsh, ↓reduceIte]
       exact sqrt_scaled_shift_nonneg hd hsh
-    · push_neg at hsh
-      simp only [not_le.mpr hsh, ↓reduceIte]
+    · simp only [not_le.mpr hsh, ↓reduceIte]
       exact Int.ediv_nonneg hd (Int.natCast_nonneg _)
   set m := (if shift ≥ 0 then
       d.mantissa * (pow2Nat shift.toNat : Int)
@@ -1005,11 +996,10 @@ theorem sqrtDown_le_sqrtUp (d : Dyadic) (prec : Int) (hd : 0 ≤ d.mantissa) :
       d.mantissa * (pow2Nat shift.toNat : Int)
     else
       d.mantissa / (pow2Nat (-shift).toNat : Int)) := by
-    by_cases hsh : shift ≥ 0
+    by_cases! hsh : shift ≥ 0
     · simp only [hsh, ↓reduceIte]
       exact sqrt_scaled_shift_nonneg hd hsh
-    · push_neg at hsh
-      simp only [not_le.mpr hsh, ↓reduceIte]
+    · simp only [not_le.mpr hsh, ↓reduceIte]
       exact Int.ediv_nonneg hd (Int.natCast_nonneg _)
   set m := (if shift ≥ 0 then
       d.mantissa * (pow2Nat shift.toNat : Int)

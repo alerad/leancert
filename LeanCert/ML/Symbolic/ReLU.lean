@@ -174,7 +174,7 @@ theorem relu_relaxation_sound (l u : ℚ) (x : ℝ) (h : (l : ℝ) ≤ x ∧ x �
     simp
 
   · -- Case: l < 0 < u (crossing)
-    push_neg at h_active h_inactive
+    push Not at h_active h_inactive
     simp only
     constructor
     · -- Lower bound: 0 ≤ max(0, x)

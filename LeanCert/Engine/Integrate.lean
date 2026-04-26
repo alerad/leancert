@@ -588,13 +588,12 @@ theorem mem_splitMid {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
     x ∈ (splitMid I).1 ∨ x ∈ (splitMid I).2 := by
   simp only [splitMid, IntervalRat.mem_def, midpoint_def]
   simp only [IntervalRat.mem_def] at hx
-  by_cases h : x ≤ (((I.lo + I.hi) / 2 : ℚ) : ℝ)
+  by_cases! h : x ≤ (((I.lo + I.hi) / 2 : ℚ) : ℝ)
   · left
     constructor
     · exact hx.1
     · exact h
   · right
-    push_neg at h
     constructor
     · exact le_of_lt h
     · exact hx.2

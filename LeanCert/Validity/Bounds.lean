@@ -880,10 +880,9 @@ theorem mem_split_general {lo mid hi : ℚ} {x : ℝ}
     (_hLeMid : lo ≤ mid) (_hMidLe : mid ≤ hi) :
     x ∈ Set.Icc (lo : ℝ) (mid : ℝ) ∨ x ∈ Set.Icc (mid : ℝ) (hi : ℝ) := by
   simp only [Set.mem_Icc] at hx ⊢
-  by_cases h : x ≤ mid
+  by_cases! h : x ≤ mid
   · left; exact ⟨hx.1, h⟩
   · right
-    push_neg at h
     exact ⟨le_of_lt h, hx.2⟩
 
 /-- Combine upper bounds from two arbitrary adjacent intervals.
@@ -1649,8 +1648,8 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
     -- Case split on derivative sign
     rcases hdI_nonzero with hdI_pos | hdI_neg
     · -- Case: dI.lo > 0 (strictly increasing)
-      by_cases hlo : f I.lo ≥ 0
-      · by_cases hhi : f I.hi ≤ 0
+      by_cases! hlo : f I.lo ≥ 0
+      · by_cases! hhi : f I.hi ≤ 0
         · -- f(lo) ≥ 0 and f(hi) ≤ 0 with f increasing is a contradiction
           -- Because f' ≥ dI.lo > 0 implies f(hi) - f(lo) > 0, so f(hi) > f(lo)
           -- Combined with f(lo) ≥ 0 ≥ f(hi), this is impossible
@@ -1678,7 +1677,6 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
           have hstrictly_increasing : evalFunc1 e I.hi > evalFunc1 e I.lo := by linarith
           linarith
         · -- f(lo) ≥ 0 and f(hi) > 0 with f increasing → f > 0 on I
-          push_neg at hhi
           by_cases hlo_eq : f I.lo = 0
           · use I.lo
             have hIlo_in_I : (I.lo : ℝ) ∈ I := by
@@ -1697,8 +1695,7 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
             exact generic_contraction_absurd_hi I c fc dI N rfl hdI_nonzero hdI_pos
               (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg))
               hN_lo hContract.1 hMVT
-      · push_neg at hlo
-        by_cases hhi : f I.hi ≤ 0
+      · by_cases! hhi : f I.hi ≤ 0
         · by_cases hhi_eq : f I.hi = 0
           · use I.hi
             have hIhi_in_I : (I.hi : ℝ) ∈ I := by
@@ -1716,7 +1713,6 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
               (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg))
               hN_hi hContract.2 hMVT
         · -- f(lo) < 0 and f(hi) > 0: SIGN CHANGE! Apply IVT.
-          push_neg at hhi
           have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
           have h0_in_range : (0 : ℝ) ∈ Set.Icc (f I.lo) (f I.hi) := ⟨le_of_lt hlo, le_of_lt hhi⟩
           have hivt := intermediate_value_Icc hle hCont h0_in_range
@@ -1729,8 +1725,8 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
             have hx_in_I : x ∈ I := by simp only [IntervalRat.mem_def]; exact hx_mem
             exact newton_step_core_at_most_one_root e hsupp hvar0 I cfg ⟨N, hN⟩ hCont y x hy_in_I hx_in_I hy_root hx_root
     · -- Case: dI.hi < 0 (strictly decreasing) - symmetric logic
-      by_cases hlo : f I.lo ≤ 0
-      · by_cases hhi : f I.hi ≥ 0
+      by_cases! hlo : f I.lo ≤ 0
+      · by_cases! hhi : f I.hi ≥ 0
         · -- f(lo) ≤ 0 ≤ f(hi) with f decreasing is a contradiction
           -- Because f' ≤ dI.hi < 0 implies f(hi) - f(lo) < 0, so f(hi) < f(lo)
           -- Combined with f(lo) ≤ 0 ≤ f(hi), this is impossible
@@ -1757,8 +1753,7 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
           -- This gives: 0 ≤ evalFunc1 e I.hi < evalFunc1 e I.lo ≤ 0, contradiction
           have hstrictly_decreasing : evalFunc1 e I.hi < evalFunc1 e I.lo := by linarith
           linarith
-        · push_neg at hhi
-          by_cases hlo_eq : f I.lo = 0
+        · by_cases hlo_eq : f I.lo = 0
           · use I.lo
             have hIlo_in_I : (I.lo : ℝ) ∈ I := by
               simp only [IntervalRat.mem_def]
@@ -1774,8 +1769,7 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
             exact generic_contraction_absurd_hi_neg I c fc dI N rfl hdI_nonzero hdI_neg
               (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg))
               hN_lo hContract.1 hMVT
-      · push_neg at hlo
-        by_cases hhi : f I.hi ≥ 0
+      · by_cases! hhi : f I.hi ≥ 0
         · by_cases hhi_eq : f I.hi = 0
           · use I.hi
             have hIhi_in_I : (I.hi : ℝ) ∈ I := by
@@ -1793,7 +1787,6 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
               (evalIntervalCore1_correct e hsupp.toCore c (IntervalRat.singleton c) (IntervalRat.mem_singleton c) cfg (exprSupported_domainValid1 hsupp _ cfg))
               hN_hi hContract.2 hMVT
         · -- f(lo) > 0 and f(hi) < 0: SIGN CHANGE for decreasing function!
-          push_neg at hhi
           have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
           have h0_in_range : (0 : ℝ) ∈ Set.Icc (f I.hi) (f I.lo) := ⟨le_of_lt hhi, le_of_lt hlo⟩
           have hivt := intermediate_value_Icc' hle hCont h0_in_range

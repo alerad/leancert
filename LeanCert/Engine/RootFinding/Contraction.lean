@@ -101,8 +101,8 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
   · -- Case: dI.lo > 0 (derivative positive, f strictly increasing)
     have hf_incr := strictMonoOn_of_deriv_pos_interval e hsupp hvar0 I hdI_pos
 
-    by_cases hlo : f I.lo ≥ 0
-    · by_cases hhi : f I.hi ≤ 0
+    by_cases! hlo : f I.lo ≥ 0
+    · by_cases! hhi : f I.hi ≤ 0
       · -- f(I.lo) ≥ 0 and f(I.hi) ≤ 0 with f increasing → both equal 0
         have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
         have hIlo_in_I : (I.lo : ℝ) ∈ I := by
@@ -124,7 +124,6 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
           exact hpres
         · exact hroot_lo
       · -- f(I.lo) ≥ 0 and f(I.hi) > 0
-        push_neg at hhi
         by_cases hlo_eq : f I.lo = 0
         · use I.lo
           constructor
@@ -159,8 +158,7 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
             exact generic_contraction_absurd_hi I I.midpoint (TaylorModel.valueAtCenterInterval tm)
               (derivInterval e (fun _ => I) 0) N rfl hdI_nonzero hdI_pos hfc_correct hN_lo hContract.1 hMVT
           · exact newtonStepSimple_contraction_absurd_hi e I N hSimple hContract hdI_pos hquot
-    · push_neg at hlo
-      by_cases hhi : f I.hi ≤ 0
+    · by_cases! hhi : f I.hi ≤ 0
       · by_cases hhi_eq : f I.hi = 0
         · use I.hi
           constructor
@@ -206,7 +204,6 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
               (derivInterval e (fun _ => I) 0) N rfl hdI_nonzero hdI_pos hfc_correct hN_hi hContract.2 hMVT
           · exact newtonStepSimple_contraction_absurd_lo e I N hSimple hContract hdI_pos hquot
       · -- f(I.lo) < 0 and f(I.hi) > 0: SIGN CHANGE! Apply IVT.
-        push_neg at hhi
         have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
         have h0_in_range : (0 : ℝ) ∈ Set.Icc (f I.lo) (f I.hi) := ⟨le_of_lt hlo, le_of_lt hhi⟩
         have hivt := intermediate_value_Icc hle hCont h0_in_range
@@ -220,8 +217,8 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
   · -- Case: dI.hi < 0 (derivative negative, f strictly decreasing)
     have hf_decr := strictAntiOn_of_deriv_neg_interval e hsupp hvar0 I hdI_neg
 
-    by_cases hlo : f I.lo ≤ 0
-    · by_cases hhi : f I.hi ≥ 0
+    by_cases! hlo : f I.lo ≤ 0
+    · by_cases! hhi : f I.hi ≥ 0
       · have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
         by_cases heq : (I.lo : ℝ) = I.hi
         · have heq_f : f I.lo = f I.hi := by simp only [heq]
@@ -242,8 +239,7 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
             exact ⟨by exact_mod_cast I.le, le_refl _⟩
           have hmono := hf_decr hIlo_in_I hIhi_in_I hlt
           linarith
-      · push_neg at hhi
-        by_cases hlo_eq : f I.lo = 0
+      · by_cases hlo_eq : f I.lo = 0
         · use I.lo
           constructor
           · have hIlo_in_I : (I.lo : ℝ) ∈ I := by
@@ -291,8 +287,7 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
               have hmax_gt : max I.lo (c - Q.hi) > I.lo := by
                 rw [← hN_lo_eq]; exact hContract.1
               have hright_gt : c - Q.hi > I.lo := by
-                by_contra h
-                push_neg at h
+                by_contra! h
                 have : max I.lo (c - Q.hi) = I.lo := max_eq_left h
                 rw [this] at hmax_gt
                 exact lt_irrefl I.lo hmax_gt
@@ -305,8 +300,7 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
             -- And MVT says fc.lo / dI.hi ≥ hw
             have hQ_hi_ge_hw : Q.hi ≥ hw := le_trans hquot hQ_hi_ge
             linarith
-    · push_neg at hlo
-      by_cases hhi : f I.hi ≥ 0
+    · by_cases! hhi : f I.hi ≥ 0
       · by_cases hhi_eq : f I.hi = 0
         · use I.hi
           constructor
@@ -354,8 +348,7 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
               have hmin_lt : min I.hi (c - Q.lo) < I.hi := by
                 rw [← hN_hi_eq]; exact hContract.2
               have hright_lt : c - Q.lo < I.hi := by
-                by_contra h
-                push_neg at h
+                by_contra! h
                 have : min I.hi (c - Q.lo) = I.hi := min_eq_left h
                 rw [this] at hmin_lt
                 exact lt_irrefl I.hi hmin_lt
@@ -369,7 +362,6 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
             have hQ_lo_le_neg_hw : Q.lo ≤ -hw := le_trans hQ_lo_le hquot
             linarith
       · -- f(I.lo) > 0 and f(I.hi) < 0: SIGN CHANGE for decreasing function!
-        push_neg at hhi
         have hle : (I.lo : ℝ) ≤ I.hi := by exact_mod_cast I.le
         have h0_in_range : (0 : ℝ) ∈ Set.Icc (f I.hi) (f I.lo) := ⟨le_of_lt hhi, le_of_lt hlo⟩
         have hivt := intermediate_value_Icc' hle hCont h0_in_range

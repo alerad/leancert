@@ -155,7 +155,7 @@ private theorem integral_exp_neg_sq_nonneg (x : ℝ) (hx : 0 ≤ x) :
 /-- The error function is bounded above by 1. -/
 theorem Real.erf_le_one (x : ℝ) : Real.erf x ≤ 1 := by
   unfold Real.erf
-  by_cases hx : 0 ≤ x
+  by_cases! hx : 0 ≤ x
   · -- Case x ≥ 0: Use that integral is bounded by √π/2
     have h1 : Real.sqrt Real.pi > 0 := Real.sqrt_pos.mpr Real.pi_pos
     have h2 : ∫ t in (0:ℝ)..x, Real.exp (-(t^2)) ≤ Real.sqrt Real.pi / 2 :=
@@ -166,7 +166,6 @@ theorem Real.erf_le_one (x : ℝ) : Real.erf x ≤ 1 := by
           exact div_nonneg (by norm_num) (le_of_lt h1)
         _ = 1 := by field_simp
   · -- Case x < 0: Integral is negative (∫ 0..x = -∫ x..0), so erf(x) ≤ 0 ≤ 1
-    push_neg at hx
     have h1 : Real.sqrt Real.pi > 0 := Real.sqrt_pos.mpr Real.pi_pos
     have hxle : x ≤ 0 := le_of_lt hx
     -- For x < 0: ∫ 0..x = -∫ x..0, and ∫ x..0 ≥ 0 since we integrate a positive function
@@ -202,7 +201,7 @@ private theorem integral_exp_neg_sq_le_half_gaussian' (x : ℝ) (hx : x ≤ 0) :
 /-- The error function is bounded below by -1. -/
 theorem Real.neg_one_le_erf (x : ℝ) : -1 ≤ Real.erf x := by
   unfold Real.erf
-  by_cases hx : 0 ≤ x
+  by_cases! hx : 0 ≤ x
   · -- Case x ≥ 0: Integral is nonneg, so erf(x) ≥ 0 > -1
     have h1 : Real.sqrt Real.pi > 0 := Real.sqrt_pos.mpr Real.pi_pos
     have h2 : 0 ≤ ∫ t in (0:ℝ)..x, Real.exp (-(t^2)) := integral_exp_neg_sq_nonneg x hx
@@ -212,7 +211,6 @@ theorem Real.neg_one_le_erf (x : ℝ) : -1 ≤ Real.erf x := by
       · exact h2
     linarith
   · -- Case x < 0: ∫ 0..x = -∫ x..0, and ∫ x..0 ≤ √π/2
-    push_neg at hx
     have h1 : Real.sqrt Real.pi > 0 := Real.sqrt_pos.mpr Real.pi_pos
     have hxle : x ≤ 0 := le_of_lt hx
     -- ∫ 0..x = -∫ x..0

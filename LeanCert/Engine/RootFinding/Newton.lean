@@ -625,21 +625,19 @@ lemma contraction_newton_bounds {I N : IntervalRat} {c : ℚ} {Q : IntervalRat}
     -- We have N.lo = max I.lo (c - Q.hi) > I.lo
     -- If max = I.lo, then N.lo = I.lo, contradiction with N.lo > I.lo
     -- So max ≠ I.lo, meaning c - Q.hi > I.lo, hence max = c - Q.hi
-    by_cases h : I.lo ≤ c - Q.hi
+    by_cases! h : I.lo ≤ c - Q.hi
     · simp only [max_eq_right h, hN_lo]
-    · push_neg at h
-      have hmax_eq : max I.lo (c - Q.hi) = I.lo := max_eq_left (le_of_lt h)
+    · have hmax_eq : max I.lo (c - Q.hi) = I.lo := max_eq_left (le_of_lt h)
       rw [hN_lo, hmax_eq] at hContract
       exact absurd hContract.1 (lt_irrefl I.lo)
   · -- N.hi = c - Q.lo
     -- We have N.hi = min I.hi (c - Q.lo) < I.hi
     -- If min = I.hi, then N.hi = I.hi, contradiction with N.hi < I.hi
     -- So min ≠ I.hi, meaning c - Q.lo < I.hi, hence min = c - Q.lo
-    by_cases h : c - Q.lo ≤ I.hi
+    by_cases! h : c - Q.lo ≤ I.hi
     · -- min I.hi (c - Q.lo) = c - Q.lo since c - Q.lo ≤ I.hi
       simp only [min_eq_right h, hN_hi]
-    · push_neg at h
-      have hmin_eq : min I.hi (c - Q.lo) = I.hi := min_eq_left (le_of_lt h)
+    · have hmin_eq : min I.hi (c - Q.lo) = I.hi := min_eq_left (le_of_lt h)
       rw [hN_hi, hmin_eq] at hContract
       exact absurd hContract.2 (lt_irrefl I.hi)
 

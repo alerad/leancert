@@ -69,7 +69,7 @@ def absInterval (I : IntervalRat) : IntervalRat :=
   else
     ⟨0, max (-I.lo) I.hi, by
       apply le_max_of_le_right
-      push_neg at h1 h2
+      push Not at h1 h2
       linarith⟩
 
 /-- Maximum absolute value of an interval -/
@@ -1291,12 +1291,12 @@ theorem mem_coshComputable {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n : ℕ) 
     constructor
     · exact hcosh_ge_one
     · -- Upper bound is max of endpoint cosh values
-      push_neg at h1 h2
+      push Not at h1 h2
       have hhi_pos : (0 : ℝ) < I.hi := by exact_mod_cast h2
       have hlo_neg : (I.lo : ℝ) < 0 := by exact_mod_cast h1
       have hmax_bound : Real.cosh x ≤ max (Real.cosh I.lo) (Real.cosh I.hi) := by
         -- x is between lo and hi, and interval contains 0
-        by_cases hx_nonneg : 0 ≤ x
+        by_cases! hx_nonneg : 0 ≤ x
         · -- x ≥ 0: cosh(x) ≤ cosh(hi) since 0 ≤ x ≤ hi means |x| ≤ |hi|
           apply le_max_of_le_right
           rw [Real.cosh_le_cosh]
@@ -1305,7 +1305,6 @@ theorem mem_coshComputable {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n : ℕ) 
         · -- x < 0: cosh(x) ≤ cosh(lo) since lo ≤ x < 0 means |x| ≤ |lo|
           apply le_max_of_le_left
           rw [Real.cosh_le_cosh]
-          push_neg at hx_nonneg
           rw [abs_of_neg hx_nonneg, abs_of_neg hlo_neg]
           linarith [hx.1]
       calc Real.cosh x ≤ max (Real.cosh I.lo) (Real.cosh I.hi) := hmax_bound
