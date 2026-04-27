@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.TaylorModel.Core
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+import Mathlib.RingTheory.Polynomial.Tower
 
 /-!
 # Taylor Models - log(1+x) and Related Functions
