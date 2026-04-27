@@ -310,7 +310,7 @@ theorem sinc_eq_integral (x : ℝ) : sinc x = ∫ t in (0 : ℝ)..1, cos (t * x)
     simp only [sinc_zero, mul_zero, cos_zero]
     rw [intervalIntegral.integral_const, sub_zero, smul_eq_mul, mul_one]
   · -- Case x ≠ 0: use fundamental theorem of calculus
-    have hcont : Continuous (fun t => cos (t * x)) := continuous_cos.comp (continuous_mul_right x)
+    have hcont : Continuous (fun t => cos (t * x)) := continuous_cos.comp (continuous_mul_const x)
     have hderiv : ∀ t, HasDerivAt (fun u => sin (u * x) / x) (cos (t * x)) t := by
       intro t
       have : HasDerivAt (fun u => sin (u * x)) (x * cos (t * x)) t := by
@@ -321,7 +321,7 @@ theorem sinc_eq_integral (x : ℝ) : sinc x = ∫ t in (0 : ℝ)..1, cos (t * x)
       field_simp
     -- The antiderivative is sin(tx)/x, which is continuous
     have hcont_anti : ContinuousOn (fun t => sin (t * x) / x) (Set.Icc 0 1) :=
-      (continuous_sin.comp (continuous_mul_right x)).continuousOn.div_const x
+      (continuous_sin.comp (continuous_mul_const x)).continuousOn.div_const x
     -- cos(tx) is interval integrable since it's continuous
     have hint : IntervalIntegrable (fun t => cos (t * x)) volume 0 1 :=
       hcont.intervalIntegrable 0 1
