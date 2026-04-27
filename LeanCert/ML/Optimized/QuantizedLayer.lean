@@ -622,8 +622,7 @@ theorem forwardQuantized_nonempty
     intro k hk
     have hlo := hx_lo k hk
     have hhi := hx_hi k hk
-    by_contra h_neg
-    push_neg at h_neg
+    by_contra! h_neg
     have h_strict := intVal_strictMono h_neg input.exp
     linarith
   have h_lo_le_hi := forwardQuantized_sound l_quant input h_lo_dim h_hi_dim h_wpos_dim h_wneg_dim

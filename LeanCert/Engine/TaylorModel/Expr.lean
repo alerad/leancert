@@ -212,14 +212,13 @@ private theorem abs_le_interval_radius {z : ℝ} {I : IntervalRat} (hz : z ∈ I
     |z| ≤ max (|(I.lo : ℝ)|) (|(I.hi : ℝ)|) := by
   simp only [IntervalRat.mem_def] at hz
   rcases hz with ⟨hlo, hhi⟩
-  by_cases hz_nn : 0 ≤ z
+  by_cases! hz_nn : 0 ≤ z
   · -- z ≥ 0: |z| = z ≤ hi ≤ |hi|
     rw [abs_of_nonneg hz_nn]
     calc z ≤ (I.hi : ℝ) := hhi
       _ ≤ |(I.hi : ℝ)| := le_abs_self _
       _ ≤ max (|(I.lo : ℝ)|) (|(I.hi : ℝ)|) := le_max_right _ _
   · -- z < 0: |z| = -z ≤ -lo ≤ |lo|
-    push_neg at hz_nn
     rw [abs_of_neg hz_nn]
     calc -z ≤ -(I.lo : ℝ) := by linarith
       _ ≤ |(I.lo : ℝ)| := neg_le_abs _

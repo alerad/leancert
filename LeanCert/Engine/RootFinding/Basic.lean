@@ -326,10 +326,9 @@ def updateIntervalEnv' (ρ : IntervalEnv) (idx : Nat) (J : IntervalRat) : Interv
 /-- Helper: membership in bisected intervals -/
 theorem mem_bisect_cases (J : IntervalRat) (t : ℝ) (ht : t ∈ J) :
     t ∈ (J.bisect).1 ∨ t ∈ (J.bisect).2 := by
-  by_cases hm : t ≤ J.midpoint
+  by_cases! hm : t ≤ J.midpoint
   · left; exact IntervalRat.mem_bisect_left ht hm
   · right
-    push_neg at hm
     exact IntervalRat.mem_bisect_right ht (le_of_lt hm)
 
 /-- N-variable bisection root finding along coordinate `idx`.

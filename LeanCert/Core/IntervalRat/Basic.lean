@@ -223,7 +223,7 @@ attribute [implemented_by mulFast] mul
 private theorem mul_mem_endpoints_left {x a₁ a₂ y : ℝ}
     (ha : a₁ ≤ x ∧ x ≤ a₂) :
     min (a₁ * y) (a₂ * y) ≤ x * y ∧ x * y ≤ max (a₁ * y) (a₂ * y) := by
-  by_cases hy : 0 ≤ y
+  by_cases! hy : 0 ≤ y
   · -- y ≥ 0: multiplication preserves order, so a₁*y ≤ x*y ≤ a₂*y
     have h1 : a₁ * y ≤ x * y := mul_le_mul_of_nonneg_right ha.1 hy
     have h2 : x * y ≤ a₂ * y := mul_le_mul_of_nonneg_right ha.2 hy
@@ -231,7 +231,6 @@ private theorem mul_mem_endpoints_left {x a₁ a₂ y : ℝ}
     · exact le_trans (min_le_left _ _) h1
     · exact le_trans h2 (le_max_right _ _)
   · -- y < 0: multiplication reverses order, so a₂*y ≤ x*y ≤ a₁*y
-    push_neg at hy
     have hy' := le_of_lt hy
     have h1 : a₂ * y ≤ x * y := mul_le_mul_of_nonpos_right ha.2 hy'
     have h2 : x * y ≤ a₁ * y := mul_le_mul_of_nonpos_right ha.1 hy'
@@ -245,7 +244,7 @@ private theorem mul_mem_endpoints_left {x a₁ a₂ y : ℝ}
 private theorem mul_mem_endpoints_right {y b₁ b₂ x : ℝ}
     (hb : b₁ ≤ y ∧ y ≤ b₂) :
     min (x * b₁) (x * b₂) ≤ x * y ∧ x * y ≤ max (x * b₁) (x * b₂) := by
-  by_cases hx : 0 ≤ x
+  by_cases! hx : 0 ≤ x
   · -- x ≥ 0: multiplication preserves order, so x*b₁ ≤ x*y ≤ x*b₂
     have h1 : x * b₁ ≤ x * y := mul_le_mul_of_nonneg_left hb.1 hx
     have h2 : x * y ≤ x * b₂ := mul_le_mul_of_nonneg_left hb.2 hx
@@ -253,7 +252,6 @@ private theorem mul_mem_endpoints_right {y b₁ b₂ x : ℝ}
     · exact le_trans (min_le_left _ _) h1
     · exact le_trans h2 (le_max_right _ _)
   · -- x < 0: multiplication reverses order, so x*b₂ ≤ x*y ≤ x*b₁
-    push_neg at hx
     have hx' := le_of_lt hx
     have h1 : x * b₂ ≤ x * y := mul_le_mul_of_nonpos_left hb.2 hx'
     have h2 : x * y ≤ x * b₁ := mul_le_mul_of_nonpos_left hb.1 hx'
@@ -269,7 +267,7 @@ private theorem mul_lower_bound {x y a₁ a₂ b₁ b₂ : ℝ}
   have h1 := (mul_mem_endpoints_left (y := y) ha).1
   -- Now we need: min of corners ≤ min(a₁*y, a₂*y)
   -- Case split on whether a₁*y ≤ a₂*y
-  by_cases hcmp : a₁ * y ≤ a₂ * y
+  by_cases! hcmp : a₁ * y ≤ a₂ * y
   · -- min(a₁*y, a₂*y) = a₁*y
     rw [min_eq_left hcmp] at h1
     -- Need: min corners ≤ a₁*y
@@ -280,7 +278,6 @@ private theorem mul_lower_bound {x y a₁ a₂ b₁ b₂ : ℝ}
       _ ≤ a₁ * y := h2
       _ ≤ x * y := h1
   · -- min(a₁*y, a₂*y) = a₂*y
-    push_neg at hcmp
     rw [min_eq_right (le_of_lt hcmp)] at h1
     have h2 := (mul_mem_endpoints_right hb (x := a₂)).1
     calc min (min (a₁ * b₁) (a₁ * b₂)) (min (a₂ * b₁) (a₂ * b₂))
@@ -293,15 +290,14 @@ private theorem mul_upper_bound {x y a₁ a₂ b₁ b₂ : ℝ}
     (ha : a₁ ≤ x ∧ x ≤ a₂) (hb : b₁ ≤ y ∧ y ≤ b₂) :
     x * y ≤ max (max (a₁ * b₁) (a₁ * b₂)) (max (a₂ * b₁) (a₂ * b₂)) := by
   have h1 := (mul_mem_endpoints_left (y := y) ha).2
-  by_cases hcmp : a₁ * y ≤ a₂ * y
+  by_cases! hcmp : a₁ * y ≤ a₂ * y
   · rw [max_eq_right hcmp] at h1
     have h2 := (mul_mem_endpoints_right hb (x := a₂)).2
     calc x * y
         ≤ a₂ * y := h1
       _ ≤ max (a₂ * b₁) (a₂ * b₂) := h2
       _ ≤ max (max (a₁ * b₁) (a₁ * b₂)) (max (a₂ * b₁) (a₂ * b₂)) := le_max_right _ _
-  · push_neg at hcmp
-    rw [max_eq_left (le_of_lt hcmp)] at h1
+  · rw [max_eq_left (le_of_lt hcmp)] at h1
     have h2 := (mul_mem_endpoints_right hb (x := a₁)).2
     calc x * y
         ≤ a₁ * y := h1

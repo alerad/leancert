@@ -69,7 +69,7 @@ theorem log_lower_taylor (t : ℝ) (ht : 0 ≤ t) : t - t^2 / 2 ≤ log (1 + t) 
     - For s > 1: need t²/(2s²) to be small enough that the bound still holds -/
 theorem log_ge (t s : ℝ) (ht : t ≥ 0) (hs : s > 0) :
     t - t^2 / (2 * s^2) ≤ log (1 + t) := by
-  by_cases hs1 : s ≥ 1
+  by_cases! hs1 : s ≥ 1
   · -- Case s ≥ 1: t²/(2s²) ≤ t²/2, so we chain through log_lower_taylor
     -- But wait: t - t²/(2s²) ≥ t - t²/2, so we can't use log_lower_taylor directly!
     -- Instead, use the stronger bound from le_log_one_add_of_nonneg
@@ -82,7 +82,6 @@ theorem log_ge (t s : ℝ) (ht : t ≥ 0) (hs : s > 0) :
     sorry
   · -- Case s < 1: t²/(2s²) > t²/2, so t - t²/(2s²) < t - t²/2
     -- This follows from log_lower_taylor by transitivity
-    push_neg at hs1
     have hss : s^2 < 1 := by nlinarith
     have hs2_pos : 0 < s^2 := sq_pos_of_pos hs
     have h2s2_pos : 0 < 2 * s^2 := by positivity
@@ -251,12 +250,11 @@ theorem symm_inv_log (t : ℝ) (ht : 0 < t) (ht' : t ≤ 1/2) :
 /-- Weaker version with bound 2. -/
 theorem symm_inv_log_weak (t : ℝ) (ht : 0 < t) (ht' : t ≤ 1/2) :
     |1 / log (1 + t) + 1 / log (1 - t)| ≤ 2 := by
-  by_cases h : t < 1/2
+  by_cases! h : t < 1/2
   · have heq : 1 / log (1 + t) + 1 / log (1 - t) = symmetricLogComb t := rfl
     rw [heq]
     exact symmetricLogComb_abs_le_two t ht h
-  · push_neg at h
-    have ht_eq : t = 1/2 := le_antisymm ht' h
+  · have ht_eq : t = 1/2 := le_antisymm ht' h
     subst ht_eq
     have h1 : (0:ℝ) < 1/2 := by norm_num
     have h2 : (1:ℝ)/2 < 1 := by norm_num

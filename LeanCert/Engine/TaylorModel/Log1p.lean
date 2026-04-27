@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.TaylorModel.Core
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+import Mathlib.RingTheory.Polynomial.Tower
 
 /-!
 # Taylor Models - log(1+x) and Related Functions
@@ -505,7 +506,7 @@ theorem symmetricLogCombination_bounded (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 
   specialize hU_open 0 hU_zero
   obtain ⟨ε, hε_pos, hε_ball⟩ := hU_open
   -- For t ∈ (0, ε), t is in U ∩ (0, ∞) ⊆ s, so |g(t) - 1| < 1
-  by_cases ht_small : t < ε
+  by_cases! ht_small : t < ε
   · -- Case 1: t < ε, use the limit
     have ht_in_U : t ∈ U := hε_ball (by simp [abs_of_pos ht_pos, ht_small])
     have ht_in_s : t ∈ s := hU_sub ⟨ht_in_U, Set.mem_Ioi.mpr ht_pos⟩
@@ -516,7 +517,6 @@ theorem symmetricLogCombination_bounded (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 
     have h3 : |symmetricLogCombination t - 1| + |1| < 1 + 1 := by simp only [abs_one]; linarith
     linarith
   · -- Case 2: t ∈ [ε, 1/2), bound using explicit log inequalities
-    push_neg at ht_small
     -- Strategy: Show g(t) ∈ (0, 2) for t ∈ (0, 1/2] using:
     -- 1. g(t) > 0 (ratio of two negatives)
     -- 2. g(t) < 2 using log bounds

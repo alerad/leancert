@@ -479,8 +479,7 @@ private lemma blocks_all_two_implies {n : ℕ} (comp : Composition n)
 
 private lemma odd_composition_has_non_two_block {n : ℕ} (hn : n % 2 = 1) (comp : Composition n) :
     ∃ i, comp.blocksFun i ≠ 2 := by
-  by_contra h_all
-  push_neg at h_all
+  by_contra! h_all
   have := blocks_all_two_implies comp h_all
   omega
 
@@ -514,7 +513,7 @@ private lemma prod_sqSeries_applyComposition {n : ℕ} (comp : Composition n) :
     intro i _
     rw [sqSeries_applyComposition_one_i, if_pos (hall i)]
   · rw [if_neg hall]
-    push_neg at hall
+    push Not at hall
     obtain ⟨j, hj⟩ := hall
     apply Finset.prod_eq_zero (Finset.mem_univ j)
     rw [sqSeries_applyComposition_one_i, if_neg hj]

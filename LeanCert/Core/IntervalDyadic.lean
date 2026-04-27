@@ -455,8 +455,7 @@ def scale (I : IntervalDyadic) (c : Dyadic) : IntervalDyadic :=
         have hf := Dyadic.le_iff_toRat_le Dyadic.zero c
         have hz : Dyadic.zero.toRat = 0 := Dyadic.toRat_zero
         rw [hz] at hf
-        by_contra hge
-        push_neg at hge
+        by_contra! hge
         exact hc (hf.mpr hge)
       exact mul_le_mul_of_nonpos_right I.le (le_of_lt hcneg)⟩
 
@@ -487,7 +486,7 @@ def sqrt (I : IntervalDyadic) (_prec : Int := -53) : IntervalDyadic :=
 
 /-- sqrt(x) ≤ max(x, 1) for all x ≥ 0 -/
 private theorem sqrt_le_max_one {x : ℝ} (hx : 0 ≤ x) : Real.sqrt x ≤ max x 1 := by
-  by_cases h : x ≤ 1
+  by_cases! h : x ≤ 1
   · -- Case x ≤ 1: sqrt(x) ≤ 1 ≤ max(x, 1)
     -- sqrt(x) ≤ 1 when x ≤ 1 because sqrt(x)^2 = x ≤ 1 and sqrt(x) ≥ 0
     have hsqrt_le_one : Real.sqrt x ≤ 1 := by
@@ -496,7 +495,6 @@ private theorem sqrt_le_max_one {x : ℝ} (hx : 0 ≤ x) : Real.sqrt x ≤ max x
     calc Real.sqrt x ≤ 1 := hsqrt_le_one
       _ ≤ max x 1 := le_max_right x 1
   · -- Case x > 1: sqrt(x) ≤ x = max(x, 1)
-    push_neg at h
     -- sqrt(x) ≤ x for x ≥ 1 follows from sqrt(x) * sqrt(x) = x and sqrt(x) ≥ 1
     have h1 : 1 ≤ Real.sqrt x := by
       rw [← Real.sqrt_one]

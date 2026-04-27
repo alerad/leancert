@@ -362,7 +362,7 @@ lemma generic_contraction_absurd_hi
   have hQ_hi_lt_hw : Q.hi < hw := by
     have hmax_gt : max I.lo (c - Q.hi) > I.lo := by rw [← hN_lo_eq]; exact hContract
     have hright_gt : c - Q.hi > I.lo := by
-      by_contra h; push_neg at h
+      by_contra! h
       have : max I.lo (c - Q.hi) = I.lo := max_eq_left h
       rw [this] at hmax_gt; exact lt_irrefl I.lo hmax_gt
     have hc_minus_Ilo : c - I.lo = hw := by rw [hc_eq]; simp only [IntervalRat.midpoint]; ring
@@ -401,7 +401,7 @@ lemma generic_contraction_absurd_lo
   have hQ_lo_gt_neg_hw : Q.lo > -hw := by
     have hmin_lt : min I.hi (c - Q.lo) < I.hi := by rw [← hN_hi_eq]; exact hContract
     have hright_lt : c - Q.lo < I.hi := by
-      by_contra h; push_neg at h
+      by_contra! h
       have : min I.hi (c - Q.lo) = I.hi := min_eq_left h
       rw [this] at hmin_lt; exact lt_irrefl I.hi hmin_lt
     have hc_minus_Ihi : c - I.hi = -hw := by rw [hc_eq]; simp only [IntervalRat.midpoint]; ring
@@ -440,7 +440,7 @@ lemma generic_contraction_absurd_hi_neg
   have hQ_hi_lt_hw : Q.hi < hw := by
     have hmax_gt : max I.lo (c - Q.hi) > I.lo := by rw [← hN_lo_eq]; exact hContract
     have hright_gt : c - Q.hi > I.lo := by
-      by_contra h; push_neg at h
+      by_contra! h
       have : max I.lo (c - Q.hi) = I.lo := max_eq_left h
       rw [this] at hmax_gt; exact lt_irrefl I.lo hmax_gt
     have hc_minus_Ilo : c - I.lo = hw := by rw [hc_eq]; simp only [IntervalRat.midpoint]; ring
@@ -483,7 +483,7 @@ lemma generic_contraction_absurd_lo_neg
   have hQ_lo_gt_neg_hw : Q.lo > -hw := by
     have hmin_lt : min I.hi (c - Q.lo) < I.hi := by rw [← hN_hi_eq]; exact hContract
     have hright_lt : c - Q.lo < I.hi := by
-      by_contra h; push_neg at h
+      by_contra! h
       have : min I.hi (c - Q.lo) = I.hi := min_eq_left h
       rw [this] at hmin_lt; exact lt_irrefl I.hi hmin_lt
     have hc_minus_Ihi : c - I.hi = -hw := by rw [hc_eq]; simp only [IntervalRat.midpoint]; ring
@@ -533,8 +533,7 @@ lemma newtonStepSimple_contraction_absurd_hi
     have hmax_gt : max I.lo (c - Q.hi) > I.lo := by
       rw [← hN_lo]; exact hContract.1
     have hright_gt : c - Q.hi > I.lo := by
-      by_contra h
-      push_neg at h
+      by_contra! h
       have : max I.lo (c - Q.hi) = I.lo := max_eq_left h
       rw [this] at hmax_gt
       exact lt_irrefl I.lo hmax_gt
@@ -574,8 +573,7 @@ lemma newtonStepSimple_contraction_absurd_lo
     have hmin_lt : min I.hi (c - Q.lo) < I.hi := by
       rw [← hN_hi]; exact hContract.2
     have hright_lt : c - Q.lo < I.hi := by
-      by_contra h
-      push_neg at h
+      by_contra! h
       have : min I.hi (c - Q.lo) = I.hi := min_eq_left h
       rw [this] at hmin_lt
       exact lt_irrefl I.hi hmin_lt
