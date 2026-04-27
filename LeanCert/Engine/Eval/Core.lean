@@ -422,7 +422,7 @@ private theorem eulerMascheroniSeq_100_ge :
   have hcmp : (IntervalRat.logPointComputable 101 30).hi ≤ harmonic 100 - 5722/10000 := by
     native_decide
   have : Real.eulerMascheroniSeq 100 = ↑(harmonic 100 : ℚ) - Real.log 101 := by
-    simp [Real.eulerMascheroniSeq]; ring
+    simp [Real.eulerMascheroniSeq]; ring_nf
   rw [this]
   have hle : Real.log 101 ≤ ↑(harmonic 100 : ℚ) - ↑(5722/10000 : ℚ) :=
     le_trans hlog (by exact_mod_cast hcmp)
