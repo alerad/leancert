@@ -197,7 +197,7 @@ theorem mem_sinComputableReduced {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   split_ifs with hwide
   · simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
     exact ⟨Real.neg_one_le_sin x, Real.sin_le_one x⟩
-  · push_neg at hwide
+  · push Not at hwide
     rw [hsin_eq]
     exact mem_sinComputable hxred n
 
@@ -219,8 +219,7 @@ theorem mem_cosComputableReduced {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   split_ifs with hwide
   · simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
     exact ⟨Real.neg_one_le_cos x, Real.cos_le_one x⟩
-  · push_neg at hwide
-    rw [hcos_eq]
+  · rw [hcos_eq]
     exact mem_cosComputable hxred n
 
 end LeanCert.Core.IntervalRat

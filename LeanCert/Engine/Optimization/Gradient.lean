@@ -552,8 +552,7 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ExprSupported e) (B : Box) :
         · -- j < k + 1 but not (j < k ∧ j < B.length)
           -- Since j < B.length (from h2.2), we must have ¬(j < k)
           have hj_ge_k : k ≤ j := by
-            by_contra hlt
-            push_neg at hlt
+            by_contra! hlt
             exact h1 ⟨hlt, h2.2⟩
           have hj_lt_k1 : j < k + 1 := h2.1
           have hj_eq_k : j = k := Nat.eq_of_le_of_lt_succ hj_ge_k hj_lt_k1

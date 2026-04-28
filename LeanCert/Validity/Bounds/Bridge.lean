@@ -214,10 +214,9 @@ theorem mem_split_general {lo mid hi : ℚ} {x : ℝ}
     (_hLeMid : lo ≤ mid) (_hMidLe : mid ≤ hi) :
     x ∈ Set.Icc (lo : ℝ) (mid : ℝ) ∨ x ∈ Set.Icc (mid : ℝ) (hi : ℝ) := by
   simp only [Set.mem_Icc] at hx ⊢
-  by_cases h : x ≤ mid
+  by_cases! h : x ≤ mid
   · left; exact ⟨hx.1, h⟩
   · right
-    push_neg at h
     exact ⟨le_of_lt h, hx.2⟩
 
 /-- Combine upper bounds from two arbitrary adjacent intervals.

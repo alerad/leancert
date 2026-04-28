@@ -72,11 +72,10 @@ theorem energy_derivative_on_negative :
 theorem energy_derivative_nonpositive :
     ∀ v ∈ Set.Icc (-1:ℝ) 1, -2/5 * v * v ≤ (0 : ℝ) := by
   intro v ⟨hlo, hhi⟩
-  by_cases h : v ≥ 0
+  by_cases! h : v ≥ 0
   · have := energy_derivative_on_positive v ⟨h, hhi⟩
     linarith
-  · push_neg at h
-    have := energy_derivative_on_negative v ⟨hlo, le_of_lt h⟩
+  · have := energy_derivative_on_negative v ⟨hlo, le_of_lt h⟩
     linarith
 
 -- The derivative is strictly negative when v ≠ 0

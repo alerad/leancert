@@ -266,10 +266,9 @@ theorem decreasing_endpoint_bound (e : Expr) (hsupp : ExprSupported e) (hvar0 : 
 /-- Helper: membership in bisected intervals -/
 theorem mem_bisect_cases (I : IntervalRat) (x : ℝ) (hx : x ∈ I) :
     x ∈ (I.bisect).1 ∨ x ∈ (I.bisect).2 := by
-  by_cases hm : x ≤ I.midpoint
+  by_cases! hm : x ≤ I.midpoint
   · left; exact IntervalRat.mem_bisect_left hx hm
   · right
-    push_neg at hm
     exact IntervalRat.mem_bisect_right hx (le_of_lt hm)
 
 /-- Helper lemma for go correctness.
@@ -610,10 +609,9 @@ theorem minimizeIntervalIdx_base_correct (e : Expr) (hsupp : ExprSupported e)
 /-- Helper: membership in bisected intervals -/
 theorem mem_bisect_cases_idx (J : IntervalRat) (t : ℝ) (ht : t ∈ J) :
     t ∈ (J.bisect).1 ∨ t ∈ (J.bisect).2 := by
-  by_cases hm : t ≤ J.midpoint
+  by_cases! hm : t ≤ J.midpoint
   · left; exact IntervalRat.mem_bisect_left ht hm
   · right
-    push_neg at hm
     exact IntervalRat.mem_bisect_right ht (le_of_lt hm)
 
 /-- Helper lemma for go correctness in n-variable setting -/

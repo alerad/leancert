@@ -599,7 +599,7 @@ private theorem transformPolyCoeffs_correct (p : Polynomial ℚ) (α β : ℚ) (
     apply Finset.sum_subset (Finset.range_mono (by omega))
     intro j hj1 hj2
     simp only [Finset.mem_range] at hj1 hj2
-    push_neg at hj2
+    push Not at hj2
     have : Nat.choose i j = 0 := Nat.choose_eq_zero_of_lt (by omega)
     simp [this]
   rw [Finset.sum_congr rfl hexpand]
@@ -977,14 +977,13 @@ private theorem abs_sub_le_radius (x : ℝ) (c : ℚ) (domain : IntervalRat)
     (hx : x ∈ domain) :
     |x - c| ≤ max (|(domain.hi : ℝ) - c|) (|(domain.lo : ℝ) - c|) := by
   simp only [IntervalRat.mem_def] at hx
-  by_cases hxc : (c : ℝ) ≤ x
+  by_cases! hxc : (c : ℝ) ≤ x
   · rw [abs_of_nonneg (by linarith : (0 : ℝ) ≤ x - c)]
     have hxhi : x - c ≤ (domain.hi : ℝ) - c := by linarith
     calc x - c ≤ (domain.hi : ℝ) - c := hxhi
       _ ≤ |(domain.hi : ℝ) - c| := le_abs_self _
       _ ≤ max |(domain.hi : ℝ) - c| |(domain.lo : ℝ) - c| := le_max_left _ _
-  · push_neg at hxc
-    have h_neg : x - (c : ℝ) < 0 := by linarith
+  · have h_neg : x - (c : ℝ) < 0 := by linarith
     rw [abs_of_neg h_neg]
     have hxlo : -(x - (c : ℝ)) ≤ (c : ℝ) - domain.lo := by linarith
     calc -(x - (c : ℝ)) ≤ (c : ℝ) - domain.lo := hxlo
@@ -1209,12 +1208,11 @@ theorem ne_zero_of_mem_nonzero_bound {x : ℝ} {I : IntervalRat}
   simp only [IntervalRat.mem_def] at hx
   intro hxz
   rw [hxz] at hx
-  by_cases hlo : I.lo ≤ 0
+  by_cases! hlo : I.lo ≤ 0
   · have hhi := hnz hlo
     have hhi_real : (I.hi : ℝ) < 0 := by exact_mod_cast hhi
     linarith
-  · push_neg at hlo
-    have hlo_real : (0 : ℝ) < I.lo := by exact_mod_cast hlo
+  · have hlo_real : (0 : ℝ) < I.lo := by exact_mod_cast hlo
     linarith
 
 /-- FOIL expansion for Taylor model multiplication.

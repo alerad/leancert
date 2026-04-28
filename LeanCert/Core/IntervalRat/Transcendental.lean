@@ -256,12 +256,11 @@ private theorem rat_num_natAbs_pos {q : ℚ} (hq : 0 < q) : 0 < q.num.natAbs := 
 /-- Soundness of sqrtRatLower: sqrtRatLower q ≤ Real.sqrt q for q ≥ 0 -/
 theorem sqrtRatLower_le_sqrt {q : ℚ} (hq : 0 ≤ q) : (sqrtRatLower q : ℝ) ≤ Real.sqrt q := by
   simp only [sqrtRatLower]
-  by_cases hq0 : q ≤ 0
+  by_cases! hq0 : q ≤ 0
   · -- q = 0
     have heq : q = 0 := le_antisymm hq0 hq
     simp only [heq, le_refl, ↓reduceIte, Rat.cast_zero, Real.sqrt_zero]
   · -- q > 0
-    push_neg at hq0
     simp only [not_le.mpr hq0, ↓reduceIte]
     -- Key insight: sqrtRatLower returns s/den where s = floor(sqrt(num*den))
     -- We want to show s/den ≤ sqrt(q) = sqrt(num/den)
@@ -301,12 +300,11 @@ theorem sqrtRatLower_le_sqrt {q : ℚ} (hq : 0 ≤ q) : (sqrtRatLower q : ℝ) �
 /-- Soundness of sqrtRatUpper: Real.sqrt q ≤ sqrtRatUpper q for q ≥ 0 -/
 theorem sqrt_le_sqrtRatUpper {q : ℚ} (hq : 0 ≤ q) : Real.sqrt q ≤ (sqrtRatUpper q : ℝ) := by
   simp only [sqrtRatUpper]
-  by_cases hq0 : q ≤ 0
+  by_cases! hq0 : q ≤ 0
   · -- q = 0
     have heq : q = 0 := le_antisymm hq0 hq
     simp only [heq, le_refl, ↓reduceIte, Rat.cast_zero, Real.sqrt_zero]
   · -- q > 0
-    push_neg at hq0
     simp only [not_le.mpr hq0, ↓reduceIte]
     have hden_pos : (0 : ℝ) < q.den := by exact_mod_cast q.den_pos
     have hden_nn : (0 : ℝ) ≤ q.den := le_of_lt hden_pos
@@ -402,11 +400,10 @@ def sqrtIntervalTight (I : IntervalRat) : IntervalRat :=
 theorem sqrtRatLowerPrec_le_sqrt {q : ℚ} (hq : 0 ≤ q) (k : Nat) :
     (sqrtRatLowerPrec q k : ℝ) ≤ Real.sqrt q := by
   simp only [sqrtRatLowerPrec]
-  by_cases hq0 : q ≤ 0
+  by_cases! hq0 : q ≤ 0
   · have heq : q = 0 := le_antisymm hq0 hq
     simp only [heq, le_refl, ↓reduceIte, Rat.cast_zero, Real.sqrt_zero]
-  · push_neg at hq0
-    simp only [not_le.mpr hq0, ↓reduceIte]
+  · simp only [not_le.mpr hq0, ↓reduceIte]
     -- Setup: let num = q.num.natAbs, den = q.den, scaledNum = num * 4^k
     -- We compute s = floor(sqrt(scaledNum * den)) and return s / (den * 2^k)
     -- Goal: s / (den * 2^k) ≤ sqrt(q) = sqrt(num/den)
@@ -473,11 +470,10 @@ theorem sqrtRatLowerPrec_le_sqrt {q : ℚ} (hq : 0 ≤ q) (k : Nat) :
 theorem sqrt_le_sqrtRatUpperPrec {q : ℚ} (hq : 0 ≤ q) (k : Nat) :
     Real.sqrt q ≤ (sqrtRatUpperPrec q k : ℝ) := by
   simp only [sqrtRatUpperPrec]
-  by_cases hq0 : q ≤ 0
+  by_cases! hq0 : q ≤ 0
   · have heq : q = 0 := le_antisymm hq0 hq
     simp only [heq, le_refl, ↓reduceIte, Rat.cast_zero, Real.sqrt_zero]
-  · push_neg at hq0
-    simp only [not_le.mpr hq0, ↓reduceIte]
+  · simp only [not_le.mpr hq0, ↓reduceIte]
     have hden_pos : (0 : ℝ) < q.den := by exact_mod_cast q.den_pos
     have hden_nn : (0 : ℝ) ≤ q.den := le_of_lt hden_pos
     have hnum_nn : 0 ≤ q.num := Rat.num_nonneg.mpr hq
@@ -593,20 +589,19 @@ theorem mem_sqrtIntervalTightPrec' {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
         _ ≤ (sqrtRatUpperPrec I.hi : ℝ) := sqrt_le_sqrtRatUpperPrec (le_trans h I.le) sqrtScaleBits
         _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_left _ _
   · -- lo < 0: use 0 as lower bound
-    push_neg at h
+    push Not at h
     simp only [Rat.cast_zero, Rat.cast_max, Rat.cast_one]
     constructor
     · exact Real.sqrt_nonneg x
     · -- sqrt(x) ≤ max(sqrtRatUpperPrec I.hi, 1)
-      by_cases hhi_neg : I.hi < 0
+      by_cases! hhi_neg : I.hi < 0
       · -- If hi < 0, then x ≤ I.hi < 0, but sqrt(x) ≥ 0, so sqrt(x) ≤ 1 ≤ max(_, 1)
         have hx_neg : x < 0 := lt_of_le_of_lt hx.2 (by exact_mod_cast hhi_neg)
         have hsqrt_zero : Real.sqrt x = 0 := Real.sqrt_eq_zero'.mpr (le_of_lt hx_neg)
         rw [hsqrt_zero]
         calc (0 : ℝ) ≤ 1 := by norm_num
           _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_right _ _
-      · push_neg at hhi_neg
-        calc Real.sqrt x ≤ Real.sqrt I.hi := Real.sqrt_le_sqrt hx.2
+      · calc Real.sqrt x ≤ Real.sqrt I.hi := Real.sqrt_le_sqrt hx.2
           _ ≤ (sqrtRatUpperPrec I.hi : ℝ) := sqrt_le_sqrtRatUpperPrec hhi_neg sqrtScaleBits
           _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_left _ _
 
@@ -660,13 +655,12 @@ theorem mem_sqrtInterval' {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
 /-- Helper: upper bound for tight sqrt interval is valid -/
 private theorem sqrt_le_sqrtRatUpper_max {x : ℝ} {q : ℚ} (hx : 0 ≤ x) (hxq : x ≤ q) :
     Real.sqrt x ≤ max (sqrtRatUpper q : ℝ) 1 := by
-  by_cases hq0 : q ≤ 0
+  by_cases! hq0 : q ≤ 0
   · -- q ≤ 0 means x ≤ 0, combined with hx gives x = 0
     have hx0 : x = 0 := le_antisymm (le_trans hxq (by exact_mod_cast hq0)) hx
     rw [hx0, Real.sqrt_zero]
     exact le_trans (by norm_num : (0 : ℝ) ≤ 1) (le_max_right (sqrtRatUpper q : ℝ) (1 : ℝ))
   · -- q > 0
-    push_neg at hq0
     calc Real.sqrt x
         ≤ Real.sqrt q := Real.sqrt_le_sqrt hxq
       _ ≤ sqrtRatUpper q := sqrt_le_sqrtRatUpper (le_of_lt hq0)

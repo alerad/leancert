@@ -244,8 +244,7 @@ theorem sqrtDerivCoef_bound {x lo : ℝ} (hlo_pos : 0 < lo) (hx_ge : lo ≤ x) :
       have h1 : lo * lo ≤ lo := by nlinarith
       have h2 : lo = Real.sqrt lo * Real.sqrt lo → lo ≤ Real.sqrt lo := by
         intro heq
-        by_contra hc
-        push_neg at hc
+        by_contra! hc
         have : lo * lo > lo := by nlinarith
         linarith
       rw [← Real.sq_sqrt (le_of_lt hlo_pos)] at h1

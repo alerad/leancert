@@ -376,18 +376,17 @@ theorem mem_coshInterval {x : ℝ} {I : IntervalReal} (hx : x ∈ I) :
       linarith
   · -- Case: interval contains 0
     simp only [mem_def]
-    push_neg at h1 h2
+    push Not at h1 h2
     constructor
     · exact Real.one_le_cosh x
     · -- cosh(x) ≤ max(cosh(lo), cosh(hi))
-      by_cases hx0 : 0 ≤ x
+      by_cases! hx0 : 0 ≤ x
       · -- x ≥ 0: cosh(x) ≤ cosh(hi) since |x| ≤ |hi|
         have hle : Real.cosh x ≤ Real.cosh I.hi := by
           rw [Real.cosh_le_cosh, abs_of_nonneg hx0, abs_of_pos h2]
           exact hx.2
         exact le_trans hle (le_max_right _ _)
       · -- x < 0: cosh(x) ≤ cosh(lo) since |x| ≤ |lo|
-        push_neg at hx0
         have hx_nonpos : x ≤ 0 := le_of_lt hx0
         have hle : Real.cosh x ≤ Real.cosh I.lo := by
           rw [Real.cosh_le_cosh, abs_of_nonpos hx_nonpos, abs_of_neg h1]
