@@ -197,6 +197,7 @@ lemma iteratedDerivWithin_Icc_left_eq_iteratedDeriv_of_isOpen {f : ℝ → ℝ} 
     have hdf : ContDiffOn ℝ n (deriv f) U := hf.deriv_of_isOpen hU_open le_rfl
     exact ih hdf
 
+set_option maxHeartbeats 400000 in
 /-- Taylor remainder bound for c < x case with ContDiffOn hypothesis.
 
     For functions that are ContDiffOn on an open set containing [a, b], this provides
@@ -226,10 +227,15 @@ theorem taylor_remainder_bound_on_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : �
       exact_mod_cast this
     have hdiff := hf_on.differentiableOn_iteratedDerivWithin hm_lt huniq
     exact hdiff.mono Ioo_subset_Icc_self
-  obtain ⟨ξ, hξ_mem, hLagrange⟩ := taylor_mean_remainder_lagrange hcx hf_on_m hf_diff
+  have hf_on_m' : ContDiffOn ℝ m f (uIcc c x) := by rwa [uIcc_of_le hcx_le]
+  have hf_diff' : DifferentiableOn ℝ (iteratedDerivWithin m f (uIcc c x)) (uIoo c x) := by
+    rwa [uIcc_of_le hcx_le, uIoo_of_lt hcx]
+  obtain ⟨ξ, hξ_mem, hLagrange⟩ := taylor_mean_remainder_lagrange hcx.ne hf_on_m' hf_diff'
+  rw [uIoo_of_lt hcx] at hξ_mem
   have hξ_ab : ξ ∈ Icc a b := hI_sub' (Ioo_subset_Icc_self hξ_mem)
   have hderiv_ξ : iteratedDerivWithin (m + 1) f (Icc c x) ξ = iteratedDeriv (m + 1) f ξ :=
     iteratedDerivWithin_Icc_interior_eq hcx hξ_mem
+  rw [uIcc_of_le hcx_le] at hLagrange
   have hsum_eq : ∑ i ∈ range (m + 1), (iteratedDeriv i f c / i.factorial) * (x - c) ^ i =
                  taylorWithinEval f m (Icc c x) c x := by
     rw [taylor_within_apply]
@@ -313,6 +319,7 @@ lemma iteratedDeriv_reflect_of_contDiffOn {f : ℝ → ℝ} {c : ℝ} {n : ℕ} 
   convert iteratedDeriv_translate_of_contDiffOn hU_open (-t) ht hf using 1
   rw [hmt]
 
+set_option maxHeartbeats 400000 in
 /-- Taylor remainder bound for x < c case with ContDiffOn hypothesis.
 
     For functions that are ContDiffOn on an open set containing [a, b], this provides
@@ -434,6 +441,7 @@ theorem taylor_remainder_bound_on_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : �
   rw [h_abs_eq] at h_taylor_g
   exact h_taylor_g
 
+set_option maxHeartbeats 400000 in
 /-- Combined Taylor remainder bound with ContDiffOn hypothesis.
 
     For functions that are ContDiffOn on an open set containing [a, b], this provides
@@ -517,6 +525,7 @@ lemma neg_one_pow_mul_self (n : ℕ) : (-1 : ℝ) ^ n * (-1) ^ n = 1 := by
   rw [← pow_add]
   norm_num
 
+set_option maxHeartbeats 400000 in
 /-- Taylor remainder bound for c < x case (Lagrange form).
 
 For `c < x`, we apply `taylor_mean_remainder_lagrange` on `[c, x]` and convert
@@ -542,10 +551,15 @@ theorem taylor_remainder_bound_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
       exact_mod_cast this
     have hdiff := hf_on.differentiableOn_iteratedDerivWithin hm_lt huniq
     exact hdiff.mono Ioo_subset_Icc_self
-  obtain ⟨ξ, hξ_mem, hLagrange⟩ := taylor_mean_remainder_lagrange hcx hf_on_m hf_diff
+  have hf_on_m' : ContDiffOn ℝ m f (uIcc c x) := by rwa [uIcc_of_le hcx_le]
+  have hf_diff' : DifferentiableOn ℝ (iteratedDerivWithin m f (uIcc c x)) (uIoo c x) := by
+    rwa [uIcc_of_le hcx_le, uIoo_of_lt hcx]
+  obtain ⟨ξ, hξ_mem, hLagrange⟩ := taylor_mean_remainder_lagrange hcx.ne hf_on_m' hf_diff'
+  rw [uIoo_of_lt hcx] at hξ_mem
   have hξ_ab : ξ ∈ Icc a b := hI_sub (Ioo_subset_Icc_self hξ_mem)
   have hderiv_ξ : iteratedDerivWithin (m + 1) f (Icc c x) ξ = iteratedDeriv (m + 1) f ξ :=
     iteratedDerivWithin_Icc_interior_eq hcx hξ_mem
+  rw [uIcc_of_le hcx_le] at hLagrange
   have hsum_eq : ∑ i ∈ range (m + 1), (iteratedDeriv i f c / i.factorial) * (x - c) ^ i =
                  taylorWithinEval f m (Icc c x) c x := by
     rw [taylor_within_apply]
@@ -577,6 +591,7 @@ theorem taylor_remainder_bound_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
         apply mul_le_mul_of_nonneg_right hbound (le_of_lt h_pow_fact_pos)
     _ = M * (x - c) ^ (m + 1) / ↑(m + 1).factorial := by ring
 
+set_option maxHeartbeats 400000 in
 /-- Taylor remainder bound for x < c case (Lagrange form via reflection).
 
 For `x < c`, we define g(t) = f(2c - t), apply `taylor_mean_remainder_lagrange` on `[c, 2c-x]`,
@@ -601,6 +616,7 @@ theorem taylor_remainder_bound_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
   have h_interval_lt : c < 2 * c - x := by linarith
   -- Apply taylor_mean_remainder_lagrange to g on [c, 2c - x]
   have hg_on : ContDiffOn ℝ (m + 1) g (Icc c (2 * c - x)) := hg_smooth.contDiffOn
+  have h_interval_le : c ≤ 2 * c - x := le_of_lt h_interval_lt
   have hg_on_m : ContDiffOn ℝ m g (Icc c (2 * c - x)) := by
     have hm_le : (m : WithTop ℕ∞) ≤ (m + 1 : ℕ) := by norm_cast; omega
     exact hg_on.of_le hm_le
@@ -611,7 +627,12 @@ theorem taylor_remainder_bound_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
       exact_mod_cast this
     have hdiff := hg_on.differentiableOn_iteratedDerivWithin hm_lt huniq
     exact hdiff.mono Ioo_subset_Icc_self
-  obtain ⟨ξ', hξ'_mem, hLagrange⟩ := taylor_mean_remainder_lagrange h_interval_lt hg_on_m hg_diff
+  have hg_on_m' : ContDiffOn ℝ m g (uIcc c (2 * c - x)) := by rwa [uIcc_of_le h_interval_le]
+  have hg_diff' : DifferentiableOn ℝ (iteratedDerivWithin m g (uIcc c (2 * c - x))) (uIoo c (2 * c - x)) := by
+    rwa [uIcc_of_le h_interval_le, uIoo_of_lt h_interval_lt]
+  obtain ⟨ξ', hξ'_mem, hLagrange⟩ := taylor_mean_remainder_lagrange h_interval_lt.ne hg_on_m' hg_diff'
+  rw [uIoo_of_lt h_interval_lt] at hξ'_mem
+  rw [uIcc_of_le h_interval_le] at hLagrange
   -- ξ = 2c - ξ' ∈ (x, c)
   set ξ := 2 * c - ξ' with hξ_def
   have hξ'_lt_2cmx : ξ' < 2 * c - x := hξ'_mem.2
@@ -699,6 +720,7 @@ theorem taylor_remainder_bound_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
         apply mul_le_mul_of_nonneg_right hbound (le_of_lt h_pow_fact_pos)
     _ = M * |x - c| ^ (m + 1) / ↑(m + 1).factorial := by ring
 
+set_option maxHeartbeats 400000 in
 /-- Lagrange form remainder bound for Taylor approximation.
 
 If `|f^(n)(x)| ≤ M` for all x in [a, b], and `c ∈ [a, b]`, then the Taylor polynomial
