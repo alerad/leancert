@@ -207,23 +207,32 @@ the corresponding LeanCert AST.
 
 Logic:
 1. Check if it's a variable in our context
-2. Check if it's a constant number
-3. Check if it's a known arithmetic operator (+, *, -, /)
-4. Check if it's a known transcendental (sin, cos, exp, log, etc.)
-5. Fail if unrecognized
--/
+2. Try to match a known operator/function (+, *, -, /, sin, cos, exp, etc.)
+3. Check if it's a numeric constant (ℕ, ℤ, ℚ literals and casts)
+4. Reduce with whnf and retry
+5. Unfold definitions and retry
+
+**Important**: Step 2 (operator matching) must come before step 3 (numeric constant).
+Otherwise `toRat?` eagerly constant-folds compound expressions like `↑(-2 : ℤ) + 3`
+into `const(1)`, losing the syntactic structure needed by the bridge converter.
+With operators first, this reifies as `add(const(-2), const(3))` which the bridge
+can match against the goal. -/
 partial def toLeanCertExpr (e : Lean.Expr) : TranslateM Lean.Expr := do
   -- 1. Check if it is a free variable in our context
   if let some idx ← findVarIdx? e then
     return ← mkExprVar idx
 
-  -- 2. Check if it is a numeric constant
-  if let some q ← toRat? e then
-    return ← mkExprConst q
-
-  -- 3. Try to match on unreduced expression first (important!)
+  -- 2. Try to match on unreduced expression first (important!)
+  -- This must come BEFORE toRat? so that compound expressions like
+  -- `↑(-2 : ℤ) + 3` are reified structurally (as add(const(-2), const(3)))
+  -- rather than constant-folded by toRat? (which would produce const(1),
+  -- losing the structure needed for the bridge converter to match the goal).
   if let some result ← tryMatchExpr e then
     return result
+
+  -- 3. Check if it is a numeric constant (leaf values only at this point)
+  if let some q ← toRat? e then
+    return ← mkExprConst q
 
   -- 4. If no match, try reducing with whnf and matching again
   let eReduced ← whnf e

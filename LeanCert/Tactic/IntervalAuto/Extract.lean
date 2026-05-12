@@ -136,7 +136,7 @@ where
     -- Case 1: Rat.cast q or RatCast.ratCast q
     if fn.isConstOf ``Rat.cast || fn.isConstOf ``RatCast.ratCast then
       if args.size > 0 then
-        return ← extractRatFromRat args.back!
+        return ← LeanCert.Meta.toRat? args.back!
       else return none
 
     -- Case 2: OfNat.ofNat (for numeric literals like 2 : ℝ)

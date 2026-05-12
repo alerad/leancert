@@ -123,6 +123,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
                      LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_log,
                      LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos,
+                     ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs,
                      Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
                      Rat.cast_zero, sub_zero, zero_sub, neg_neg] at h0
         )))
@@ -181,6 +182,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
                      LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_log,
                      LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos,
+                     ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs,
                      Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast] at h0
         )))
         evalTactic (← `(tactic| exact h0))
@@ -198,6 +200,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
                      LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_log,
                      LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos,
+                     ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs,
                      Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
                      Rat.divInt_eq_div] at h0;
           convert h0 using 1 <;> norm_num
@@ -221,6 +224,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
                      LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_log,
                      LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos,
+                     ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs,
                      Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
                      Rat.divInt_eq_div] at h0;
           exact h0
@@ -241,6 +245,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
                      LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_log,
                      LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos,
+                     ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs,
                      Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
                      Rat.divInt_eq_div] at h0;
           exact_mod_cast h0
