@@ -23,6 +23,8 @@ Golden Theorems are defined across multiple files:
 - `Validity/DyadicBounds.lean` - Dyadic arithmetic (fast)
 - `Validity/AffineBounds.lean` - Affine arithmetic (tight bounds)
 - `Validity/Monotonicity.lean` - Monotonicity via automatic differentiation
+- `QProduct/Certificate.lean` - Exact finite q-product integrals
+- `QProduct/PrimeLambda.lean` - Prime-limit q-product certificates
 
 ### Bound Verification
 
@@ -108,6 +110,60 @@ theorem integratePartitionDyadic_correct (e : Expr) (hsupp : ExprSupportedWithIn
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
       integratePartitionDyadic e I n hn cfg
 ```
+
+### QProduct Product Integrals
+
+`LeanCert.QProduct` is a specialized exact-arithmetic certificate family for
+finite products
+
+$$
+F(S) = \int_0^1 \prod_{n \in S} (1 - u^n)\,du.
+$$
+
+The finite checker expands the product into a signed subset-sum polynomial and
+integrates exactly over `ℚ`.
+
+| Goal | Theorem | Checker |
+|------|---------|---------|
+| Exact finite interval | `verify_finiteIntegral_interval` | `checkFiniteIntegralInterval` |
+| Finite upper bound | `verify_finiteIntegral_upper` | `checkFiniteIntegralUpper` |
+| Finite lower bound | `verify_finiteIntegral_lower` | `checkFiniteIntegralLower` |
+| Prime-limit upper bound | `verify_primeLambda_upper` | `checkPrimeLambdaUpper` |
+
+```lean
+theorem verify_finiteIntegral_interval (S : Finset Nat) (lo hi : ℚ)
+    (hcheck : checkFiniteIntegralInterval S lo hi = true) :
+    (lo : ℝ) ≤ F S ∧ F S ≤ (hi : ℝ)
+```
+
+```lean
+theorem verify_primeLambda_upper (N : Nat) (hi : ℚ)
+    (hcheck : checkPrimeLambdaUpper N hi = true) :
+    primeLambda ≤ (hi : ℝ)
+```
+
+Prime-limit lower bounds are intentionally hybrid: the finite arithmetic is
+exact, but the lower side needs a mathematical tail proof. The bridge theorem
+is:
+
+```lean
+theorem primeLambda_lower_of_forall (lo : ℚ)
+    (hlo : ∀ N : Nat, (lo : ℝ) ≤ (primeFRat N : ℝ)) :
+    (lo : ℝ) ≤ primeLambda
+```
+
+The reusable odd-prime tail certificate is:
+
+```lean
+theorem primeLambda_sandwich {N m : Nat}
+    (hN : 2 ≤ N) (hm : Odd m)
+    (htail_ge : ∀ p, Nat.Prime p → N < p → m ≤ p) :
+    (primeFRat N : ℝ) - (primeSandwichErrorRat N m : ℝ) ≤ primeLambda ∧
+      primeLambda ≤ (primeFRat N : ℝ)
+```
+
+The initial module includes the formally proved tail certificate
+`primeLambda_gt_half : (1 : ℝ) / 2 < primeLambda`.
 
 ### Monotonicity
 

@@ -7,6 +7,7 @@ LeanCert is a Lean 4 library for certified numerical computation and proof-produ
 - Verified interval bounds
 - Proof automation for inequalities and root claims
 - Global optimization and integration certificates
+- Exact q-product/product-integral certificates
 - Dyadic and rational backends for different performance/precision tradeoffs
 
 ## Quick Lean Example
@@ -44,6 +45,7 @@ lake update
 | [Tactics Reference](tactics.md) | Main proving tactics |
 | [Choosing Tactics](choosing-tactics.md) | Pick the right tactic quickly |
 | [End-to-End Example](end-to-end-example.md) | Discovery to theorem workflow |
+| [QProduct Certificates](qproduct.md) | Exact product-integral and prime-limit certificates |
 
 ## Architecture
 

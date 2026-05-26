@@ -5,7 +5,7 @@
 
 Numerical computation produces suggestions. LeanCert produces theorems.
 
-LeanCert is a Lean 4 library for certified numerical reasoning: interval bounds, global optimization, root existence/uniqueness, and integration bounds with proof-producing tactics.
+LeanCert is a Lean 4 library for certified numerical reasoning: interval bounds, global optimization, root existence/uniqueness, integration bounds, and exact product-integral certificates with proof-producing tactics.
 
 ## Installation
 
@@ -41,9 +41,13 @@ LeanCert follows a certificate-driven structure:
 2. Computation in interval/taylor engines
 3. Certification through Golden Theorems
 
+It also includes specialized exact-arithmetic certificate modules such as
+`LeanCert.QProduct` for finite q-product/product-integral invariants and
+prime-indexed limit bounds.
+
 ## Checking Mathlib Compatibility
 
-LeanCert currently targets Mathlib aligned with Lean `v4.28.0`.
+LeanCert targets the Lean/mathlib version pinned by `lean-toolchain`.
 
 ```bash
 lake exe check-compat

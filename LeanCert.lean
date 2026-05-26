@@ -54,6 +54,9 @@ import LeanCert.Engine.Extended
 -- Search + Certify APIs
 import LeanCert.Engine.SearchAPI
 
+-- Q-product product-integral certificates
+import LeanCert.QProduct
+
 -- Meta (metaprogramming utilities)
 import LeanCert.Meta.ProveContinuous
 import LeanCert.Meta.ProveSupported
@@ -265,6 +268,64 @@ export LeanCert.Engine.SearchAPI (
   isNegativeOn
   getLowerBound
   getUpperBound
+)
+
+-- Re-export QProduct API
+export LeanCert.QProduct (
+  qProd
+  F
+  subsetSign
+  subsetWeight
+  finiteIntegralRat
+  momentRat
+  moment
+  finiteIntegralRat_correct
+  momentRat_correct
+  qProd_powerset_expand
+  qProd_nonneg
+  qProd_le_one
+  pow_mem_unit_interval
+  F_nonneg
+  F_le_one
+  F_antitone
+  one_sub_prod_one_sub_le_sum
+  qProd_sub_le_commonPrefix_sum
+  odd_tail_telescope_bound
+  odd_tail_sum_le_geom
+  checkFiniteIntegralInterval
+  verify_finiteIntegral_interval
+  checkFiniteIntegralUpper
+  checkFiniteIntegralLower
+  verify_finiteIntegral_upper
+  verify_finiteIntegral_lower
+  primesLE
+  primeFRat
+  primeSandwichErrorRat
+  primeSandwichLowerRat
+  primeSandwichLowerFun
+  primeLambda
+  primeFRat_antitone
+  primeLambda_le_trunc
+  primeLambda_lower_of_forall
+  checkPrimeLambdaUpper
+  verify_primeLambda_upper
+  verify_primeLambda_interval_of_forall
+  prime_odd_of_gt_two
+  odd_ge_form
+  telescope_odd_sum_bound_from
+  primeSandwichLowerFun_pointwise_of_tail_ge
+  primeSandwichLowerFun_le_prime_truncation_of_tail_ge
+  integral_primeSandwichLowerFun_eq_rat
+  primeSandwichLowerRat_le_truncation_of_tail_ge
+  primeSandwichLowerRat_le_lambda_of_tail_ge
+  primeLambda_rational_sandwich
+  primeLambda_sandwich
+  primeSandwichErrorRat_three_five
+  primeSandwichLowerRat_three_five
+  primeSandwichLowerRat_three_five_le_lambda
+  primeFRat_lower_nineteen_thirtysix
+  primeLambda_lower_nineteen_thirtysix
+  primeLambda_gt_half
 )
 
 /-! ### Convenience abbreviations -/
