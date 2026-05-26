@@ -54,6 +54,9 @@ import LeanCert.Engine.Extended
 -- Search + Certify APIs
 import LeanCert.Engine.SearchAPI
 
+-- Q-product product-integral certificates
+import LeanCert.QProduct
+
 -- Meta (metaprogramming utilities)
 import LeanCert.Meta.ProveContinuous
 import LeanCert.Meta.ProveSupported
@@ -265,6 +268,48 @@ export LeanCert.Engine.SearchAPI (
   isNegativeOn
   getLowerBound
   getUpperBound
+)
+
+-- Re-export QProduct API
+export LeanCert.QProduct (
+  qProd
+  F
+  subsetSign
+  subsetWeight
+  finiteIntegralRat
+  momentRat
+  moment
+  finiteIntegralRat_correct
+  momentRat_correct
+  qProd_powerset_expand
+  qProd_nonneg
+  qProd_le_one
+  pow_mem_unit_interval
+  F_nonneg
+  F_le_one
+  F_antitone
+  one_sub_prod_one_sub_le_sum
+  qProd_sub_le_commonPrefix_sum
+  odd_tail_telescope_bound
+  odd_tail_sum_le_geom
+  checkFiniteIntegralInterval
+  verify_finiteIntegral_interval
+  checkFiniteIntegralUpper
+  checkFiniteIntegralLower
+  verify_finiteIntegral_upper
+  verify_finiteIntegral_lower
+  primesLE
+  primeFRat
+  primeLambda
+  primeFRat_antitone
+  primeLambda_le_trunc
+  primeLambda_lower_of_forall
+  checkPrimeLambdaUpper
+  verify_primeLambda_upper
+  verify_primeLambda_interval_of_forall
+  primeFRat_lower_nineteen_thirtysix
+  primeLambda_lower_nineteen_thirtysix
+  primeLambda_gt_half
 )
 
 /-! ### Convenience abbreviations -/
