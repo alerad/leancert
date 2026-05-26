@@ -15,8 +15,7 @@ Run with: `lake exe check-compat`
 open System
 
 /-- LeanCert's expected Mathlib version -/
-def expectedMathlibRev : String := "v4.27.0-rc1"
-def expectedMathlibCommit : String := "32d24245c7a12ded17325299fd41d412022cd3fe"
+def expectedMathlibRev : String := "v4.29.1"
 
 /-- Extract mathlib rev from lake-manifest.json content -/
 def extractMathlibRev (content : String) : Option (String × String) := do
@@ -58,14 +57,13 @@ def main (args : List String) : IO UInt32 := do
       IO.eprintln "Make sure your project depends on mathlib"
       return 1
     | some (commit, inputRev) =>
-      let isCompatible := commit == expectedMathlibCommit || inputRev == expectedMathlibRev
+      let isCompatible := inputRev == expectedMathlibRev
 
       if args.contains "--json" then
         -- JSON output for programmatic use
         let result := Lean.Json.mkObj [
           ("compatible", Lean.Json.bool isCompatible),
           ("expected_rev", Lean.Json.str expectedMathlibRev),
-          ("expected_commit", Lean.Json.str expectedMathlibCommit),
           ("found_rev", Lean.Json.str inputRev),
           ("found_commit", Lean.Json.str commit)
         ]
