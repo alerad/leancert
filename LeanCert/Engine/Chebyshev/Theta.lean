@@ -633,4 +633,69 @@ theorem checkAllThetaRelErrorReal_implies
   go_true_implies_checkAllThetaRelErrorReal start limit bound depth 1 (by omega) 0 0
     (by simp [thetaUB]) (by simp [thetaLB]) h N (by omega) hN_start hNb
 
+/-! ### Golden theorem aliases -/
+
+/-- Golden theorem: a successful `checkThetaLeMulWith` certificate proves
+`θ(N) ≤ slope * N`. -/
+theorem verify_theta_le_mul (N depth : Nat) (slope : Rat)
+    (hcheck : checkThetaLeMulWith N slope depth = true) :
+    theta (N : Real) ≤ (slope : Real) * N :=
+  theta_le_of_checkThetaLeMulWith N depth slope hcheck
+
+/-- Golden theorem for absolute-error certificates at one natural input. -/
+theorem verify_theta_abs_error (N depth : Nat) (bound : Rat)
+    (hcheck : checkThetaAbsError N bound depth = true) :
+    |theta (N : Real) - N| ≤ (bound : Real) :=
+  abs_theta_sub_le_of_checkThetaAbsError N depth bound hcheck
+
+/-- Golden theorem for relative-error certificates at one natural input. -/
+theorem verify_theta_rel_error (N depth : Nat) (bound : Rat)
+    (hcheck : checkThetaRelError N bound depth = true) :
+    |theta (N : Real) - N| ≤ (bound : Real) * N :=
+  abs_theta_sub_le_mul_of_checkThetaRelError N depth bound hcheck
+
+/-- Golden theorem for strengthened real-variable relative-error certificates
+on a single unit interval `[N, N+1)`. -/
+theorem verify_theta_rel_error_real (N depth : Nat) (bound : Rat)
+    (hbound : 0 ≤ bound) (hbound1 : bound ≤ 1)
+    (hcheck : checkThetaRelErrorReal N bound depth = true)
+    (x : Real) (hxlo : (N : Real) ≤ x) (hxhi : x < (N : Real) + 1) :
+    |theta x - x| ≤ (bound : Real) * x :=
+  abs_theta_sub_le_mul_of_checkThetaRelErrorReal N depth bound hbound hbound1 hcheck
+    x hxlo hxhi
+
+/-- Golden theorem for the incremental upper-bound checker over all natural
+inputs up to `bound`. -/
+theorem verify_all_theta_le_mul
+    (bound depth : Nat) (slope : Rat)
+    (hcheck : checkAllThetaLeMulWith bound slope depth = true) :
+    ∀ N : Nat, 0 < N → N ≤ bound →
+      theta (N : Real) ≤ (slope : Real) * N := by
+  intro N hN hNb
+  exact verify_theta_le_mul N depth slope
+    (checkAllThetaLeMulWith_implies_checkThetaLeMulWith bound slope depth hcheck N hN hNb)
+
+/-- Golden theorem for the incremental absolute-error checker over all natural
+inputs up to `limit`. -/
+theorem verify_all_theta_abs_error
+    (limit depth : Nat) (bound : Rat)
+    (hcheck : checkAllThetaAbsError limit bound depth = true) :
+    ∀ N : Nat, 0 < N → N ≤ limit →
+      |theta (N : Real) - N| ≤ (bound : Real) := by
+  intro N hN hNb
+  exact verify_theta_abs_error N depth bound
+    (checkAllThetaAbsError_implies_checkThetaAbsError limit bound depth hcheck N hN hNb)
+
+/-- Golden theorem for the incremental relative-error checker over all natural
+inputs in `[start, limit]`. -/
+theorem verify_all_theta_rel_error
+    (start limit depth : Nat) (bound : Rat)
+    (hcheck : checkAllThetaRelError start limit bound depth = true) :
+    ∀ N : Nat, 0 < N → start ≤ N → N ≤ limit →
+      |theta (N : Real) - N| ≤ (bound : Real) * N := by
+  intro N hN hN_start hNb
+  exact verify_theta_rel_error N depth bound
+    (checkAllThetaRelError_implies_checkThetaRelError start limit bound depth hcheck
+      N hN hN_start hNb)
+
 end LeanCert.Engine.ChebyshevTheta

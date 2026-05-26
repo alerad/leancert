@@ -35,6 +35,8 @@ import LeanCert.Engine.ReflectiveSum
 import LeanCert.Engine.FinSumDyadic
 -- v1.3: Witness-based finite sum evaluator (user-provided per-term evaluator)
 import LeanCert.Engine.WitnessSum
+import LeanCert.Engine.ChebyshevPsi
+import LeanCert.Engine.ChebyshevTheta
 
 -- Global Optimization
 import LeanCert.Engine.Optimization.Box
@@ -268,6 +270,59 @@ export LeanCert.Engine.SearchAPI (
   isNegativeOn
   getLowerBound
   getUpperBound
+)
+
+-- Re-export Chebyshev certificate APIs
+export LeanCert.Engine.ChebyshevPsi (
+  vonMangoldtUB
+  psiUB
+  checkPsiLeMulWith
+  checkAllPsiLeMulWith
+  checkPsiBound
+  allPsiBoundsHold
+  psi_le_psiUB
+  psi_le_of_checkPsiLeMulWith
+  psi_le_mul_real_of_checkPsiLeMulWith
+  checkAllPsiLeMulWith_implies_checkPsiLeMulWith
+  allPsiBoundsHold_implies_checkPsiBound
+  verify_psi_le_mul
+  verify_psi_le_mul_real
+  verify_all_psi_le_mul
+  verify_all_psi_le_mul_real
+  verify_psi_bound
+  verify_all_psi_bound
+)
+
+export LeanCert.Engine.ChebyshevTheta (
+  logPrimeUB
+  logPrimeLB
+  thetaUB
+  thetaLB
+  checkThetaLeMulWith
+  checkAllThetaLeMulWith
+  checkThetaAbsError
+  checkAllThetaAbsError
+  checkThetaRelError
+  checkAllThetaRelError
+  checkThetaRelErrorReal
+  checkAllThetaRelErrorReal
+  theta_le_thetaUB
+  thetaLB_le_theta
+  theta_le_of_checkThetaLeMulWith
+  abs_theta_sub_le_of_checkThetaAbsError
+  abs_theta_sub_le_mul_of_checkThetaRelError
+  abs_theta_sub_le_mul_of_checkThetaRelErrorReal
+  checkAllThetaLeMulWith_implies_checkThetaLeMulWith
+  checkAllThetaAbsError_implies_checkThetaAbsError
+  checkAllThetaRelError_implies_checkThetaRelError
+  checkAllThetaRelErrorReal_implies
+  verify_theta_le_mul
+  verify_theta_abs_error
+  verify_theta_rel_error
+  verify_theta_rel_error_real
+  verify_all_theta_le_mul
+  verify_all_theta_abs_error
+  verify_all_theta_rel_error
 )
 
 -- Re-export QProduct API

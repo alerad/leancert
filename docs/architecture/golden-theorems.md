@@ -23,6 +23,8 @@ Golden Theorems are defined across multiple files:
 - `Validity/DyadicBounds.lean` - Dyadic arithmetic (fast)
 - `Validity/AffineBounds.lean` - Affine arithmetic (tight bounds)
 - `Validity/Monotonicity.lean` - Monotonicity via automatic differentiation
+- `Engine/Chebyshev/Psi.lean` - Chebyshev `ψ` finite-range certificates
+- `Engine/Chebyshev/Theta.lean` - Chebyshev `θ` finite-range certificates
 - `QProduct/Certificate.lean` - Exact finite q-product integrals
 - `QProduct/PrimeLambda.lean` - Prime-limit q-product certificates
 
@@ -164,6 +166,45 @@ theorem primeLambda_sandwich {N m : Nat}
 
 The initial module includes the formally proved tail certificate
 `primeLambda_gt_half : (1 : ℝ) / 2 < primeLambda`.
+
+### Chebyshev Certificates
+
+The Chebyshev engines expose specialized finite-range Golden Theorems for
+number-theoretic functions.
+
+For `ψ`, the checker bounds a computable rational envelope `psiUB`:
+
+| Goal | Theorem | Checker |
+|------|---------|---------|
+| One natural input | `verify_psi_le_mul` | `checkPsiLeMulWith` |
+| All natural inputs up to `bound` | `verify_all_psi_le_mul` | `checkAllPsiLeMulWith` |
+| All real inputs up to `bound` | `verify_all_psi_le_mul_real` | `checkAllPsiLeMulWith` |
+
+```lean
+theorem verify_all_psi_le_mul
+    (bound depth : Nat) (slope : ℚ)
+    (hcheck : checkAllPsiLeMulWith bound slope depth = true) :
+    ∀ N : Nat, 0 < N → N ≤ bound →
+      Chebyshev.psi (N : ℝ) ≤ (slope : ℝ) * N
+```
+
+For `θ`, the checker supports upper, absolute-error, and relative-error bounds:
+
+| Goal | Theorem | Checker |
+|------|---------|---------|
+| Upper bound | `verify_theta_le_mul` | `checkThetaLeMulWith` |
+| Absolute error | `verify_theta_abs_error` | `checkThetaAbsError` |
+| Relative error | `verify_theta_rel_error` | `checkThetaRelError` |
+| Range relative error | `verify_all_theta_rel_error` | `checkAllThetaRelError` |
+| Unit-interval real relative error | `verify_theta_rel_error_real` | `checkThetaRelErrorReal` |
+
+```lean
+theorem verify_all_theta_rel_error
+    (start limit depth : Nat) (bound : ℚ)
+    (hcheck : checkAllThetaRelError start limit bound depth = true) :
+    ∀ N : Nat, 0 < N → start ≤ N → N ≤ limit →
+      |Chebyshev.theta (N : ℝ) - N| ≤ (bound : ℝ) * N
+```
 
 ### Monotonicity
 

@@ -229,4 +229,71 @@ theorem allPsiBoundsHold_implies_checkPsiBound
   simpa [allPsiBoundsHold, checkPsiBound] using
     (checkAllPsiLeMulWith_implies_checkPsiLeMulWith bound (111 / 100) depth h N hN hNb)
 
+/-! ### Golden theorem aliases -/
+
+/-- Golden theorem: a successful `checkPsiLeMulWith` certificate proves
+`ψ(N) ≤ slope * N`. -/
+theorem verify_psi_le_mul (N depth : Nat) (slope : Rat)
+    (hcheck : checkPsiLeMulWith N slope depth = true) :
+    psi (N : Real) ≤ (slope : Real) * N :=
+  psi_le_of_checkPsiLeMulWith N depth slope hcheck
+
+/-- Golden theorem, real-variable form: a successful checker at `⌊x⌋₊`
+proves `ψ(x) ≤ slope * x`. -/
+theorem verify_psi_le_mul_real
+    (x : Real) (slope : Rat) (depth : Nat)
+    (hslope : 0 ≤ slope) (hx : 0 < x)
+    (hcheck : checkPsiLeMulWith (Nat.floor x) slope depth = true) :
+    psi x ≤ (slope : Real) * x :=
+  psi_le_mul_real_of_checkPsiLeMulWith x slope depth hslope hx hcheck
+
+/-- Golden theorem for the incremental checker over all natural inputs up to
+`bound`. -/
+theorem verify_all_psi_le_mul
+    (bound depth : Nat) (slope : Rat)
+    (hcheck : checkAllPsiLeMulWith bound slope depth = true) :
+    ∀ N : Nat, 0 < N → N ≤ bound →
+      psi (N : Real) ≤ (slope : Real) * N := by
+  intro N hN hNb
+  exact verify_psi_le_mul N depth slope
+    (checkAllPsiLeMulWith_implies_checkPsiLeMulWith bound slope depth hcheck N hN hNb)
+
+/-- Golden theorem for the incremental checker over all real inputs
+`0 < x ≤ bound`. The `⌊x⌋₊ = 0` case is discharged by `ψ(x) = 0`. -/
+theorem verify_all_psi_le_mul_real
+    (bound depth : Nat) (slope : Rat)
+    (hslope : 0 ≤ slope)
+    (hcheck : checkAllPsiLeMulWith bound slope depth = true) :
+    ∀ x : Real, 0 < x → x ≤ (bound : Real) →
+      psi x ≤ (slope : Real) * x := by
+  intro x hx hxb
+  rw [Chebyshev.psi_eq_psi_coe_floor x]
+  have hnn : (0 : Real) ≤ x := le_of_lt hx
+  have hfloor_le : Nat.floor x ≤ bound := Nat.floor_le_of_le hxb
+  rcases Nat.eq_zero_or_pos (Nat.floor x) with hfloor0 | hfloor_pos
+  · rw [hfloor0]
+    have hpsi0 : psi (0 : Real) = 0 :=
+      Chebyshev.psi_eq_zero_of_lt_two (by norm_num : (0 : Real) < 2)
+    rw [show ((0 : Nat) : Real) = 0 by norm_num, hpsi0]
+    exact mul_nonneg (by exact_mod_cast hslope) (le_of_lt hx)
+  · exact (verify_all_psi_le_mul bound depth slope hcheck
+      (Nat.floor x) hfloor_pos hfloor_le).trans
+      (mul_le_mul_of_nonneg_left (Nat.floor_le hnn) (by exact_mod_cast hslope))
+
+/-- Backwards-compatible Golden theorem for the legacy `1.11` checker. -/
+theorem verify_psi_bound (N depth : Nat)
+    (hcheck : checkPsiBound N depth = true) :
+    psi (N : Real) ≤ 111 / 100 * N :=
+  psi_le_of_checkPsiBound N depth hcheck
+
+/-- Backwards-compatible Golden theorem for the legacy incremental `1.11`
+checker. -/
+theorem verify_all_psi_bound
+    (bound depth : Nat) (hcheck : allPsiBoundsHold bound depth = true) :
+    ∀ N : Nat, 0 < N → N ≤ bound →
+      psi (N : Real) ≤ 111 / 100 * N := by
+  intro N hN hNb
+  exact verify_psi_bound N depth
+    (allPsiBoundsHold_implies_checkPsiBound bound depth hcheck N hN hNb)
+
 end LeanCert.Engine.ChebyshevPsi
