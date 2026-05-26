@@ -166,9 +166,6 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
     let ast ← reify funcExpr
     trace[interval_decide] "ast reified"
 
-    let supportProof ← mkSupportedCoreProof ast
-    trace[interval_decide] "supportProof generated"
-
     -- Helper: try to close the goal given a proof term for the bound
     let tryCloseWith (proofStx : TSyntax `term) : TacticM Bool := do
       -- Approach 1: Direct simp + exact
@@ -317,6 +314,9 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
     catch e =>
       trace[interval_decide] "Dyadic backend failed: {e.toMessageData}"
 
+    let supportProof ← mkSupportedCoreProof ast
+    trace[interval_decide] "supportProof generated"
+
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
     let zeroRat : ℚ := 0
@@ -419,6 +419,11 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
   let c : ℚ ←
     if !hasFreeVars then
       trace[interval_decide] "No free variables, trying closed expression path"
+      try
+        proveClosedExpressionBound goal goalType taylorDepth
+        return
+      catch e =>
+        trace[interval_decide] "Closed expression path on original goal failed: {e.toMessageData}"
       let mut currentGoal := goal
       let mut currentGoalType := goalType
       try
