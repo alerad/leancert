@@ -21,6 +21,27 @@ example : primeLambda ≤ ((7 / 12 : ℚ) : ℝ) := by
 example : primeLambda ≤ ((133 / 240 : ℚ) : ℝ) := by
   exact verify_primeLambda_upper 7 (133 / 240) (by native_decide)
 
+example : primeSandwichErrorRat 3 5 = 1 / 18 := by
+  exact primeSandwichErrorRat_three_five
+
+example : primeSandwichLowerRat 3 5 = 19 / 36 := by
+  exact primeSandwichLowerRat_three_five
+
+example : (primeSandwichLowerRat 3 5 : ℝ) ≤ primeLambda := by
+  exact primeSandwichLowerRat_three_five_le_lambda
+
+example :
+    ((primeFRat 3 : ℝ) - (primeSandwichErrorRat 3 5 : ℝ) ≤ primeLambda ∧
+      primeLambda ≤ (primeFRat 3 : ℝ)) := by
+  apply primeLambda_sandwich (N := 3) (m := 5) (by norm_num) (by decide)
+  intro p hp_prime hp_gt
+  have hp_ge4 : 4 ≤ p := Nat.succ_le_of_lt hp_gt
+  rcases Nat.lt_or_eq_of_le hp_ge4 with hp4 | hp4
+  · exact Nat.succ_le_of_lt hp4
+  · exfalso
+    rw [← hp4] at hp_prime
+    exact (by native_decide : ¬ Nat.Prime 4) hp_prime
+
 example : ((19 / 36 : ℚ) : ℝ) ≤ primeLambda := by
   exact primeLambda_lower_nineteen_thirtysix
 

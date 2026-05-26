@@ -152,6 +152,16 @@ theorem primeLambda_lower_of_forall (lo : ℚ)
     (lo : ℝ) ≤ primeLambda
 ```
 
+The reusable odd-prime tail certificate is:
+
+```lean
+theorem primeLambda_sandwich {N m : Nat}
+    (hN : 2 ≤ N) (hm : Odd m)
+    (htail_ge : ∀ p, Nat.Prime p → N < p → m ≤ p) :
+    (primeFRat N : ℝ) - (primeSandwichErrorRat N m : ℝ) ≤ primeLambda ∧
+      primeLambda ≤ (primeFRat N : ℝ)
+```
+
 The initial module includes the formally proved tail certificate
 `primeLambda_gt_half : (1 : ℝ) / 2 < primeLambda`.
 

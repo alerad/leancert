@@ -300,6 +300,9 @@ export LeanCert.QProduct (
   verify_finiteIntegral_lower
   primesLE
   primeFRat
+  primeSandwichErrorRat
+  primeSandwichLowerRat
+  primeSandwichLowerFun
   primeLambda
   primeFRat_antitone
   primeLambda_le_trunc
@@ -307,6 +310,19 @@ export LeanCert.QProduct (
   checkPrimeLambdaUpper
   verify_primeLambda_upper
   verify_primeLambda_interval_of_forall
+  prime_odd_of_gt_two
+  odd_ge_form
+  telescope_odd_sum_bound_from
+  primeSandwichLowerFun_pointwise_of_tail_ge
+  primeSandwichLowerFun_le_prime_truncation_of_tail_ge
+  integral_primeSandwichLowerFun_eq_rat
+  primeSandwichLowerRat_le_truncation_of_tail_ge
+  primeSandwichLowerRat_le_lambda_of_tail_ge
+  primeLambda_rational_sandwich
+  primeLambda_sandwich
+  primeSandwichErrorRat_three_five
+  primeSandwichLowerRat_three_five
+  primeSandwichLowerRat_three_five_le_lambda
   primeFRat_lower_nineteen_thirtysix
   primeLambda_lower_nineteen_thirtysix
   primeLambda_gt_half

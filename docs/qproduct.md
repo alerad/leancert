@@ -152,9 +152,28 @@ theorem primeLambda_lower_of_forall (lo : ℚ)
     (lo : ℝ) ≤ primeLambda
 ```
 
+The reusable odd-prime tail theorem is `primeLambda_sandwich`:
+
+```lean
+theorem primeLambda_sandwich {N m : Nat}
+    (hN : 2 ≤ N) (hm : Odd m)
+    (htail_ge : ∀ p, Nat.Prime p → N < p → m ≤ p) :
+    (primeFRat N : ℝ) - (primeSandwichErrorRat N m : ℝ) ≤ primeLambda ∧
+      primeLambda ≤ (primeFRat N : ℝ)
+```
+
+The rational endpoint form is `primeLambda_rational_sandwich`, where
+`primeSandwichLowerRat N m = primeFRat N - primeSandwichErrorRat N m`.
+
 The module includes the elementary odd-tail certificate:
 
 ```lean
+theorem primeSandwichLowerRat_three_five :
+    primeSandwichLowerRat 3 5 = 19 / 36
+
+theorem primeSandwichLowerRat_three_five_le_lambda :
+    (primeSandwichLowerRat 3 5 : ℝ) ≤ primeLambda
+
 theorem primeLambda_lower_nineteen_thirtysix :
     ((19 / 36 : ℚ) : ℝ) ≤ primeLambda
 
@@ -178,6 +197,7 @@ The implemented framework certifies:
 - finite interval, upper, and lower certificates;
 - positivity, boundedness, antitonicity, and common-prefix tail bounds;
 - prime truncation upper certificates;
+- reusable odd-prime tail sandwich certificates;
 - the formal lower bound `19 / 36 ≤ primeLambda`, hence `1 / 2 < primeLambda`.
 
 High-precision prime-limit sandwiches and eta-function closed-form benchmarks
