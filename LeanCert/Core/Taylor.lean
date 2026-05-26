@@ -230,12 +230,11 @@ theorem taylor_remainder_bound_on_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : �
   have hf_on_m' : ContDiffOn ℝ m f (uIcc c x) := by rwa [uIcc_of_le hcx_le]
   have hf_diff' : DifferentiableOn ℝ (iteratedDerivWithin m f (uIcc c x)) (uIoo c x) := by
     rwa [uIcc_of_le hcx_le, uIoo_of_lt hcx]
-  obtain ⟨ξ, hξ_mem, hLagrange⟩ := taylor_mean_remainder_lagrange hcx.ne hf_on_m' hf_diff'
-  rw [uIoo_of_lt hcx] at hξ_mem
+  obtain ⟨ξ, hξ_mem, hLagrange⟩ :=
+    taylor_mean_remainder_lagrange (x₀ := c) (x := x) hcx hf_on_m hf_diff
   have hξ_ab : ξ ∈ Icc a b := hI_sub' (Ioo_subset_Icc_self hξ_mem)
   have hderiv_ξ : iteratedDerivWithin (m + 1) f (Icc c x) ξ = iteratedDeriv (m + 1) f ξ :=
     iteratedDerivWithin_Icc_interior_eq hcx hξ_mem
-  rw [uIcc_of_le hcx_le] at hLagrange
   have hsum_eq : ∑ i ∈ range (m + 1), (iteratedDeriv i f c / i.factorial) * (x - c) ^ i =
                  taylorWithinEval f m (Icc c x) c x := by
     rw [taylor_within_apply]
@@ -554,12 +553,11 @@ theorem taylor_remainder_bound_c_lt_x {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
   have hf_on_m' : ContDiffOn ℝ m f (uIcc c x) := by rwa [uIcc_of_le hcx_le]
   have hf_diff' : DifferentiableOn ℝ (iteratedDerivWithin m f (uIcc c x)) (uIoo c x) := by
     rwa [uIcc_of_le hcx_le, uIoo_of_lt hcx]
-  obtain ⟨ξ, hξ_mem, hLagrange⟩ := taylor_mean_remainder_lagrange hcx.ne hf_on_m' hf_diff'
-  rw [uIoo_of_lt hcx] at hξ_mem
+  obtain ⟨ξ, hξ_mem, hLagrange⟩ :=
+    taylor_mean_remainder_lagrange (x₀ := c) (x := x) hcx hf_on_m hf_diff
   have hξ_ab : ξ ∈ Icc a b := hI_sub (Ioo_subset_Icc_self hξ_mem)
   have hderiv_ξ : iteratedDerivWithin (m + 1) f (Icc c x) ξ = iteratedDeriv (m + 1) f ξ :=
     iteratedDerivWithin_Icc_interior_eq hcx hξ_mem
-  rw [uIcc_of_le hcx_le] at hLagrange
   have hsum_eq : ∑ i ∈ range (m + 1), (iteratedDeriv i f c / i.factorial) * (x - c) ^ i =
                  taylorWithinEval f m (Icc c x) c x := by
     rw [taylor_within_apply]
@@ -630,9 +628,9 @@ theorem taylor_remainder_bound_x_lt_c {f : ℝ → ℝ} {a b c : ℝ} {m : ℕ} 
   have hg_on_m' : ContDiffOn ℝ m g (uIcc c (2 * c - x)) := by rwa [uIcc_of_le h_interval_le]
   have hg_diff' : DifferentiableOn ℝ (iteratedDerivWithin m g (uIcc c (2 * c - x))) (uIoo c (2 * c - x)) := by
     rwa [uIcc_of_le h_interval_le, uIoo_of_lt h_interval_lt]
-  obtain ⟨ξ', hξ'_mem, hLagrange⟩ := taylor_mean_remainder_lagrange h_interval_lt.ne hg_on_m' hg_diff'
-  rw [uIoo_of_lt h_interval_lt] at hξ'_mem
-  rw [uIcc_of_le h_interval_le] at hLagrange
+  obtain ⟨ξ', hξ'_mem, hLagrange⟩ :=
+    taylor_mean_remainder_lagrange (x₀ := c) (x := 2 * c - x)
+      h_interval_lt hg_on_m hg_diff
   -- ξ = 2c - ξ' ∈ (x, c)
   set ξ := 2 * c - ξ' with hξ_def
   have hξ'_lt_2cmx : ξ' < 2 * c - x := hξ'_mem.2
