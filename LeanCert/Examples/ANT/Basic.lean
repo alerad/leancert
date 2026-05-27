@@ -48,7 +48,30 @@ example :
   · native_decide
 
 example :
+    ((1 / 4 : ℚ) : ℝ) ≤ primeEulerOneMinusInv 5 ∧
+      primeEulerOneMinusInv 5 ≤ ((1 / 3 : ℚ) : ℝ) := by
+  exact verify_primeEulerOneMinusInv_interval 5 (1 / 4) (1 / 3) (by native_decide)
+
+example :
+    ((2 : ℚ) : ℝ) ≤ primeEulerOnePlusInv 5 ∧
+      primeEulerOnePlusInv 5 ≤ ((3 : ℚ) : ℝ) := by
+  exact verify_primeEulerOnePlusInv_interval 5 2 3 (by native_decide)
+
+example :
+    Real.exp ((0 : ℚ) : ℝ) ≤ finiteProduct ({2, 3} : Finset Nat) (fun _ => (1 : ℝ)) ∧
+      finiteProduct ({2, 3} : Finset Nat) (fun _ => (1 : ℝ)) ≤ Real.exp ((0 : ℚ) : ℝ) := by
+  apply verify_product_interval_of_log_interval
+  · intro n hn
+    norm_num
+  · simp [finiteLogProduct]
+
+example :
     ((0 : ℚ) : ℝ) ≤ mertensLogSum 5 ∧ mertensLogSum 5 ≤ ((3 : ℚ) : ℝ) := by
   exact verify_mertensLogSum_interval 5 20 0 3 (by native_decide)
+
+example :
+    ((0 : ℚ) : ℝ) ≤ mertensAbelSum 5 ∧ mertensAbelSum 5 ≤ ((3 : ℚ) : ℝ) := by
+  exact verify_mertensAbel_interval (N := 5) (depth := 20) (by norm_num) 0 3
+    (by native_decide)
 
 end LeanCert.Examples.ANT

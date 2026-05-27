@@ -3,6 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+import LeanCert.ANT.Abel
 import LeanCert.ANT.EulerProduct
 import LeanCert.Engine.ChebyshevTheta
 
@@ -22,6 +23,26 @@ open LeanCert.Engine.ChebyshevTheta
 noncomputable def mertensLogSum (N : Nat) : ℝ :=
   ∑ p ∈ primesLE N, Real.log p / (p : ℝ)
 
+/-- Prime logarithm increment used by the Abel bridge. -/
+noncomputable def thetaIncrement (n : Nat) : ℝ :=
+  if n.Prime then Real.log n else 0
+
+/-- Rational weight `1/n`. -/
+def invNatRat (n : Nat) : ℚ :=
+  1 / (n : ℚ)
+
+/-- Lower prefix envelope for `thetaIncrement`. -/
+def thetaPrefixLowerRat (depth k : Nat) : ℚ :=
+  ∑ n ∈ Finset.range k, logPrimeLB n depth
+
+/-- Upper prefix envelope for `thetaIncrement`. -/
+def thetaPrefixUpperRat (depth k : Nat) : ℚ :=
+  ∑ n ∈ Finset.range k, logPrimeUB n depth
+
+/-- The Abel-side weighted sum for `∑_{p ≤ N} log p / p`. -/
+noncomputable def mertensAbelSum (N : Nat) : ℝ :=
+  weightedSum thetaIncrement invNatRat 2 (N + 1)
+
 /-- Rational lower endpoint for `∑_{p ≤ N} log p / p`. -/
 def mertensLogSumLowerRat (N depth : Nat) : ℚ :=
   ∑ p ∈ primesLE N, logPrimeLB p depth / (p : ℚ)
@@ -34,6 +55,43 @@ private theorem prime_pos_of_mem_primesLE {N p : Nat} (hp : p ∈ primesLE N) :
     0 < p := by
   simp only [primesLE, Finset.mem_filter, Finset.mem_range] at hp
   exact hp.2.pos
+
+theorem thetaPrefixLowerRat_le_prefix (depth k : Nat) :
+    (thetaPrefixLowerRat depth k : ℝ) ≤ prefixSum thetaIncrement k := by
+  unfold thetaPrefixLowerRat prefixSum thetaIncrement
+  rw [Rat.cast_sum]
+  apply Finset.sum_le_sum
+  intro n hn
+  exact logPrimeLB_le_log_prime n depth
+
+theorem prefix_le_thetaPrefixUpperRat (depth k : Nat) :
+    prefixSum thetaIncrement k ≤ (thetaPrefixUpperRat depth k : ℝ) := by
+  unfold thetaPrefixUpperRat prefixSum thetaIncrement
+  rw [Rat.cast_sum]
+  apply Finset.sum_le_sum
+  intro n hn
+  exact log_prime_le_logPrimeUB n depth
+
+theorem thetaPrefix_envelope (depth : Nat) :
+    ∀ k, (thetaPrefixLowerRat depth k : ℝ) ≤ prefixSum thetaIncrement k ∧
+      prefixSum thetaIncrement k ≤ (thetaPrefixUpperRat depth k : ℝ) := by
+  intro k
+  exact ⟨thetaPrefixLowerRat_le_prefix depth k, prefix_le_thetaPrefixUpperRat depth k⟩
+
+/-- Abel-bound checker for the Mertens log sum. -/
+def checkMertensAbelInterval (N depth : Nat) (lo hi : ℚ) : Bool :=
+  checkAbelBoundInterval invNatRat (thetaPrefixLowerRat depth)
+    (thetaPrefixUpperRat depth) 2 (N + 1) lo hi
+
+/-- Golden theorem for the Abel-certified Mertens weighted sum. -/
+theorem verify_mertensAbel_interval {N depth : Nat} (hN : 2 < N + 1) (lo hi : ℚ)
+    (hcheck : checkMertensAbelInterval N depth lo hi = true) :
+    (lo : ℝ) ≤ mertensAbelSum N ∧ mertensAbelSum N ≤ (hi : ℝ) := by
+  unfold checkMertensAbelInterval at hcheck
+  unfold mertensAbelSum
+  exact verify_abelBound_interval thetaIncrement invNatRat
+    (thetaPrefixLowerRat depth) (thetaPrefixUpperRat depth) hN
+    (thetaPrefix_envelope depth) lo hi hcheck
 
 /-- Lower correctness for the finite Mertens log-sum certificate. -/
 theorem mertensLogSumLowerRat_le (N depth : Nat) :

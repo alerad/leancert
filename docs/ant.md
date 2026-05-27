@@ -66,6 +66,19 @@ verify_abel_lower
 This is the finite backbone for later continuous partial-summation and
 Stieltjes-integral APIs.
 
+For propagation from certified prefix bounds, use the bounded Abel API:
+
+```lean
+abelBoundLowerRat
+abelBoundUpperRat
+checkAbelBoundInterval
+verify_abelBound_interval
+```
+
+This proves weighted-sum bounds from envelopes for the prefix function
+`A(k) = ∑ i < k, a i`. Coefficient signs are handled automatically when building
+the lower and upper Abel endpoints.
+
 ## Euler And Log Products
 
 Finite products are certified from pointwise nonnegative rational factor
@@ -79,6 +92,22 @@ Finite log-products are certified from pointwise logarithm envelopes:
 
 ```lean
 verify_logProduct_interval
+```
+
+Positive products can also be bounded through their logs:
+
+```lean
+finiteProduct_eq_exp_finiteLogProduct
+verify_product_interval_of_log_interval
+```
+
+Prime-product presets are included for the most common Mertens factors:
+
+```lean
+primeEulerOneMinusInv        -- ∏ p ≤ N, (1 - 1 / p)
+primeEulerOnePlusInv         -- ∏ p ≤ N, (1 + 1 / p)
+verify_primeEulerOneMinusInv_interval
+verify_primeEulerOnePlusInv_interval
 ```
 
 ## Mertens-Style Prime Sums
@@ -96,5 +125,13 @@ checkMertensLogSumInterval
 verify_mertensLogSum_interval
 ```
 
-This gives the finite Chebyshev-to-Mertens bridge. Stronger global Mertens
-certificates should build on this with Abel bounds and tail envelopes.
+There is also an Abel-routed version:
+
+```lean
+mertensAbelSum
+checkMertensAbelInterval
+verify_mertensAbel_interval
+```
+
+This is the finite Chebyshev-to-Abel-to-Mertens bridge. Stronger global Mertens
+certificates should build on this with tail envelopes.

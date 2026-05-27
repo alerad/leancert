@@ -219,9 +219,14 @@ Chebyshev engines.
 |------|---------|--------------|
 | Finite step-sum interval | `verify_stepSum_interval` | `checkStepSumInterval` |
 | Exact Abel interval | `verify_abel_interval` | `checkAbelInterval` |
+| Bounded Abel interval | `verify_abelBound_interval` | `checkAbelBoundInterval` |
 | Finite Euler product interval | `verify_eulerProduct_interval` | `checkEulerProductInterval` |
 | Finite log-product interval | `verify_logProduct_interval` | `checkLogProductInterval` |
+| Log interval to product interval | `verify_product_interval_of_log_interval` | log interval proof |
+| Prime product `∏(1 - 1/p)` | `verify_primeEulerOneMinusInv_interval` | `checkPrimeEulerOneMinusInvInterval` |
+| Prime product `∏(1 + 1/p)` | `verify_primeEulerOnePlusInv_interval` | `checkPrimeEulerOnePlusInvInterval` |
 | Finite Mertens log-sum interval | `verify_mertensLogSum_interval` | `checkMertensLogSumInterval` |
+| Abel-routed Mertens interval | `verify_mertensAbel_interval` | `checkMertensAbelInterval` |
 
 The central exact identity is:
 
@@ -241,6 +246,18 @@ theorem verify_mertensLogSum_interval (N depth : Nat) (lo hi : ℚ)
 
 Here `mertensLogSum N` is `∑ p ≤ N, log p / p`, and the checker uses the
 existing Chebyshev theta logarithm envelopes.
+
+The bounded Abel bridge has the reusable shape:
+
+```lean
+theorem verify_abelBound_interval
+    (a : Nat → ℝ) (f ALo AHi : Nat → ℚ) {m n : Nat} (hmn : m < n)
+    (hA : ∀ k, (ALo k : ℝ) ≤ prefixSum a k ∧
+      prefixSum a k ≤ (AHi k : ℝ))
+    (lo hi : ℚ)
+    (hcheck : checkAbelBoundInterval f ALo AHi m n lo hi = true) :
+    (lo : ℝ) ≤ weightedSum a f m n ∧ weightedSum a f m n ≤ (hi : ℝ)
+```
 
 ### Monotonicity
 

@@ -404,13 +404,24 @@ export LeanCert.ANT (
   prefixSumRat
   abelTransformRat
   weightedSumRat
+  weightedSum
+  abelTransformOfPrefix
   weightedSumRat_eq_abelTransformRat
+  weightedSum_eq_abelTransformOfPrefix
   checkAbelInterval
   checkAbelUpper
   checkAbelLower
   verify_abel_interval
   verify_abel_upper
   verify_abel_lower
+  coeffLowerRat
+  coeffUpperRat
+  abelBoundLowerRat
+  abelBoundUpperRat
+  abelBoundLowerRat_le_transform
+  transform_le_abelBoundUpperRat
+  checkAbelBoundInterval
+  verify_abelBound_interval
   productLowerRat
   productUpperRat
   finiteProduct
@@ -425,7 +436,29 @@ export LeanCert.ANT (
   finiteLogProduct_le_logProductUpperRat
   checkLogProductInterval
   verify_logProduct_interval
+  finiteProduct_eq_exp_finiteLogProduct
+  verify_product_interval_of_log_interval
+  oneMinusInvRat
+  onePlusInvRat
+  primeEulerOneMinusInv
+  primeEulerOneMinusInvRat
+  primeEulerOnePlusInv
+  primeEulerOnePlusInvRat
+  checkPrimeEulerOneMinusInvInterval
+  checkPrimeEulerOnePlusInvInterval
+  verify_primeEulerOneMinusInv_interval
+  verify_primeEulerOnePlusInv_interval
   mertensLogSum
+  thetaIncrement
+  invNatRat
+  thetaPrefixLowerRat
+  thetaPrefixUpperRat
+  mertensAbelSum
+  thetaPrefixLowerRat_le_prefix
+  prefix_le_thetaPrefixUpperRat
+  thetaPrefix_envelope
+  checkMertensAbelInterval
+  verify_mertensAbel_interval
   mertensLogSumLowerRat
   mertensLogSumUpperRat
   mertensLogSumLowerRat_le
