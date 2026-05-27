@@ -463,6 +463,37 @@ export LeanCert.ANT (
   checkPrimeEulerOnePlusInvInterval
   verify_primeEulerOneMinusInv_interval
   verify_primeEulerOnePlusInv_interval
+  finiteDirichletSum
+  intervalMulLowerRat
+  intervalMulUpperRat
+  finiteDirichletSumLowerRat
+  finiteDirichletSumUpperRat
+  finiteDirichletSumLowerRat_le
+  finiteDirichletSum_le_upperRat
+  checkDirichletSumInterval
+  checkDirichletSumLower
+  checkDirichletSumUpper
+  verify_dirichletSum_interval
+  verify_dirichletSum_lower
+  verify_dirichletSum_upper
+  naturalsIcc
+  harmonicSum
+  harmonicSumRat
+  primeHarmonicSum
+  primeHarmonicSumRat
+  logPrimeOverPrimeSum
+  logPrimeOverPrimeLowerRat
+  logPrimeOverPrimeUpperRat
+  harmonicSum_eq_rat
+  primeHarmonicSum_eq_rat
+  checkHarmonicSumInterval
+  checkPrimeHarmonicSumInterval
+  checkLogPrimeOverPrimeSumInterval
+  logPrimeOverPrimeLowerRat_le
+  logPrimeOverPrime_le_upperRat
+  verify_harmonicSum_interval
+  verify_primeHarmonicSum_interval
+  verify_logPrimeOverPrimeSum_interval
   mertensLogSum
   thetaIncrement
   invNatRat

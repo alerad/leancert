@@ -129,6 +129,42 @@ verify_primeEulerOnePlusInv_interval
 The generic product machinery lives in `LeanCert.ANT.EulerProduct`; these
 number-theoretic presets live in `LeanCert.ANT.PrimeEuler`.
 
+## Dirichlet Truncations
+
+`LeanCert.ANT.Dirichlet` certifies finite Dirichlet-style weighted sums:
+
+```lean
+finiteDirichletSum S a w = ∑ n ∈ S, a n * w n
+```
+
+The generic checker accepts rational coefficient envelopes and nonnegative
+weight envelopes:
+
+```lean
+checkDirichletSumInterval
+verify_dirichletSum_interval
+verify_dirichletSum_lower
+verify_dirichletSum_upper
+```
+
+The multiplication envelope is sign-aware in the coefficient interval, which is
+the common analytic-number-theory case: signed arithmetic coefficients against
+positive weights such as `1 / n^s`.
+
+Included presets:
+
+```lean
+harmonicSum
+primeHarmonicSum
+logPrimeOverPrimeSum
+verify_harmonicSum_interval
+verify_primeHarmonicSum_interval
+verify_logPrimeOverPrimeSum_interval
+```
+
+More specialized sums, such as Möbius or von Mangoldt Dirichlet truncations, can
+use the generic theorem once coefficient envelopes are supplied.
+
 ## Mertens-Style Prime Sums
 
 The first Chebyshev integration point is:

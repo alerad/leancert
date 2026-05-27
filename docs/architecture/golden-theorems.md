@@ -30,6 +30,7 @@ Golden Theorems are defined across multiple files:
 - `ANT/Abel.lean` - finite Abel / partial-summation certificates
 - `ANT/EulerProduct.lean` - finite Euler-product and log-product certificates
 - `ANT/PrimeEuler.lean` - prime Euler-product presets
+- `ANT/Dirichlet.lean` - finite Dirichlet-style truncation certificates
 - `ANT/Mertens.lean` - finite Mertens-style prime-sum certificates
 - `QProduct/Certificate.lean` - Exact finite q-product integrals
 - `QProduct/PrimeLambda.lean` - Prime-limit q-product certificates
@@ -239,6 +240,10 @@ theorem LeanCert.Cert.verify_rat_interval {value : ℝ} {lower upper lo hi : ℚ
 | Log upper to product upper | `verify_product_upper_of_log_upper` | log upper proof |
 | Prime product `∏(1 - 1/p)` | `verify_primeEulerOneMinusInv_interval` | `checkPrimeEulerOneMinusInvInterval` |
 | Prime product `∏(1 + 1/p)` | `verify_primeEulerOnePlusInv_interval` | `checkPrimeEulerOnePlusInvInterval` |
+| Finite Dirichlet sum interval | `verify_dirichletSum_interval` | `checkDirichletSumInterval` |
+| Harmonic truncation interval | `verify_harmonicSum_interval` | `checkHarmonicSumInterval` |
+| Prime harmonic truncation interval | `verify_primeHarmonicSum_interval` | `checkPrimeHarmonicSumInterval` |
+| Prime log-over-prime interval | `verify_logPrimeOverPrimeSum_interval` | `checkLogPrimeOverPrimeSumInterval` |
 | Finite Mertens log-sum interval | `verify_mertensLogSum_interval` | `checkMertensLogSumInterval` |
 | Abel-routed Mertens interval | `verify_mertensAbel_interval` | `checkMertensAbelInterval` |
 

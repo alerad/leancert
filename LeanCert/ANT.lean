@@ -7,6 +7,7 @@ import LeanCert.ANT.Step
 import LeanCert.ANT.Abel
 import LeanCert.ANT.EulerProduct
 import LeanCert.ANT.PrimeEuler
+import LeanCert.ANT.Dirichlet
 import LeanCert.ANT.Mertens
 
 /-!

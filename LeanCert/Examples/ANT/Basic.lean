@@ -74,4 +74,40 @@ example :
   exact verify_mertensAbel_interval (N := 5) (depth := 20) (by norm_num) 0 3
     (by native_decide)
 
+example :
+    ((11 / 6 : ℚ) : ℝ) ≤ harmonicSum 3 ∧ harmonicSum 3 ≤ ((11 / 6 : ℚ) : ℝ) := by
+  exact verify_harmonicSum_interval 3 (11 / 6) (11 / 6) (by native_decide)
+
+example :
+    ((31 / 30 : ℚ) : ℝ) ≤ primeHarmonicSum 5 ∧
+      primeHarmonicSum 5 ≤ ((31 / 30 : ℚ) : ℝ) := by
+  exact verify_primeHarmonicSum_interval 5 (31 / 30) (31 / 30) (by native_decide)
+
+example :
+    ((0 : ℚ) : ℝ) ≤ logPrimeOverPrimeSum 5 ∧
+      logPrimeOverPrimeSum 5 ≤ ((3 : ℚ) : ℝ) := by
+  exact verify_logPrimeOverPrimeSum_interval 5 20 0 3 (by native_decide)
+
+def signedToyCoeff (n : Nat) : ℝ :=
+  if n = 1 then (-1 : ℝ) else 2
+
+example :
+    ((0 : ℚ) : ℝ) ≤ finiteDirichletSum ({1, 2} : Finset Nat) signedToyCoeff
+      (fun n => 1 / (n : ℝ)) ∧
+      finiteDirichletSum ({1, 2} : Finset Nat) signedToyCoeff
+        (fun n => 1 / (n : ℝ)) ≤ ((0 : ℚ) : ℝ) := by
+  apply verify_dirichletSum_interval
+      ({1, 2} : Finset Nat) signedToyCoeff (fun n => 1 / (n : ℝ))
+      (fun n => if n = 1 then (-1 : ℚ) else 2)
+      (fun n => if n = 1 then (-1 : ℚ) else 2)
+      (fun n => 1 / (n : ℚ))
+      (fun n => 1 / (n : ℚ))
+  · intro n hn
+    fin_cases hn <;> simp [signedToyCoeff]
+  · intro n hn
+    fin_cases hn <;> norm_num
+  · intro n hn
+    fin_cases hn <;> norm_num
+  · native_decide
+
 end LeanCert.Examples.ANT
