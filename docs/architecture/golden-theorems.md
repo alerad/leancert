@@ -25,6 +25,10 @@ Golden Theorems are defined across multiple files:
 - `Validity/Monotonicity.lean` - Monotonicity via automatic differentiation
 - `Engine/Chebyshev/Psi.lean` - Chebyshev `ψ` finite-range certificates
 - `Engine/Chebyshev/Theta.lean` - Chebyshev `θ` finite-range certificates
+- `ANT/Step.lean` - finite arithmetic step-sum certificates
+- `ANT/Abel.lean` - finite Abel / partial-summation certificates
+- `ANT/EulerProduct.lean` - finite Euler-product and log-product certificates
+- `ANT/Mertens.lean` - finite Mertens-style prime-sum certificates
 - `QProduct/Certificate.lean` - Exact finite q-product integrals
 - `QProduct/PrimeLambda.lean` - Prime-limit q-product certificates
 
@@ -205,6 +209,38 @@ theorem verify_all_theta_rel_error
     ∀ N : Nat, 0 < N → start ≤ N → N ≤ limit →
       |Chebyshev.theta (N : ℝ) - N| ≤ (bound : ℝ) * N
 ```
+
+### Analytic Number Theory Bridges
+
+The ANT layer exposes small bridge Golden Theorems that compose with the
+Chebyshev engines.
+
+| Goal | Theorem | Checker/Data |
+|------|---------|--------------|
+| Finite step-sum interval | `verify_stepSum_interval` | `checkStepSumInterval` |
+| Exact Abel interval | `verify_abel_interval` | `checkAbelInterval` |
+| Finite Euler product interval | `verify_eulerProduct_interval` | `checkEulerProductInterval` |
+| Finite log-product interval | `verify_logProduct_interval` | `checkLogProductInterval` |
+| Finite Mertens log-sum interval | `verify_mertensLogSum_interval` | `checkMertensLogSumInterval` |
+
+The central exact identity is:
+
+```lean
+theorem weightedSumRat_eq_abelTransformRat {a f : Nat → ℚ} {m n : Nat}
+    (hmn : m < n) :
+    (weightedSumRat a f m n : ℝ) = (abelTransformRat a f m n : ℝ)
+```
+
+The first Chebyshev-to-Mertens bridge is finite:
+
+```lean
+theorem verify_mertensLogSum_interval (N depth : Nat) (lo hi : ℚ)
+    (hcheck : checkMertensLogSumInterval N depth lo hi = true) :
+    (lo : ℝ) ≤ mertensLogSum N ∧ mertensLogSum N ≤ (hi : ℝ)
+```
+
+Here `mertensLogSum N` is `∑ p ≤ N, log p / p`, and the checker uses the
+existing Chebyshev theta logarithm envelopes.
 
 ### Monotonicity
 

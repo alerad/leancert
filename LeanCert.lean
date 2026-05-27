@@ -59,6 +59,9 @@ import LeanCert.Engine.SearchAPI
 -- Q-product product-integral certificates
 import LeanCert.QProduct
 
+-- Analytic number theory certificate machinery
+import LeanCert.ANT
+
 -- Meta (metaprogramming utilities)
 import LeanCert.Meta.ProveContinuous
 import LeanCert.Meta.ProveSupported
@@ -381,6 +384,54 @@ export LeanCert.QProduct (
   primeFRat_lower_nineteen_thirtysix
   primeLambda_lower_nineteen_thirtysix
   primeLambda_gt_half
+)
+
+-- Re-export ANT certificate API
+export LeanCert.ANT (
+  StepFn
+  stepLowerRat
+  stepUpperRat
+  stepSum
+  stepLowerRat_le_stepSum
+  stepSum_le_stepUpperRat
+  checkStepSumInterval
+  checkStepSumLower
+  checkStepSumUpper
+  verify_stepSum_interval
+  verify_stepSum_lower
+  verify_stepSum_upper
+  prefixSum
+  prefixSumRat
+  abelTransformRat
+  weightedSumRat
+  weightedSumRat_eq_abelTransformRat
+  checkAbelInterval
+  checkAbelUpper
+  checkAbelLower
+  verify_abel_interval
+  verify_abel_upper
+  verify_abel_lower
+  productLowerRat
+  productUpperRat
+  finiteProduct
+  productLowerRat_le_finiteProduct
+  finiteProduct_le_productUpperRat
+  checkEulerProductInterval
+  verify_eulerProduct_interval
+  finiteLogProduct
+  logProductLowerRat
+  logProductUpperRat
+  logProductLowerRat_le_finiteLogProduct
+  finiteLogProduct_le_logProductUpperRat
+  checkLogProductInterval
+  verify_logProduct_interval
+  mertensLogSum
+  mertensLogSumLowerRat
+  mertensLogSumUpperRat
+  mertensLogSumLowerRat_le
+  mertensLogSum_le_mertensLogSumUpperRat
+  checkMertensLogSumInterval
+  verify_mertensLogSum_interval
 )
 
 /-! ### Convenience abbreviations -/

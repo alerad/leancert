@@ -8,6 +8,7 @@ LeanCert is a Lean 4 library for certified numerical computation and proof-produ
 - Proof automation for inequalities and root claims
 - Global optimization and integration certificates
 - Chebyshev function certificates
+- Analytic-number-theory certificate bridges for Abel summation and Euler products
 - Exact q-product/product-integral certificates
 - Dyadic and rational backends for different performance/precision tradeoffs
 
@@ -47,6 +48,7 @@ lake update
 | [Choosing Tactics](choosing-tactics.md) | Pick the right tactic quickly |
 | [End-to-End Example](end-to-end-example.md) | Discovery to theorem workflow |
 | [Chebyshev Certificates](chebyshev.md) | Certified `ψ` and `θ` finite-range bounds |
+| [Analytic Number Theory Certificates](ant.md) | Step sums, Abel transforms, Euler products, and Mertens-style finite sums |
 | [QProduct Certificates](qproduct.md) | Exact product-integral and prime-limit certificates |
 
 ## Architecture
