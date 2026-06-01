@@ -51,10 +51,29 @@ noncomputable def abelTransformOfPrefix (f : Nat → ℚ) (A : Nat → ℝ) (m n
       ∑ i ∈ Finset.Ico m (n - 1),
         ((f (i + 1) - f i : ℚ) : ℝ) * A (i + 1)
 
+/-- Direct real weighted sum on `[m, n)`. -/
+noncomputable def weightedSumReal (a f : Nat → ℝ) (m n : Nat) : ℝ :=
+  ∑ i ∈ Finset.Ico m n, f i * a i
+
+/-- Abel transform on `[m, n)` with real weights and an arbitrary real prefix function `A`. -/
+noncomputable def abelTransformReal (f A : Nat → ℝ) (m n : Nat) : ℝ :=
+  f (n - 1) * A n -
+    f m * A m -
+      ∑ i ∈ Finset.Ico m (n - 1),
+        (f (i + 1) - f i) * A (i + 1)
+
 theorem prefixSumRat_cast (a : Nat → ℚ) (n : Nat) :
     (prefixSumRat a n : ℝ) = prefixSum (fun i => (a i : ℝ)) n := by
   unfold prefixSumRat prefixSum
   rw [Rat.cast_sum]
+
+/-- Abel's finite summation-by-parts identity for real summands and real weights. -/
+theorem weightedSumReal_eq_abelTransformReal {a f : Nat → ℝ} {m n : Nat}
+    (hmn : m < n) :
+    weightedSumReal a f m n = abelTransformReal f (prefixSum a) m n := by
+  unfold weightedSumReal abelTransformReal
+  have h := Finset.sum_Ico_by_parts (R := ℝ) (M := ℝ) f a hmn
+  simpa [prefixSum, smul_eq_mul, mul_comm, mul_left_comm, mul_assoc] using h
 
 /-- Abel's finite summation-by-parts identity for real summands and rational weights. -/
 theorem weightedSum_eq_abelTransformOfPrefix {a : Nat → ℝ} {f : Nat → ℚ} {m n : Nat}
