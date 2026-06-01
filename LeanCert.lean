@@ -417,6 +417,9 @@ export LeanCert.ANT (
   weightedSumRat
   weightedSum
   abelTransformOfPrefix
+  weightedSumReal
+  abelTransformReal
+  weightedSumReal_eq_abelTransformReal
   weightedSumRat_eq_abelTransformRat
   weightedSum_eq_abelTransformOfPrefix
   checkAbelInterval

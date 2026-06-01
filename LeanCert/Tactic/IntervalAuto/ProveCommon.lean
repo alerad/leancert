@@ -44,6 +44,9 @@ def standardCloseTactics : TacticM (List (TSyntax `tactic)) := do
     ← `(tactic| (norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl)),
     ← `(tactic| (simp only [Rat.divInt_eq_div]; push_cast; rfl)),
     ← `(tactic| (congr 1 <;> norm_num)),
+    ← `(tactic| (simp only [LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_mul,
+      LeanCert.Core.Expr.eval_log, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_const,
+      LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_neg, Rat.divInt_eq_div]; ring_nf)),
     ← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one])
   ]
 
