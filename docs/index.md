@@ -43,13 +43,33 @@ lake update
 | Guide | Description |
 |-------|-------------|
 | [Quickstart](quickstart.md) | First Lean proofs with LeanCert |
-| [Discovery Mode](discovery.md) | Explore bounds and extrema interactively |
-| [Tactics Reference](tactics.md) | Main proving tactics |
-| [Choosing Tactics](choosing-tactics.md) | Pick the right tactic quickly |
-| [End-to-End Example](end-to-end-example.md) | Discovery to theorem workflow |
-| [Chebyshev Certificates](chebyshev.md) | Certified `ψ` and `θ` finite-range bounds |
-| [Analytic Number Theory Certificates](ant.md) | Step sums, Abel transforms, Euler products, and Mertens-style finite sums |
-| [QProduct Certificates](qproduct.md) | Exact product-integral and prime-limit certificates |
+
+## Tactics
+
+| Guide | Description |
+|-------|-------------|
+| [Choosing Tactics](tactics/choosing-tactics.md) | Pick the right tactic quickly |
+| [Tactics Reference](tactics/tactics.md) | Main proving tactics |
+| [Discovery Mode](tactics/discovery.md) | Explore bounds and extrema interactively |
+| [Troubleshooting](tactics/troubleshooting.md) | Common failures and fixes |
+| [End-to-End Example](tactics/end-to-end-example.md) | Discovery to theorem workflow |
+
+## Certificate APIs
+
+| Guide | Description |
+|-------|-------------|
+| [Certificate Overview](certificates/overview.md) | Domain-specific certificate families |
+| [Chebyshev Certificates](certificates/chebyshev.md) | Certified `ψ` and `θ` finite-range bounds |
+| [ANT Certificates](certificates/ant.md) | Step sums, Abel transforms, Euler products, and Mertens-style finite sums |
+| [Asymptotic Envelopes](certificates/ant-asymp.md) | Summatory main-term/error envelopes, Stieltjes transforms, and hyperbola kernels |
+| [QProduct Certificates](certificates/qproduct.md) | Exact product-integral and prime-limit certificates |
+
+## ML
+
+| Guide | Description |
+|-------|-------------|
+| [Neural Networks](ml/neural-networks.md) | Neural network interval verification |
+| [Distillation](ml/distillation.md) | Distillation and model-certificate workflows |
 
 ## Architecture
 

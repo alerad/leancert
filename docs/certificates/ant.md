@@ -190,3 +190,12 @@ verify_mertensAbel_interval
 
 This is the finite Chebyshev-to-Abel-to-Mertens bridge. Stronger global Mertens
 certificates should build on this with tail envelopes.
+
+## Asymptotic Envelopes
+
+For main-term/error-term certificates and transform kernels for summatory
+functions, see [Asymptotic Envelope Certificates](ant-asymp.md).
+
+The asymptotic layer builds on the finite ANT machinery but has a different API:
+it packages semantic envelopes as `AsympEnv`, then composes them through
+Stieltjes-Abel and Dirichlet-hyperbola kernels.

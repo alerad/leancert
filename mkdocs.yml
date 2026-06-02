@@ -53,12 +53,19 @@ extra_javascript:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
-  - Discovery Mode: discovery.md
-  - Choosing Tactics: choosing-tactics.md
-  - End-to-End Example: end-to-end-example.md
-  - Lean Tactics:
-    - Reference: tactics.md
+  - Tactics:
+    - Choosing Tactics: tactics/choosing-tactics.md
+    - Reference: tactics/tactics.md
+    - Discovery Mode: tactics/discovery.md
+    - Troubleshooting: tactics/troubleshooting.md
+    - End-to-End Example: tactics/end-to-end-example.md
     - Root Finding: architecture/root-finding.md
+  - Certificate APIs:
+    - Overview: certificates/overview.md
+    - Chebyshev: certificates/chebyshev.md
+    - ANT Finite Bridges: certificates/ant.md
+    - Asymptotic Envelopes: certificates/ant-asymp.md
+    - QProduct: certificates/qproduct.md
   - Neural Networks:
     - Verification: ml/neural-networks.md
     - Distillation: ml/distillation.md

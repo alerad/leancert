@@ -9,10 +9,12 @@ import LeanCert.ANT.EulerProduct
 import LeanCert.ANT.PrimeEuler
 import LeanCert.ANT.Dirichlet
 import LeanCert.ANT.Mertens
+import LeanCert.ANT.Asymp
 
 /-!
 # Analytic number theory certificate machinery
 
 Reusable finite certificate bridges for arithmetic step sums, Abel/partial
-summation transforms, finite Euler products, and Mertens-style prime sums.
+summation transforms, finite Euler products, Mertens-style prime sums, and
+asymptotic envelope algebra.
 -/

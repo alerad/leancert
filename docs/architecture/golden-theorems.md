@@ -32,6 +32,10 @@ Golden Theorems are defined across multiple files:
 - `ANT/PrimeEuler.lean` - prime Euler-product presets
 - `ANT/Dirichlet.lean` - finite Dirichlet-style truncation certificates
 - `ANT/Mertens.lean` - finite Mertens-style prime-sum certificates
+- `ANT/Asymp/Env.lean` - asymptotic main-term/error envelope certificates
+- `ANT/Asymp/Stieltjes.lean` - Stieltjes-Abel envelope transform certificates
+- `ANT/Asymp/Hyperbola.lean` - Dirichlet-hyperbola envelope certificates
+- `ANT/Asymp/Checkers.lean` - dyadic domination checkers for envelope errors
 - `QProduct/Certificate.lean` - Exact finite q-product integrals
 - `QProduct/PrimeLambda.lean` - Prime-limit q-product certificates
 
@@ -277,6 +281,41 @@ theorem verify_abelBound_interval
     (hcheck : checkAbelBoundInterval f ALo AHi m n lo hi = true) :
     (lo : ℝ) ≤ weightedSum a f m n ∧ weightedSum a f m n ≤ (hi : ℝ)
 ```
+
+### Asymptotic Envelope Certificates
+
+The asymptotic layer introduces semantic main-term/error-term envelopes for
+summatory functions:
+
+```lean
+structure AsympEnv where
+  seq : Nat → ℝ
+  cutoff : Nat
+  mainTerm : Expr
+  errorTerm : Expr
+  cert :
+    ∀ N, cutoff ≤ N →
+      |prefixSum seq (N + 1) - evalAtNat mainTerm N| ≤ evalAtNat errorTerm N
+  error_nonneg :
+    ∀ N, cutoff ≤ N → 0 ≤ evalAtNat errorTerm N
+```
+
+The Golden Theorem families are:
+
+| Goal | Theorem / API |
+|------|---------------|
+| Envelope lower/upper bounds | `AsympEnv.lower_le_summatory`, `AsympEnv.summatory_le_upper` |
+| Stieltjes-Abel envelope | `verify_stieltjes_envelope` |
+| `1 / n` Stieltjes envelope | `verify_one_over_n_stieltjes_envelope` |
+| Dirichlet hyperbola envelope | `verify_dirichlet_hyperbola_envelope` |
+| Convolution via hyperbola bridge | `verify_dirichlet_convolution_envelope` |
+| Dyadic expression domination | `verify_expr_le_on_interval_dyadic`, `verify_expr_le_with_slab_tail_dyadic` |
+| Generated Stieltjes error domination | `verify_stieltjes_error_le_target_with_slab_tail_dyadic` |
+| Generated hyperbola error domination | `verify_hyperbola_error_le_target_with_slab_tail_dyadic` |
+
+The usual workflow is to generate a transform envelope, prove that its generated
+error term is dominated by a simpler public error term, and then use
+`AsympEnv.weakenError` to expose the simpler statement.
 
 ### Monotonicity
 
