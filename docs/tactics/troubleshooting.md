@@ -125,6 +125,11 @@ error: Cannot parse as integer: 3.14159
 
 **Cause:** Discovery commands only accept integer bounds, not floats.
 
+This restriction is specific to discovery command interval syntax. Tactic-side
+numeric extraction is more permissive: tactics use the shared
+`LeanCert.Meta.Numeral` parser, which handles many elaborated numerals, casts,
+rationals, decimals, negations, and divisions.
+
 **Solution:** Use rational approximations:
 ```lean
 -- Instead of

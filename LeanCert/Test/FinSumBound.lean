@@ -212,6 +212,9 @@ example : ∑ k ∈ Finset.Ico (1 : ℕ) 11, (1 : ℝ) / ↑k ≤ 4 := by finsum
 -- Finset.Ioc
 example : ∑ k ∈ Finset.Ioc (0 : ℕ) 5, (↑k : ℝ) ≤ 16 := by finsum_bound
 
+-- Finset.Ioo
+example : ∑ k ∈ Finset.Ioo (0 : ℕ) 5, (↑k : ℝ) ≤ 11 := by finsum_bound
+
 -- Explicit finset
 example : ∑ k ∈ ({1, 3, 5, 7} : Finset ℕ), (↑k : ℝ) ≤ 17 := by finsum_bound
 
