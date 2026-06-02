@@ -103,6 +103,10 @@ example : ∑ _k ∈ Finset.Icc (1 : ℕ) 5, ((1/3 : ℚ) : ℝ) ≤ 2 := by
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, ((1/2 : ℚ) : ℝ) * Real.sin ↑k ≤ 3 := by
   finsum_bound
 
+-- Rat.cast in target: centralized extraction handles coerced rational bounds.
+example : ∑ _k ∈ Finset.Icc (1 : ℕ) 3, (1 : ℝ) / 1000 ≤ ↑(9/500 : ℚ) := by
+  finsum_bound
+
 -- Int.cast: body contains ↑(z : ℤ) multiplied with k
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 3, ((-1 : ℤ) : ℝ) * Real.sin ↑k ≤ 1 := by
   finsum_bound
