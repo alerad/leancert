@@ -14,7 +14,10 @@ Smoke tests for canonical rational extraction through reification.
 
 namespace LeanCert.Test.Numeral
 
+def myRat : ℚ := 9 / 500
+
 #leancert_reflect (fun _x : Real => ((9 / 500 : Rat) : Real))
+#leancert_reflect (fun _x : Real => (myRat : Real))
 #leancert_reflect (fun x : Real => x + (((-2 : Int) : Real) + 3))
 #leancert_reflect (fun x : Real => x + 2.72)
 #leancert_reflect (fun x : Real => x + ((1 : Nat) : Real))

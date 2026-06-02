@@ -18,6 +18,10 @@ open Lean Meta
 
 namespace LeanCert.Tactic
 
+/-- Deterministic list representation for extracted finite sets. -/
+def normalizeNatIndices (xs : List Nat) : List Nat :=
+  xs.eraseDups.mergeSort (· < ·)
+
 /-- Try to extract a natural-number literal from an elaborated expression. -/
 def extractNatLit (e : Lean.Expr) : MetaM (Option Nat) :=
   LeanCert.Meta.Numeral.toNat? e
@@ -100,6 +104,6 @@ def extractFinsetElements (finsetExpr : Lean.Expr) : MetaM (Option (List Nat)) :
     if let some n := ← extractNatLit sargs[0]! then
       return some (List.range n)
     return none
-  tryExtractExplicitFinset finsetExpr
+  return (← tryExtractExplicitFinset finsetExpr).map normalizeNatIndices
 
 end LeanCert.Tactic

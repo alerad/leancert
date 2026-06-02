@@ -159,7 +159,7 @@ def getAstFromFunc (func : Lean.Expr) : TacticM Lean.Expr := do
 
 /-- Compatibility wrapper around the canonical numeric parser. -/
 def extractRatFromReal (e : Lean.Expr) : MetaM (Option ℚ) :=
-  LeanCert.Meta.Numeral.toRealRat? e
+  LeanCert.Meta.Numeral.toRealRatNormalized? e
 
 private def tryConvertSetIcc (interval : Lean.Expr) : MetaM (Option Lean.Expr) := do
   let getLeArgs (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do

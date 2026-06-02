@@ -65,7 +65,7 @@ private def tryUnarySupportProof
     (fn : Lean.Expr) (args : Array Lean.Expr) (table : List UnarySupportCtor) :
     MetaM (Option Lean.Expr) := do
   let some proofCtor := lookupUnarySupportCtor fn table | return none
-  if args.size < 1 then
+  if args.size != 1 then
     throwError "Malformed unary LeanCert expression: expected one argument"
   let e := args[0]!
   let h ← rec e
@@ -76,7 +76,7 @@ private def tryBinarySupportProof
     (fn : Lean.Expr) (args : Array Lean.Expr) (table : List BinarySupportCtor) :
     MetaM (Option Lean.Expr) := do
   let some proofCtor := lookupBinarySupportCtor fn table | return none
-  if args.size < 2 then
+  if args.size != 2 then
     throwError "Malformed binary LeanCert expression: expected two arguments"
   let e₁ := args[0]!
   let e₂ := args[1]!

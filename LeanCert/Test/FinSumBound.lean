@@ -215,6 +215,18 @@ example : ∑ k ∈ Finset.Ioc (0 : ℕ) 5, (↑k : ℝ) ≤ 16 := by finsum_bou
 -- Explicit finset
 example : ∑ k ∈ ({1, 3, 5, 7} : Finset ℕ), (↑k : ℝ) ≤ 17 := by finsum_bound
 
+-- Explicit finset duplicate semantics: Finset removes duplicates.
+example : ∑ _k ∈ ({1, 1, 2} : Finset ℕ), ((1 : ℚ) : ℝ) ≤ 2 := by
+  finsum_bound
+
+-- Duplicate semantics for lower bounds with negative terms.
+example : (-20 : ℝ) ≤ ∑ _k ∈ ({1, 1, 2} : Finset ℕ), ((-10 : ℚ) : ℝ) := by
+  finsum_bound
+
+-- Explicit finset order stability / non-Icc path.
+example : ∑ _k ∈ ({3, 1, 2} : Finset ℕ), ((1 : ℚ) : ℝ) ≤ 3 := by
+  finsum_bound
+
 -- Explicit finset with inv
 example : ∑ k ∈ ({1, 2, 4, 8} : Finset ℕ), (1 : ℝ) / ↑k ≤ 2 := by finsum_bound
 

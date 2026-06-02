@@ -161,6 +161,9 @@ where
            fnHead.isConstOf ``Int.cast || fnHead.isConstOf ``IntCast.intCast ||
            fnHead.isConstOf ``Rat.cast || fnHead.isConstOf ``RatCast.ratCast) then
         return ← toRat? allArgs.back!
+      -- Some elaborated casts appear with projection-headed pretty names such
+      -- as `Real.instRatCast.1`; keep this as a narrow fallback after the
+      -- structural cast checks above.
       let fnStr := toString (← ppExpr fn)
       if allArgs.size > 0 &&
           (fnStr.endsWith "instNatCast.1" || fnStr.endsWith "instIntCast.1" ||
@@ -179,7 +182,7 @@ where
                sName.endsWith "instIntCast" || sName.endsWith "instRatCast") then
             toRat? allArgs.back!
           else
-            return none
+            pure none
         | .const n _ =>
           let s := toString n
           if allArgs.size > 0 &&
@@ -187,13 +190,16 @@ where
                s.endsWith "instRatCast.1") then
             toRat? allArgs.back!
           else
-            return none
-        | _ => return none
+            pure none
+        | _ => pure none
       if let some q := cast? then
         return some q
 
       -- Last resort: evaluate closed rational expressions directly.
       if e.hasFVar || e.hasMVar then
+        return none
+      let ty ← inferType e
+      unless ← isDefEq ty (mkConst ``Rat) do
         return none
       try
         let q ← unsafe evalExpr ℚ (mkConst ``Rat) e
@@ -219,6 +225,24 @@ def toNat? (e : Lean.Expr) : MetaM (Option Nat) := do
 partial def toRealRat? (e : Lean.Expr) : MetaM (Option ℚ) :=
   toRat? e
 
+/-- Extract a rational after instantiating metavariables and normalizing reducible wrappers. -/
+def toRealRatNormalized? (e : Lean.Expr) : MetaM (Option ℚ) := do
+  let e ←
+    if e.isMVar then
+      if let some val ← getExprMVarAssignment? e.mvarId! then
+        instantiateMVars val
+      else
+        pure e
+    else
+      instantiateMVars e
+  if let some q ← toRealRat? e then
+    return some q
+  let e' ← whnf e
+  if let some q ← toRealRat? (← instantiateMVars e') then
+    return some q
+  let e'' ← withTransparency TransparencyMode.all <| whnf e
+  toRealRat? (← instantiateMVars e'')
+
 end LeanCert.Meta.Numeral
 
 namespace LeanCert.Meta
@@ -234,5 +258,9 @@ abbrev toNat? : Lean.Expr → MetaM (Option Nat) :=
 /-- Compatibility alias for the canonical integer extractor. -/
 abbrev toInt? : Lean.Expr → MetaM (Option Int) :=
   LeanCert.Meta.Numeral.toInt?
+
+/-- Compatibility alias for normalized real-valued rational extraction. -/
+abbrev toRealRatNormalized? : Lean.Expr → MetaM (Option ℚ) :=
+  LeanCert.Meta.Numeral.toRealRatNormalized?
 
 end LeanCert.Meta

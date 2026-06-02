@@ -22,6 +22,14 @@ open LeanCert.Core
 #check LeanCert.Core.IntervalRat.sinComputableReduced
 #check LeanCert.Engine.TaylorModel.sinIntervalReduced
 
+example (I : IntervalRat) :
+    LeanCert.Core.IntervalRat.reduceToMainPeriod I =
+      LeanCert.Core.TrigReduction.reduceToMainPeriod I := rfl
+
+example (I : IntervalRat) :
+    LeanCert.Engine.TaylorModel.reduceToMainPeriod I =
+      LeanCert.Core.TrigReduction.reduceToMainPeriod I := rfl
+
 example {x : ℝ} (hx : x ∈ (⟨0, 10, by norm_num⟩ : IntervalRat)) :
     Real.sin x ∈ LeanCert.Core.IntervalRat.sinComputableReduced ⟨0, 10, by norm_num⟩ 10 := by
   exact LeanCert.Core.IntervalRat.mem_sinComputableReduced hx 10
