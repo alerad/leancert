@@ -120,6 +120,22 @@ example (N : Nat) (hN : 1 ≤ N) :
 
 def oneErr : Expr := Expr.const 1
 
+def deltaOneAbelErrorLeOneDomination :
+    ErrorDomination deltaOneOverNAbelCert.errorTerm oneErr where
+  cutoff := 1
+  cert := by
+    intro N _hN
+    simp [deltaOneOverNAbelCert, oneErr, evalAtNat]
+
+example (N : Nat) (hN : 1 ≤ N) :
+    |(deltaOneOverNAbelCert.toAsympEnvWithTargetError oneErr
+        deltaOneAbelErrorLeOneDomination (Nat.le_refl 1)).summatory N -
+        evalAtNat deltaOneOverNAbelCert.mainTerm N| ≤
+      evalAtNat oneErr N := by
+  exact verify_one_over_n_abel_envelope_with_target_error
+    deltaOneOverNAbelCert oneErr deltaOneAbelErrorLeOneDomination
+    (Nat.le_refl 1) N hN
+
 def zeroErrLeOneSupport :
     ExprSupportedWithInv (Expr.sub deltaOneOverNCert.toStieltjesCert.errorTerm oneErr) := by
   unfold oneErr Expr.sub
@@ -220,6 +236,22 @@ example (N : Nat) :
   exact verify_dirichlet_hyperbola_split_envelope zeroHyperbolaSplitCert
     N (Nat.zero_le N)
 
+def zeroHyperbolaSplitErrorLeOne :
+    ErrorDomination zeroHyperbolaSplitCert.errorTerm oneErr where
+  cutoff := 0
+  cert := by
+    intro N _hN
+    simp [zeroHyperbolaSplitCert, oneErr, evalAtNat]
+
+example (N : Nat) :
+    |(zeroHyperbolaSplitCert.toAsympEnvWithTargetError oneErr
+        zeroHyperbolaSplitErrorLeOne (Nat.le_refl 0)).summatory N -
+        evalAtNat zeroHyperbolaSplitCert.mainTerm N| ≤
+      evalAtNat oneErr N := by
+  exact verify_dirichlet_hyperbola_split_envelope_with_target_error
+    zeroHyperbolaSplitCert oneErr zeroHyperbolaSplitErrorLeOne
+    (Nat.le_refl 0) N (Nat.zero_le N)
+
 noncomputable def zeroConvolutionBridge :
     DirichletConvolutionBridge zeroEnvT zeroEnvT where
   convSeq := fun _ => 0
@@ -239,5 +271,22 @@ example (N : Nat) :
       evalAtNat zeroHyperbolaCert.errorTerm N := by
   exact verify_dirichlet_convolution_envelope zeroConvolutionBridge zeroHyperbolaCert
     N (Nat.zero_le N)
+
+example (N : Nat) :
+    |(zeroConvolutionBridge.toAsympEnvFromSplit zeroHyperbolaSplitCert).summatory N -
+        evalAtNat zeroHyperbolaSplitCert.mainTerm N| ≤
+      evalAtNat zeroHyperbolaSplitCert.errorTerm N := by
+  exact verify_dirichlet_convolution_split_envelope
+    zeroConvolutionBridge zeroHyperbolaSplitCert N (Nat.zero_le N)
+
+example (N : Nat) :
+    |(zeroConvolutionBridge.toAsympEnvFromSplitWithTargetError
+        zeroHyperbolaSplitCert oneErr zeroHyperbolaSplitErrorLeOne
+        (Nat.le_refl 0)).summatory N -
+        evalAtNat zeroHyperbolaSplitCert.mainTerm N| ≤
+      evalAtNat oneErr N := by
+  exact verify_dirichlet_convolution_split_envelope_with_target_error
+    zeroConvolutionBridge zeroHyperbolaSplitCert oneErr zeroHyperbolaSplitErrorLeOne
+    (Nat.le_refl 0) N (Nat.zero_le N)
 
 end LeanCert.Test.AsympTransforms

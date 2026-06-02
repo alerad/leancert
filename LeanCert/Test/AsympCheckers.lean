@@ -90,4 +90,9 @@ example (N : Nat) :
     (-53) 10 zeroLeOneSlabsCert.supported zeroLeOneSlabsCert.prec_ok
     zeroLeOneSlabsCert.checked N (Nat.zero_le N)
 
+example (N : Nat) :
+    evalAtNat lhsZero N ≤ evalAtNat rhsOne N := by
+  exact zeroLeOneSlabsCert.verify_with_slab_tail slabTailZeroLeOne rfl
+    N (Nat.zero_le N)
+
 end LeanCert.Test.AsympCheckers

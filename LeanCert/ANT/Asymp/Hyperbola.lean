@@ -220,6 +220,14 @@ noncomputable def toAsympEnv {A B : AsympEnv} (C : HyperbolaSplitCert A B) :
     AsympEnv :=
   C.toHyperbolaCert.toAsympEnv
 
+/-- Convert a generated hyperbola split certificate into an envelope with a
+public target error term, using an error-domination certificate. -/
+noncomputable def toAsympEnvWithTargetError {A B : AsympEnv}
+    (C : HyperbolaSplitCert A B) (targetError : Expr)
+    (D : ErrorDomination C.errorTerm targetError) (hcut : D.cutoff ≤ C.cutoff) :
+    AsympEnv :=
+  ErrorDomination.weakenAsympEnv C.toAsympEnv targetError D hcut
+
 end HyperbolaSplitCert
 
 namespace DirichletConvolutionBridge
@@ -238,6 +246,22 @@ noncomputable def toAsympEnv {A B : AsympEnv}
     rw [D.summatory_eq_hyperbola]
     exact C.cert N hN
   error_nonneg := C.error_nonneg
+
+/-- Lift a generated hyperbola split certificate to the conventional
+convolution sequence supplied by the bridge. -/
+noncomputable def toAsympEnvFromSplit {A B : AsympEnv}
+    (D : DirichletConvolutionBridge A B) (C : HyperbolaSplitCert A B) :
+    AsympEnv :=
+  D.toAsympEnv C.toHyperbolaCert
+
+/-- Lift a generated hyperbola split certificate to a conventional convolution
+envelope with a public target error term. -/
+noncomputable def toAsympEnvFromSplitWithTargetError {A B : AsympEnv}
+    (D : DirichletConvolutionBridge A B) (C : HyperbolaSplitCert A B)
+    (targetError : Expr)
+    (E : ErrorDomination C.errorTerm targetError) (hcut : E.cutoff ≤ C.cutoff) :
+    AsympEnv :=
+  ErrorDomination.weakenAsympEnv (D.toAsympEnvFromSplit C) targetError E hcut
 
 end DirichletConvolutionBridge
 
@@ -259,6 +283,18 @@ theorem verify_dirichlet_hyperbola_split_envelope {A B : AsympEnv}
   intro N hN
   exact C.toHyperbolaCert.cert N hN
 
+/-- Golden theorem for a generated Dirichlet-hyperbola split certificate after
+dominating its generated error by a public target error. -/
+theorem verify_dirichlet_hyperbola_split_envelope_with_target_error {A B : AsympEnv}
+    (C : HyperbolaSplitCert A B) (targetError : Expr)
+    (D : ErrorDomination C.errorTerm targetError) (hcut : D.cutoff ≤ C.cutoff) :
+    ∀ N, C.cutoff ≤ N →
+      |(C.toAsympEnvWithTargetError targetError D hcut).summatory N -
+          evalAtNat C.mainTerm N| ≤
+        evalAtNat targetError N := by
+  intro N hN
+  exact (C.toAsympEnvWithTargetError targetError D hcut).cert N hN
+
 /-- Golden theorem for a conventional convolution sequence certified through
 the hyperbola pair-sum kernel. -/
 theorem verify_dirichlet_convolution_envelope {A B : AsympEnv}
@@ -268,5 +304,28 @@ theorem verify_dirichlet_convolution_envelope {A B : AsympEnv}
         evalAtNat C.errorTerm N := by
   intro N hN
   exact (D.toAsympEnv C).cert N hN
+
+/-- Golden theorem for a conventional convolution sequence certified through a
+generated hyperbola split certificate. -/
+theorem verify_dirichlet_convolution_split_envelope {A B : AsympEnv}
+    (D : DirichletConvolutionBridge A B) (C : HyperbolaSplitCert A B) :
+    ∀ N, C.cutoff ≤ N →
+      |(D.toAsympEnvFromSplit C).summatory N - evalAtNat C.mainTerm N| ≤
+        evalAtNat C.errorTerm N := by
+  intro N hN
+  exact (D.toAsympEnvFromSplit C).cert N hN
+
+/-- Golden theorem for a conventional convolution sequence certified through a
+generated hyperbola split certificate and weakened to a public target error. -/
+theorem verify_dirichlet_convolution_split_envelope_with_target_error {A B : AsympEnv}
+    (D : DirichletConvolutionBridge A B) (C : HyperbolaSplitCert A B)
+    (targetError : Expr)
+    (E : ErrorDomination C.errorTerm targetError) (hcut : E.cutoff ≤ C.cutoff) :
+    ∀ N, C.cutoff ≤ N →
+      |(D.toAsympEnvFromSplitWithTargetError C targetError E hcut).summatory N -
+          evalAtNat C.mainTerm N| ≤
+        evalAtNat targetError N := by
+  intro N hN
+  exact (D.toAsympEnvFromSplitWithTargetError C targetError E hcut).cert N hN
 
 end LeanCert.ANT.Asymp

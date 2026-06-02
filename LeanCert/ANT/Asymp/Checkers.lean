@@ -177,6 +177,17 @@ theorem verify_expr_le_with_slab_tail_dyadic
       verify_expr_le_on_slabs_dyadic lhs rhs cert.slabs prec depth hsupp hprec
         hcheck I hI (N : ℝ) hmem
 
+/-- Packaged-certificate version of
+`verify_expr_le_with_slab_tail_dyadic`. -/
+theorem ExprLeOnSlabsDyadicCert.verify_with_slab_tail
+    {lhs rhs : Expr} {slabs : List IntervalRat} {prec : Int} {depth : Nat}
+    (checkCert : ExprLeOnSlabsDyadicCert lhs rhs slabs prec depth)
+    (cover : SlabTailCert lhs rhs)
+    (hslabs : cover.slabs = slabs) :
+    ∀ N, cover.cutoff ≤ N → evalAtNat lhs N ≤ evalAtNat rhs N := by
+  exact verify_expr_le_with_slab_tail_dyadic lhs rhs cover prec depth
+    checkCert.supported checkCert.prec_ok (by simpa [hslabs] using checkCert.checked)
+
 /-- Check that a Stieltjes certificate's generated error is dominated by a
 target error expression on one slab. -/
 def checkStieltjesErrorLeTargetOnIntervalDyadic {A : AsympEnv}
@@ -210,6 +221,20 @@ theorem verify_stieltjes_error_le_target_with_slab_tail_dyadic {A : AsympEnv}
     ∀ N, cert.cutoff ≤ N → evalAtNat C.errorTerm N ≤ evalAtNat targetError N := by
   exact verify_expr_le_with_slab_tail_dyadic C.errorTerm targetError cert prec depth
     hsupp hprec hcheck
+
+/-- Packaged-certificate version of generated Stieltjes error domination on a
+slab-tail cover. -/
+theorem ExprLeOnSlabsDyadicCert.verify_stieltjes_error_with_slab_tail
+    {A : AsympEnv} {targetError : Expr} {slabs : List IntervalRat}
+    {prec : Int} {depth : Nat}
+    (C : StieltjesCert A)
+    (cert : SlabTailCert C.errorTerm targetError)
+    (checkCert : ExprLeOnSlabsDyadicCert C.errorTerm targetError slabs prec depth)
+    (hslabs : cert.slabs = slabs) :
+    ∀ N, cert.cutoff ≤ N → evalAtNat C.errorTerm N ≤ evalAtNat targetError N := by
+  exact verify_stieltjes_error_le_target_with_slab_tail_dyadic C targetError cert
+    prec depth checkCert.supported checkCert.prec_ok
+    (by simpa [hslabs] using checkCert.checked)
 
 /-- Check that a hyperbola certificate's generated error is dominated by a
 target error expression on one slab. -/
@@ -245,5 +270,19 @@ theorem verify_hyperbola_error_le_target_with_slab_tail_dyadic {A B : AsympEnv}
     ∀ N, cert.cutoff ≤ N → evalAtNat C.errorTerm N ≤ evalAtNat targetError N := by
   exact verify_expr_le_with_slab_tail_dyadic C.errorTerm targetError cert prec depth
     hsupp hprec hcheck
+
+/-- Packaged-certificate version of generated hyperbola error domination on a
+slab-tail cover. -/
+theorem ExprLeOnSlabsDyadicCert.verify_hyperbola_error_with_slab_tail
+    {A B : AsympEnv} {targetError : Expr} {slabs : List IntervalRat}
+    {prec : Int} {depth : Nat}
+    (C : HyperbolaCert A B)
+    (cert : SlabTailCert C.errorTerm targetError)
+    (checkCert : ExprLeOnSlabsDyadicCert C.errorTerm targetError slabs prec depth)
+    (hslabs : cert.slabs = slabs) :
+    ∀ N, cert.cutoff ≤ N → evalAtNat C.errorTerm N ≤ evalAtNat targetError N := by
+  exact verify_hyperbola_error_le_target_with_slab_tail_dyadic C targetError cert
+    prec depth checkCert.supported checkCert.prec_ok
+    (by simpa [hslabs] using checkCert.checked)
 
 end LeanCert.ANT.Asymp

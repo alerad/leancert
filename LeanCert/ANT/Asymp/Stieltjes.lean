@@ -200,6 +200,14 @@ noncomputable def toAsympEnv {A : AsympEnv} (C : OneOverNAbelCert A) :
     AsympEnv :=
   C.toOneOverNStieltjesCert.toAsympEnv
 
+/-- Convert a generated Abel-side `1 / n` certificate into an envelope with a
+public target error term, using an error-domination certificate. -/
+noncomputable def toAsympEnvWithTargetError {A : AsympEnv}
+    (C : OneOverNAbelCert A) (targetError : Expr)
+    (D : ErrorDomination C.errorTerm targetError) (hcut : D.cutoff ≤ C.cutoff) :
+    AsympEnv :=
+  ErrorDomination.weakenAsympEnv C.toAsympEnv targetError D hcut
+
 end OneOverNAbelCert
 
 /-- Golden theorem for a certified Stieltjes-Abel transform payload. -/
@@ -227,5 +235,17 @@ theorem verify_one_over_n_abel_envelope {A : AsympEnv}
         evalAtNat C.errorTerm N := by
   intro N hN
   exact C.toAsympEnv.cert N hN
+
+/-- Golden theorem for a generated Abel-side `1 / n` certificate after
+dominating its generated error by a public target error. -/
+theorem verify_one_over_n_abel_envelope_with_target_error {A : AsympEnv}
+    (C : OneOverNAbelCert A) (targetError : Expr)
+    (D : ErrorDomination C.errorTerm targetError) (hcut : D.cutoff ≤ C.cutoff) :
+    ∀ N, C.cutoff ≤ N →
+      |(C.toAsympEnvWithTargetError targetError D hcut).summatory N -
+          evalAtNat C.mainTerm N| ≤
+        evalAtNat targetError N := by
+  intro N hN
+  exact (C.toAsympEnvWithTargetError targetError D hcut).cert N hN
 
 end LeanCert.ANT.Asymp
