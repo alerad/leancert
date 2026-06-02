@@ -159,7 +159,7 @@ example : ∀ x ∈ I01, Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var
   certify_bound
 ```
 
-**When native syntax fails:** If you get unification errors with complex expressions (especially with numeric coefficients like `2 * x * x`), switch to Expr AST. See [Troubleshooting](troubleshooting.md#could-not-unify--expreval--with-the-goal) for details.
+**When native syntax fails:** If you get unification errors with complex expressions (especially with numeric coefficients like `2 * x * x`), switch to Expr AST. See [Troubleshooting](troubleshooting.md) for details.
 
 ### "I have a sum over vectors/matrices"
 
