@@ -38,13 +38,13 @@ namespace LeanCert.Core.IntervalRat
 
 /-! ### Shared range-reduction API -/
 
-abbrev piRatLo : ℚ := LeanCert.Core.TrigReduction.piRatLo
-abbrev piRatHi : ℚ := LeanCert.Core.TrigReduction.piRatHi
-abbrev twoPiRatLo : ℚ := LeanCert.Core.TrigReduction.twoPiRatLo
-abbrev twoPiRatHi : ℚ := LeanCert.Core.TrigReduction.twoPiRatHi
-abbrev computeShiftK : IntervalRat → ℤ := LeanCert.Core.TrigReduction.computeShiftK
-abbrev shiftInterval : IntervalRat → ℤ → IntervalRat := LeanCert.Core.TrigReduction.shiftInterval
-abbrev reduceToMainPeriod : IntervalRat → IntervalRat × ℤ :=
+def piRatLo : ℚ := LeanCert.Core.TrigReduction.piRatLo
+def piRatHi : ℚ := LeanCert.Core.TrigReduction.piRatHi
+def twoPiRatLo : ℚ := LeanCert.Core.TrigReduction.twoPiRatLo
+def twoPiRatHi : ℚ := LeanCert.Core.TrigReduction.twoPiRatHi
+def computeShiftK : IntervalRat → ℤ := LeanCert.Core.TrigReduction.computeShiftK
+def shiftInterval : IntervalRat → ℤ → IntervalRat := LeanCert.Core.TrigReduction.shiftInterval
+def reduceToMainPeriod : IntervalRat → IntervalRat × ℤ :=
   LeanCert.Core.TrigReduction.reduceToMainPeriod
 
 theorem piRatLo_lt_pi : (piRatLo : ℝ) < Real.pi :=
@@ -63,8 +63,9 @@ theorem twoPiRatLo_le_twoPiRatHi : twoPiRatLo ≤ twoPiRatHi :=
   LeanCert.Core.TrigReduction.twoPiRatLo_le_twoPiRatHi
 
 theorem mem_shiftInterval_of_mem {x : ℝ} {I : IntervalRat} {k : ℤ}
-    (hx : x ∈ I) : x - 2 * Real.pi * k ∈ shiftInterval I k :=
-  LeanCert.Core.TrigReduction.mem_shiftInterval_of_mem hx
+    (hx : x ∈ I) : x - 2 * Real.pi * k ∈ shiftInterval I k := by
+  change x - 2 * Real.pi * k ∈ LeanCert.Core.TrigReduction.shiftInterval I k
+  exact LeanCert.Core.TrigReduction.mem_shiftInterval_of_mem hx
 
 /-! ### Computable reduced evaluation -/
 

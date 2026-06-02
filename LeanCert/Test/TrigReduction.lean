@@ -17,6 +17,9 @@ namespace LeanCert.Test.TrigReduction
 open LeanCert.Core
 
 #check LeanCert.Core.TrigReduction.reduceToMainPeriod
+#check LeanCert.Core.IntervalRat.piRatLo
+#check LeanCert.Core.IntervalRat.computeShiftK
+#check LeanCert.Core.IntervalRat.mem_shiftInterval_of_mem
 #check LeanCert.Core.IntervalRat.reduceToMainPeriod
 #check LeanCert.Engine.TaylorModel.reduceToMainPeriod
 #check LeanCert.Core.IntervalRat.sinComputableReduced
