@@ -41,4 +41,35 @@ example :
     checkExprLeOnSlabsDyadic lhsX rhsEleven [slab010] (-53) 10 = true := by
   native_decide
 
+def slab05 : IntervalRat := ⟨0, 5, by norm_num⟩
+
+def lhsZero : Expr := Expr.const 0
+
+def rhsOne : Expr := Expr.const 1
+
+def zeroLeOneSupport : ExprSupportedWithInv (Expr.sub lhsZero rhsOne) := by
+  unfold lhsZero rhsOne Expr.sub
+  exact ExprSupportedWithInv.add
+    (ExprSupportedWithInv.const 0)
+    (ExprSupportedWithInv.neg (ExprSupportedWithInv.const 1))
+
+def slabTailZeroLeOne : SlabTailCert lhsZero rhsOne where
+  cutoff := 0
+  tailStart := 5
+  slabs := [slab05]
+  coversSlabs := by
+    intro N hcut htail
+    refine ⟨slab05, by simp, ?_⟩
+    simp [slab05]
+    have hle5 : N ≤ 5 := (Nat.le_of_lt_succ htail).trans (by norm_num)
+    exact_mod_cast hle5
+  tailBound := by
+    intro N _hN
+    simp [evalAtNat, lhsZero, rhsOne]
+
+example (N : Nat) :
+    evalAtNat lhsZero N ≤ evalAtNat rhsOne N := by
+  exact verify_expr_le_with_slab_tail_dyadic lhsZero rhsOne slabTailZeroLeOne
+    (-53) 10 zeroLeOneSupport (by norm_num) (by native_decide) N (Nat.zero_le N)
+
 end LeanCert.Test.AsympCheckers

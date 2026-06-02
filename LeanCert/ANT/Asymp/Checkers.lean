@@ -36,6 +36,37 @@ def checkExprLeOnSlabsDyadic
     (lhs rhs : Expr) (slabs : List IntervalRat) (prec : Int) (depth : Nat) : Bool :=
   slabs.all fun I => checkExprLeOnIntervalDyadic lhs rhs I prec depth
 
+/-- A finite slab cover for natural endpoints starting at `cutoff`. -/
+structure NatSlabCover where
+  /-- First endpoint covered by the slab family. -/
+  cutoff : Nat
+  /-- Rational slabs checked by the dyadic backend. -/
+  slabs : List IntervalRat
+  /-- Every relevant natural endpoint lies in at least one slab. -/
+  covers :
+    ∀ N, cutoff ≤ N →
+      ∃ I ∈ slabs, (N : ℝ) ∈ Set.Icc (I.lo : ℝ) I.hi
+
+/-- A global domination certificate from finite slabs plus a tail proof.
+
+This is the first CAEE coverage layer: numerical interval arithmetic handles a
+finite initial range, while a symbolic/asymptotic tail proof handles every
+endpoint from `tailStart` onward. -/
+structure SlabTailCert (lhs rhs : Expr) where
+  /-- First endpoint covered by the combined certificate. -/
+  cutoff : Nat
+  /-- First endpoint handled by the tail proof. -/
+  tailStart : Nat
+  /-- Rational slabs covering `cutoff ≤ N < tailStart`. -/
+  slabs : List IntervalRat
+  /-- Slab coverage for the finite pre-tail range. -/
+  coversSlabs :
+    ∀ N, cutoff ≤ N → N < tailStart →
+      ∃ I ∈ slabs, (N : ℝ) ∈ Set.Icc (I.lo : ℝ) I.hi
+  /-- Symbolic/asymptotic domination proof on the tail. -/
+  tailBound :
+    ∀ N, tailStart ≤ N → evalAtNat lhs N ≤ evalAtNat rhs N
+
 /-- Golden theorem for dyadic expression domination on one slab. -/
 theorem verify_expr_le_on_interval_dyadic
     (lhs rhs : Expr) (I : IntervalRat) (prec : Int) (depth : Nat)
@@ -64,6 +95,37 @@ theorem verify_expr_le_on_slabs_dyadic
   exact verify_expr_le_on_interval_dyadic lhs rhs I prec depth hsupp hprec
     (hcheck I hI) x hx
 
+/-- Verify expression domination for all natural endpoints covered by a finite
+slab family. -/
+theorem verify_expr_le_on_nat_slab_cover_dyadic
+    (lhs rhs : Expr) (cover : NatSlabCover) (prec : Int) (depth : Nat)
+    (hsupp : ExprSupportedWithInv (Expr.sub lhs rhs))
+    (hprec : prec ≤ 0)
+    (hcheck : checkExprLeOnSlabsDyadic lhs rhs cover.slabs prec depth = true) :
+    ∀ N, cover.cutoff ≤ N → evalAtNat lhs N ≤ evalAtNat rhs N := by
+  intro N hN
+  rcases cover.covers N hN with ⟨I, hI, hmem⟩
+  simpa [evalAtNat] using
+    verify_expr_le_on_slabs_dyadic lhs rhs cover.slabs prec depth hsupp hprec
+      hcheck I hI (N : ℝ) hmem
+
+/-- Verify expression domination for all natural endpoints using finite dyadic
+slabs before `tailStart` and a symbolic tail proof afterwards. -/
+theorem verify_expr_le_with_slab_tail_dyadic
+    (lhs rhs : Expr) (cert : SlabTailCert lhs rhs) (prec : Int) (depth : Nat)
+    (hsupp : ExprSupportedWithInv (Expr.sub lhs rhs))
+    (hprec : prec ≤ 0)
+    (hcheck : checkExprLeOnSlabsDyadic lhs rhs cert.slabs prec depth = true) :
+    ∀ N, cert.cutoff ≤ N → evalAtNat lhs N ≤ evalAtNat rhs N := by
+  intro N hN
+  by_cases htail : cert.tailStart ≤ N
+  · exact cert.tailBound N htail
+  · have hpre : N < cert.tailStart := Nat.lt_of_not_ge htail
+    rcases cert.coversSlabs N hN hpre with ⟨I, hI, hmem⟩
+    simpa [evalAtNat] using
+      verify_expr_le_on_slabs_dyadic lhs rhs cert.slabs prec depth hsupp hprec
+        hcheck I hI (N : ℝ) hmem
+
 /-- Check that a Stieltjes certificate's generated error is dominated by a
 target error expression on one slab. -/
 def checkStieltjesErrorLeTargetOnIntervalDyadic {A : AsympEnv}
@@ -85,6 +147,19 @@ theorem verify_stieltjes_error_le_target_on_interval_dyadic {A : AsympEnv}
   exact verify_expr_le_on_interval_dyadic C.errorTerm targetError I prec depth
     hsupp hprec hcheck (N : ℝ) hN
 
+/-- Verify Stieltjes generated-error domination on all endpoints covered by a
+slab-tail certificate. -/
+theorem verify_stieltjes_error_le_target_with_slab_tail_dyadic {A : AsympEnv}
+    (C : StieltjesCert A) (targetError : Expr)
+    (cert : SlabTailCert C.errorTerm targetError)
+    (prec : Int) (depth : Nat)
+    (hsupp : ExprSupportedWithInv (Expr.sub C.errorTerm targetError))
+    (hprec : prec ≤ 0)
+    (hcheck : checkExprLeOnSlabsDyadic C.errorTerm targetError cert.slabs prec depth = true) :
+    ∀ N, cert.cutoff ≤ N → evalAtNat C.errorTerm N ≤ evalAtNat targetError N := by
+  exact verify_expr_le_with_slab_tail_dyadic C.errorTerm targetError cert prec depth
+    hsupp hprec hcheck
+
 /-- Check that a hyperbola certificate's generated error is dominated by a
 target error expression on one slab. -/
 def checkHyperbolaErrorLeTargetOnIntervalDyadic {A B : AsympEnv}
@@ -105,5 +180,19 @@ theorem verify_hyperbola_error_le_target_on_interval_dyadic {A B : AsympEnv}
   intro N hN
   exact verify_expr_le_on_interval_dyadic C.errorTerm targetError I prec depth
     hsupp hprec hcheck (N : ℝ) hN
+
+/-- Verify hyperbola generated-error domination on all endpoints covered by a
+slab-tail certificate. -/
+theorem verify_hyperbola_error_le_target_with_slab_tail_dyadic {A B : AsympEnv}
+    (C : HyperbolaCert A B) (targetError : Expr)
+    (cert : SlabTailCert C.errorTerm targetError)
+    (prec : Int) (depth : Nat)
+    (hsupp : ExprSupportedWithInv (Expr.sub C.errorTerm targetError))
+    (hprec : prec ≤ 0)
+    (hcheck :
+      checkExprLeOnSlabsDyadic C.errorTerm targetError cert.slabs prec depth = true) :
+    ∀ N, cert.cutoff ≤ N → evalAtNat C.errorTerm N ≤ evalAtNat targetError N := by
+  exact verify_expr_le_with_slab_tail_dyadic C.errorTerm targetError cert prec depth
+    hsupp hprec hcheck
 
 end LeanCert.ANT.Asymp

@@ -123,6 +123,23 @@ structure HyperbolaCert (A B : AsympEnv) where
       |hyperbolaPairSum A.seq B.seq N - evalAtNat mainTerm N| ≤
         evalAtNat errorTerm N
 
+/-- A bridge from a conventional Dirichlet-convolution sequence to the
+hyperbola pair-summatory kernel.
+
+The intended `convSeq` is `(a * b)(n)`.  The bridge certificate isolates the
+finite divisor-pair identity
+
+`∑_{n ≤ N} (a * b)(n) = ∑_{ij ≤ N} a(i)b(j)`,
+
+so hyperbola envelope certificates can be reused without committing this file
+to one particular divisor API. -/
+structure DirichletConvolutionBridge (A B : AsympEnv) where
+  /-- The conventional convolution sequence. -/
+  convSeq : Nat → ℝ
+  /-- The summatory convolution agrees with the hyperbola pair sum. -/
+  summatory_eq_hyperbola :
+    ∀ N, prefixSum convSeq (N + 1) = hyperbolaPairSum A.seq B.seq N
+
 namespace HyperbolaCert
 
 /-- Convert a certified hyperbola transform into an envelope whose `N`th
@@ -141,6 +158,24 @@ noncomputable def toAsympEnv {A B : AsympEnv} (C : HyperbolaCert A B) :
 
 end HyperbolaCert
 
+namespace DirichletConvolutionBridge
+
+/-- Lift a hyperbola pair-sum certificate to the conventional convolution
+sequence supplied by the bridge. -/
+noncomputable def toAsympEnv {A B : AsympEnv}
+    (D : DirichletConvolutionBridge A B) (C : HyperbolaCert A B) :
+    AsympEnv where
+  seq := D.convSeq
+  cutoff := C.cutoff
+  mainTerm := C.mainTerm
+  errorTerm := C.errorTerm
+  cert := by
+    intro N hN
+    rw [D.summatory_eq_hyperbola]
+    exact C.cert N hN
+
+end DirichletConvolutionBridge
+
 /-- Golden theorem for a certified Dirichlet-hyperbola payload. -/
 theorem verify_dirichlet_hyperbola_envelope {A B : AsympEnv}
     (C : HyperbolaCert A B) :
@@ -149,5 +184,15 @@ theorem verify_dirichlet_hyperbola_envelope {A B : AsympEnv}
         evalAtNat C.errorTerm N := by
   intro N hN
   exact C.cert N hN
+
+/-- Golden theorem for a conventional convolution sequence certified through
+the hyperbola pair-sum kernel. -/
+theorem verify_dirichlet_convolution_envelope {A B : AsympEnv}
+    (D : DirichletConvolutionBridge A B) (C : HyperbolaCert A B) :
+    ∀ N, C.cutoff ≤ N →
+      |(D.toAsympEnv C).summatory N - evalAtNat C.mainTerm N| ≤
+        evalAtNat C.errorTerm N := by
+  intro N hN
+  exact (D.toAsympEnv C).cert N hN
 
 end LeanCert.ANT.Asymp

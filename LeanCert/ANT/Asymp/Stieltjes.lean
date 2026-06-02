@@ -29,6 +29,14 @@ noncomputable def weightedPrefixSumReal
     (a w : Nat → ℝ) (N : Nat) : ℝ :=
   ∑ i ∈ Finset.range (N + 1), w i * a i
 
+/-- The discrete weight `1 / n`, with Lean's harmless convention `0⁻¹ = 0`. -/
+noncomputable def oneOverNWeight (n : Nat) : ℝ :=
+  ((n : ℝ)⁻¹)
+
+/-- AST representation of the Stieltjes weight `1 / x`. -/
+def oneOverNExpr : Expr :=
+  Expr.inv (Expr.var 0)
+
 /-- Abel transform over an arbitrary real prefix function. -/
 noncomputable def abelTransformOfPrefixReal
     (w : Nat → ℝ) (A : Nat → ℝ) (m n : Nat) : ℝ :=
@@ -62,6 +70,17 @@ theorem weightedPrefixSumReal_eq_abelTransformOfPrefixReal
     (weightedIntervalSumReal_eq_abelTransformOfPrefixReal
       (a := a) (w := w) (m := 0) (n := N + 1) (Nat.succ_pos N))
 
+@[simp] theorem oneOverNWeight_eq_evalAtNat (N : Nat) :
+    oneOverNWeight N = evalAtNat oneOverNExpr N := by
+  rfl
+
+/-- Abel's identity specialized to the foundational ANT weight `1 / n`. -/
+theorem weightedPrefixSumReal_oneOverN_eq_abelTransformOfPrefixReal
+    (a : Nat → ℝ) (N : Nat) :
+    weightedPrefixSumReal a oneOverNWeight N =
+      abelTransformOfPrefixReal oneOverNWeight (prefixSum a) 0 (N + 1) := by
+  exact weightedPrefixSumReal_eq_abelTransformOfPrefixReal a oneOverNWeight N
+
 /-- A certified Stieltjes transform payload for a fixed source envelope. -/
 structure StieltjesCert (A : AsympEnv) where
   /-- The discrete weight `f(n)`. -/
@@ -76,6 +95,20 @@ structure StieltjesCert (A : AsympEnv) where
   cert :
     ∀ N, cutoff ≤ N →
       |weightedPrefixSumReal A.seq weight N - evalAtNat mainTerm N| ≤
+        evalAtNat errorTerm N
+
+/-- Certified Stieltjes payload for the canonical ANT weight `1 / n`. -/
+structure OneOverNStieltjesCert (A : AsympEnv) where
+  /-- First endpoint from which the transformed envelope is valid. -/
+  cutoff : Nat
+  /-- Main term for `∑_{n ≤ N} a_n / n`. -/
+  mainTerm : Expr
+  /-- Error term for `∑_{n ≤ N} a_n / n`. -/
+  errorTerm : Expr
+  /-- Semantic certificate, supplied by a checker or direct proof. -/
+  cert :
+    ∀ N, cutoff ≤ N →
+      |weightedPrefixSumReal A.seq oneOverNWeight N - evalAtNat mainTerm N| ≤
         evalAtNat errorTerm N
 
 namespace StieltjesCert
@@ -93,8 +126,35 @@ noncomputable def toAsympEnv {A : AsympEnv} (C : StieltjesCert A) :
 
 end StieltjesCert
 
+namespace OneOverNStieltjesCert
+
+/-- Forget the `1 / n` specialization into the generic Stieltjes certificate. -/
+noncomputable def toStieltjesCert {A : AsympEnv}
+    (C : OneOverNStieltjesCert A) : StieltjesCert A where
+  weight := oneOverNWeight
+  cutoff := C.cutoff
+  mainTerm := C.mainTerm
+  errorTerm := C.errorTerm
+  cert := C.cert
+
+/-- Convert a certified `1 / n` Stieltjes transform into an asymptotic envelope. -/
+noncomputable def toAsympEnv {A : AsympEnv} (C : OneOverNStieltjesCert A) :
+    AsympEnv :=
+  C.toStieltjesCert.toAsympEnv
+
+end OneOverNStieltjesCert
+
 /-- Golden theorem for a certified Stieltjes-Abel transform payload. -/
 theorem verify_stieltjes_envelope {A : AsympEnv} (C : StieltjesCert A) :
+    ∀ N, C.cutoff ≤ N →
+      |(C.toAsympEnv).summatory N - evalAtNat C.mainTerm N| ≤
+        evalAtNat C.errorTerm N := by
+  intro N hN
+  exact C.toAsympEnv.cert N hN
+
+/-- Golden theorem for the certified `1 / n` Stieltjes-Abel transform. -/
+theorem verify_one_over_n_stieltjes_envelope {A : AsympEnv}
+    (C : OneOverNStieltjesCert A) :
     ∀ N, C.cutoff ≤ N →
       |(C.toAsympEnv).summatory N - evalAtNat C.mainTerm N| ≤
         evalAtNat C.errorTerm N := by
