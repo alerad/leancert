@@ -16,7 +16,7 @@ casts, scientific notation, arithmetic on constants) in one place.
 
 open Lean Meta
 
-namespace LeanCert.Meta
+namespace LeanCert.Meta.Numeral
 
 /-- Attempt to parse a Lean expression as a rational constant. -/
 partial def toRat? (e : Lean.Expr) : MetaM (Option ℚ) := do
@@ -38,6 +38,14 @@ partial def toRat? (e : Lean.Expr) : MetaM (Option ℚ) := do
 where
   /-- Try to match a numeric expression directly. -/
   tryMatchNumeric (e : Lean.Expr) : MetaM (Option ℚ) := do
+    let fn0 := e.getAppFn
+    let args0 := e.getAppArgs
+    if args0.size > 0 &&
+        (fn0.isConstOf ``Nat.cast || fn0.isConstOf ``NatCast.natCast ||
+         fn0.isConstOf ``Int.cast || fn0.isConstOf ``IntCast.intCast ||
+         fn0.isConstOf ``Rat.cast || fn0.isConstOf ``RatCast.ratCast) then
+      return ← toRat? args0.back!
+
     match_expr e with
     -- OfNat.ofNat α n inst
     | OfNat.ofNat _ n _ =>
@@ -113,6 +121,16 @@ where
         return some (qnum / qden)
       | _, _ => return none
 
+    -- Rat.cast / RatCast.ratCast
+    | Rat.cast _ q =>
+      toRat? q
+    | RatCast.ratCast _ q =>
+      toRat? q
+
+    -- Rat.ofInt z
+    | Rat.ofInt z =>
+      toRat? z
+
     -- Inv.inv x = 1/x
     | Inv.inv _ _ x =>
       if let some q ← toRat? x then
@@ -136,24 +154,113 @@ where
     | _ =>
       let fn := e.getAppFn
       let args := e.getAppArgs
+      let fnHead := fn.getAppFn
+      let allArgs := fn.getAppArgs ++ args
+      if allArgs.size > 0 &&
+          (fnHead.isConstOf ``Nat.cast || fnHead.isConstOf ``NatCast.natCast ||
+           fnHead.isConstOf ``Int.cast || fnHead.isConstOf ``IntCast.intCast ||
+           fnHead.isConstOf ``Rat.cast || fnHead.isConstOf ``RatCast.ratCast) then
+        return ← toRat? allArgs.back!
+      -- Some elaborated casts appear with projection-headed pretty names such
+      -- as `Real.instRatCast.1`; keep this as a narrow fallback after the
+      -- structural cast checks above.
+      let fnStr := toString (← ppExpr fn)
+      if allArgs.size > 0 &&
+          (fnStr.endsWith "instNatCast.1" || fnStr.endsWith "instIntCast.1" ||
+           fnStr.endsWith "instRatCast.1") then
+        return ← toRat? allArgs.back!
       -- Handle cast wrappers. We accept only cast-related projections/constants.
       -- This avoids accidentally classifying non-numeral projections
       -- (e.g. `x ^ (1/3)` reducing to a projection-headed term) as constants.
-      match fn with
-      | .proj s _ _ =>
-        let sName := toString s
-        if args.size > 0 &&
-            (sName.endsWith "NatCast" || sName.endsWith "IntCast" || sName.endsWith "RatCast") then
-          toRat? args.back!
-        else
-          return none
-      | .const n _ =>
-        let s := toString n
-        if args.size > 0 &&
-            (s.endsWith "instNatCast.1" || s.endsWith "instIntCast.1" || s.endsWith "instRatCast.1") then
-          toRat? args.back!
-        else
-          return none
-      | _ => return none
+      let cast? ←
+        match fnHead with
+        | .proj s _ _ =>
+          let sName := toString s
+          if allArgs.size > 0 &&
+              (sName.endsWith "NatCast" || sName.endsWith "IntCast" ||
+               sName.endsWith "RatCast" || sName.endsWith "instNatCast" ||
+               sName.endsWith "instIntCast" || sName.endsWith "instRatCast") then
+            toRat? allArgs.back!
+          else
+            pure none
+        | .const n _ =>
+          let s := toString n
+          if allArgs.size > 0 &&
+              (s.endsWith "instNatCast.1" || s.endsWith "instIntCast.1" ||
+               s.endsWith "instRatCast.1") then
+            toRat? allArgs.back!
+          else
+            pure none
+        | _ => pure none
+      if let some q := cast? then
+        return some q
+
+      -- Last resort: evaluate closed rational expressions directly.
+      if e.hasFVar || e.hasMVar then
+        return none
+      let ty ← inferType e
+      unless ← isDefEq ty (mkConst ``Rat) do
+        return none
+      try
+        let q ← unsafe evalExpr ℚ (mkConst ``Rat) e
+        return some q
+      catch _ =>
+        return none
+
+/-- Attempt to parse a Lean expression as an integer constant. -/
+def toInt? (e : Lean.Expr) : MetaM (Option Int) := do
+  let some q ← toRat? e | return none
+  if q.den = 1 then
+    return some q.num
+  return none
+
+/-- Attempt to parse a Lean expression as a natural-number constant. -/
+def toNat? (e : Lean.Expr) : MetaM (Option Nat) := do
+  let some z ← toInt? e | return none
+  if 0 ≤ z then
+    return some z.toNat
+  return none
+
+/-- Alias for callers that are extracting rationals from real-valued literals. -/
+partial def toRealRat? (e : Lean.Expr) : MetaM (Option ℚ) :=
+  toRat? e
+
+/-- Extract a rational after instantiating metavariables and normalizing reducible wrappers. -/
+def toRealRatNormalized? (e : Lean.Expr) : MetaM (Option ℚ) := do
+  let e ←
+    if e.isMVar then
+      if let some val ← getExprMVarAssignment? e.mvarId! then
+        instantiateMVars val
+      else
+        pure e
+    else
+      instantiateMVars e
+  if let some q ← toRealRat? e then
+    return some q
+  let e' ← whnf e
+  if let some q ← toRealRat? (← instantiateMVars e') then
+    return some q
+  let e'' ← withTransparency TransparencyMode.all <| whnf e
+  toRealRat? (← instantiateMVars e'')
+
+end LeanCert.Meta.Numeral
+
+namespace LeanCert.Meta
+
+/-- Compatibility alias for the canonical numeric extractor. -/
+abbrev toRat? : Lean.Expr → MetaM (Option ℚ) :=
+  LeanCert.Meta.Numeral.toRat?
+
+/-- Compatibility alias for the canonical natural-number extractor. -/
+abbrev toNat? : Lean.Expr → MetaM (Option Nat) :=
+  LeanCert.Meta.Numeral.toNat?
+
+/-- Compatibility alias for the canonical integer extractor. -/
+abbrev toInt? : Lean.Expr → MetaM (Option Int) :=
+  LeanCert.Meta.Numeral.toInt?
+
+/-- Compatibility alias for normalized real-valued rational extraction. -/
+abbrev toRealRatNormalized? : Lean.Expr → MetaM (Option ℚ) :=
+  LeanCert.Meta.Numeral.toRealRatNormalized?
 
 end LeanCert.Meta

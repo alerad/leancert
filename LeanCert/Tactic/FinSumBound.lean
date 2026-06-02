@@ -8,6 +8,7 @@ import LeanCert.Engine.FinSumDyadic
 import LeanCert.Meta.ToExpr
 import LeanCert.Meta.ProveSupported
 import LeanCert.Tactic.IntervalAuto
+import LeanCert.Tactic.FinsetParse
 import LeanCert.Tactic.FinSumWitness
 import LeanCert.Tactic.BridgeNative
 import Mathlib.Algebra.BigOperators.Fin
@@ -88,25 +89,6 @@ structure FinSumGoal where
   /-- true for `sum ≤ target`, false for `target ≤ sum` -/
   isUpper : Bool
 
-/-- Extract `(a, b, f)` from `Finset.sum (Finset.Icc a b) f`. -/
-private def extractFinsetIccSum (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Lean.Expr) :=
-  let fn := e.getAppFn
-  let args := e.getAppArgs
-  -- Finset.sum : {β} → {α} → [AddCommMonoid β] → Finset α → (α → β) → β
-  -- args = [β, α, inst, s, f]
-  if fn.isConstOf ``Finset.sum && args.size ≥ 5 then
-    let s := args[3]!
-    let f := args[4]!
-    let sfn := s.getAppFn
-    let sargs := s.getAppArgs
-    -- Finset.Icc : {α} → [Preorder α] → [LocallyFiniteOrder α] → α → α → Finset α
-    if sfn.isConstOf ``Finset.Icc && sargs.size ≥ 5 then
-      some (sargs[3]!, sargs[4]!, f)
-    else
-      none
-  else
-    none
-
 /-- Parse a goal of the form `∑ k ∈ Finset.Icc a b, f k ≤ target`
     or `target ≤ ∑ k ∈ Finset.Icc a b, f k`. -/
 private def parseFinSumGoal (goalType : Lean.Expr) : Option FinSumGoal := do
@@ -134,90 +116,6 @@ structure FinSumGoalList where
   targetExpr : Lean.Expr
   /-- true for `sum ≤ target`, false for `target ≤ sum` -/
   isUpper : Bool
-
-/-- Extract `(Finset, body)` from `Finset.sum S f`. -/
-private def extractFinsetSum (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) :=
-  let fn := e.getAppFn
-  let args := e.getAppArgs
-  if fn.isConstOf ``Finset.sum && args.size ≥ 5 then
-    some (args[3]!, args[4]!)
-  else
-    none
-
-/-- Try to extract a Nat literal from a Lean expression. -/
-private def extractNatLit (e : Lean.Expr) : MetaM (Option Nat) := do
-  if let some n := e.rawNatLit? then return some n
-  let e' ← whnf e
-  if let some n := e'.rawNatLit? then return some n
-  return none
-
-/-- Recursively extract elements from nested insert/singleton/empty Finset expressions. -/
-private partial def tryExtractExplicitFinset (e : Lean.Expr) : MetaM (Option (List Nat)) := do
-  let fn := e.getAppFn
-  let args := e.getAppArgs
-  -- Insert.insert : {α} → {γ} → [Insert α γ] → α → γ → γ
-  -- For Finset: args = [α, Finset α, Insert inst, elem, rest]
-  if fn.isConstOf ``Insert.insert && args.size ≥ 5 then
-    if let some n := ← extractNatLit args[3]! then
-      if let some rest := ← tryExtractExplicitFinset args[4]! then
-        return some (n :: rest)
-    return none
-  -- Finset.cons : {α} → α → (s : Finset α) → (h : a ∉ s) → Finset α
-  if fn.isConstOf ``Finset.cons && args.size ≥ 4 then
-    if let some n := ← extractNatLit args[1]! then
-      if let some rest := ← tryExtractExplicitFinset args[2]! then
-        return some (n :: rest)
-    return none
-  -- Singleton.singleton : {α} → {γ} → [Singleton α γ] → α → γ
-  -- For Finset: args = [α, Finset α, Singleton inst, elem]
-  if fn.isConstOf ``Singleton.singleton && args.size ≥ 4 then
-    if let some n := ← extractNatLit args[3]! then
-      return some [n]
-    return none
-  -- EmptyCollection.emptyCollection
-  if fn.isConstOf ``EmptyCollection.emptyCollection then
-    return some []
-  -- Try whnf and retry once
-  let e' ← whnf e
-  if e' != e then
-    return ← tryExtractExplicitFinset e'
-  return none
-
-/-- Extract Nat elements from a Finset expression.
-    Supports: Icc, Ico, Ioc, Ioo, range, {a, b, c}. -/
-private def extractFinsetElements (finsetExpr : Lean.Expr) : MetaM (Option (List Nat)) := do
-  let sfn := finsetExpr.getAppFn
-  let sargs := finsetExpr.getAppArgs
-  -- Finset.Icc a b
-  if sfn.isConstOf ``Finset.Icc && sargs.size ≥ 5 then
-    if let (some a, some b) := (← extractNatLit sargs[3]!, ← extractNatLit sargs[4]!) then
-      return some (List.range' a (b + 1 - a))
-    return none
-  -- Finset.Ico a b
-  if sfn.isConstOf ``Finset.Ico && sargs.size ≥ 5 then
-    if let (some a, some b) := (← extractNatLit sargs[3]!, ← extractNatLit sargs[4]!) then
-      return some (List.range' a (b - a))
-    return none
-  -- Finset.Ioc a b
-  if sfn.isConstOf ``Finset.Ioc && sargs.size ≥ 5 then
-    if let (some a, some b) := (← extractNatLit sargs[3]!, ← extractNatLit sargs[4]!) then
-      return some (List.range' (a + 1) (b - a))
-    return none
-  -- Finset.Ioo a b
-  if sfn.isConstOf ``Finset.Ioo && sargs.size ≥ 5 then
-    if let (some a, some b) := (← extractNatLit sargs[3]!, ← extractNatLit sargs[4]!) then
-      if b > a + 1 then
-        return some (List.range' (a + 1) (b - a - 1))
-      else
-        return some []
-    return none
-  -- Finset.range n
-  if sfn.isConstOf ``Finset.range && sargs.size ≥ 1 then
-    if let some n := ← extractNatLit sargs[0]! then
-      return some (List.range n)
-    return none
-  -- Explicit finset: {a, b, c}
-  tryExtractExplicitFinset finsetExpr
 
 /-- Parse a goal for the list path: ∑ k ∈ S, f k ≤ target (any Finset S). -/
 private def parseFinSumGoalList (goalType : Lean.Expr) : MetaM (Option FinSumGoalList) := do
@@ -353,12 +251,15 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int) (taylorDepth :
     -- Apply bridge + native_decide (with converter fallback)
     closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound" #[
       do evalTactic (← `(tactic|
-        intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
-          div_eq_mul_inv, ← Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
+        intro h; norm_num [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢; done)),
+      do evalTactic (← `(tactic|
+        intro h; simp only [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
         norm_num at h ⊢; exact h)),
       do evalTactic (← `(tactic|
-        intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
-          div_eq_mul_inv, ← Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
+        intro h; simp only [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
         push_cast at h ⊢; linarith))
     ]
 
@@ -415,12 +316,15 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int) (taylorDe
     -- Apply bridge + native_decide (with converter fallback)
     closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound" #[
       do evalTactic (← `(tactic|
-        intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
-          div_eq_mul_inv, ← Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
+        intro h; norm_num [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢; done)),
+      do evalTactic (← `(tactic|
+        intro h; simp only [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
         norm_num at h ⊢; exact h)),
       do evalTactic (← `(tactic|
-        intro h; simp only [Core.Expr.eval, Engine.sumBodyRealEnv,
-          div_eq_mul_inv, ← Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
+        intro h; simp only [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
+          div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
         push_cast at h ⊢; linarith))
     ]
 

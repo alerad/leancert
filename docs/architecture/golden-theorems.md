@@ -365,6 +365,11 @@ Fully computable subset enabling `native_decide`:
 - `const`, `var`, `add`, `mul`, `neg`
 - `sin`, `cos`, `exp`, `sqrt` (via Taylor series)
 
+Trigonometric range reduction is shared through `LeanCert.Core.TrigReduction`.
+That module provides rational bounds for `π` and `2π`, computable period
+shifting, and correctness lemmas reused by both interval-rational and Taylor
+model trigonometric evaluators.
+
 ### ExprSupportedWithInv
 
 Extended support including partial functions:

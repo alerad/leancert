@@ -7,6 +7,7 @@ import Lean
 import LeanCert.Engine.WitnessSum
 import LeanCert.Tactic.IntervalAuto
 import LeanCert.Tactic.BridgeNative
+import LeanCert.Tactic.FinsetParse
 
 /-!
 # `finsum_witness`: Tactic for Witness-Based Finite Sum Bounds
@@ -71,31 +72,13 @@ private structure WitnessGoal where
   /-- true for `sum ≤ target`, false for `target ≤ sum` -/
   isUpper : Bool
 
-/-- Extract `(a, b, f)` from `Finset.sum (Finset.Icc a b) f`. -/
-private def extractFinsetIccSum' (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Lean.Expr) :=
-  let fn := e.getAppFn
-  let args := e.getAppArgs
-  -- Finset.sum : {β} → {α} → [AddCommMonoid β] → Finset α → (α → β) → β
-  if fn.isConstOf ``Finset.sum && args.size ≥ 5 then
-    let s := args[3]!
-    let f := args[4]!
-    let sfn := s.getAppFn
-    let sargs := s.getAppArgs
-    -- Finset.Icc : {α} → [Preorder α] → [LocallyFiniteOrder α] → α → α → Finset α
-    if sfn.isConstOf ``Finset.Icc && sargs.size ≥ 5 then
-      some (sargs[3]!, sargs[4]!, f)
-    else
-      none
-  else
-    none
-
 /-- Parse a goal of the form `∑ k ∈ Finset.Icc a b, f k ≤ target`
     or `target ≤ ∑ k ∈ Finset.Icc a b, f k`. -/
 private def parseWitnessGoal (goalType : Lean.Expr) : Option WitnessGoal := do
   let_expr LE.le _ _ lhs rhs := goalType | none
-  if let some (a, b, f) := extractFinsetIccSum' lhs then
+  if let some (a, b, f) := extractFinsetIccSum lhs then
     return { aExpr := a, bExpr := b, bodyLambda := f, targetExpr := rhs, isUpper := true }
-  if let some (a, b, f) := extractFinsetIccSum' rhs then
+  if let some (a, b, f) := extractFinsetIccSum rhs then
     return { aExpr := a, bExpr := b, bodyLambda := f, targetExpr := lhs, isUpper := false }
   none
 
@@ -114,83 +97,13 @@ private structure WitnessGoalList where
   /-- true for `sum ≤ target`, false for `target ≤ sum` -/
   isUpper : Bool
 
-/-- Extract `(Finset, body)` from `Finset.sum S f`. -/
-private def extractFinsetSum' (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) :=
-  let fn := e.getAppFn
-  let args := e.getAppArgs
-  if fn.isConstOf ``Finset.sum && args.size ≥ 5 then
-    some (args[3]!, args[4]!)
-  else
-    none
-
-/-- Try to extract a Nat literal from a Lean expression. -/
-private def extractNatLit' (e : Lean.Expr) : MetaM (Option Nat) := do
-  if let some n := e.rawNatLit? then return some n
-  let e' ← whnf e
-  if let some n := e'.rawNatLit? then return some n
-  return none
-
-/-- Recursively extract elements from nested insert/singleton/empty Finset expressions. -/
-private partial def tryExtractExplicitFinset' (e : Lean.Expr) : MetaM (Option (List Nat)) := do
-  let fn := e.getAppFn
-  let args := e.getAppArgs
-  if fn.isConstOf ``Insert.insert && args.size ≥ 5 then
-    if let some n := ← extractNatLit' args[3]! then
-      if let some rest := ← tryExtractExplicitFinset' args[4]! then
-        return some (n :: rest)
-    return none
-  if fn.isConstOf ``Finset.cons && args.size ≥ 4 then
-    if let some n := ← extractNatLit' args[1]! then
-      if let some rest := ← tryExtractExplicitFinset' args[2]! then
-        return some (n :: rest)
-    return none
-  if fn.isConstOf ``Singleton.singleton && args.size ≥ 4 then
-    if let some n := ← extractNatLit' args[3]! then
-      return some [n]
-    return none
-  if fn.isConstOf ``EmptyCollection.emptyCollection then
-    return some []
-  let e' ← whnf e
-  if e' != e then
-    return ← tryExtractExplicitFinset' e'
-  return none
-
-/-- Extract Nat elements from a Finset expression. -/
-private def extractFinsetElements' (finsetExpr : Lean.Expr) : MetaM (Option (List Nat)) := do
-  let sfn := finsetExpr.getAppFn
-  let sargs := finsetExpr.getAppArgs
-  if sfn.isConstOf ``Finset.Icc && sargs.size ≥ 5 then
-    if let (some a, some b) := (← extractNatLit' sargs[3]!, ← extractNatLit' sargs[4]!) then
-      return some (List.range' a (b + 1 - a))
-    return none
-  if sfn.isConstOf ``Finset.Ico && sargs.size ≥ 5 then
-    if let (some a, some b) := (← extractNatLit' sargs[3]!, ← extractNatLit' sargs[4]!) then
-      return some (List.range' a (b - a))
-    return none
-  if sfn.isConstOf ``Finset.Ioc && sargs.size ≥ 5 then
-    if let (some a, some b) := (← extractNatLit' sargs[3]!, ← extractNatLit' sargs[4]!) then
-      return some (List.range' (a + 1) (b - a))
-    return none
-  if sfn.isConstOf ``Finset.Ioo && sargs.size ≥ 5 then
-    if let (some a, some b) := (← extractNatLit' sargs[3]!, ← extractNatLit' sargs[4]!) then
-      if b > a + 1 then
-        return some (List.range' (a + 1) (b - a - 1))
-      else
-        return some []
-    return none
-  if sfn.isConstOf ``Finset.range && sargs.size ≥ 1 then
-    if let some n := ← extractNatLit' sargs[0]! then
-      return some (List.range n)
-    return none
-  tryExtractExplicitFinset' finsetExpr
-
 /-- Parse a witness goal for the list path. -/
 private def parseWitnessGoalList (goalType : Lean.Expr) : MetaM (Option WitnessGoalList) := do
   let_expr LE.le _ _ lhs rhs := goalType | return none
   let tryExtract (sumSide otherSide : Lean.Expr) (isUpper : Bool) :
       MetaM (Option WitnessGoalList) := do
-    if let some (finsetExpr, bodyLambda) := extractFinsetSum' sumSide then
-      if let some indices := ← extractFinsetElements' finsetExpr then
+    if let some (finsetExpr, bodyLambda) := extractFinsetSum sumSide then
+      if let some indices := ← extractFinsetElements finsetExpr then
         let indicesExpr := toExpr indices
         return some { finsetExpr, indicesExpr, bodyLambda, targetExpr := otherSide, isUpper }
     return none

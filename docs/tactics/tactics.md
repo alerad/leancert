@@ -647,6 +647,13 @@ example (a : ℕ → ℝ) (r : ℝ) : ∑ n ∈ Finset.Icc 1 3, |a n| * r ^ n =
 
 **Why this exists:** When proving bounds involving finite sums, you often need to expand them for arithmetic simplification. Without this tactic, you'd need to manually define "bridge lemmas" for each specific range.
 
+### Shared finite-sum parser
+
+`finsum_bound` and `finsum_witness` share a finite-set parser for their
+certificate-generating paths. It recognizes `Finset.Icc`, `Finset.Ico`,
+`Finset.Ioc`, `Finset.Ioo`, `Finset.range`, and explicit finite sets such as
+`{1, 3, 7}` when the endpoints or elements are natural-number literals.
+
 ---
 
 ## Common Patterns

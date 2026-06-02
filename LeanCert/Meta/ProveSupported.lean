@@ -40,6 +40,50 @@ open Lean Meta Elab Command Term
 
 namespace LeanCert.Meta
 
+/-! ## Shared AST Proof Helpers -/
+
+private structure UnarySupportCtor where
+  exprCtor : Name
+  proofCtor : Name
+
+private structure BinarySupportCtor where
+  exprCtor : Name
+  proofCtor : Name
+
+private def lookupUnarySupportCtor (fn : Lean.Expr) (table : List UnarySupportCtor) :
+    Option Name :=
+  table.findSome? fun entry =>
+    if fn.isConstOf entry.exprCtor then some entry.proofCtor else none
+
+private def lookupBinarySupportCtor (fn : Lean.Expr) (table : List BinarySupportCtor) :
+    Option Name :=
+  table.findSome? fun entry =>
+    if fn.isConstOf entry.exprCtor then some entry.proofCtor else none
+
+private def tryUnarySupportProof
+    (rec : Lean.Expr → MetaM Lean.Expr)
+    (fn : Lean.Expr) (args : Array Lean.Expr) (table : List UnarySupportCtor) :
+    MetaM (Option Lean.Expr) := do
+  let some proofCtor := lookupUnarySupportCtor fn table | return none
+  if args.size != 1 then
+    throwError "Malformed unary LeanCert expression: expected one argument"
+  let e := args[0]!
+  let h ← rec e
+  return some (← mkAppM proofCtor #[h])
+
+private def tryBinarySupportProof
+    (rec : Lean.Expr → MetaM Lean.Expr)
+    (fn : Lean.Expr) (args : Array Lean.Expr) (table : List BinarySupportCtor) :
+    MetaM (Option Lean.Expr) := do
+  let some proofCtor := lookupBinarySupportCtor fn table | return none
+  if args.size != 2 then
+    throwError "Malformed binary LeanCert expression: expected two arguments"
+  let e₁ := args[0]!
+  let e₂ := args[1]!
+  let h₁ ← rec e₁
+  let h₂ ← rec e₂
+  return some (← mkAppM proofCtor #[h₁, h₂])
+
 /-! ## UsesOnlyVar0 Proof Generation
 
 Generate proof terms of type `UsesOnlyVar0 e` by recursively matching
@@ -161,41 +205,17 @@ partial def mkSupportedProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let idx := args[0]!
     mkAppM ``LeanCert.Core.ExprSupported.var #[idx]
 
-  else if fn.isConstOf ``LeanCert.Core.Expr.add then
-    let e₁ := args[0]!
-    let e₂ := args[1]!
-    let h₁ ← mkSupportedProof e₁
-    let h₂ ← mkSupportedProof e₂
-    mkAppM ``LeanCert.Core.ExprSupported.add #[h₁, h₂]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.mul then
-    let e₁ := args[0]!
-    let e₂ := args[1]!
-    let h₁ ← mkSupportedProof e₁
-    let h₂ ← mkSupportedProof e₂
-    mkAppM ``LeanCert.Core.ExprSupported.mul #[h₁, h₂]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.neg then
-    let e := args[0]!
-    let h ← mkSupportedProof e
-    mkAppM ``LeanCert.Core.ExprSupported.neg #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.sin then
-    let e := args[0]!
-    let h ← mkSupportedProof e
-    mkAppM ``LeanCert.Core.ExprSupported.sin #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.cos then
-    let e := args[0]!
-    let h ← mkSupportedProof e
-    mkAppM ``LeanCert.Core.ExprSupported.cos #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.exp then
-    let e := args[0]!
-    let h ← mkSupportedProof e
-    mkAppM ``LeanCert.Core.ExprSupported.exp #[h]
-
   else
+    if let some h ← tryBinarySupportProof mkSupportedProof fn args
+        [ ⟨``LeanCert.Core.Expr.add, ``LeanCert.Core.ExprSupported.add⟩
+        , ⟨``LeanCert.Core.Expr.mul, ``LeanCert.Core.ExprSupported.mul⟩ ] then
+      return h
+    if let some h ← tryUnarySupportProof mkSupportedProof fn args
+        [ ⟨``LeanCert.Core.Expr.neg, ``LeanCert.Core.ExprSupported.neg⟩
+        , ⟨``LeanCert.Core.Expr.sin, ``LeanCert.Core.ExprSupported.sin⟩
+        , ⟨``LeanCert.Core.Expr.cos, ``LeanCert.Core.ExprSupported.cos⟩
+        , ⟨``LeanCert.Core.Expr.exp, ``LeanCert.Core.ExprSupported.exp⟩ ] then
+      return h
     throwError "Cannot generate ExprSupported proof for: {e_ast}\n\
                 ExprSupported only covers: const, var, add, mul, neg, sin, cos, exp.\n\
                 This expression uses unsupported operations (log, sqrt, sinh, cosh, tanh, pi, inv, etc.).\n\
@@ -230,87 +250,27 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let idx := args[0]!
     mkAppM ``LeanCert.Core.ExprSupportedCore.var #[idx]
 
-  else if fn.isConstOf ``LeanCert.Core.Expr.add then
-    -- Expr.add e₁ e₂ => ExprSupportedCore.add h₁ h₂
-    let e₁ := args[0]!
-    let e₂ := args[1]!
-    let h₁ ← mkSupportedCoreProof e₁
-    let h₂ ← mkSupportedCoreProof e₂
-    mkAppM ``LeanCert.Core.ExprSupportedCore.add #[h₁, h₂]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.mul then
-    -- Expr.mul e₁ e₂ => ExprSupportedCore.mul h₁ h₂
-    let e₁ := args[0]!
-    let e₂ := args[1]!
-    let h₁ ← mkSupportedCoreProof e₁
-    let h₂ ← mkSupportedCoreProof e₂
-    mkAppM ``LeanCert.Core.ExprSupportedCore.mul #[h₁, h₂]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.neg then
-    -- Expr.neg e => ExprSupportedCore.neg h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.neg #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.sin then
-    -- Expr.sin e => ExprSupportedCore.sin h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.sin #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.cos then
-    -- Expr.cos e => ExprSupportedCore.cos h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.cos #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.exp then
-    -- Expr.exp e => ExprSupportedCore.exp h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.exp #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.log then
-    -- Expr.log e => ExprSupportedCore.log h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.log #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.sqrt then
-    -- Expr.sqrt e => ExprSupportedCore.sqrt h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.sqrt #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.sinh then
-    -- Expr.sinh e => ExprSupportedCore.sinh h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.sinh #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.cosh then
-    -- Expr.cosh e => ExprSupportedCore.cosh h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.cosh #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.tanh then
-    -- Expr.tanh e => ExprSupportedCore.tanh h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.tanh #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.erf then
-    -- Expr.erf e => ExprSupportedCore.erf h
-    let e := args[0]!
-    let h ← mkSupportedCoreProof e
-    mkAppM ``LeanCert.Core.ExprSupportedCore.erf #[h]
-
   else if fn.isConstOf ``LeanCert.Core.Expr.namedConst then
     let c := args[0]!
     mkAppM ``LeanCert.Core.ExprSupportedCore.namedConst #[c]
 
   else
+    if let some h ← tryBinarySupportProof mkSupportedCoreProof fn args
+        [ ⟨``LeanCert.Core.Expr.add, ``LeanCert.Core.ExprSupportedCore.add⟩
+        , ⟨``LeanCert.Core.Expr.mul, ``LeanCert.Core.ExprSupportedCore.mul⟩ ] then
+      return h
+    if let some h ← tryUnarySupportProof mkSupportedCoreProof fn args
+        [ ⟨``LeanCert.Core.Expr.neg, ``LeanCert.Core.ExprSupportedCore.neg⟩
+        , ⟨``LeanCert.Core.Expr.sin, ``LeanCert.Core.ExprSupportedCore.sin⟩
+        , ⟨``LeanCert.Core.Expr.cos, ``LeanCert.Core.ExprSupportedCore.cos⟩
+        , ⟨``LeanCert.Core.Expr.exp, ``LeanCert.Core.ExprSupportedCore.exp⟩
+        , ⟨``LeanCert.Core.Expr.log, ``LeanCert.Core.ExprSupportedCore.log⟩
+        , ⟨``LeanCert.Core.Expr.sqrt, ``LeanCert.Core.ExprSupportedCore.sqrt⟩
+        , ⟨``LeanCert.Core.Expr.sinh, ``LeanCert.Core.ExprSupportedCore.sinh⟩
+        , ⟨``LeanCert.Core.Expr.cosh, ``LeanCert.Core.ExprSupportedCore.cosh⟩
+        , ⟨``LeanCert.Core.Expr.tanh, ``LeanCert.Core.ExprSupportedCore.tanh⟩
+        , ⟨``LeanCert.Core.Expr.erf, ``LeanCert.Core.ExprSupportedCore.erf⟩ ] then
+      return h
     throwError "Cannot generate ExprSupportedCore proof for: {e_ast}\n\
                 This expression contains unsupported operations (inv, atan, arsinh, or atanh).\n\
                 Use mkSupportedWithInvProof for expressions with inv."
@@ -338,85 +298,29 @@ partial def mkSupportedWithInvProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let idx := args[0]!
     mkAppM ``LeanCert.Core.ExprSupportedWithInv.var #[idx]
 
-  else if fn.isConstOf ``LeanCert.Core.Expr.add then
-    let e₁ := args[0]!
-    let e₂ := args[1]!
-    let h₁ ← mkSupportedWithInvProof e₁
-    let h₂ ← mkSupportedWithInvProof e₂
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.add #[h₁, h₂]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.mul then
-    let e₁ := args[0]!
-    let e₂ := args[1]!
-    let h₁ ← mkSupportedWithInvProof e₁
-    let h₂ ← mkSupportedWithInvProof e₂
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.mul #[h₁, h₂]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.neg then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.neg #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.inv then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.inv #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.sin then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.sin #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.cos then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.cos #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.exp then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.exp #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.log then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.log #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.atan then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.atan #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.arsinh then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.arsinh #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.atanh then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.atanh #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.sinc then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.sinc #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.erf then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.erf #[h]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.sqrt then
-    let e := args[0]!
-    let h ← mkSupportedWithInvProof e
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.sqrt #[h]
-
   else if fn.isConstOf ``LeanCert.Core.Expr.namedConst then
     let c := args[0]!
     mkAppM ``LeanCert.Core.ExprSupportedWithInv.namedConst #[c]
 
   else
+    if let some h ← tryBinarySupportProof mkSupportedWithInvProof fn args
+        [ ⟨``LeanCert.Core.Expr.add, ``LeanCert.Core.ExprSupportedWithInv.add⟩
+        , ⟨``LeanCert.Core.Expr.mul, ``LeanCert.Core.ExprSupportedWithInv.mul⟩ ] then
+      return h
+    if let some h ← tryUnarySupportProof mkSupportedWithInvProof fn args
+        [ ⟨``LeanCert.Core.Expr.neg, ``LeanCert.Core.ExprSupportedWithInv.neg⟩
+        , ⟨``LeanCert.Core.Expr.inv, ``LeanCert.Core.ExprSupportedWithInv.inv⟩
+        , ⟨``LeanCert.Core.Expr.sin, ``LeanCert.Core.ExprSupportedWithInv.sin⟩
+        , ⟨``LeanCert.Core.Expr.cos, ``LeanCert.Core.ExprSupportedWithInv.cos⟩
+        , ⟨``LeanCert.Core.Expr.exp, ``LeanCert.Core.ExprSupportedWithInv.exp⟩
+        , ⟨``LeanCert.Core.Expr.log, ``LeanCert.Core.ExprSupportedWithInv.log⟩
+        , ⟨``LeanCert.Core.Expr.atan, ``LeanCert.Core.ExprSupportedWithInv.atan⟩
+        , ⟨``LeanCert.Core.Expr.arsinh, ``LeanCert.Core.ExprSupportedWithInv.arsinh⟩
+        , ⟨``LeanCert.Core.Expr.atanh, ``LeanCert.Core.ExprSupportedWithInv.atanh⟩
+        , ⟨``LeanCert.Core.Expr.sinc, ``LeanCert.Core.ExprSupportedWithInv.sinc⟩
+        , ⟨``LeanCert.Core.Expr.erf, ``LeanCert.Core.ExprSupportedWithInv.erf⟩
+        , ⟨``LeanCert.Core.Expr.sqrt, ``LeanCert.Core.ExprSupportedWithInv.sqrt⟩ ] then
+      return h
     throwError "Cannot generate ExprSupportedWithInv proof for: {e_ast}\n\
                 Unrecognized expression structure."
 

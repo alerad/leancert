@@ -5,6 +5,9 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Validity.Bounds
 import LeanCert.Validity.Types
+import LeanCert.Validity.Dyadic
+import LeanCert.Validity.FinSum
+import LeanCert.Validity.Chebyshev
 
 /-!
 # Validity Layer
@@ -27,4 +30,7 @@ The Engine computes numbers; Validity turns them into theorems.
   - `VerifiedGlobalMin` - Proven global minimum
   - `VerifiedGlobalMax` - Proven global maximum
   - `VerifiedRoot` - Proven root existence
+
+* `Validity.Dyadic`, `Validity.FinSum`, `Validity.Chebyshev` - Stable
+  forwarding imports for domain-specific bridge theorem families.
 -/
