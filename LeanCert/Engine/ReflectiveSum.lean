@@ -141,6 +141,17 @@ def bklnwTermFromLog (logX : IntervalDyadic) (k : Nat) (cfg : BKLNWSumConfig) : 
   let p : ℚ := (1 : ℚ) / k - 1 / 3
   rpowFromCachedLogDyadic logX p cfg.toDyadicConfig
 
+/-- Direct term interval for the specialized `f(exp b)` form.
+
+For `x = exp b`, the BKLNW term is
+`x^(1/k - 1/3) = exp (b * (1/k - 1/3))`, so this avoids both the
+outer `exp b` interval and per-term cached-log multiplication. -/
+def bklnwExpTermIntervalDyadic (b k : Nat) (cfg : BKLNWSumConfig := {}) :
+    IntervalDyadic :=
+  let q : ℚ := (b : ℚ) * ((1 : ℚ) / k - 1 / 3)
+  let qInterval := IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision
+  expIntervalDyadic qInterval cfg.toDyadicConfig
+
 /-- Optimized accumulator that uses precomputed log(x) and batched rounding.
     - logX: precomputed log(x) interval
     - roundEvery: round the accumulator every N iterations (0 = every iteration) -/
@@ -194,6 +205,31 @@ def bklnwSumDyadicCached (x : IntervalDyadic) (limit : Nat) (cfg : BKLNWSumConfi
     IntervalDyadic :=
   let logX := logIntervalDyadic x cfg.toDyadicConfig
   bklnwSumAuxCached logX 3 limit zeroDyadic cfg
+
+/-- Cached-log sum for `f(exp b)` using the exact identity `log(exp b) = b`.
+
+This avoids computing an interval for `exp b` and then recomputing its logarithm.
+It is the preferred hot path for BKLNW table rows expressed as `f(exp b)`. -/
+def bklnwSumExpDyadicCachedLog (b : Nat) (limit : Nat) (cfg : BKLNWSumConfig := {}) :
+    IntervalDyadic :=
+  let logX := IntervalDyadic.singleton (Core.Dyadic.ofInt b)
+  bklnwSumAuxCached logX 3 limit zeroDyadic cfg
+
+/-- Direct accumulator for `f(exp b)` using terms `exp (b * (1/k - 1/3))`. -/
+def bklnwSumExpAuxDirect (b current limit : Nat)
+    (acc : IntervalDyadic) (cfg : BKLNWSumConfig) : IntervalDyadic :=
+  if h : current > limit then
+    acc
+  else
+    let term := bklnwExpTermIntervalDyadic b current cfg
+    let newAcc := (IntervalDyadic.add acc term).roundOut cfg.precision
+    bklnwSumExpAuxDirect b (current + 1) limit newAcc cfg
+  termination_by limit + 1 - current
+
+/-- Direct specialized sum for `f(exp b)`. -/
+def bklnwSumExpDyadicDirect (b : Nat) (limit : Nat) (cfg : BKLNWSumConfig := {}) :
+    IntervalDyadic :=
+  bklnwSumExpAuxDirect b 3 limit zeroDyadic cfg
 
 /-! ### Certificate Checkers -/
 
@@ -273,6 +309,30 @@ def checkBKLNWExpUpperBoundOpt (b : Nat) (limit : Nat) (target : ℚ)
 def checkBKLNWExpLowerBoundOpt (b : Nat) (limit : Nat) (target : ℚ)
     (cfg : BKLNWSumConfig := {}) (roundEvery : Nat := 8) : Bool :=
   let result := bklnwSumExpDyadicOpt b limit cfg roundEvery
+  result.lowerBoundedBy target
+
+/-- Check an upper bound for `f(exp b)` using the exact cached logarithm `b`. -/
+def checkBKLNWExpUpperBoundCachedLog (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  let result := bklnwSumExpDyadicCachedLog b limit cfg
+  result.upperBoundedBy target
+
+/-- Check a lower bound for `f(exp b)` using the exact cached logarithm `b`. -/
+def checkBKLNWExpLowerBoundCachedLog (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  let result := bklnwSumExpDyadicCachedLog b limit cfg
+  result.lowerBoundedBy target
+
+/-- Check an upper bound for `f(exp b)` using direct `exp (b * q_k)` terms. -/
+def checkBKLNWExpUpperBoundDirect (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  let result := bklnwSumExpDyadicDirect b limit cfg
+  result.upperBoundedBy target
+
+/-- Check a lower bound for `f(exp b)` using direct `exp (b * q_k)` terms. -/
+def checkBKLNWExpLowerBoundDirect (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  let result := bklnwSumExpDyadicDirect b limit cfg
   result.lowerBoundedBy target
 
 /-! ### Correctness Theorems -/
@@ -426,6 +486,20 @@ theorem mem_bklnwTermDyadic {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
   rw [← hp]
   exact mem_rpowIntervalDyadic hx hpos p cfg.toDyadicConfig hprec
 
+/-- Correctness of the cached-log BKLNW term evaluator. -/
+theorem mem_bklnwTermFromLog {x : ℝ} {logX : IntervalDyadic}
+    (hlog : Real.log x ∈ logX) (hx_pos : 0 < x)
+    (k : Nat) (_hk : k ≥ 3) (cfg : BKLNWSumConfig)
+    (hprec : cfg.precision ≤ 0 := by norm_num) :
+    x ^ ((1 : ℝ) / k - 1 / 3) ∈ bklnwTermFromLog logX k cfg := by
+  simp only [bklnwTermFromLog]
+  let p : ℚ := (1 : ℚ) / k - 1 / 3
+  have hp : (p : ℝ) = (1 : ℝ) / k - 1 / 3 := by
+    simp only [p, Rat.cast_sub, Rat.cast_div, Rat.cast_one, Rat.cast_natCast]
+    norm_num
+  rw [← hp]
+  exact mem_rpowFromCachedLogDyadic hlog hx_pos p cfg.toDyadicConfig hprec
+
 /-- `bklnwSumAux` is definitionally equal to `witnessSumAux` with `bklnwEvalTerm`. -/
 theorem bklnwSumAux_eq_witnessSumAux (I : IntervalDyadic) (current limit : Nat)
     (acc : IntervalDyadic) (cfg : BKLNWSumConfig) :
@@ -455,6 +529,38 @@ theorem mem_bklnwSumDyadic {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
     (bklnwEvalTerm I cfg) 3 limit cfg.toDyadicConfig
   intro k hk1 _hk2
   exact mem_bklnwTermDyadic hx hpos k (by omega) cfg hprec
+
+/-- `bklnwSumAuxCached` is a witness sum over the cached-log term evaluator. -/
+theorem bklnwSumAuxCached_eq_witnessSumAux (logX : IntervalDyadic)
+    (current limit : Nat) (acc : IntervalDyadic) (cfg : BKLNWSumConfig) :
+    bklnwSumAuxCached logX current limit acc cfg =
+      witnessSumAux (fun k _cfg => bklnwTermFromLog logX k cfg)
+        current limit acc cfg.toDyadicConfig := by
+  generalize hm : limit + 1 - current = m
+  induction m using Nat.strongRecOn generalizing current acc with
+  | ind m ih =>
+      unfold bklnwSumAuxCached witnessSumAux
+      by_cases hcur : current > limit
+      · simp [hcur]
+      · simp only [hcur, ↓reduceDIte, ↓reduceIte, BKLNWSumConfig.toDyadicConfig]
+        have hm' : limit + 1 - (current + 1) < m := by omega
+        exact ih (limit + 1 - (current + 1)) hm' (current + 1)
+          ((IntervalDyadic.add acc (bklnwTermFromLog logX current cfg)).roundOut cfg.precision)
+          rfl
+
+/-- Cached-log sum correctness from a proof that `logX` contains `Real.log x`. -/
+theorem mem_bklnwSumAuxCached {x : ℝ} {logX : IntervalDyadic}
+    (hlog : Real.log x ∈ logX) (hx_pos : 0 < x)
+    (limit : Nat) (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num) :
+    bklnwF x limit ∈ bklnwSumAuxCached logX 3 limit zeroDyadic cfg := by
+  unfold bklnwF
+  rw [bklnwSumAuxCached_eq_witnessSumAux]
+  apply mem_witnessSumDyadic
+    (fun k => x ^ ((1 : ℝ) / k - 1 / 3))
+    (fun k _cfg => bklnwTermFromLog logX k cfg) 3 limit cfg.toDyadicConfig
+  intro k hk1 _hk2
+  exact mem_bklnwTermFromLog hlog hx_pos k (by omega) cfg hprec
 
 /-- Technical lemma: roundDown of a sufficiently large positive rational stays positive.
 
@@ -576,6 +682,131 @@ theorem mem_expB_of_nat (b : Nat) (cfg : BKLNWSumConfig)
   simp only
   have hb := mem_bInterval_nat b cfg.precision hprec
   exact mem_expIntervalDyadic hb cfg.toDyadicConfig hprec
+
+/-- `log(exp b) = b` lies in the exact dyadic singleton used by the fast
+`f(exp b)` cached-log checker. -/
+theorem mem_log_exp_nat_cached (b : Nat) :
+    Real.log (Real.exp (b : ℝ)) ∈
+      IntervalDyadic.singleton (Core.Dyadic.ofInt b) := by
+  rw [Real.log_exp]
+  simp only [IntervalDyadic.singleton, IntervalDyadic.mem_def, Core.Dyadic.toRat_ofInt]
+  constructor <;> norm_num
+
+/-- Correctness of the exact-log cached evaluator for `f(exp b)`. -/
+theorem mem_bklnwSumExpDyadicCachedLog (b : Nat) (limit : Nat)
+    (cfg : BKLNWSumConfig := {}) (hprec : cfg.precision ≤ 0 := by norm_num) :
+    bklnwF (Real.exp (b : ℝ)) limit ∈ bklnwSumExpDyadicCachedLog b limit cfg := by
+  unfold bklnwSumExpDyadicCachedLog
+  exact mem_bklnwSumAuxCached (mem_log_exp_nat_cached b) (Real.exp_pos _)
+    limit cfg hprec
+
+/-- Upper-bound bridge for the exact-log cached `f(exp b)` checker. -/
+theorem checkBKLNWExpUpperBoundCachedLog_correct (b : Nat) (limit : Nat)
+    (target : ℚ) (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWExpUpperBoundCachedLog b limit target cfg = true) :
+    bklnwF (Real.exp (b : ℝ)) limit ≤ target := by
+  have hmem := mem_bklnwSumExpDyadicCachedLog b limit cfg hprec
+  have hhi := IntervalDyadic.le_hi_of_mem hmem
+  simp only [checkBKLNWExpUpperBoundCachedLog] at h_check
+  have hbound := IntervalDyadic.upperBoundedBy_spec h_check
+  exact le_trans hhi hbound
+
+/-- Lower-bound bridge for the exact-log cached `f(exp b)` checker. -/
+theorem checkBKLNWExpLowerBoundCachedLog_correct (b : Nat) (limit : Nat)
+    (target : ℚ) (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWExpLowerBoundCachedLog b limit target cfg = true) :
+    target ≤ bklnwF (Real.exp (b : ℝ)) limit := by
+  have hmem := mem_bklnwSumExpDyadicCachedLog b limit cfg hprec
+  have hlo := IntervalDyadic.lo_le_of_mem hmem
+  simp only [checkBKLNWExpLowerBoundCachedLog] at h_check
+  have hbound := IntervalDyadic.lowerBoundedBy_spec h_check
+  exact le_trans hbound hlo
+
+/-- Correctness of the direct specialized term for `f(exp b)`. -/
+theorem mem_bklnwExpTermIntervalDyadic (b k : Nat) (cfg : BKLNWSumConfig)
+    (hprec : cfg.precision ≤ 0 := by norm_num) :
+    (Real.exp (b : ℝ)) ^ ((1 : ℝ) / k - 1 / 3) ∈
+      bklnwExpTermIntervalDyadic b k cfg := by
+  let q : ℚ := (b : ℚ) * ((1 : ℚ) / k - 1 / 3)
+  have hq_mem : (q : ℝ) ∈
+      IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision := by
+    apply IntervalDyadic.mem_ofIntervalRat
+    · exact IntervalRat.mem_singleton q
+    · exact hprec
+  have hq_mem_rat : (q : ℝ) ∈
+      (IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision).toIntervalRat :=
+    IntervalDyadic.mem_toIntervalRat.mp hq_mem
+  have hexp_rat : Real.exp (q : ℝ) ∈
+      IntervalRat.expComputable
+        ((IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision).toIntervalRat)
+        cfg.taylorDepth := IntervalRat.mem_expComputable hq_mem_rat cfg.taylorDepth
+  have hexp_dyad : Real.exp (q : ℝ) ∈
+      expIntervalDyadic (IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision)
+        cfg.toDyadicConfig := by
+    simp [expIntervalDyadic]
+    exact IntervalDyadic.mem_ofIntervalRat hexp_rat cfg.precision hprec
+  have hq_cast : (q : ℝ) = (b : ℝ) * ((1 : ℝ) / k - 1 / 3) := by
+    simp only [q, Rat.cast_mul, Rat.cast_sub, Rat.cast_div, Rat.cast_one, Rat.cast_natCast]
+    norm_num
+  rw [Real.rpow_def_of_pos (Real.exp_pos (b : ℝ)), Real.log_exp]
+  rw [← hq_cast]
+  simpa [bklnwExpTermIntervalDyadic, q] using hexp_dyad
+
+/-- Direct `f(exp b)` accumulator is a witness-sum accumulator. -/
+theorem bklnwSumExpAuxDirect_eq_witnessSumAux (b current limit : Nat)
+    (acc : IntervalDyadic) (cfg : BKLNWSumConfig) :
+    bklnwSumExpAuxDirect b current limit acc cfg =
+      witnessSumAux (fun k _cfg => bklnwExpTermIntervalDyadic b k cfg)
+        current limit acc cfg.toDyadicConfig := by
+  generalize hm : limit + 1 - current = m
+  induction m using Nat.strongRecOn generalizing current acc with
+  | ind m ih =>
+      unfold bklnwSumExpAuxDirect witnessSumAux
+      by_cases hcur : current > limit
+      · simp [hcur]
+      · simp only [hcur, ↓reduceDIte, ↓reduceIte, BKLNWSumConfig.toDyadicConfig]
+        have hm' : limit + 1 - (current + 1) < m := by omega
+        exact ih (limit + 1 - (current + 1)) hm' (current + 1)
+          ((IntervalDyadic.add acc (bklnwExpTermIntervalDyadic b current cfg)).roundOut cfg.precision)
+          rfl
+
+/-- Correctness of the direct specialized sum for `f(exp b)`. -/
+theorem mem_bklnwSumExpDyadicDirect (b : Nat) (limit : Nat)
+    (cfg : BKLNWSumConfig := {}) (hprec : cfg.precision ≤ 0 := by norm_num) :
+    bklnwF (Real.exp (b : ℝ)) limit ∈ bklnwSumExpDyadicDirect b limit cfg := by
+  unfold bklnwF bklnwSumExpDyadicDirect
+  rw [bklnwSumExpAuxDirect_eq_witnessSumAux]
+  apply mem_witnessSumDyadic
+    (fun k => (Real.exp (b : ℝ)) ^ ((1 : ℝ) / k - 1 / 3))
+    (fun k _cfg => bklnwExpTermIntervalDyadic b k cfg) 3 limit cfg.toDyadicConfig
+  intro k _hk1 _hk2
+  exact mem_bklnwExpTermIntervalDyadic b k cfg hprec
+
+/-- Upper-bound bridge for the direct specialized `f(exp b)` checker. -/
+theorem checkBKLNWExpUpperBoundDirect_correct (b : Nat) (limit : Nat)
+    (target : ℚ) (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWExpUpperBoundDirect b limit target cfg = true) :
+    bklnwF (Real.exp (b : ℝ)) limit ≤ target := by
+  have hmem := mem_bklnwSumExpDyadicDirect b limit cfg hprec
+  have hhi := IntervalDyadic.le_hi_of_mem hmem
+  simp only [checkBKLNWExpUpperBoundDirect] at h_check
+  have hbound := IntervalDyadic.upperBoundedBy_spec h_check
+  exact le_trans hhi hbound
+
+/-- Lower-bound bridge for the direct specialized `f(exp b)` checker. -/
+theorem checkBKLNWExpLowerBoundDirect_correct (b : Nat) (limit : Nat)
+    (target : ℚ) (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWExpLowerBoundDirect b limit target cfg = true) :
+    target ≤ bklnwF (Real.exp (b : ℝ)) limit := by
+  have hmem := mem_bklnwSumExpDyadicDirect b limit cfg hprec
+  have hlo := IntervalDyadic.lo_le_of_mem hmem
+  simp only [checkBKLNWExpLowerBoundDirect] at h_check
+  have hbound := IntervalDyadic.lowerBoundedBy_spec h_check
+  exact le_trans hbound hlo
 
 /-- Check if expComputable produces a positive lower bound.
     This is decidable and can be verified by native_decide. -/
@@ -795,6 +1026,54 @@ def checkBKLNWAlphaExpBoundsCached (b : Nat) (limit : Nat) (targetLo targetHi : 
   let result := bklnwAlphaSumExpDyadicCached b limit cfg
   result.lowerBoundedBy targetLo && result.upperBoundedBy targetHi
 
+/-- Compute `(1+α) * f(exp b)` using the exact cached logarithm `b`. -/
+def bklnwAlphaSumExpDyadicCachedLog (b : Nat) (limit : Nat)
+    (cfg : BKLNWSumConfig := {}) : IntervalDyadic :=
+  let result := bklnwSumExpDyadicCachedLog b limit cfg
+  let one_plus_alpha := IntervalDyadic.ofIntervalRat
+    (IntervalRat.singleton (1 + bklnwAlpha)) cfg.precision
+  (IntervalDyadic.mul one_plus_alpha result).roundOut cfg.precision
+
+/-- Exact-log alpha upper-bound checker. -/
+def checkBKLNWAlphaExpUpperBoundCachedLog (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  (bklnwAlphaSumExpDyadicCachedLog b limit cfg).upperBoundedBy target
+
+/-- Exact-log alpha lower-bound checker. -/
+def checkBKLNWAlphaExpLowerBoundCachedLog (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  (bklnwAlphaSumExpDyadicCachedLog b limit cfg).lowerBoundedBy target
+
+/-- Exact-log alpha two-sided checker. -/
+def checkBKLNWAlphaExpBoundsCachedLog (b : Nat) (limit : Nat) (targetLo targetHi : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  let result := bklnwAlphaSumExpDyadicCachedLog b limit cfg
+  result.lowerBoundedBy targetLo && result.upperBoundedBy targetHi
+
+/-- Compute `(1+α) * f(exp b)` using direct `exp (b * q_k)` terms. -/
+def bklnwAlphaSumExpDyadicDirect (b : Nat) (limit : Nat)
+    (cfg : BKLNWSumConfig := {}) : IntervalDyadic :=
+  let result := bklnwSumExpDyadicDirect b limit cfg
+  let one_plus_alpha := IntervalDyadic.ofIntervalRat
+    (IntervalRat.singleton (1 + bklnwAlpha)) cfg.precision
+  (IntervalDyadic.mul one_plus_alpha result).roundOut cfg.precision
+
+/-- Direct alpha upper-bound checker. -/
+def checkBKLNWAlphaExpUpperBoundDirect (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  (bklnwAlphaSumExpDyadicDirect b limit cfg).upperBoundedBy target
+
+/-- Direct alpha lower-bound checker. -/
+def checkBKLNWAlphaExpLowerBoundDirect (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  (bklnwAlphaSumExpDyadicDirect b limit cfg).lowerBoundedBy target
+
+/-- Direct alpha two-sided checker. -/
+def checkBKLNWAlphaExpBoundsDirect (b : Nat) (limit : Nat) (targetLo targetHi : ℚ)
+    (cfg : BKLNWSumConfig := {}) : Bool :=
+  let result := bklnwAlphaSumExpDyadicDirect b limit cfg
+  result.lowerBoundedBy targetLo && result.upperBoundedBy targetHi
+
 /-- Cached-log alpha interval equals the standard alpha interval. -/
 theorem bklnwAlphaSumExpDyadicCached_eq (b : Nat) (limit : Nat) (cfg : BKLNWSumConfig := {}) :
     bklnwAlphaSumExpDyadicCached b limit cfg = bklnwAlphaSumExpDyadic b limit cfg := by
@@ -853,16 +1132,10 @@ For large `b`, most terms are negligible. These checkers compute a short head
 sum reflectively and bound the tail symbolically by
 `(limit - headLimit) * term(headLimit + 1)`. -/
 
-/-- Dyadic interval for the closed-form tail term `exp(b * (1/k - 1/3))`. -/
-private def expTermIntervalDyadic (b k : Nat) (cfg : BKLNWSumConfig := {}) : IntervalDyadic :=
-  let q : ℚ := (b : ℚ) * ((1 : ℚ) / k - 1 / 3)
-  let qInterval := IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision
-  expIntervalDyadic qInterval cfg.toDyadicConfig
-
-/-- Correctness of `expTermIntervalDyadic`. -/
+/-- Correctness of the direct dyadic tail-term interval for `bklnwExpTerm`. -/
 private theorem mem_expTermIntervalDyadic (b k : Nat) (cfg : BKLNWSumConfig)
     (hprec : cfg.precision ≤ 0 := by norm_num) :
-    bklnwExpTerm b k ∈ expTermIntervalDyadic b k cfg := by
+    bklnwExpTerm b k ∈ bklnwExpTermIntervalDyadic b k cfg := by
   let q : ℚ := (b : ℚ) * ((1 : ℚ) / k - 1 / 3)
   have hq_mem : (q : ℝ) ∈
       IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision := by
@@ -881,14 +1154,14 @@ private theorem mem_expTermIntervalDyadic (b k : Nat) (cfg : BKLNWSumConfig)
         cfg.toDyadicConfig := by
     simp [expIntervalDyadic]
     exact IntervalDyadic.mem_ofIntervalRat hexp_rat cfg.precision hprec
-  simpa [expTermIntervalDyadic, bklnwExpTerm, q]
+  simpa [bklnwExpTermIntervalDyadic, bklnwExpTerm, q]
     using hexp_dyad
 
 /-- Symbolic upper checker: α-scaled head interval + symbolic tail majorant. -/
 def checkBKLNWAlphaExpUpperBoundHeadTail (b limit headLimit : Nat) (target : ℚ)
     (cfg : BKLNWSumConfig := {}) : Bool :=
   let head := bklnwSumExpDyadicCached b headLimit cfg
-  let tailTerm := expTermIntervalDyadic b (headLimit + 1) cfg
+  let tailTerm := bklnwExpTermIntervalDyadic b (headLimit + 1) cfg
   let upperQ : ℚ :=
     (1 + bklnwAlpha) * (head.hi.toRat + ((limit - headLimit : Nat) : ℚ) * tailTerm.hi.toRat)
   upperQ ≤ target
@@ -945,15 +1218,15 @@ theorem verify_bklnwAlpha_exp_upper_headTail (b limit headLimit : Nat) (target :
   have hhead_hi :
       bklnwF (Real.exp (b : ℝ)) headLimit ≤ (bklnwSumExpDyadicCached b headLimit cfg).hi.toRat :=
     IntervalDyadic.le_hi_of_mem hhead_mem_cached
-  have htail_mem : bklnwExpTerm b (headLimit + 1) ∈ expTermIntervalDyadic b (headLimit + 1) cfg :=
+  have htail_mem : bklnwExpTerm b (headLimit + 1) ∈ bklnwExpTermIntervalDyadic b (headLimit + 1) cfg :=
     mem_expTermIntervalDyadic b (headLimit + 1) cfg hprec
   have htail_hi :
-      bklnwExpTerm b (headLimit + 1) ≤ (expTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat :=
+      bklnwExpTerm b (headLimit + 1) ≤ (bklnwExpTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat :=
     IntervalDyadic.le_hi_of_mem htail_mem
   have hsum_upper :
       bklnwF (Real.exp (b : ℝ)) limit ≤
         (bklnwSumExpDyadicCached b headLimit cfg).hi.toRat +
-          (((limit - headLimit : Nat) : ℝ) * (expTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat) := by
+          (((limit - headLimit : Nat) : ℝ) * (bklnwExpTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat) := by
     calc
       bklnwF (Real.exp (b : ℝ)) limit
           ≤ bklnwF (Real.exp (b : ℝ)) headLimit +
@@ -963,7 +1236,7 @@ theorem verify_bklnwAlpha_exp_upper_headTail (b limit headLimit : Nat) (target :
             (((limit - headLimit : Nat) : ℝ) * bklnwExpTerm b (headLimit + 1)) := by
           gcongr
       _ ≤ (bklnwSumExpDyadicCached b headLimit cfg).hi.toRat +
-            (((limit - headLimit : Nat) : ℝ) * (expTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat) := by
+            (((limit - headLimit : Nat) : ℝ) * (bklnwExpTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat) := by
           gcongr
   have halpha_nonneg : (0 : ℝ) ≤ (1 + bklnwAlpha : ℝ) := by
     norm_num [bklnwAlpha]
@@ -971,25 +1244,25 @@ theorem verify_bklnwAlpha_exp_upper_headTail (b limit headLimit : Nat) (target :
       (1 + bklnwAlpha : ℝ) * bklnwF (Real.exp (b : ℝ)) limit ≤
         (1 + bklnwAlpha : ℝ) *
           ((bklnwSumExpDyadicCached b headLimit cfg).hi.toRat +
-            (((limit - headLimit : Nat) : ℝ) * (expTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat)) :=
+            (((limit - headLimit : Nat) : ℝ) * (bklnwExpTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat)) :=
     mul_le_mul_of_nonneg_left hsum_upper halpha_nonneg
   have hcheck_q :
       (1 + bklnwAlpha) *
           ((bklnwSumExpDyadicCached b headLimit cfg).hi.toRat +
-            ((limit - headLimit : Nat) : ℚ) * (expTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat)
+            ((limit - headLimit : Nat) : ℚ) * (bklnwExpTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat)
         ≤ target := by
     simpa [checkBKLNWAlphaExpUpperBoundHeadTail] using h_check
   have hcheck_r :
       (1 + bklnwAlpha : ℝ) *
           (((bklnwSumExpDyadicCached b headLimit cfg).hi.toRat : ℝ) +
             (((limit - headLimit : Nat) : ℚ) : ℝ) *
-              ((expTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat : ℝ))
+              ((bklnwExpTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat : ℝ))
         ≤ target := by
     exact_mod_cast hcheck_q
   have hcheck_r' :
       (1 + bklnwAlpha : ℝ) *
           ((bklnwSumExpDyadicCached b headLimit cfg).hi.toRat +
-            (((limit - headLimit : Nat) : ℝ) * (expTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat))
+            (((limit - headLimit : Nat) : ℝ) * (bklnwExpTermIntervalDyadic b (headLimit + 1) cfg).hi.toRat))
         ≤ target := by
     simpa using hcheck_r
   exact le_trans hscaled hcheck_r'
@@ -1094,6 +1367,82 @@ theorem verify_bklnwAlpha_exp_lower (b : Nat) (limit : Nat) (target : ℚ)
   have hlo := IntervalDyadic.lo_le_of_mem hmem_round
   -- Check gives bound
   simp only [checkBKLNWAlphaExpLowerBound, bklnwAlphaSumExpDyadic, bklnwSumExpDyadic] at h_check
+  have hbound := IntervalDyadic.lowerBoundedBy_spec h_check
+  exact le_trans hbound hlo
+
+/-- Bridge theorem for the exact-log alpha upper checker.
+
+Unlike `verify_bklnwAlpha_exp_upper`, this path uses `log(exp b) = b`
+directly, so it does not need a positivity certificate for the computed
+`exp b` interval. -/
+theorem verify_bklnwAlpha_exp_upper_cachedLog (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWAlphaExpUpperBoundCachedLog b limit target cfg = true) :
+    (1 + bklnwAlpha : ℝ) * bklnwF (Real.exp (b : ℝ)) limit ≤ target := by
+  have hmem_bklnw := mem_bklnwSumExpDyadicCachedLog b limit cfg hprec
+  have hmem_alpha : (1 + bklnwAlpha : ℝ) ∈
+      IntervalDyadic.ofIntervalRat (IntervalRat.singleton (1 + bklnwAlpha)) cfg.precision := by
+    exact_mod_cast IntervalDyadic.mem_ofIntervalRat
+      (IntervalRat.mem_singleton (1 + bklnwAlpha)) cfg.precision hprec
+  have hmem_prod := IntervalDyadic.mem_mul hmem_alpha hmem_bklnw
+  have hmem_round := IntervalDyadic.roundOut_contains hmem_prod cfg.precision
+  have hhi := IntervalDyadic.le_hi_of_mem hmem_round
+  simp only [checkBKLNWAlphaExpUpperBoundCachedLog, bklnwAlphaSumExpDyadicCachedLog] at h_check
+  have hbound := IntervalDyadic.upperBoundedBy_spec h_check
+  exact le_trans hhi hbound
+
+/-- Bridge theorem for the exact-log alpha lower checker. -/
+theorem verify_bklnwAlpha_exp_lower_cachedLog (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWAlphaExpLowerBoundCachedLog b limit target cfg = true) :
+    target ≤ (1 + bklnwAlpha : ℝ) * bklnwF (Real.exp (b : ℝ)) limit := by
+  have hmem_bklnw := mem_bklnwSumExpDyadicCachedLog b limit cfg hprec
+  have hmem_alpha : (1 + bklnwAlpha : ℝ) ∈
+      IntervalDyadic.ofIntervalRat (IntervalRat.singleton (1 + bklnwAlpha)) cfg.precision := by
+    exact_mod_cast IntervalDyadic.mem_ofIntervalRat
+      (IntervalRat.mem_singleton (1 + bklnwAlpha)) cfg.precision hprec
+  have hmem_prod := IntervalDyadic.mem_mul hmem_alpha hmem_bklnw
+  have hmem_round := IntervalDyadic.roundOut_contains hmem_prod cfg.precision
+  have hlo := IntervalDyadic.lo_le_of_mem hmem_round
+  simp only [checkBKLNWAlphaExpLowerBoundCachedLog, bklnwAlphaSumExpDyadicCachedLog] at h_check
+  have hbound := IntervalDyadic.lowerBoundedBy_spec h_check
+  exact le_trans hbound hlo
+
+/-- Bridge theorem for the direct alpha upper checker. -/
+theorem verify_bklnwAlpha_exp_upper_direct (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWAlphaExpUpperBoundDirect b limit target cfg = true) :
+    (1 + bklnwAlpha : ℝ) * bklnwF (Real.exp (b : ℝ)) limit ≤ target := by
+  have hmem_bklnw := mem_bklnwSumExpDyadicDirect b limit cfg hprec
+  have hmem_alpha : (1 + bklnwAlpha : ℝ) ∈
+      IntervalDyadic.ofIntervalRat (IntervalRat.singleton (1 + bklnwAlpha)) cfg.precision := by
+    exact_mod_cast IntervalDyadic.mem_ofIntervalRat
+      (IntervalRat.mem_singleton (1 + bklnwAlpha)) cfg.precision hprec
+  have hmem_prod := IntervalDyadic.mem_mul hmem_alpha hmem_bklnw
+  have hmem_round := IntervalDyadic.roundOut_contains hmem_prod cfg.precision
+  have hhi := IntervalDyadic.le_hi_of_mem hmem_round
+  simp only [checkBKLNWAlphaExpUpperBoundDirect, bklnwAlphaSumExpDyadicDirect] at h_check
+  have hbound := IntervalDyadic.upperBoundedBy_spec h_check
+  exact le_trans hhi hbound
+
+/-- Bridge theorem for the direct alpha lower checker. -/
+theorem verify_bklnwAlpha_exp_lower_direct (b : Nat) (limit : Nat) (target : ℚ)
+    (cfg : BKLNWSumConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (h_check : checkBKLNWAlphaExpLowerBoundDirect b limit target cfg = true) :
+    target ≤ (1 + bklnwAlpha : ℝ) * bklnwF (Real.exp (b : ℝ)) limit := by
+  have hmem_bklnw := mem_bklnwSumExpDyadicDirect b limit cfg hprec
+  have hmem_alpha : (1 + bklnwAlpha : ℝ) ∈
+      IntervalDyadic.ofIntervalRat (IntervalRat.singleton (1 + bklnwAlpha)) cfg.precision := by
+    exact_mod_cast IntervalDyadic.mem_ofIntervalRat
+      (IntervalRat.mem_singleton (1 + bklnwAlpha)) cfg.precision hprec
+  have hmem_prod := IntervalDyadic.mem_mul hmem_alpha hmem_bklnw
+  have hmem_round := IntervalDyadic.roundOut_contains hmem_prod cfg.precision
+  have hlo := IntervalDyadic.lo_le_of_mem hmem_round
+  simp only [checkBKLNWAlphaExpLowerBoundDirect, bklnwAlphaSumExpDyadicDirect] at h_check
   have hbound := IntervalDyadic.lowerBoundedBy_spec h_check
   exact le_trans hbound hlo
 
