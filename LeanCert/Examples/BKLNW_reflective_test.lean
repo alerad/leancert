@@ -43,6 +43,14 @@ open LeanCert.Engine
 -- The existing proof shows f(exp(300)) ≈ 1.00000001937
 #eval checkBKLNWExpUpperBound 300 432 (10001/10000) { precision := -80, taylorDepth := 15 }
 
+-- Exact-log cached path for f(exp b): avoids computing log(exp b).
+#eval checkBKLNWExpUpperBoundCachedLog 300 432 (10001/10000)
+  { precision := -80, taylorDepth := 15 }
+
+-- Direct exp-term path for f(exp b): evaluates exp(b * (1/k - 1/3)) per term.
+#eval checkBKLNWExpUpperBoundDirect 300 432 (10001/10000)
+  { precision := -80, taylorDepth := 15 }
+
 /-!
 ## Demonstration: Reflective Proofs
 
@@ -59,6 +67,40 @@ example : checkBKLNWExpUpperBound 100 144 (100025/100000) proofConfig = true := 
 example : checkBKLNWExpLowerBound 100 144 (10002/10000) proofConfig = true := by native_decide
 example : checkBKLNWExpUpperBound 300 432 (10002/10000) proofConfig = true := by native_decide
 example : checkBKLNWExpLowerBound 300 432 (1) proofConfig = true := by native_decide
+
+example : checkBKLNWExpUpperBoundCachedLog 300 432 (10002/10000) proofConfig = true := by
+  native_decide
+
+example : bklnwF (Real.exp (300 : ℝ)) 432 ≤ (10002 / 10000 : ℚ) :=
+  checkBKLNWExpUpperBoundCachedLog_correct 300 432 (10002 / 10000) proofConfig
+    (by native_decide)
+    (by native_decide)
+
+example : checkBKLNWExpUpperBoundDirect 300 432 (10002/10000) proofConfig = true := by
+  native_decide
+
+example : bklnwF (Real.exp (300 : ℝ)) 432 ≤ (10002 / 10000 : ℚ) :=
+  checkBKLNWExpUpperBoundDirect_correct 300 432 (10002 / 10000) proofConfig
+    (by native_decide)
+    (by native_decide)
+
+example : checkBKLNWAlphaExpUpperBoundCachedLog 300 432 (10003/10000) proofConfig = true := by
+  native_decide
+
+example :
+    (1 + bklnwAlpha : ℝ) * bklnwF (Real.exp (300 : ℝ)) 432 ≤ (10003 / 10000 : ℚ) :=
+  verify_bklnwAlpha_exp_upper_cachedLog 300 432 (10003 / 10000) proofConfig
+    (by native_decide)
+    (by native_decide)
+
+example : checkBKLNWAlphaExpUpperBoundDirect 300 432 (10003/10000) proofConfig = true := by
+  native_decide
+
+example :
+    (1 + bklnwAlpha : ℝ) * bklnwF (Real.exp (300 : ℝ)) 432 ≤ (10003 / 10000 : ℚ) :=
+  verify_bklnwAlpha_exp_upper_direct 300 432 (10003 / 10000) proofConfig
+    (by native_decide)
+    (by native_decide)
 
 /-!
 ## Performance Comparison

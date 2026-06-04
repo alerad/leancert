@@ -220,7 +220,7 @@ private theorem qProd_intervalIntegrable (S : Finset Nat) :
   classical
   unfold qProd
   apply Continuous.intervalIntegrable
-  exact continuous_finset_prod S fun n hn =>
+  exact continuous_finsetProd S fun n hn =>
     continuous_const.sub (continuous_id.pow n)
 
 /-- The elementary finite odd-tail certificate: every prime truncation is at least `19/36`. -/
@@ -254,7 +254,7 @@ theorem primeFRat_lower_nineteen_thirtysix (M : Nat) :
         exact by
           classical
           unfold qProd
-          exact (continuous_finset_prod ({3} : Finset Nat) fun n hn =>
+          exact (continuous_finsetProd ({3} : Finset Nat) fun n hn =>
             continuous_const.sub (continuous_id.pow n)).mul (continuous_id.pow 5)
       have hle := intervalIntegral.integral_mono_on (by norm_num : (0 : ℝ) ≤ 1)
         hIntSub hIntB (fun u hu => prime_tail_pointwise_three hM5 hu)
@@ -454,9 +454,9 @@ private theorem primeSandwichLowerFun_intervalIntegrable (N m : Nat) :
   apply Continuous.intervalIntegrable
   exact (by
     classical
-    exact (continuous_finset_prod (primesLE N) fun n hn =>
+    exact (continuous_finsetProd (primesLE N) fun n hn =>
       continuous_const.sub (continuous_id.pow n)).sub
-      ((continuous_finset_prod ((primesLE N).filter (fun p => p ≠ 2)) fun n hn =>
+      ((continuous_finsetProd ((primesLE N).filter (fun p => p ≠ 2)) fun n hn =>
         continuous_const.sub (continuous_id.pow n)).mul (continuous_id.pow m)))
 
 theorem integral_primeSandwichLowerFun_eq_rat (N m : Nat) :
@@ -472,7 +472,7 @@ theorem integral_primeSandwichLowerFun_eq_rat (N m : Nat) :
   · apply Continuous.intervalIntegrable
     exact (by
       classical
-      exact (continuous_finset_prod ((primesLE N).filter (fun p => p ≠ 2)) fun n hn =>
+      exact (continuous_finsetProd ((primesLE N).filter (fun p => p ≠ 2)) fun n hn =>
         continuous_const.sub (continuous_id.pow n)).mul (continuous_id.pow m))
 
 theorem primeSandwichLowerRat_le_truncation_of_tail_ge {N m : Nat}

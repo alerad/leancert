@@ -30,6 +30,8 @@ export LeanCert.Engine
     verify_finsum_lower_list_full_withInv
     verify_witness_sum_upper
     verify_witness_sum_lower
+    verify_witness_sum_upper_cached
+    verify_witness_sum_lower_cached
     verify_witness_sum_upper_list
     verify_witness_sum_lower_list
     verify_witness_sum_upper_list_full

@@ -14,6 +14,7 @@ Smoke tests for stable Validity-layer import paths.
 namespace LeanCert.Test.ValidityExports
 
 #check LeanCert.Validity.FinSum.verify_finsum_upper_full
+#check LeanCert.Validity.FinSum.verify_witness_sum_upper_cached
 #check LeanCert.Validity.FinSum.verify_witness_sum_upper_list_full
 #check LeanCert.Validity.Dyadic.verify_upper_bound_dyadic
 #check LeanCert.Validity.Dyadic.verify_upper_bound_dyadic_withInv

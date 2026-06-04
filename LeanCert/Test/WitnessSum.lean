@@ -45,6 +45,30 @@ theorem identityEval_correct (k : Nat) (cfg : DyadicConfig) :
   rw [Core.Dyadic.toRat_ofInt] at h
   simpa using h
 
+/-! ## Cached witness evaluator tests -/
+
+def constCache (_cfg : DyadicConfig) : IntervalDyadic :=
+  IntervalDyadic.singleton (Core.Dyadic.ofInt 1)
+
+def cachedConstEval (cache : IntervalDyadic) (_k : Nat) (_cfg : DyadicConfig) :
+    IntervalDyadic :=
+  cache
+
+theorem cachedConstEval_correct (k : Nat) (cfg : DyadicConfig) :
+    (1 : ℝ) ∈ cachedConstEval (constCache cfg) k cfg := by
+  exact constEval_correct k cfg
+
+example :
+    checkWitnessSumUpperBoundCached constCache cachedConstEval 1 10 11
+      { precision := -53, taylorDepth := 10, roundAfterOps := 0 } = true := by
+  native_decide
+
+example : ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 11 :=
+  verify_witness_sum_upper_cached (fun _ => 1) constCache cachedConstEval 1 10 11
+    { precision := -53, taylorDepth := 10, roundAfterOps := 0 }
+    (fun k _ _ => cachedConstEval_correct k _)
+    (by native_decide)
+
 /-! ## Tests via `finsum_witness` tactic (standalone) -/
 
 -- Basic: ∑ 1 ≤ 11 via constant witness

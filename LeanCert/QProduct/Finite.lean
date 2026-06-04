@@ -97,7 +97,7 @@ theorem finiteIntegralRat_correct (S : Finset Nat) :
   classical
   unfold finiteIntegralRat F
   simp_rw [qProd_powerset_expand]
-  rw [intervalIntegral.integral_finset_sum]
+  rw [intervalIntegral.integral_finsetSum]
   · simp_rw [Rat.cast_sum]
     apply Finset.sum_congr rfl
     intro A hA
@@ -116,7 +116,7 @@ theorem momentRat_correct (S : Finset Nat) (k : Nat) :
   unfold momentRat moment
   simp_rw [qProd_powerset_expand]
   simp_rw [Finset.sum_mul]
-  rw [intervalIntegral.integral_finset_sum]
+  rw [intervalIntegral.integral_finsetSum]
   · simp_rw [Rat.cast_sum]
     apply Finset.sum_congr rfl
     intro A hA

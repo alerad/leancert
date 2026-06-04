@@ -56,6 +56,18 @@ def witnessSumDyadic (evalTerm : Nat → DyadicConfig → IntervalDyadic)
     (a b : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
   witnessSumAux evalTerm a b finSumZero cfg
 
+/-! ### Cached Evaluators -/
+
+/-- Main entry point for witness sums whose term evaluator uses data cached once
+    per configuration.  This is computationally equivalent to closing over the
+    cache manually, but gives table/generator code a stable reusable API. -/
+def witnessSumDyadicCached {Cache : Type}
+    (init : DyadicConfig → Cache)
+    (evalTerm : Cache → Nat → DyadicConfig → IntervalDyadic)
+    (a b : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
+  let cache := init cfg
+  witnessSumDyadic (fun k cfg => evalTerm cache k cfg) a b cfg
+
 /-! ### Certificate Checkers -/
 
 /-- Check if `∑ k ∈ Icc a b, f k ≤ target` using the witness evaluator. -/
@@ -67,6 +79,20 @@ def checkWitnessSumUpperBound (evalTerm : Nat → DyadicConfig → IntervalDyadi
 def checkWitnessSumLowerBound (evalTerm : Nat → DyadicConfig → IntervalDyadic)
     (a b : Nat) (target : ℚ) (cfg : DyadicConfig) : Bool :=
   (witnessSumDyadic evalTerm a b cfg).lowerBoundedBy target
+
+/-- Check an upper bound for a cached witness sum. -/
+def checkWitnessSumUpperBoundCached {Cache : Type}
+    (init : DyadicConfig → Cache)
+    (evalTerm : Cache → Nat → DyadicConfig → IntervalDyadic)
+    (a b : Nat) (target : ℚ) (cfg : DyadicConfig) : Bool :=
+  (witnessSumDyadicCached init evalTerm a b cfg).upperBoundedBy target
+
+/-- Check a lower bound for a cached witness sum. -/
+def checkWitnessSumLowerBoundCached {Cache : Type}
+    (init : DyadicConfig → Cache)
+    (evalTerm : Cache → Nat → DyadicConfig → IntervalDyadic)
+    (a b : Nat) (target : ℚ) (cfg : DyadicConfig) : Bool :=
+  (witnessSumDyadicCached init evalTerm a b cfg).lowerBoundedBy target
 
 /-! ### Correctness Theorems -/
 
@@ -109,6 +135,17 @@ theorem mem_witnessSumDyadic (f : Nat → ℝ) (evalTerm : Nat → DyadicConfig 
   simp only [zero_add] at h
   exact h
 
+/-- Golden theorem for cached witness sums. -/
+theorem mem_witnessSumDyadicCached {Cache : Type} (f : Nat → ℝ)
+    (init : DyadicConfig → Cache)
+    (evalTerm : Cache → Nat → DyadicConfig → IntervalDyadic)
+    (a b : Nat) (cfg : DyadicConfig)
+    (hmem : ∀ k, a ≤ k → k ≤ b → f k ∈ evalTerm (init cfg) k cfg) :
+    (∑ k ∈ Finset.Icc a b, f k) ∈
+      witnessSumDyadicCached init evalTerm a b cfg := by
+  unfold witnessSumDyadicCached
+  exact mem_witnessSumDyadic f (fun k cfg' => evalTerm (init cfg) k cfg') a b cfg hmem
+
 /-! ### Bridge Theorems -/
 
 /-- If checkWitnessSumUpperBound returns true, the sum is bounded above. -/
@@ -136,6 +173,36 @@ theorem verify_witness_sum_lower (f : Nat → ℝ)
   have hlo : ((witnessSumDyadic evalTerm a b cfg).lo.toRat : ℝ) ≤
       ∑ k ∈ Finset.Icc a b, f k := hsum.1
   simp only [checkWitnessSumLowerBound, IntervalDyadic.lowerBoundedBy,
+    decide_eq_true_eq] at h_check
+  exact le_trans (by exact_mod_cast h_check) hlo
+
+/-- If `checkWitnessSumUpperBoundCached` returns true, the cached sum is bounded above. -/
+theorem verify_witness_sum_upper_cached {Cache : Type} (f : Nat → ℝ)
+    (init : DyadicConfig → Cache)
+    (evalTerm : Cache → Nat → DyadicConfig → IntervalDyadic)
+    (a b : Nat) (target : ℚ) (cfg : DyadicConfig)
+    (hmem : ∀ k, a ≤ k → k ≤ b → f k ∈ evalTerm (init cfg) k cfg)
+    (h_check : checkWitnessSumUpperBoundCached init evalTerm a b target cfg = true) :
+    ∑ k ∈ Finset.Icc a b, f k ≤ target := by
+  have hsum := mem_witnessSumDyadicCached f init evalTerm a b cfg hmem
+  have hhi : ∑ k ∈ Finset.Icc a b, f k ≤
+      ((witnessSumDyadicCached init evalTerm a b cfg).hi.toRat : ℝ) := hsum.2
+  simp only [checkWitnessSumUpperBoundCached, IntervalDyadic.upperBoundedBy,
+    decide_eq_true_eq] at h_check
+  exact le_trans hhi (by exact_mod_cast h_check)
+
+/-- If `checkWitnessSumLowerBoundCached` returns true, the cached sum is bounded below. -/
+theorem verify_witness_sum_lower_cached {Cache : Type} (f : Nat → ℝ)
+    (init : DyadicConfig → Cache)
+    (evalTerm : Cache → Nat → DyadicConfig → IntervalDyadic)
+    (a b : Nat) (target : ℚ) (cfg : DyadicConfig)
+    (hmem : ∀ k, a ≤ k → k ≤ b → f k ∈ evalTerm (init cfg) k cfg)
+    (h_check : checkWitnessSumLowerBoundCached init evalTerm a b target cfg = true) :
+    target ≤ ∑ k ∈ Finset.Icc a b, f k := by
+  have hsum := mem_witnessSumDyadicCached f init evalTerm a b cfg hmem
+  have hlo : ((witnessSumDyadicCached init evalTerm a b cfg).lo.toRat : ℝ) ≤
+      ∑ k ∈ Finset.Icc a b, f k := hsum.1
+  simp only [checkWitnessSumLowerBoundCached, IntervalDyadic.lowerBoundedBy,
     decide_eq_true_eq] at h_check
   exact le_trans (by exact_mod_cast h_check) hlo
 

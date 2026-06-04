@@ -76,7 +76,7 @@ theorem F_nonneg (S : Finset Nat) : 0 ≤ F S := by
     classical
     unfold qProd
     apply Continuous.intervalIntegrable
-    exact continuous_finset_prod S fun n hn =>
+    exact continuous_finsetProd S fun n hn =>
       continuous_const.sub (continuous_id.pow n)
   apply intervalIntegral.integral_nonneg (by norm_num : (0 : ℝ) ≤ 1)
   intro u hu
@@ -89,7 +89,7 @@ theorem F_le_one (S : Finset Nat) : F S ≤ 1 := by
     classical
     unfold qProd
     apply Continuous.intervalIntegrable
-    exact continuous_finset_prod S fun n hn =>
+    exact continuous_finsetProd S fun n hn =>
       continuous_const.sub (continuous_id.pow n)
   have hConst : IntervalIntegrable (fun _ : ℝ => (1 : ℝ)) volume (0 : ℝ) 1 := by
     exact continuous_const.intervalIntegrable 0 1
@@ -106,13 +106,13 @@ theorem F_antitone {S T : Finset Nat}
     classical
     unfold qProd
     apply Continuous.intervalIntegrable
-    exact continuous_finset_prod T fun n hn =>
+    exact continuous_finsetProd T fun n hn =>
       continuous_const.sub (continuous_id.pow n)
   have hSInt : IntervalIntegrable (fun u => qProd S u) volume (0 : ℝ) 1 := by
     classical
     unfold qProd
     apply Continuous.intervalIntegrable
-    exact continuous_finset_prod S fun n hn =>
+    exact continuous_finsetProd S fun n hn =>
       continuous_const.sub (continuous_id.pow n)
   exact intervalIntegral.integral_mono_on (by norm_num : (0 : ℝ) ≤ 1) hTInt hSInt
     (fun u hu => qProd_antitone_pointwise hST hu)
