@@ -25,3 +25,6 @@ jobs:
 
       - name: Build ChebyshevPsiTest (psi checker smoke test)
         run: lake build ChebyshevPsiTest
+
+      - name: Build TableTest (table certificate smoke test)
+        run: lake build TableTest
