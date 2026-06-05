@@ -70,4 +70,5 @@ nav:
     - Distillation: ml/distillation.md
   - Architecture:
     - Golden Theorems: architecture/golden-theorems.md
+    - Table Certificates: architecture/table-certificates.md
     - Verification Status: architecture/verification-status.md

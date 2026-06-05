@@ -36,6 +36,8 @@ import LeanCert.Engine.ReflectiveSum
 import LeanCert.Engine.FinSumDyadic
 -- v1.3: Witness-based finite sum evaluator (user-provided per-term evaluator)
 import LeanCert.Engine.WitnessSum
+-- v1.4: Generic finite table certificates (row-wise native_decide loops)
+import LeanCert.Engine.Table
 import LeanCert.Engine.ChebyshevPsi
 import LeanCert.Engine.ChebyshevTheta
 
@@ -175,6 +177,16 @@ export LeanCert.Engine (
 
 -- Re-export reflective sum evaluator (O(1) proof size for finite sums)
 export LeanCert.Engine (
+  TableCert
+  AdjacentAll
+  checkAdjacent
+  checkAdjacentList
+  checkLinkedRows
+  checkStrictlyIncreasingBy
+  adjacentAll_of_checkAdjacent
+  adjacentAll_of_checkAdjacentList
+  linkedRows_of_checkLinkedRows
+  adjacentIncreasing_of_checkStrictlyIncreasingBy
   BKLNWSumConfig
   bklnwF
   bklnwSumDyadic
@@ -187,6 +199,14 @@ export LeanCert.Engine (
   checkBKLNWSumLowerBound_correct
   rpowIntervalDyadic
   mem_rpowIntervalDyadic
+)
+
+export LeanCert.Engine.TableCert (
+  checkAll
+  failingIndices
+  failingIndicesFrom
+  row_checked_of_list_all
+  verify
 )
 
 -- Re-export certificate verification
