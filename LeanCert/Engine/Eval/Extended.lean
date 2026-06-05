@@ -379,11 +379,8 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       simp only [Expr.eval_sinc]
       -- sinc(x) ∈ [-1, 1] for all x, using Mathlib's Real.sinc lemmas
       simp only [IntervalRat.mem_def]
-      constructor
-      · simp only [Rat.cast_neg, Rat.cast_one]
-        exact Real.neg_one_le_sinc _
-      · simp only [Rat.cast_one]
-        exact Real.sinc_le_one _
+      simpa only [Set.mem_Icc, Rat.cast_neg, Rat.cast_one] using
+        (Real.sinc_mem_Icc (Expr.eval ρ_real e))
   | @erf e h ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
@@ -394,11 +391,8 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       simp only [Expr.eval_erf]
       -- erf(x) ∈ [-1, 1] for all x
       simp only [IntervalRat.mem_def]
-      constructor
-      · simp only [Rat.cast_neg, Rat.cast_one]
-        exact Real.neg_one_le_erf _
-      · simp only [Rat.cast_one]
-        exact Real.erf_le_one _
+      simpa only [Set.mem_Icc, Rat.cast_neg, Rat.cast_one] using
+        (Real.erf_mem_Icc (Expr.eval ρ_real e))
   | @sqrt e h ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with

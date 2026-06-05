@@ -501,7 +501,7 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
     -- erf x ∈ [-1, 1] for all x
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
-    exact ⟨Real.neg_one_le_erf _, Real.erf_le_one _⟩
+    exact Real.erf_mem_Icc _
   | log _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_log, evalIntervalDyadic, logIntervalDyadic]
@@ -597,7 +597,7 @@ theorem evalIntervalDyadic_correct_withInv (e : Expr) (hsupp : ExprSupportedWith
     simp only [Expr.eval_sinc, evalIntervalDyadic, sincIntervalDyadic]
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
-    exact ⟨Real.neg_one_le_sinc _, Real.sinc_le_one _⟩
+    exact Real.sinc_mem_Icc _
   | arsinh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_arsinh, evalIntervalDyadic, arsinhIntervalDyadic]
@@ -616,7 +616,7 @@ theorem evalIntervalDyadic_correct_withInv (e : Expr) (hsupp : ExprSupportedWith
     simp only [Expr.eval_erf, evalIntervalDyadic, erfIntervalDyadic]
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
-    exact ⟨Real.neg_one_le_erf _, Real.erf_le_one _⟩
+    exact Real.erf_mem_Icc _
   | sqrt _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_sqrt, evalIntervalDyadic, sqrtIntervalDyadic]
