@@ -284,9 +284,6 @@ structure GlobalMax1DResult (e : Expr) (I : IntervalRat) where
   /-- Proof of the upper bound: ∀ x ∈ I, f(x) ≤ maxValue.hi -/
   upperBoundProof : ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ (maxValue.hi : ℝ)
 
-/-- Convert IntervalRat to a 1D Box -/
-def intervalToBox (I : IntervalRat) : Box := [I]
-
 /-- Find global minimum of `e` over 1D interval `I` with proof.
 
     Specialized version for single-variable functions.
@@ -295,7 +292,7 @@ noncomputable def findGlobalMin1D (e : Expr) (hsupp : ExprSupported e)
     (he1d : e.usesOnlyVar0 = true)
     (I : IntervalRat) (cfg : OptSearchConfig := {}) :
     GlobalMin1DResult e I :=
-  let B := intervalToBox I
+  let B := Box.ofInterval I
   let result := findGlobalMin e hsupp B cfg
   {
     minimizerInterval := result.minimizerBox.head!
@@ -305,14 +302,14 @@ noncomputable def findGlobalMin1D (e : Expr) (hsupp : ExprSupported e)
       let ρ : Nat → ℝ := fun n => if n = 0 then x else 0
       have hρ : Box.envMem ρ B := by
         intro ⟨i, hi⟩
-        simp only [B, intervalToBox] at hi ⊢
+        simp only [B, Box.ofInterval] at hi ⊢
         have hi0 : i = 0 := Nat.lt_one_iff.mp hi
         subst hi0
         simp only [List.getElem_cons_zero, ρ, ↓reduceIte]
         exact hx
       have hzero : ∀ i, i ≥ B.length → ρ i = 0 := by
         intro i hi
-        simp only [B, intervalToBox, List.length_singleton] at hi
+        simp only [B, Box.ofInterval, List.length_singleton] at hi
         simp only [ρ]
         split_ifs with h0
         · subst h0; omega
@@ -331,7 +328,7 @@ noncomputable def findGlobalMax1D (e : Expr) (hsupp : ExprSupported e)
     (he1d : e.usesOnlyVar0 = true)
     (I : IntervalRat) (cfg : OptSearchConfig := {}) :
     GlobalMax1DResult e I :=
-  let B := intervalToBox I
+  let B := Box.ofInterval I
   let result := findGlobalMax e hsupp B cfg
   {
     maximizerInterval := result.maximizerBox.head!
@@ -340,14 +337,14 @@ noncomputable def findGlobalMax1D (e : Expr) (hsupp : ExprSupported e)
       let ρ : Nat → ℝ := fun n => if n = 0 then x else 0
       have hρ : Box.envMem ρ B := by
         intro ⟨i, hi⟩
-        simp only [B, intervalToBox] at hi ⊢
+        simp only [B, Box.ofInterval] at hi ⊢
         have hi0 : i = 0 := Nat.lt_one_iff.mp hi
         subst hi0
         simp only [List.getElem_cons_zero, ρ, ↓reduceIte]
         exact hx
       have hzero : ∀ i, i ≥ B.length → ρ i = 0 := by
         intro i hi
-        simp only [B, intervalToBox, List.length_singleton] at hi
+        simp only [B, Box.ofInterval, List.length_singleton] at hi
         simp only [ρ]
         split_ifs with h0
         · subst h0; omega

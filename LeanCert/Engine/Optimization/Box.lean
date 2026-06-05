@@ -50,6 +50,9 @@ abbrev PointQ := List ℚ
 
 namespace Box
 
+/-- Create a one-dimensional box from a single interval. -/
+def ofInterval (I : IntervalRat) : Box := [I]
+
 /-- Convert a box to an interval environment.
     Returns `default` for out-of-bounds indices (i.e., the whole real line approximation). -/
 def toEnv (B : Box) : IntervalEnv :=

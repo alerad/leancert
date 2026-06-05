@@ -273,7 +273,7 @@ theorem evalIntervalAffine_correct (e : Expr) (hsupp : ExprSupportedCore e)
     use Real.erf (Expr.eval ρ_real arg)
     constructor
     · rw [abs_le]
-      exact ⟨Real.neg_one_le_erf _, Real.erf_le_one _⟩
+      exact Real.erf_mem_Icc _
     · ring
   | sqrt _ ih =>
     simp only [evalDomainValidAffine] at hdom

@@ -433,11 +433,88 @@ inductive UsesOnlyVar0 : Expr → Prop where
   | add (e₁ e₂ : Expr) (h₁ : UsesOnlyVar0 e₁) (h₂ : UsesOnlyVar0 e₂) : UsesOnlyVar0 (Expr.add e₁ e₂)
   | mul (e₁ e₂ : Expr) (h₁ : UsesOnlyVar0 e₁) (h₂ : UsesOnlyVar0 e₂) : UsesOnlyVar0 (Expr.mul e₁ e₂)
   | neg (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.neg e)
+  | inv (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.inv e)
   | sin (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.sin e)
   | cos (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.cos e)
   | exp (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.exp e)
+  | log (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.log e)
   | atan (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.atan e)
   | arsinh (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.arsinh e)
+  | atanh (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.atanh e)
+  | sinc (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.sinc e)
+  | erf (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.erf e)
+  | sinh (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.sinh e)
+  | cosh (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.cosh e)
+  | tanh (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.tanh e)
+  | sqrt (e : Expr) (h : UsesOnlyVar0 e) : UsesOnlyVar0 (Expr.sqrt e)
+  | namedConst (c : MathConst) : UsesOnlyVar0 (Expr.namedConst c)
+
+/-- Bridge between the canonical boolean predicate and the proof-carrying
+`UsesOnlyVar0` predicate used by AD correctness lemmas. -/
+theorem Expr.usesOnlyVar0_iff_UsesOnlyVar0 {e : Expr} :
+    e.usesOnlyVar0 = true ↔ UsesOnlyVar0 e := by
+  constructor
+  · intro he
+    induction e with
+    | const q => exact UsesOnlyVar0.const q
+    | var i =>
+      simp only [Expr.usesOnlyVar0] at he
+      have hi : i = 0 := beq_iff_eq.mp he
+      subst hi
+      exact UsesOnlyVar0.var0
+    | add e₁ e₂ ih₁ ih₂ =>
+      simp only [Expr.usesOnlyVar0, Bool.and_eq_true] at he
+      exact UsesOnlyVar0.add e₁ e₂ (ih₁ he.1) (ih₂ he.2)
+    | mul e₁ e₂ ih₁ ih₂ =>
+      simp only [Expr.usesOnlyVar0, Bool.and_eq_true] at he
+      exact UsesOnlyVar0.mul e₁ e₂ (ih₁ he.1) (ih₂ he.2)
+    | neg e ih =>
+      exact UsesOnlyVar0.neg e (ih he)
+    | inv e ih =>
+      exact UsesOnlyVar0.inv e (ih he)
+    | exp e ih =>
+      exact UsesOnlyVar0.exp e (ih he)
+    | sin e ih =>
+      exact UsesOnlyVar0.sin e (ih he)
+    | cos e ih =>
+      exact UsesOnlyVar0.cos e (ih he)
+    | log e ih =>
+      exact UsesOnlyVar0.log e (ih he)
+    | atan e ih =>
+      exact UsesOnlyVar0.atan e (ih he)
+    | arsinh e ih =>
+      exact UsesOnlyVar0.arsinh e (ih he)
+    | atanh e ih =>
+      exact UsesOnlyVar0.atanh e (ih he)
+    | sinc e ih =>
+      exact UsesOnlyVar0.sinc e (ih he)
+    | erf e ih =>
+      exact UsesOnlyVar0.erf e (ih he)
+    | sinh e ih =>
+      exact UsesOnlyVar0.sinh e (ih he)
+    | cosh e ih =>
+      exact UsesOnlyVar0.cosh e (ih he)
+    | tanh e ih =>
+      exact UsesOnlyVar0.tanh e (ih he)
+    | sqrt e ih =>
+      exact UsesOnlyVar0.sqrt e (ih he)
+    | namedConst c =>
+      exact UsesOnlyVar0.namedConst c
+  · intro h
+    induction h with
+    | const q => rfl
+    | var0 => rfl
+    | add _ _ _ _ ih₁ ih₂ =>
+      rw [Expr.usesOnlyVar0, ih₁, ih₂]
+      rfl
+    | mul _ _ _ _ ih₁ ih₂ =>
+      rw [Expr.usesOnlyVar0, ih₁, ih₂]
+      rfl
+    | neg _ _ ih | inv _ _ ih | sin _ _ ih | cos _ _ ih | exp _ _ ih | log _ _ ih
+    | atan _ _ ih | arsinh _ _ ih | atanh _ _ ih | sinc _ _ ih | erf _ _ ih
+    | sinh _ _ ih | cosh _ _ ih | tanh _ _ ih | sqrt _ _ ih =>
+      simpa only [Expr.usesOnlyVar0] using ih
+    | namedConst c => rfl
 
 /-- For expressions using only var 0, evalDual agrees for environments that match at 0 -/
 theorem evalDual_congr_at_0 (e : Expr) (h : UsesOnlyVar0 e)
@@ -452,16 +529,36 @@ theorem evalDual_congr_at_0 (e : Expr) (h : UsesOnlyVar0 e)
     simp only [evalDual, ih₁ ρ₁ ρ₂ heq, ih₂ ρ₁ ρ₂ heq]
   | neg _ _ ih =>
     simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | inv _ _ ih =>
+    simp only [evalDual]
   | sin _ _ ih =>
     simp only [evalDual, ih ρ₁ ρ₂ heq]
   | cos _ _ ih =>
     simp only [evalDual, ih ρ₁ ρ₂ heq]
   | exp _ _ ih =>
     simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | log _ _ ih =>
+    simp only [evalDual]
   | atan _ _ ih =>
     simp only [evalDual, ih ρ₁ ρ₂ heq]
   | arsinh _ _ ih =>
     simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | atanh _ _ ih =>
+    simp only [evalDual]
+  | sinc _ _ ih =>
+    simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | erf _ _ ih =>
+    simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | sinh _ _ ih =>
+    simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | cosh _ _ ih =>
+    simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | tanh _ _ ih =>
+    simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | sqrt _ _ ih =>
+    simp only [evalDual, ih ρ₁ ρ₂ heq]
+  | namedConst _ =>
+    simp only [evalDual]
 
 /-- mkDualEnv at index 0 equals varActive at 0 -/
 theorem mkDualEnv_at_0 (I : IntervalRat) :

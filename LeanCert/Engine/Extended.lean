@@ -601,7 +601,7 @@ theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
     -- erf returns singleton [-1, 1], need to show Real.erf x ∈ [-1, 1]
     simp only [ExtendedInterval.mem_singleton, IntervalRat.mem_def]
     simp only [Rat.cast_neg, Rat.cast_one]
-    exact ⟨Real.neg_one_le_erf _, Real.erf_le_one _⟩
+    exact Real.erf_mem_Icc _
   | @log arg _ ih =>
     simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_log, evalExtended]

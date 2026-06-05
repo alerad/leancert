@@ -187,7 +187,7 @@ theorem evalDual?_val_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       rw [← hsome]
       simp only [Expr.eval_sinc, DualInterval.sinc]
       simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-      exact ⟨Real.neg_one_le_sinc _, Real.sinc_le_one _⟩
+      exact Real.sinc_mem_Icc _
   | @erf e' hs ih =>
     simp only [evalDual?] at hsome
     cases heq : evalDual? e' ρ_dual with
@@ -197,7 +197,7 @@ theorem evalDual?_val_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       rw [← hsome]
       simp only [Expr.eval_erf, DualInterval.erf]
       simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-      exact ⟨Real.neg_one_le_erf _, Real.erf_le_one _⟩
+      exact Real.erf_mem_Icc _
   | @sqrt e' hs ih =>
     simp only [evalDual?] at hsome
     cases heq : evalDual? e' ρ_dual with

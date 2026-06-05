@@ -192,62 +192,59 @@ def verifyLowerBoundWithWitness (e : Expr) (B : Box) (bound : ℚ)
 
 /-! ### Single-variable convenience functions -/
 
-/-- Convert a single interval to a 1D box -/
-def intervalToBox (I : IntervalRat) : Box := [I]
-
 /-- Single-variable version of verifyUpperBound -/
 def verifyUpperBound1 (e : Expr) (I : IntervalRat) (bound : ℚ)
     (cfg : BoundVerifyConfig := {}) : Bool :=
-  verifyUpperBound e (intervalToBox I) bound cfg
+  verifyUpperBound e (Box.ofInterval I) bound cfg
 
 /-- Single-variable version of verifyLowerBound -/
 def verifyLowerBound1 (e : Expr) (I : IntervalRat) (bound : ℚ)
     (cfg : BoundVerifyConfig := {}) : Bool :=
-  verifyLowerBound e (intervalToBox I) bound cfg
+  verifyLowerBound e (Box.ofInterval I) bound cfg
 
 /-- Single-variable version of verifyUpperBoundStrict -/
 def verifyUpperBound1Strict (e : Expr) (I : IntervalRat) (bound : ℚ)
     (cfg : BoundVerifyConfig := {}) : Bool :=
-  verifyUpperBoundStrict e (intervalToBox I) bound cfg
+  verifyUpperBoundStrict e (Box.ofInterval I) bound cfg
 
 /-- Single-variable version of verifyLowerBoundStrict -/
 def verifyLowerBound1Strict (e : Expr) (I : IntervalRat) (bound : ℚ)
     (cfg : BoundVerifyConfig := {}) : Bool :=
-  verifyLowerBoundStrict e (intervalToBox I) bound cfg
+  verifyLowerBoundStrict e (Box.ofInterval I) bound cfg
 
 /-- Single-variable version of findMaxWithWitness -/
 def findMax1WithWitness (e : Expr) (I : IntervalRat) (cfg : BoundVerifyConfig := {}) : BoundVerifyResult :=
-  findMaxWithWitness e (intervalToBox I) cfg
+  findMaxWithWitness e (Box.ofInterval I) cfg
 
 /-- Single-variable version of findMinWithWitness -/
 def findMin1WithWitness (e : Expr) (I : IntervalRat) (cfg : BoundVerifyConfig := {}) : BoundVerifyResult :=
-  findMinWithWitness e (intervalToBox I) cfg
+  findMinWithWitness e (Box.ofInterval I) cfg
 
 /-- Single-variable version of verifyUpperBoundWithWitness -/
 def verifyUpperBound1WithWitness (e : Expr) (I : IntervalRat) (bound : ℚ)
     (cfg : BoundVerifyConfig := {}) : BoundVerifyResult :=
-  verifyUpperBoundWithWitness e (intervalToBox I) bound cfg
+  verifyUpperBoundWithWitness e (Box.ofInterval I) bound cfg
 
 /-- Single-variable version of verifyLowerBoundWithWitness -/
 def verifyLowerBound1WithWitness (e : Expr) (I : IntervalRat) (bound : ℚ)
     (cfg : BoundVerifyConfig := {}) : BoundVerifyResult :=
-  verifyLowerBoundWithWitness e (intervalToBox I) bound cfg
+  verifyLowerBoundWithWitness e (Box.ofInterval I) bound cfg
 
 /-! ### Correctness theorems (noncomputable proofs) -/
 
 /-- Helper: convert single-variable environment to box membership -/
-theorem intervalToBox_envMem (I : IntervalRat) (x : ℝ) (hx : x ∈ I) :
-    Box.envMem (fun _ => x) (intervalToBox I) := by
+theorem Box.ofInterval_envMem (I : IntervalRat) (x : ℝ) (hx : x ∈ I) :
+    Box.envMem (fun _ => x) (Box.ofInterval I) := by
   intro ⟨i, hi⟩
-  simp only [intervalToBox, List.length_singleton] at hi
+  simp only [Box.ofInterval, List.length_singleton] at hi
   have hi' : i = 0 := Nat.lt_one_iff.mp hi
   subst hi'
-  simp only [intervalToBox, List.getElem_cons_zero]
+  simp only [Box.ofInterval, List.getElem_cons_zero]
   exact hx
 
 /-- Helper: if i ≥ 1, then (fun _ => x) i = 0 is vacuously satisfiable for our purposes -/
-theorem intervalToBox_zero (I : IntervalRat) (x : ℝ) :
-    ∀ i, i ≥ (intervalToBox I).length → (fun _ => x) i = x := by
+theorem Box.ofInterval_zero (I : IntervalRat) (x : ℝ) :
+    ∀ i, i ≥ (Box.ofInterval I).length → (fun _ => x) i = x := by
   intro i _; rfl
 
 /-- If verifyUpperBound succeeds, the upper bound holds for all points in the box.
@@ -291,70 +288,6 @@ theorem verifyLowerBound_correct (e : Expr) (hsupp : ExprSupported e)
     ≤ (globalMinimize e B cfg.toGlobalOptConfig).bound.lo := by exact_mod_cast hverify
     _ ≤ Expr.eval ρ e := hmin
 
-/-! ### Expression uses only var 0 -/
-
-/-- Predicate: expression only uses variable index 0 -/
-def Expr.usesOnlyVar0 : Expr → Bool
-  | .const _ => true
-  | .var i => i == 0
-  | .add e1 e2 => e1.usesOnlyVar0 && e2.usesOnlyVar0
-  | .mul e1 e2 => e1.usesOnlyVar0 && e2.usesOnlyVar0
-  | .neg e => e.usesOnlyVar0
-  | .inv e => e.usesOnlyVar0
-  | .exp e => e.usesOnlyVar0
-  | .sin e => e.usesOnlyVar0
-  | .cos e => e.usesOnlyVar0
-  | .log e => e.usesOnlyVar0
-  | .atan e => e.usesOnlyVar0
-  | .arsinh e => e.usesOnlyVar0
-  | .atanh e => e.usesOnlyVar0
-  | .sinc e => e.usesOnlyVar0
-  | .erf e => e.usesOnlyVar0
-  | .sinh e => e.usesOnlyVar0
-  | .cosh e => e.usesOnlyVar0
-  | .tanh e => e.usesOnlyVar0
-  | .sqrt e => e.usesOnlyVar0
-  | .namedConst _ => true
-
-/-- If an expression uses only var 0, evaluation depends only on ρ 0 -/
-theorem Expr.eval_usesOnlyVar0 (e : Expr) (he : e.usesOnlyVar0 = true)
-    (ρ ρ' : Nat → ℝ) (h0 : ρ 0 = ρ' 0) : Expr.eval ρ e = Expr.eval ρ' e := by
-  induction e with
-  | const q => rfl
-  | var i =>
-    -- usesOnlyVar0 (var i) = (i == 0), so he : (i == 0) = true
-    have hi : i = 0 := by
-      change (i == 0) = true at he
-      exact beq_iff_eq.mp he
-    simp only [Expr.eval, hi, h0]
-  | add e1 e2 ih1 ih2 =>
-    -- usesOnlyVar0 (add e1 e2) = e1.usesOnlyVar0 && e2.usesOnlyVar0
-    have he' : e1.usesOnlyVar0 = true ∧ e2.usesOnlyVar0 = true := by
-      change (e1.usesOnlyVar0 && e2.usesOnlyVar0) = true at he
-      exact Bool.and_eq_true_iff.mp he
-    simp only [Expr.eval, ih1 he'.1, ih2 he'.2]
-  | mul e1 e2 ih1 ih2 =>
-    have he' : e1.usesOnlyVar0 = true ∧ e2.usesOnlyVar0 = true := by
-      change (e1.usesOnlyVar0 && e2.usesOnlyVar0) = true at he
-      exact Bool.and_eq_true_iff.mp he
-    simp only [Expr.eval, ih1 he'.1, ih2 he'.2]
-  | neg e ih => simp only [Expr.eval, ih he]
-  | inv e ih => simp only [Expr.eval, ih he]
-  | exp e ih => simp only [Expr.eval, ih he]
-  | sin e ih => simp only [Expr.eval, ih he]
-  | cos e ih => simp only [Expr.eval, ih he]
-  | log e ih => simp only [Expr.eval, ih he]
-  | atan e ih => simp only [Expr.eval, ih he]
-  | arsinh e ih => simp only [Expr.eval, ih he]
-  | atanh e ih => simp only [Expr.eval, ih he]
-  | sinc e ih => simp only [Expr.eval, ih he]
-  | erf e ih => simp only [Expr.eval, ih he]
-  | sinh e ih => simp only [Expr.eval, ih he]
-  | cosh e ih => simp only [Expr.eval, ih he]
-  | tanh e ih => simp only [Expr.eval, ih he]
-  | sqrt e ih => simp only [Expr.eval, ih he]
-  | namedConst _ => rfl
-
 /-! ### Tactic-facing lemmas for adaptive bound verification -/
 
 /-- Tactic-facing lemma: if adaptive verification succeeds, upper bound holds.
@@ -385,7 +318,7 @@ theorem adaptive_upper_bound (e : Expr) (hsupp : ExprSupported e)
   have h := verifyUpperBound_correct e hsupp [I] c cfg hverify ρ' hρ'mem hρ'zero
   -- Use the fact that e only uses var 0 to relate the two evaluations
   have heq : Expr.eval (fun _ => x) e = Expr.eval ρ' e := by
-    apply Expr.eval_usesOnlyVar0 e he
+    apply Expr.eval_usesOnlyVar0_eq e he
     simp only [ρ', ↓reduceIte]
   rw [heq]
   exact h
@@ -415,7 +348,7 @@ theorem adaptive_lower_bound (e : Expr) (hsupp : ExprSupported e)
     · rfl
   have h := verifyLowerBound_correct e hsupp [I] c cfg hverify ρ' hρ'mem hρ'zero
   have heq : Expr.eval (fun _ => x) e = Expr.eval ρ' e := by
-    apply Expr.eval_usesOnlyVar0 e he
+    apply Expr.eval_usesOnlyVar0_eq e he
     simp only [ρ', ↓reduceIte]
   rw [heq]
   exact h
@@ -447,7 +380,7 @@ theorem adaptive_upper_bound_strict (e : Expr) (hsupp : ExprSupported e)
       -(globalMinimize (Expr.neg e) [I] cfg.toGlobalOptConfig).bound.lo := by
     simp only [globalMaximize]
   have heq : Expr.eval (fun _ => x) e = Expr.eval ρ' e := by
-    apply Expr.eval_usesOnlyVar0 e he
+    apply Expr.eval_usesOnlyVar0_eq e he
     simp only [ρ', ↓reduceIte]
   rw [heq]
   have hbound : Expr.eval ρ' e ≤ -(globalMinimize (Expr.neg e) [I] cfg.toGlobalOptConfig).bound.lo := by
@@ -482,7 +415,7 @@ theorem adaptive_lower_bound_strict (e : Expr) (hsupp : ExprSupported e)
     split_ifs with h; omega; rfl
   have hmin := globalMinimize_lo_correct e hsupp [I] cfg.toGlobalOptConfig ρ' hρ'mem hρ'zero
   have heq : Expr.eval (fun _ => x) e = Expr.eval ρ' e := by
-    apply Expr.eval_usesOnlyVar0 e he
+    apply Expr.eval_usesOnlyVar0_eq e he
     simp only [ρ', ↓reduceIte]
   rw [heq]
   calc (c : ℝ)

@@ -203,7 +203,7 @@ theorem evalDualCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_erf, evalDualCore, DualInterval.erfCore]
     simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-    exact ⟨Real.neg_one_le_erf _, Real.erf_le_one _⟩
+    exact Real.erf_mem_Icc _
   | log _ ih =>
     simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_log, evalDualCore, DualInterval.logCore]

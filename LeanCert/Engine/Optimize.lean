@@ -263,14 +263,6 @@ theorem decreasing_endpoint_bound (e : Expr) (hsupp : ExprSupported e) (hvar0 : 
 
 /-! ### Full optimization correctness -/
 
-/-- Helper: membership in bisected intervals -/
-theorem mem_bisect_cases (I : IntervalRat) (x : ℝ) (hx : x ∈ I) :
-    x ∈ (I.bisect).1 ∨ x ∈ (I.bisect).2 := by
-  by_cases! hm : x ≤ I.midpoint
-  · left; exact IntervalRat.mem_bisect_left hx hm
-  · right
-    exact IntervalRat.mem_bisect_right hx (le_of_lt hm)
-
 /-- Helper lemma for go correctness.
     FULLY PROVED for varIdx = 0 and UsesOnlyVar0 expressions. -/
 theorem minimizeInterval_go_correct (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
@@ -304,7 +296,7 @@ theorem minimizeInterval_go_correct (e : Expr) (hsupp : ExprSupported e) (hvar0 
       exact decreasing_endpoint_bound e hsupp hvar0 J hneg' x hx
     · -- Bisection case, hle (r₁.lo ≤ r₂.lo)
       -- x is in one of the bisected intervals
-      have hcases := mem_bisect_cases J x hx
+      have hcases := IntervalRat.mem_bisect_or hx
       cases hcases with
       | inl h1 => exact ih J.bisect.1 x h1
       | inr h2 =>
@@ -315,7 +307,7 @@ theorem minimizeInterval_go_correct (e : Expr) (hsupp : ExprSupported e) (hvar0 
             ≤ (minimizeInterval.go e 0 maxDepth (J.bisect.snd) n).valueBound.lo := hle_cast
           _ ≤ Expr.eval (fun _ => x) e := h
     · -- Bisection case, ¬hle (r₁.lo > r₂.lo)
-      have hcases := mem_bisect_cases J x hx
+      have hcases := IntervalRat.mem_bisect_or hx
       cases hcases with
       | inl h1 =>
         have h := ih J.bisect.1 x h1
@@ -606,14 +598,6 @@ theorem minimizeIntervalIdx_base_correct (e : Expr) (hsupp : ExprSupported e)
   simp only [IntervalRat.mem_def] at h
   exact h.1
 
-/-- Helper: membership in bisected intervals -/
-theorem mem_bisect_cases_idx (J : IntervalRat) (t : ℝ) (ht : t ∈ J) :
-    t ∈ (J.bisect).1 ∨ t ∈ (J.bisect).2 := by
-  by_cases! hm : t ≤ J.midpoint
-  · left; exact IntervalRat.mem_bisect_left ht hm
-  · right
-    exact IntervalRat.mem_bisect_right ht (le_of_lt hm)
-
 /-- Helper lemma for go correctness in n-variable setting -/
 theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
     (ρ_int : IntervalEnv) (idx : Nat) (maxDepth depth : ℕ) (J : IntervalRat)
@@ -771,7 +755,7 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
             ≤ Expr.eval (Expr.updateVar ρ_real idx J.hi) e := heval.1
           _ ≤ Expr.eval (Expr.updateVar ρ_real idx t) e := le_of_lt hmono_at
     · -- Bisection case, hle (r₁.lo ≤ r₂.lo)
-      have hcases := mem_bisect_cases_idx J t ht
+      have hcases := IntervalRat.mem_bisect_or ht
       cases hcases with
       | inl h1 =>
         have hsub1 : ∀ s, s ∈ J.bisect.1 → s ∈ ρ_int idx := fun s hs =>
@@ -787,7 +771,7 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
             ≤ (minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.snd) n).valueBound.lo := hle_cast
           _ ≤ Expr.eval (Expr.updateVar ρ_real idx t) e := h
     · -- Bisection case, ¬hle (r₁.lo > r₂.lo)
-      have hcases := mem_bisect_cases_idx J t ht
+      have hcases := IntervalRat.mem_bisect_or ht
       cases hcases with
       | inl h1 =>
         have hsub1 : ∀ s, s ∈ J.bisect.1 → s ∈ ρ_int idx := fun s hs =>

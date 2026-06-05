@@ -323,14 +323,6 @@ inductive BisectResult where
 def updateIntervalEnv' (ρ : IntervalEnv) (idx : Nat) (J : IntervalRat) : IntervalEnv :=
   fun i => if i = idx then J else ρ i
 
-/-- Helper: membership in bisected intervals -/
-theorem mem_bisect_cases (J : IntervalRat) (t : ℝ) (ht : t ∈ J) :
-    t ∈ (J.bisect).1 ∨ t ∈ (J.bisect).2 := by
-  by_cases! hm : t ≤ J.midpoint
-  · left; exact IntervalRat.mem_bisect_left ht hm
-  · right
-    exact IntervalRat.mem_bisect_right ht (le_of_lt hm)
-
 /-- N-variable bisection root finding along coordinate `idx`.
 
     This searches for a root of `e` by bisecting the interval `ρ idx` while
@@ -556,7 +548,7 @@ theorem bisectRootIdx_go_noRoot_correct (e : Expr) (hsupp : ExprSupported e)
             -- Both halves return noRoot, so use IH on both
             intro ρ_real hρ t ht
             -- t is in either left or right half
-            rcases mem_bisect_cases J t ht with ht1 | ht2
+            rcases IntervalRat.mem_bisect_or ht with ht1 | ht2
             · exact ih J.bisect.1 hsub1 hr1 ρ_real hρ t ht1
             · exact ih J.bisect.2 hsub2 hr2 ρ_real hρ t ht2
           | BisectResult.uncertain _ _ =>

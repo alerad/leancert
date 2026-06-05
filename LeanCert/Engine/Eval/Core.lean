@@ -190,9 +190,7 @@ theorem mem_erfPointComputable (q : ℚ) (n : ℕ) :
   unfold IntervalRat.erfPointComputable
   have h_abs1 : |Real.erf q| ≤ (1 : ℝ) := by
     refine (abs_le.2 ?_)
-    constructor
-    · exact_mod_cast (Real.neg_one_le_erf q)
-    · exact_mod_cast (Real.erf_le_one q)
+    exact_mod_cast (Real.erf_mem_Icc q)
   have h_abs2 : |Real.erf q| ≤ ((2257 : ℝ) / 2000) * |(q : ℝ)| :=
     Real.abs_erf_le_2257_div_2000_mul_abs q
   by_cases hq : q < 0
@@ -261,7 +259,7 @@ theorem mem_erfInterval {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n : ℕ := 1
   -- erf x is in [-1, 1]
   have h_global : Real.erf x ∈ ({lo := -1, hi := 1, le := by norm_num} : IntervalRat) := by
     simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-    exact ⟨Real.neg_one_le_erf x, Real.erf_le_one x⟩
+    exact Real.erf_mem_Icc x
   -- Combine via case analysis on intersection result
   set erfLo := IntervalRat.erfPointComputable I.lo n
   set erfHi := IntervalRat.erfPointComputable I.hi n

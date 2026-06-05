@@ -229,6 +229,14 @@ theorem Real.neg_one_le_erf (x : ℝ) : -1 ≤ Real.erf x := by
           _ = 1 := by field_simp
     linarith
 
+/-- The error function always lies in `[-1, 1]`. -/
+theorem Real.erf_mem_Icc (x : ℝ) : Real.erf x ∈ Set.Icc (-1 : ℝ) 1 :=
+  ⟨Real.neg_one_le_erf x, Real.erf_le_one x⟩
+
+/-- The normalized sinc function always lies in `[-1, 1]`. -/
+theorem Real.sinc_mem_Icc (x : ℝ) : Real.sinc x ∈ Set.Icc (-1 : ℝ) 1 :=
+  ⟨Real.neg_one_le_sinc x, Real.sinc_le_one x⟩
+
 /-- Named mathematical constants with known interval bounds.
     Adding a new constant (e.g., Catalan's) only requires extending this enum
     and its lookup tables — zero evaluator files need updating. -/
