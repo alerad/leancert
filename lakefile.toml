@@ -48,6 +48,13 @@ name = "ChebyshevThetaTest"
 roots = ["LeanCert.Test.ChebyshevTheta"]
 precompileModules = false
 
+# Generic table certificate smoke test
+# Build explicitly with: lake build TableTest
+[[lean_lib]]
+name = "TableTest"
+roots = ["Tests.Table"]
+precompileModules = false
+
 [[lean_exe]]
 name = "leancert"
 root = "Main"
