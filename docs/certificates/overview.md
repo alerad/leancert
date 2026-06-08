@@ -20,6 +20,7 @@ Use this page as the map for choosing the right certificate API.
 | [ANT finite bridges](ant.md) | step sums, Abel transforms, Euler products, log products, Dirichlet truncations, and Mertens-style finite sums |
 | [ANT asymptotic envelopes](ant-asymp.md) | main-term plus error-term certificates for summatory functions and transforms |
 | [QProduct](qproduct.md) | exact finite q-product integrals and prime-limit sandwich certificates |
+| [ConstantFactory](constants.md) | exact observer-generated q-product constants from perturbation sums and reusable moment kernels |
 
 ## Imports
 
@@ -29,6 +30,7 @@ Most certificate families can be imported directly:
 import LeanCert.ANT
 import LeanCert.ANT.Asymp
 import LeanCert.QProduct
+import LeanCert.ConstantFactory
 import LeanCert.Engine.ChebyshevPsi
 import LeanCert.Engine.ChebyshevTheta
 ```
@@ -52,3 +54,7 @@ These can feed into ANT and asymptotic envelope arguments.
 
 Use QProduct certificates for exact product-integral identities and finite
 prime-limit sandwich arguments.
+
+Use ConstantFactory certificates when a q-product constant is best proved by
+holding a base kernel bank fixed and verifying finite observer perturbations
+around it.

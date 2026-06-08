@@ -7,9 +7,11 @@ import LeanCert.ANT.Step
 import LeanCert.ANT.Abel
 import LeanCert.ANT.EulerProduct
 import LeanCert.ANT.PrimeEuler
+import LeanCert.ANT.PrimePowerExt
 import LeanCert.ANT.Dirichlet
 import LeanCert.ANT.Mertens
 import LeanCert.ANT.Asymp
+import LeanCert.ANT.PNTCompilers
 
 /-!
 # Analytic number theory certificate machinery

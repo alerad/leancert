@@ -6,6 +6,7 @@ Authors: LeanCert Contributors
 import LeanCert.Engine.TaylorModel.Core
 import LeanCert.Engine.TaylorModel.Functions
 import LeanCert.Engine.TaylorModel.Expr
+import LeanCert.Engine.TaylorModel.Integral
 
 /-!
 # Taylor Models
@@ -15,4 +16,5 @@ This file re-exports all Taylor model functionality. The implementation is split
 * `TaylorModel.Core` - Core data structure, polynomial helpers, basic operations
 * `TaylorModel.Functions` - Function-specific Taylor series (sin, cos, exp, etc.)
 * `TaylorModel.Expr` - Composition operations and expression integration
+* `TaylorModel.Integral` - Definite-integral enclosures from Taylor-model bounds
 -/

@@ -8,6 +8,7 @@ import LeanCert.Examples.EdgeCases
 import LeanCert.Examples.NeuralNet
 import LeanCert.Examples.Showcase
 import LeanCert.Examples.Chebyshev
+import LeanCert.Examples.ConstantFactory
 import LeanCert.Examples.ANT.Basic
 import LeanCert.Examples.QProduct.Basic
 import LeanCert.Examples.QProduct.PrimeLambda

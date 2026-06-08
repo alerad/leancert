@@ -129,6 +129,29 @@ verify_primeEulerOnePlusInv_interval
 The generic product machinery lives in `LeanCert.ANT.EulerProduct`; these
 number-theoretic presets live in `LeanCert.ANT.PrimeEuler`.
 
+## Prime-Power Extensionality
+
+For multiplicative arithmetic functions, equality can be reduced to equality on
+prime powers.  LeanCert exposes a stable ANT-facing wrapper around mathlib's
+prime-power extensionality theorem:
+
+```lean
+LeanCert.ANT.PrimePowerExt.ext_prime_powers
+LeanCert.ANT.PrimePowerExt.eq_iff_eq_on_prime_powers
+```
+
+The intended workflow is:
+
+```lean
+apply LeanCert.ANT.PrimePowerExt.ext_prime_powers
+-- prove multiplicativity of both sides
+-- reduce the goal to:
+--   ∀ p k, Nat.Prime p → f (p ^ k) = g (p ^ k)
+```
+
+This is the lightweight first layer for local Euler-factor and
+arithmetic-function identity certificates.
+
 ## Dirichlet Truncations
 
 `LeanCert.ANT.Dirichlet` certifies finite Dirichlet-style weighted sums:

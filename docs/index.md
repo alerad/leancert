@@ -63,6 +63,7 @@ lake update
 | [ANT Certificates](certificates/ant.md) | Step sums, Abel transforms, Euler products, and Mertens-style finite sums |
 | [Asymptotic Envelopes](certificates/ant-asymp.md) | Summatory main-term/error envelopes, Stieltjes transforms, and hyperbola kernels |
 | [QProduct Certificates](certificates/qproduct.md) | Exact product-integral and prime-limit certificates |
+| [ConstantFactory Certificates](certificates/constants.md) | Observer-generated q-product constants from finite perturbation sums |
 
 ## ML
 
@@ -76,6 +77,7 @@ lake update
 | Document | Description |
 |----------|-------------|
 | [Golden Theorems](architecture/golden-theorems.md) | Why the checkers imply theorems |
+| [Table Certificates](architecture/table-certificates.md) | Generic finite-table checking infrastructure |
 | [Root Finding](architecture/root-finding.md) | Existence and uniqueness flow |
 | [Verification Status](architecture/verification-status.md) | Proven components and known gaps |
 

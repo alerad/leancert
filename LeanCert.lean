@@ -12,6 +12,7 @@ import LeanCert.Core.IntervalRealEndpoints
 import LeanCert.Core.Taylor
 import LeanCert.Core.DerivativeIntervals
 import LeanCert.Cert.Interval
+import LeanCert.Analysis.ContourShift
 -- v1.1: Dyadic arithmetic (high-performance alternative to Rat)
 import LeanCert.Core.Dyadic
 import LeanCert.Core.IntervalDyadic
@@ -61,6 +62,8 @@ import LeanCert.Engine.SearchAPI
 
 -- Q-product product-integral certificates
 import LeanCert.QProduct
+import LeanCert.ConstantFactory
+import LeanCert.ConstantFactory.IntervalBank
 
 -- Analytic number theory certificate machinery
 import LeanCert.ANT
@@ -136,6 +139,43 @@ export LeanCert.Cert (
   verify_rat_interval
   verify_rat_upper
   verify_rat_lower
+)
+
+-- Re-export contour-shift certificate API
+export LeanCert.Analysis.ContourShift (
+  bottomIntegral
+  topIntegral
+  rightIntegral
+  leftIntegral
+  rectBoundary
+  rectBoundary_eq_zero_of_continuousOn_of_differentiableOn
+  VerticalShiftCert
+  verticalIntegral
+  topHorizontalIntegral
+  bottomHorizontalIntegral
+  StripPoleCert
+  stripResidueSum
+  RectangleShiftCert
+  HorizontalVanishCert
+  HorizontalBoundCert
+  ContourShiftCert
+)
+
+export LeanCert.Analysis.ContourShift.VerticalShiftCert (
+  vertical_shift
+  ofHolomorphicRectangle
+)
+
+export LeanCert.Analysis.ContourShift.HorizontalBoundCert (
+  toVanishCert
+)
+
+export LeanCert.Analysis.ContourShift.ContourShiftCert (
+  leftValue
+  rightValue
+  residueSum
+  shift_identity
+  shift_identity'
 )
 
 -- v1.1: Re-export Dyadic types (high-performance arithmetic)
@@ -233,6 +273,14 @@ export LeanCert.Engine (
 -- Re-export integration
 export LeanCert.Engine (
   integrateInterval
+)
+
+export LeanCert.Engine.TaylorModel (
+  integrateShiftedPoly
+  integralBoundPolyExact
+  integralBoundCoarse
+  integral_mem_bound_polyExact_of_poly_integral
+  integral_mem_bound_coarse
 )
 
 -- Re-export optimization
@@ -417,6 +465,32 @@ export LeanCert.QProduct (
   primeLambda_gt_half
 )
 
+-- Re-export ConstantFactory API
+export LeanCert.ConstantFactory (
+  observerIntegralRat
+  observerIntegral
+  observerIntegralRat_correct
+  F_union_eq_observerIntegral
+  observerIntegralRat_eq_F_union
+  checkConstantFactoryInterval
+  verify_constantFactory_interval
+  checkConstantFactoryUpper
+  checkConstantFactoryLower
+  verify_constantFactory_upper
+  verify_constantFactory_lower
+  KernelIntervalBank
+  observerTerm
+  observerIntervalTerm
+  observerIntegralList
+  observerIntervalList
+  observerInterval
+  observerTerm_mem_interval
+  observerIntegralList_mem_observerIntervalList
+  observerIntegralList_powerset_eq
+  F_union_mem_observerInterval
+  exactKernelIntervalBank
+)
+
 -- Re-export ANT certificate API
 export LeanCert.ANT (
   StepFn
@@ -534,6 +608,72 @@ export LeanCert.ANT (
   mertensLogSum_le_mertensLogSumUpperRat
   checkMertensLogSumInterval
   verify_mertensLogSum_interval
+)
+
+-- Re-export asymptotic envelope API
+export LeanCert.ANT.Asymp (
+  AsympEnv
+  evalAtNat
+  ErrorDomination
+  PointwiseEnvelope
+  SlabInequalityCert
+  InequalityTableRow
+  checkInequalityTableRow
+  InequalityTableCert
+)
+
+export LeanCert.ANT.Asymp.AsympEnv (
+  summatory
+  summatoryReal
+  lower
+  upper
+  lowerReal
+  upperReal
+  lower_le_summatory
+  summatory_le_upper
+  lowerReal_le_summatoryReal
+  summatoryReal_le_upperReal
+  certReal
+  weakenError
+  shiftCutoff
+  add
+  neg
+  sub
+  constMul
+  toPointwiseFloorEnvelope
+)
+
+export LeanCert.ANT.Asymp.PointwiseEnvelope (
+  lower
+  upper
+  lower_le_value
+  value_le_upper
+  weakenError
+)
+
+export LeanCert.ANT.Asymp.SlabInequalityCert (
+  verify
+)
+
+export LeanCert.ANT.Asymp.InequalityTableCert (
+  verify
+  failingIndices
+)
+
+export LeanCert.ANT.PrimePowerExt (
+  ext_prime_powers
+  eq_iff_eq_on_prime_powers
+  LocalPrimePowerCert
+)
+
+export LeanCert.ANT.PrimePowerExt.LocalPrimePowerCert (
+  sound
+)
+
+export LeanCert.ANT.PNTCompilers (
+  psi_to_theta_bound
+  theta_to_pi_bound_of_decomposition
+  theta_to_pi_bound
 )
 
 /-! ### Convenience abbreviations -/
