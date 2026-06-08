@@ -17,10 +17,11 @@ Use this page as the map for choosing the right certificate API.
 | Certificate family | Use when you need |
 |---|---|
 | [Chebyshev](chebyshev.md) | finite-range bounds for the Chebyshev functions `ψ` and `θ` |
-| [ANT finite bridges](ant.md) | step sums, Abel transforms, Euler products, log products, Dirichlet truncations, and Mertens-style finite sums |
-| [ANT asymptotic envelopes](ant-asymp.md) | main-term plus error-term certificates for summatory functions and transforms |
+| [ANT finite bridges](ant.md) | step sums, Abel transforms, Euler products, log products, Dirichlet truncations, prime-power extensionality, and explicit-PNT compiler schemas |
+| [ANT asymptotic envelopes](ant-asymp.md) | main-term plus error-term certificates for summatory functions, pointwise estimates, dyadic slab inequalities, and transforms |
 | [QProduct](qproduct.md) | exact finite q-product integrals and prime-limit sandwich certificates |
-| [ConstantFactory](constants.md) | exact observer-generated q-product constants from perturbation sums and reusable moment kernels |
+| [ConstantFactory](constants.md) | exact and interval observer-generated q-product constants from perturbation sums and reusable moment kernels |
+| [Contour Shift](contour-shift.md) | finite rectangle identities, horizontal-side vanishing, vertical-line limits, and residue-sum shift identities |
 
 ## Imports
 
@@ -31,6 +32,8 @@ import LeanCert.ANT
 import LeanCert.ANT.Asymp
 import LeanCert.QProduct
 import LeanCert.ConstantFactory
+import LeanCert.ConstantFactory.IntervalBank
+import LeanCert.Analysis.ContourShift
 import LeanCert.Engine.ChebyshevPsi
 import LeanCert.Engine.ChebyshevTheta
 ```
@@ -58,3 +61,8 @@ prime-limit sandwich arguments.
 Use ConstantFactory certificates when a q-product constant is best proved by
 holding a base kernel bank fixed and verifying finite observer perturbations
 around it.
+
+Use contour-shift certificates when the analytic work has been decomposed into
+finite rectangle identities, horizontal decay, vertical-line convergence, and a
+stable finite residue sum.  The current API centralizes the orientation and
+limit algebra; residue-theorem constructors can be layered on top.

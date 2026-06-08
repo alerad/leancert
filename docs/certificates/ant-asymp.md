@@ -69,6 +69,48 @@ AsympEnv.lowerReal_le_summatoryReal
 AsympEnv.summatoryReal_le_upperReal
 ```
 
+## Pointwise Error Envelopes
+
+`PointwiseEnvelope` is the real-variable sibling of `AsympEnv`.  It certifies:
+
+```text
+|f x - main x| <= error x
+```
+
+on an arbitrary real domain, with a proof that `error` is nonnegative on that
+domain.
+
+Core API:
+
+```lean
+PointwiseEnvelope.lower
+PointwiseEnvelope.upper
+PointwiseEnvelope.lower_le_value
+PointwiseEnvelope.value_le_upper
+PointwiseEnvelope.weakenError
+```
+
+Algebra:
+
+```lean
+PointwiseEnvelope.add
+PointwiseEnvelope.neg
+PointwiseEnvelope.sub
+PointwiseEnvelope.constMul
+```
+
+The algebra keeps the common-domain and nonnegative-error obligations inside
+the certificate object.  This is the preferred target for explicit real-variable
+estimates that are not naturally discrete summatory functions.
+
+To turn a summatory `AsympEnv` into a real-variable pointwise envelope using the
+existing floor semantics, use:
+
+```lean
+AsympEnv.toPointwiseFloorEnvelope
+AsympEnv.toPointwiseFloorEnvelope_cert
+```
+
 ## Stieltjes-Abel Transforms
 
 The Stieltjes-Abel kernel certifies weighted summatory transforms.
@@ -273,5 +315,6 @@ generate the transform payload and slab coverage mechanically.
 
 This layer currently includes semantic envelope algebra, pointwise floor
 envelopes, Stieltjes-Abel kernels, Dirichlet-hyperbola kernels, dyadic slab/tail
-domination checks, and table-oriented slab inequality certificates. High-level
-automated asymptotic derivation is not yet part of this layer.
+domination checks, pointwise-envelope algebra, and table-oriented slab
+inequality certificates. High-level automated asymptotic derivation is not yet
+part of this layer.

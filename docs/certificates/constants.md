@@ -140,15 +140,37 @@ import LeanCert.Engine.TaylorModel.Integral
 and exposes:
 
 ```lean
+TaylorModel.integrateShiftedPoly
+TaylorModel.integralBoundPolyExact
 TaylorModel.integralBoundCoarse
+TaylorModel.integral_mem_bound_polyExact_of_poly_integral
 TaylorModel.integral_mem_bound_coarse
 ```
 
 If a Taylor model semantically encloses `f` on `tm.domain`, then
 `integral_mem_bound_coarse` certifies the definite integral of `f` over that
 domain using the global Taylor-model range bound. This is deliberately
-conservative; exact polynomial-plus-remainder Taylor integration is the natural
-next tightening layer.
+conservative and useful when only a range enclosure is available.
+
+For tighter quadrature, `integralBoundPolyExact` integrates the Taylor
+polynomial by the rational formula:
+
+```text
+sum_i coeff_i * ((b - c)^(i+1) - (a - c)^(i+1)) / (i+1)
+```
+
+and scales only the Taylor remainder interval by the domain width.  Its
+soundness theorem is:
+
+```lean
+TaylorModel.integral_mem_bound_polyExact_of_poly_integral
+```
+
+The theorem intentionally takes the polynomial integral equality as a
+hypothesis.  This keeps the trusted reusable theorem focused on the interval
+and remainder enclosure logic, while callers can discharge the polynomial
+antiderivative identity using the polynomial API most convenient for their
+construction.
 
 ## Example
 
@@ -187,8 +209,8 @@ extension:
 - a semantic identity reducing `F (R ∪ Q)` to moments of `R`.
 - interval kernel banks for approximate or externally generated moment
   enclosures;
-- a coarse Taylor-model integral bridge for producing verified integral
-  intervals.
+- coarse and polynomial-exact Taylor-model integral bridges for producing
+  verified integral intervals.
 
 Beta/Gamma kernels and infinite eta-product observer banks are natural later
 extensions, but they are not part of this finite MVP.

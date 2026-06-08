@@ -8,8 +8,9 @@ LeanCert is a Lean 4 library for certified numerical computation and proof-produ
 - Proof automation for inequalities and root claims
 - Global optimization and integration certificates
 - Chebyshev function certificates
-- Analytic-number-theory certificate bridges for Abel summation and Euler products
+- Analytic-number-theory certificate bridges for Abel summation, Euler products, prime-power extensionality, and explicit-PNT envelope transfers
 - Exact q-product/product-integral certificates
+- Table, slab, and contour-shift certificate frameworks
 - Dyadic and rational backends for different performance/precision tradeoffs
 
 ## Quick Lean Example
@@ -61,9 +62,10 @@ lake update
 | [Certificate Overview](certificates/overview.md) | Domain-specific certificate families |
 | [Chebyshev Certificates](certificates/chebyshev.md) | Certified `ψ` and `θ` finite-range bounds |
 | [ANT Certificates](certificates/ant.md) | Step sums, Abel transforms, Euler products, and Mertens-style finite sums |
-| [Asymptotic Envelopes](certificates/ant-asymp.md) | Summatory main-term/error envelopes, Stieltjes transforms, and hyperbola kernels |
+| [Asymptotic Envelopes](certificates/ant-asymp.md) | Summatory and pointwise error envelopes, slab inequalities, Stieltjes transforms, and hyperbola kernels |
 | [QProduct Certificates](certificates/qproduct.md) | Exact product-integral and prime-limit certificates |
 | [ConstantFactory Certificates](certificates/constants.md) | Observer-generated q-product constants from finite perturbation sums |
+| [Contour-Shift Certificates](certificates/contour-shift.md) | Rectangle, horizontal-vanishing, and limit-passing contour-shift certificates |
 
 ## ML
 
