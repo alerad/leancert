@@ -1526,7 +1526,8 @@ example : ∃! x ∈ I_1_2, Expr.eval (fun _ => x) (x² - 2) = 0 := by
 ```
 
 **Requirements:**
-- Function must be in `ExprSupported` (const, var, add, mul, neg, sin, cos, exp only)
+- Function must be in the AD-supported subset needed by Newton uniqueness
+  checking.
 - Newton step must contract (derivative doesn't contain 0)
 -/
 syntax (name := intervalUniqueRootTac) "interval_unique_root" (num)? : tactic
@@ -1591,8 +1592,9 @@ unsafe def intervalIntegrateCore (_taylorDepth : Nat) : TacticM Unit := do
   -- Build domain validity type: evalDomainValid1 e I cfg
   let domValidType ← mkAppM ``LeanCert.Engine.evalDomainValid1 #[ast, interval, cfg]
 
-  -- Try to generate domain validity proof using native_decide (since it's decidable)
-  -- Fall back to sorry if that fails (e.g., for expressions with log that need positivity)
+  -- Try to generate domain validity proof using native_decide (since it's decidable).
+  -- If that fails, try the generic supported-expression theorem.  The tactic
+  -- must fail rather than fabricating a proof hole.
   let domValidProof ← try
     -- evalDomainValid1 is decidable, so we can use native_decide
     let domValidDecide ← mkAppM ``of_decide_eq_true #[domValidType]
@@ -1603,9 +1605,10 @@ unsafe def intervalIntegrateCore (_taylorDepth : Nat) : TacticM Unit := do
     try
       let suppProof ← mkSupportedProof ast
       mkAppM ``LeanCert.Engine.exprSupported_domainValid1 #[suppProof, interval, cfg]
-    catch _ =>
-      -- Last resort: use sorry
-      mkSorry domValidType (synthetic := true)
+    catch err =>
+      throwError "interval_integrate: could not prove interval-domain validity for expression.\n\
+        Domain validity goal: {← ppExpr domValidType}\n\
+        {err.toMessageData}"
 
   -- Build continuity domain validity type
   -- We need to get the interval bounds for the Set.Icc as reals
@@ -1619,15 +1622,18 @@ unsafe def intervalIntegrateCore (_taylorDepth : Nat) : TacticM Unit := do
   let setIccExpr ← mkAppM ``Set.Icc #[loRealExpr, hiRealExpr]
   let contDomValidType ← mkAppM ``LeanCert.Meta.exprContinuousDomainValid #[ast, setIccExpr]
 
-  -- Try to generate continuity domain validity proof using ExprSupported
-  -- ExprSupported expressions (no log) have trivial domain validity
+  -- Try to generate continuity domain validity proof using ExprSupported.
+  -- ExprSupported expressions (no log) have trivial domain validity.  If this
+  -- proof cannot be generated, fail with a diagnostic rather than inserting
+  -- a synthetic proof hole.
   let contDomValidProof ← try
     let suppProof ← mkSupportedProof ast
     -- Need to instantiate the implicit {s : Set ℝ} parameter with setIccExpr
     mkAppOptM ``LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported #[some ast, some suppProof, some setIccExpr]
-  catch _ =>
-    -- Fall back to sorry for expressions with log (need positivity proof)
-    mkSorry contDomValidType (synthetic := true)
+  catch err =>
+    throwError "interval_integrate: could not prove continuity-domain validity for expression.\n\
+      Continuity-domain goal: {← ppExpr contDomValidType}\n\
+      {err.toMessageData}"
 
   -- Build the proof term: integrateInterval1Core_correct e supportProof I cfg hdom hcontdom
   let proof ← mkAppM ``Validity.Integration.integrateInterval1Core_correct

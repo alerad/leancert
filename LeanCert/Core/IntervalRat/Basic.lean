@@ -390,10 +390,10 @@ private theorem mulFast_hi (I J : IntervalRat) : (mulFast I J).hi = (mul I J).hi
         · exact eq_max4_of_ge (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
         · rfl
 
-/-- Safety net: mulFast preserves the containment property of mul.
+/-- Runtime safety net: `mulFast` preserves the containment property of `mul`.
     This ensures that even though `implemented_by` bypasses the kernel's
     definitional equality check, the runtime implementation is sound. -/
-private theorem mem_mulFast {x y : ℝ} {I J : IntervalRat} (hx : x ∈ I) (hy : y ∈ J) :
+theorem mem_mulFast {x y : ℝ} {I J : IntervalRat} (hx : x ∈ I) (hy : y ∈ J) :
     x * y ∈ mulFast I J := by
   simp only [mem_def]
   rw [mulFast_lo, mulFast_hi]

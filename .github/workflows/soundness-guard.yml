@@ -39,5 +39,23 @@ jobs:
             exit 1
           fi
 
+      - name: Guard - no synthetic proof holes in LeanCert
+        run: |
+          hits="$(rg -n '\bmkSorry\b|\badmit\b' LeanCert || true)"
+          if [ -n "$hits" ]; then
+            echo "Found forbidden synthetic proof-hole construction(s):"
+            echo "$hits"
+            exit 1
+          fi
+
+      - name: Audit - native/runtime boundary markers
+        run: |
+          echo "implemented_by uses:"
+          rg -n '\bimplemented_by\b' LeanCert || true
+          echo "unsafe evalExpr uses:"
+          rg -n '\bunsafe\s+evalExpr\b|\bevalExpr\b' LeanCert/Tactic LeanCert/Meta || true
+          echo "pretty-printer string matching candidates:"
+          rg -n 'ppExpr|endsWith "inst' LeanCert/Tactic LeanCert/Meta || true
+
       - name: Guard - core axiom/sorry audit
         run: lake env lean Tests/AxiomAudit.lean

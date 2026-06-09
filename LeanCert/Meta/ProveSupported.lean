@@ -95,8 +95,8 @@ on the structure of `e : LeanCert.Core.Expr`.
     This function inspects the head constant of the AST expression and
     recursively builds the appropriate proof constructor.
 
-    Supported: const, var 0, add, mul, neg, sin, cos, exp, atan, arsinh
-    Not supported: var n (n ≠ 0), inv, log, atanh -/
+    Supported: all `Expr` constructors, provided every variable is `var 0`.
+    Not supported: `var n` for `n ≠ 0`. -/
 partial def mkUsesOnlyVar0Proof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
   -- Get the head constant and arguments
   let fn := e_ast.getAppFn
@@ -173,9 +173,58 @@ partial def mkUsesOnlyVar0Proof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let h ← mkUsesOnlyVar0Proof e
     mkAppM ``LeanCert.Engine.UsesOnlyVar0.arsinh #[e, h]
 
+  else if fn.isConstOf ``LeanCert.Core.Expr.inv then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.inv #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.log then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.log #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.atanh then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.atanh #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.sinc then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.sinc #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.erf then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.erf #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.sinh then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.sinh #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.cosh then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.cosh #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.tanh then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.tanh #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.sqrt then
+    let e := args[0]!
+    let h ← mkUsesOnlyVar0Proof e
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.sqrt #[e, h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.namedConst then
+    let c := args[0]!
+    mkAppM ``LeanCert.Engine.UsesOnlyVar0.namedConst #[c]
+
   else
     throwError "Cannot generate UsesOnlyVar0 proof for: {e_ast}\n\
-                This expression contains unsupported operations (inv, log, atanh, or var n with n ≠ 0)."
+                UsesOnlyVar0 supports all Expr constructors, but every variable must be var 0."
 
 /-! ## ExprSupported Proof Generation
 
@@ -232,7 +281,8 @@ on the structure of `e : LeanCert.Core.Expr`.
     This function inspects the head constant of the AST expression and
     recursively builds the appropriate proof constructor.
 
-    Supported: const, var, add, mul, neg, sin, cos, exp, log, sqrt, sinh, cosh, tanh, erf, pi
+    Supported: const, var, add, mul, neg, sin, cos, exp, log, sqrt, sinh,
+    cosh, tanh, erf, named constants
     Not supported: inv, atan, arsinh, atanh -/
 partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
   -- Get the head constant and arguments
@@ -314,6 +364,9 @@ partial def mkSupportedWithInvProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
         , ⟨``LeanCert.Core.Expr.cos, ``LeanCert.Core.ExprSupportedWithInv.cos⟩
         , ⟨``LeanCert.Core.Expr.exp, ``LeanCert.Core.ExprSupportedWithInv.exp⟩
         , ⟨``LeanCert.Core.Expr.log, ``LeanCert.Core.ExprSupportedWithInv.log⟩
+        , ⟨``LeanCert.Core.Expr.sinh, ``LeanCert.Core.ExprSupportedWithInv.sinh⟩
+        , ⟨``LeanCert.Core.Expr.cosh, ``LeanCert.Core.ExprSupportedWithInv.cosh⟩
+        , ⟨``LeanCert.Core.Expr.tanh, ``LeanCert.Core.ExprSupportedWithInv.tanh⟩
         , ⟨``LeanCert.Core.Expr.atan, ``LeanCert.Core.ExprSupportedWithInv.atan⟩
         , ⟨``LeanCert.Core.Expr.arsinh, ``LeanCert.Core.ExprSupportedWithInv.arsinh⟩
         , ⟨``LeanCert.Core.Expr.atanh, ``LeanCert.Core.ExprSupportedWithInv.atanh⟩

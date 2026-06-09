@@ -347,6 +347,33 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         -- The argument is positive because J.lo > 0 and eval ∈ J
         exact IntervalRat.mem_logComputable hJ_mem hpos evalIntervalLogDepth
       · contradiction
+  | @sinh e h ih =>
+    simp only [evalInterval?] at hsome
+    cases heq : evalInterval? e ρ_int with
+    | none => simp only [heq] at hsome; contradiction
+    | some I' =>
+      simp only [heq] at hsome
+      cases hsome
+      simp only [Expr.eval_sinh, sinhInterval]
+      exact IntervalRat.mem_sinhComputable (ih I' heq) 10
+  | @cosh e h ih =>
+    simp only [evalInterval?] at hsome
+    cases heq : evalInterval? e ρ_int with
+    | none => simp only [heq] at hsome; contradiction
+    | some I' =>
+      simp only [heq] at hsome
+      cases hsome
+      simp only [Expr.eval_cosh, coshInterval]
+      exact IntervalRat.mem_coshComputable (ih I' heq) 10
+  | @tanh e h ih =>
+    simp only [evalInterval?] at hsome
+    cases heq : evalInterval? e ρ_int with
+    | none => simp only [heq] at hsome; contradiction
+    | some I' =>
+      simp only [heq] at hsome
+      cases hsome
+      simp only [Expr.eval_tanh]
+      exact mem_tanhInterval (ih I' heq)
   | @atan e h ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with

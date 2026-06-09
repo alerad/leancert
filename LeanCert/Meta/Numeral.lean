@@ -18,6 +18,21 @@ open Lean Meta
 
 namespace LeanCert.Meta.Numeral
 
+/-- Last-resort extraction for closed expressions whose type is definitionally
+`Rat`.  This is intentionally named so callers and CI audits can distinguish it
+from structural literal parsing. -/
+def unsafeToRatByEval? (e : Lean.Expr) : MetaM (Option ℚ) := do
+  if e.hasFVar || e.hasMVar then
+    return none
+  let ty ← inferType e
+  unless ← isDefEq ty (mkConst ``Rat) do
+    return none
+  try
+    let q ← unsafe evalExpr ℚ (mkConst ``Rat) e
+    return some q
+  catch _ =>
+    return none
+
 /-- Attempt to parse a Lean expression as a rational constant. -/
 partial def toRat? (e : Lean.Expr) : MetaM (Option ℚ) := do
   -- Fast path: raw Nat literal
@@ -161,14 +176,6 @@ where
            fnHead.isConstOf ``Int.cast || fnHead.isConstOf ``IntCast.intCast ||
            fnHead.isConstOf ``Rat.cast || fnHead.isConstOf ``RatCast.ratCast) then
         return ← toRat? allArgs.back!
-      -- Some elaborated casts appear with projection-headed pretty names such
-      -- as `Real.instRatCast.1`; keep this as a narrow fallback after the
-      -- structural cast checks above.
-      let fnStr := toString (← ppExpr fn)
-      if allArgs.size > 0 &&
-          (fnStr.endsWith "instNatCast.1" || fnStr.endsWith "instIntCast.1" ||
-           fnStr.endsWith "instRatCast.1") then
-        return ← toRat? allArgs.back!
       -- Handle cast wrappers. We accept only cast-related projections/constants.
       -- This avoids accidentally classifying non-numeral projections
       -- (e.g. `x ^ (1/3)` reducing to a projection-headed term) as constants.
@@ -178,34 +185,27 @@ where
           let sName := toString s
           if allArgs.size > 0 &&
               (sName.endsWith "NatCast" || sName.endsWith "IntCast" ||
-               sName.endsWith "RatCast" || sName.endsWith "instNatCast" ||
-               sName.endsWith "instIntCast" || sName.endsWith "instRatCast") then
+               sName.endsWith "RatCast") then
             toRat? allArgs.back!
           else
             pure none
-        | .const n _ =>
-          let s := toString n
-          if allArgs.size > 0 &&
-              (s.endsWith "instNatCast.1" || s.endsWith "instIntCast.1" ||
-               s.endsWith "instRatCast.1") then
-            toRat? allArgs.back!
-          else
-            pure none
+        | .const _ _ => pure none
         | _ => pure none
       if let some q := cast? then
         return some q
 
       -- Last resort: evaluate closed rational expressions directly.
-      if e.hasFVar || e.hasMVar then
-        return none
-      let ty ← inferType e
-      unless ← isDefEq ty (mkConst ``Rat) do
-        return none
-      try
-        let q ← unsafe evalExpr ℚ (mkConst ``Rat) e
-        return some q
-      catch _ =>
-        return none
+      unsafeToRatByEval? e
+
+/-- Structural/literal rational extraction.  This currently aliases `toRat?`
+but gives callers a stable name for places that should not rely on broader
+normalization in the future. -/
+partial def toRatLeaf? (e : Lean.Expr) : MetaM (Option ℚ) :=
+  toRat? e
+
+/-- Rational extraction that may fold closed rational arithmetic. -/
+partial def toRatFolded? (e : Lean.Expr) : MetaM (Option ℚ) :=
+  toRat? e
 
 /-- Attempt to parse a Lean expression as an integer constant. -/
 def toInt? (e : Lean.Expr) : MetaM (Option Int) := do

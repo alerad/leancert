@@ -1,6 +1,6 @@
 /-
 Copyright (c) 2025 LeanCert Contributors. All rights reserved.
-Released under AGPL-3.0 license as described in the file LICENSE.
+Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.ML.Network

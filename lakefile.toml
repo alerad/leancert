@@ -55,6 +55,13 @@ name = "TableTest"
 roots = ["Tests.Table"]
 precompileModules = false
 
+# Hardening regression smoke test
+# Build explicitly with: lake build HardeningTest
+[[lean_lib]]
+name = "HardeningTest"
+roots = ["LeanCert.Test.Hardening"]
+precompileModules = false
+
 [[lean_exe]]
 name = "leancert"
 root = "Main"

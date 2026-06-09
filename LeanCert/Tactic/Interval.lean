@@ -21,8 +21,9 @@ interval arithmetic.
 We provide two sets of lemmas:
 
 ### Core (computable) - uses `evalIntervalCore1`
-For expressions in `ExprSupportedCore` (const, var, add, mul, neg, sin, cos),
-the bound checking is fully computable and works with `native_decide`.
+For expressions in `ExprSupportedCore` (arithmetic, trig/exp/log/sqrt,
+hyperbolic functions, erf, and named constants), bound checking is computable
+when the required domain-validity conditions hold.
 
 ### Extended (noncomputable) - uses `evalInterval1`
 For expressions in `ExprSupported` (core + exp), the bound checking requires

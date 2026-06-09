@@ -194,6 +194,26 @@ Bridge theorems for kernel-level verification via `decide`:
 
 These enable the `certify_kernel` tactic to produce proofs verified purely by the Lean kernel, removing the compiler from the trusted computing base.
 
+### Runtime Replacement Boundary
+
+LeanCert keeps optimized runtime implementations for interval multiplication:
+
+- `IntervalRat.mul` has `implemented_by IntervalRat.mulFast`.
+- `IntervalDyadic.mul` has `implemented_by IntervalDyadic.mulFast`.
+
+Kernel proofs are still about the definitional `mul` operations.  Compiled
+`native_decide` paths execute the `mulFast` replacements, so native certificates
+include the Lean compiler/runtime and these replacement functions in the trusted
+runtime path.  The public safety-net theorems:
+
+```lean
+IntervalRat.mem_mulFast
+IntervalDyadic.mem_mulFast
+```
+
+prove that the optimized implementations preserve interval containment.  Any
+new `implemented_by` use should either expose an analogous theorem or be removed.
+
 ## Placeholder Boundary
 
 The default LeanCert library and production import paths are intended to be

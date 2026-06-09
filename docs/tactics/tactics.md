@@ -40,30 +40,38 @@ Note: `interval_bound` is an alias for backward compatibility.
 
 ### `certify_kernel`
 
-Proves bounds using dyadic arithmetic. Attempts kernel-only verification (`decide`) first, falls back to `native_decide`.
+Proves bounds using dyadic arithmetic with kernel-only verification (`decide`).
+It does not silently fall back to native verification.
 
 ```lean
 import LeanCert.Tactic.DyadicAuto
 
 -- Default precision (53 bits)
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 2 := by certify_kernel
+open LeanCert.Core
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ≤ 2 := by
+  certify_kernel
 
 -- Custom precision (bits)
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := by certify_kernel 100
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Expr.eval (fun _ => x) (Expr.exp (Expr.var 0)) ≤ 3 := by
+  certify_kernel 100
 
--- Convenience variants
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := by certify_kernel_precise  -- 100 bits
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 2 := by certify_kernel_quick           -- 30 bits
+-- Explicit native fallback for raw Lean expressions
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
+  certify_kernel_fallback 100
 ```
 
-Note: `fast_bound` is an alias for backward compatibility.
+Note: `fast_bound` is an alias for backward compatibility with the explicit
+fallback behavior.
 
 **Trust levels:**
 
-| Verification | Trusted Components |
-|--------------|-------------------|
-| `decide` (kernel) | Lean kernel only |
-| `native_decide` (fallback) | Lean kernel + compiler |
+| Tactic | Verification | Trusted Components |
+|---|---|---|
+| `certify_kernel` | `decide` | Lean kernel only |
+| `certify_kernel_fallback` | `decide`, then `native_decide` | Lean kernel + compiler/runtime on fallback |
 
 **Diagnostics:** Enable `set_option trace.certify_kernel true` to see why kernel verification fails.
 

@@ -45,37 +45,58 @@ def closeBridgeWithNativeDecide
   let proofTy ← inferType proof
   if ← isDefEq proofTy goalType then
     -- Direct path: bridge type matches goal exactly
-    goal.assign proof
+    -- Close the executable certificate before assigning the main goal.  This
+    -- avoids leaving the user with an assigned theorem whose checker proof
+    -- failed afterward.
     replaceMainGoal [checkMVar.mvarId!]
-    evalTactic (← `(tactic| native_decide))
+    try
+      evalTactic (← `(tactic| native_decide))
+    catch e =>
+      throwError "{tacticName}: native_decide failed on certificate check.\n\
+        Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}\n\
+        Bridge proof type: {← ppExpr proofTy}\n\
+        Goal type: {← ppExpr goalType}\n\
+        {e.toMessageData}"
+    goal.assign proof
   else
     -- Suffices fallback: bridge type differs from goal
     let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
     let converterMVar ← mkFreshExprMVar
       (some (← mkArrow proofTy goalType)) (kind := .syntheticOpaque)
-    goal.assign (mkApp converterMVar suffMVar)
 
-    -- 1. Solve suffMVar: assign the bridge proof
-    suffMVar.mvarId!.assign proof
-
-    -- 2. Solve checkMVar with native_decide
+    -- 1. Solve checkMVar with native_decide before assigning the main goal.
     setGoals [checkMVar.mvarId!]
     try
       evalTactic (← `(tactic| native_decide))
     catch e =>
-      throwError "{tacticName}: native_decide failed on certificate check.\n{e.toMessageData}"
+      throwError "{tacticName}: native_decide failed on certificate check.\n\
+        Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}\n\
+        Bridge proof type: {← ppExpr proofTy}\n\
+        Goal type: {← ppExpr goalType}\n\
+        {e.toMessageData}"
 
-    -- 3. Solve converterMVar: try each converter in sequence
+    -- 2. Solve converterMVar: try each converter in sequence.  A converter
+    -- only succeeds if it closes all goals; partial progress is rolled back.
     setGoals [converterMVar.mvarId!]
     for step in converterSteps do
       if (← getGoals).isEmpty then return
+      let saved ← saveState
       try
         step
-        return
-      catch _ => pure ()
+        if (← getGoals).isEmpty then
+          suffMVar.mvarId!.assign proof
+          goal.assign (mkApp converterMVar suffMVar)
+          return
+        else
+          saved.restore
+      catch _ =>
+        saved.restore
     -- All converters failed
     let cvGoalType ← converterMVar.mvarId!.getType
     throwError "{tacticName}: could not convert bridge type to goal type.\n\
-      Converter goal: {← ppExpr cvGoalType}"
+      Bridge proof type: {← ppExpr proofTy}\n\
+      Goal type: {← ppExpr goalType}\n\
+      Converter goal: {← ppExpr cvGoalType}\n\
+      Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}"
 
 end LeanCert.Tactic

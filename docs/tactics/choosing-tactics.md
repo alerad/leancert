@@ -82,6 +82,7 @@ What do you want to prove?
 | Tactic | Verification | When to use |
 |--------|--------------|-------------|
 | `certify_kernel` | `decide` (kernel-only) | Maximum trust, slower |
+| `certify_kernel_fallback` | `decide`, then `native_decide` | Explicit opt-in native fallback |
 | `certify_bound` | `native_decide` | Good balance of trust/speed |
 | `certify_kernel_quick` | `decide` (30 bits) | Fast, lower precision |
 | `certify_kernel_precise` | `decide` (100 bits) | Tight bounds needed |

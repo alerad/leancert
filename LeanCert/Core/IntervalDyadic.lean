@@ -412,10 +412,10 @@ private theorem mulFast_hi (I J : IntervalDyadic) : (mulFast I J).hi.toRat = (mu
           exact IntervalRat.eq_max4_of_ge (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le]) (by nlinarith [I.le, J.le])
         · exact hrhs
 
-/-- Safety net: mulFast preserves the containment property of mul.
+/-- Runtime safety net: `mulFast` preserves the containment property of `mul`.
     This ensures that even though `implemented_by` bypasses the kernel's
     definitional equality check, the runtime implementation is sound. -/
-private theorem mem_mulFast {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) :
+theorem mem_mulFast {x y : ℝ} {I J : IntervalDyadic} (hx : x ∈ I) (hy : y ∈ J) :
     x * y ∈ mulFast I J := by
   simp only [mem_def]
   constructor

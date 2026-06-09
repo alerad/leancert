@@ -137,10 +137,8 @@ noncomputable def evalDual? (e : Expr) (ρ : DualEnv) : Option DualInterval :=
       match evalDual? e ρ with
       | some d => some (DualInterval.cosh d)
       | none => none
-  | Expr.tanh e =>
-      match evalDual? e ρ with
-      | some d => some (DualInterval.tanh d)
-      | none => none
+  | Expr.tanh _ =>
+      none
   | Expr.sqrt e =>
       match evalDual? e ρ with
       | some d => DualInterval.sqrt? d

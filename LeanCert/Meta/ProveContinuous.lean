@@ -37,7 +37,8 @@ Operations in `ExprContinuousCore`:
 - Constants: `continuousOn_const`
 - Variables (identity): `continuousOn_id`
 - Add, Mul, Neg: preserved by composition
-- Sin, Cos, Exp, Sqrt, Sinh, Cosh, Tanh: continuous everywhere
+- Sin, Cos, Exp, Sqrt, Sinh, Cosh, Tanh, Erf, named constants:
+  continuous everywhere
 -/
 
 open Lean Meta Elab Term Command
@@ -72,6 +73,8 @@ inductive ExprContinuousCore : LExpr → Prop where
   | sinh {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.sinh e)
   | cosh {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.cosh e)
   | tanh {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.tanh e)
+  | erf {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.erf e)
+  | namedConst (c : MathConst) : ExprContinuousCore (Expr.namedConst c)
 
 /-- ExprContinuousCore implies ExprSupportedCore -/
 theorem ExprContinuousCore.toSupported {e : LExpr} (h : ExprContinuousCore e) :
@@ -89,6 +92,8 @@ theorem ExprContinuousCore.toSupported {e : LExpr} (h : ExprContinuousCore e) :
   | sinh _ ih => exact .sinh ih
   | cosh _ ih => exact .cosh ih
   | tanh _ ih => exact .tanh ih
+  | erf _ ih => exact .erf ih
+  | namedConst c => exact .namedConst c
 
 /-! ## Base Continuity Theorem
 
@@ -100,7 +105,8 @@ We prove this by induction on the structure of `ExprContinuousCore`.
 
 This is the foundational theorem that allows automatic continuity proof generation.
 Since ExprContinuousCore only includes operations that are continuous everywhere
-(const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh), the result
+(const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh, erf,
+named constants), the result
 follows by structural induction.
 
 NOTE: inv and log are NOT included because they are not continuous at 0. -/
@@ -153,6 +159,21 @@ theorem exprContinuousCore_continuousOn (e : LExpr) (hsupp : ExprContinuousCore 
       rw [h]
       exact Real.continuous_sinh.div Real.continuous_cosh (fun x => ne_of_gt (Real.cosh_pos x))
     exact hcont.comp_continuousOn ih
+  | erf _ ih =>
+    simp only [LeanCert.Core.Expr.eval]
+    have herf_cont : Continuous Real.erf := by
+      have hdiff : Differentiable ℝ Real.erf := by
+        unfold Real.erf
+        apply Differentiable.const_mul
+        intro y
+        have hcont : Continuous (fun t => Real.exp (-(t^2))) :=
+          Real.continuous_exp.comp (continuous_neg.comp (continuous_pow 2))
+        exact (hcont.integral_hasStrictDerivAt 0 y).hasStrictFDerivAt.differentiableAt
+      exact hdiff.continuous
+    exact herf_cont.comp_continuousOn ih
+  | namedConst _ =>
+    simp only [LeanCert.Core.Expr.eval]
+    exact continuousOn_const
 
 /-- Specialized version for Icc intervals (common case for interval_roots) -/
 theorem exprContinuousCore_continuousOn_Icc (e : LExpr) (hsupp : ExprContinuousCore e)
@@ -227,6 +248,8 @@ theorem exprContinuousDomainValid_of_ExprContinuousCore {e : LExpr} (hcont : Exp
   | sinh _ ih => exact ih
   | cosh _ ih => exact ih
   | tanh _ ih => exact ih
+  | erf _ ih => exact ih
+  | namedConst _ => trivial
 
 /-- All ExprSupportedCore expressions are continuous on sets where log arguments are positive.
 
@@ -334,7 +357,8 @@ everywhere, and `ExprContinuousCore` excludes `inv`.
     This is similar to `mkSupportedCoreProof` but for the `ExprContinuousCore` predicate
     which excludes `inv` (since 1/x is not continuous at 0).
 
-    Supported: const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh
+    Supported: const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh,
+    tanh, erf, namedConst
     Not supported: inv, log, atan, arsinh, atanh -/
 partial def mkContinuousCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
   -- Get the head constant and arguments
@@ -409,6 +433,15 @@ partial def mkContinuousCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let h ← mkContinuousCoreProof e
     mkAppM ``ExprContinuousCore.tanh #[h]
 
+  else if fn.isConstOf ``LeanCert.Core.Expr.erf then
+    let e := args[0]!
+    let h ← mkContinuousCoreProof e
+    mkAppM ``ExprContinuousCore.erf #[h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.namedConst then
+    let c := args[0]!
+    mkAppM ``ExprContinuousCore.namedConst #[c]
+
   else if fn.isConstOf ``LeanCert.Core.Expr.inv then
     throwError "Cannot generate ExprContinuousCore proof for: {e_ast}\n\
                 Expression contains `inv` which is not continuous at 0.\n\
@@ -416,7 +449,7 @@ partial def mkContinuousCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
 
   else
     throwError "Cannot generate ExprContinuousCore proof for: {e_ast}\n\
-                This expression contains unsupported operations (atan, arsinh, or atanh)."
+                This expression contains unsupported operations (atan, arsinh, atanh, sinc, or partial-domain operations)."
 
 /-- Generate a ContinuousOn proof for an expression on an interval.
 
