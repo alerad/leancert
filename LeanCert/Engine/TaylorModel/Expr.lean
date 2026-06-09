@@ -17,8 +17,6 @@ construction for expression trees.
 
 * `TaylorModel.sin`, `TaylorModel.cos`, `TaylorModel.exp` - Interval-based composition
 * `TaylorModel.fromExpr?` - Verified expression-to-Taylor-model conversion
-* `TaylorModel.fromExpr`, `TaylorModel.fromExprFallback` - Total fallback builders for
-  examples and exploration
 * `expIntervalRefined` - Refined exp interval using Taylor models
 
 ## Main results
@@ -260,62 +258,6 @@ noncomputable def atanh? (tm : TaylorModel) (degree : ℕ) : Option TaylorModel 
     none
 
 /-! ### Building Taylor models from Expr -/
-
-/-- Convert an expression to a Taylor model using a total fallback path.
-
-This builder never fails. For invalid or unsupported partial operations, such as
-`log` on a non-positive interval or inversion across zero, it falls back to a
-coarse constant model so that exploratory/example code can keep running.
-
-Certificate-producing code should prefer `fromExpr?`: the correctness theorem
-`fromExpr_correct` is stated for successful `fromExpr?` construction, not for
-this total fallback builder. -/
-noncomputable def fromExpr (e : Expr) (domain : IntervalRat) (degree : ℕ) : TaylorModel :=
-  match e with
-  | Expr.const q => const q domain
-  | Expr.var _ => identity domain
-  | Expr.add e₁ e₂ => add (fromExpr e₁ domain degree) (fromExpr e₂ domain degree)
-  | Expr.mul e₁ e₂ => mul (fromExpr e₁ domain degree) (fromExpr e₂ domain degree) degree
-  | Expr.neg e => neg (fromExpr e domain degree)
-  | Expr.inv e =>
-      let tm := fromExpr e domain degree
-      -- Fallback to constant 0 if the bound contains 0 (keeps totality for examples).
-      if h : IntervalRat.containsZero tm.bound then
-        const 0 domain
-      else
-        TaylorModel.inv tm h
-  | Expr.exp e => exp (fromExpr e domain degree) degree
-  | Expr.sin e => sin (fromExpr e domain degree) degree
-  | Expr.cos e => cos (fromExpr e domain degree) degree
-  | Expr.log e =>
-      let tm := fromExpr e domain degree
-      match log? tm degree with
-      | some logTM => logTM
-      | none => const 0 domain  -- Fallback if domain not positive
-  | Expr.atan e => atan (fromExpr e domain degree) degree
-  | Expr.arsinh e => asinh (fromExpr e domain degree) degree
-  | Expr.atanh e => atanh (fromExpr e domain degree) degree
-  | Expr.sinc e => sinc (fromExpr e domain degree) degree
-  | Expr.erf e => erf (fromExpr e domain degree) degree
-  | Expr.sinh e => sinh (fromExpr e domain degree) degree
-  | Expr.cosh e => cosh (fromExpr e domain degree) degree
-  | Expr.tanh e => tanh (fromExpr e domain degree) degree
-  | Expr.sqrt e =>
-      -- sqrt? always succeeds, so we can safely extract
-      (sqrt? (fromExpr e domain degree)).getD (const 0 domain)
-  | Expr.namedConst c =>
-      { poly := 0
-        remainder := c.interval
-        center := domain.lo + (domain.hi - domain.lo) / 2
-        domain := domain }
-
-/-- Explicit name for the total fallback Taylor-model builder.
-
-Prefer `fromExpr?` in verified paths. This alias exists so call sites can make
-the fallback trust boundary visible without changing behavior. -/
-noncomputable def fromExprFallback (e : Expr) (domain : IntervalRat) (degree : ℕ) :
-    TaylorModel :=
-  fromExpr e domain degree
 
 /-- Safe (partial) builder: convert an expression to a Taylor model, returning `none`
     if an inversion would require dividing by an interval that contains 0. -/
