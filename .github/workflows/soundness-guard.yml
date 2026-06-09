@@ -42,7 +42,7 @@ jobs:
 
       - name: Guard - no synthetic proof holes in LeanCert
         run: |
-          hits="$(find LeanCert -name '*.lean' -print | xargs grep -nE '\bmkSorry\b|\badmit\b' || true)"
+          hits="$(find LeanCert -name '*.lean' -print | xargs grep -nE '\bmkSorry\b|\bsorryAx\b|\badmit\b' || true)"
           if [ -n "$hits" ]; then
             echo "Found forbidden synthetic proof-hole construction(s):"
             echo "$hits"
