@@ -56,6 +56,18 @@ example : ExprSupportedExt realEndpointExtExpr := by
         (ExprSupportedExt.erf (ExprSupportedExt.var 0))
         (ExprSupportedExt.namedConst .eulerMascheroni)))
 
+def I01Real : IntervalReal :=
+  ⟨0, 1, by norm_num⟩
+
+example :
+    evalIntervalReal1? (Expr.log (Expr.var 0)) I01Real = none := by
+  rfl
+
+example :
+    evalIntervalReal1? (Expr.tanh (Expr.log (Expr.var 0))) I01Real =
+      some ⟨-1, 1, by norm_num⟩ := by
+  rfl
+
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ (2 : ℚ) := by
   certify_kernel_fallback
 

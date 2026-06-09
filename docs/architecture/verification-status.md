@@ -166,6 +166,21 @@ Dyadic polynomial Taylor models (`Engine/CompPoly.lean`) avoiding rational coeff
 - `DyTM`: Taylor model combining `DyPoly` + `IntervalDyadic` remainder
 - Computable evaluation and integration operations using fixed-precision arithmetic throughout
 
+### Strict Partial Evaluators
+
+Some legacy evaluators are total for API compatibility and return coarse fallback
+intervals for unsupported partial operations. New hardened APIs should prefer
+strict `Option` evaluators where available:
+
+- `evalIntervalReal?`
+- `evalIntervalReal1?`
+- `evalIntervalReal?_correct`
+- `evalIntervalReal1?_correct`
+
+These return `none` for unsupported partial operations such as `inv`, `log`, and
+`atanh`, so callers cannot accidentally treat a legacy fallback interval as a
+certificate.
+
 ### Neural Network Verification
 
 The ML module provides verified interval propagation for neural networks:

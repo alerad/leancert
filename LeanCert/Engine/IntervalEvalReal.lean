@@ -17,6 +17,7 @@ which allows us to support exp in a fully verified way.
 
 * `ExprSupportedExt` - Extended predicate for the real-endpoint evaluator
 * `evalIntervalReal` - Evaluate an expression over real-endpoint intervals
+* `evalIntervalReal?` - Strict partial evaluator that rejects unsupported partial operations
 * `evalIntervalReal_correct` - Correctness theorem (fully proved)
 
 ## Design notes
@@ -107,6 +108,70 @@ noncomputable def evalIntervalReal (e : Expr) (ρ : IntervalRealEnv) : IntervalR
   | Expr.tanh _ => ⟨-1, 1, by norm_num⟩  -- tanh is bounded by (-1, 1)
   | Expr.sqrt e => IntervalReal.sqrtInterval (evalIntervalReal e ρ)
   | Expr.namedConst c => ⟨c.toReal, c.toReal, le_refl _⟩
+
+/-- Strict real-endpoint interval evaluator.
+
+Unlike the legacy total `evalIntervalReal`, this returns `none` for unsupported
+partial operations (`inv`, `log`, `atanh`) and for compound expressions whose
+required subexpression failed. Globally bounded total functions such as `sinc`,
+`erf`, and `tanh` still return their global range without requiring a refined
+subexpression interval.
+-/
+noncomputable def evalIntervalReal? (e : Expr) (ρ : IntervalRealEnv) : Option IntervalReal :=
+  match e with
+  | Expr.const q => some (IntervalReal.singleton q)
+  | Expr.var idx => some (ρ idx)
+  | Expr.add e₁ e₂ =>
+      match evalIntervalReal? e₁ ρ, evalIntervalReal? e₂ ρ with
+      | some I₁, some I₂ => some (IntervalReal.add I₁ I₂)
+      | _, _ => none
+  | Expr.mul e₁ e₂ =>
+      match evalIntervalReal? e₁ ρ, evalIntervalReal? e₂ ρ with
+      | some I₁, some I₂ => some (IntervalReal.mul I₁ I₂)
+      | _, _ => none
+  | Expr.neg e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.neg I)
+      | none => none
+  | Expr.inv _ => none
+  | Expr.exp e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.expInterval I)
+      | none => none
+  | Expr.sin e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.sinInterval I)
+      | none => none
+  | Expr.cos e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.cosInterval I)
+      | none => none
+  | Expr.log _ => none
+  | Expr.atan e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.atanInterval I)
+      | none => none
+  | Expr.arsinh e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.arsinhInterval I)
+      | none => none
+  | Expr.atanh _ => none
+  | Expr.sinc _ => some ⟨-1, 1, by norm_num⟩
+  | Expr.erf _ => some ⟨-1, 1, by norm_num⟩
+  | Expr.sinh e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.sinhInterval I)
+      | none => none
+  | Expr.cosh e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.coshInterval I)
+      | none => none
+  | Expr.tanh _ => some ⟨-1, 1, by norm_num⟩
+  | Expr.sqrt e =>
+      match evalIntervalReal? e ρ with
+      | some I => some (IntervalReal.sqrtInterval I)
+      | none => none
+  | Expr.namedConst c => some ⟨c.toReal, c.toReal, le_refl _⟩
 
 /-- A real environment is contained in a real-interval environment -/
 def envMemReal (ρ_real : Nat → ℝ) (ρ_int : IntervalRealEnv) : Prop :=
@@ -205,6 +270,154 @@ theorem IntervalReal.mem_mul' {x y : ℝ} {I J : IntervalReal}
 
 /-! ### Main correctness theorem -/
 
+/-- Correctness theorem for the strict partial real-endpoint evaluator.
+
+The returned `some I` certificate is the support check: unsupported partial
+operations return `none`, so callers cannot accidentally use a fallback interval
+for `inv`, `log`, or `atanh`.
+-/
+theorem evalIntervalReal?_correct (e : Expr) (ρ_real : Nat → ℝ)
+    (ρ_int : IntervalRealEnv) (hρ : envMemReal ρ_real ρ_int)
+    {I : IntervalReal} (hI : evalIntervalReal? e ρ_int = some I) :
+    Expr.eval ρ_real e ∈ I := by
+  induction e generalizing I with
+  | const q =>
+      simp [evalIntervalReal?] at hI
+      subst I
+      simp only [Expr.eval_const]
+      exact IntervalReal.mem_singleton_rat q
+  | var idx =>
+      simp [evalIntervalReal?] at hI
+      subst I
+      simp only [Expr.eval_var]
+      exact hρ idx
+  | add e₁ e₂ ih₁ ih₂ =>
+      cases h₁ : evalIntervalReal? e₁ ρ_int with
+      | none =>
+          simp [evalIntervalReal?, h₁] at hI
+      | some I₁ =>
+          cases h₂ : evalIntervalReal? e₂ ρ_int with
+          | none =>
+              simp [evalIntervalReal?, h₁, h₂] at hI
+          | some I₂ =>
+              simp [evalIntervalReal?, h₁, h₂] at hI
+              subst I
+              simp only [Expr.eval_add]
+              exact IntervalReal.mem_add (ih₁ h₁) (ih₂ h₂)
+  | mul e₁ e₂ ih₁ ih₂ =>
+      cases h₁ : evalIntervalReal? e₁ ρ_int with
+      | none =>
+          simp [evalIntervalReal?, h₁] at hI
+      | some I₁ =>
+          cases h₂ : evalIntervalReal? e₂ ρ_int with
+          | none =>
+              simp [evalIntervalReal?, h₁, h₂] at hI
+          | some I₂ =>
+              simp [evalIntervalReal?, h₁, h₂] at hI
+              subst I
+              simp only [Expr.eval_mul]
+              exact IntervalReal.mem_mul' (ih₁ h₁) (ih₂ h₂)
+  | neg e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_neg]
+        exact IntervalReal.mem_neg (ih h₀)
+  | inv _ =>
+      simp [evalIntervalReal?] at hI
+  | exp e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_exp]
+        exact IntervalReal.mem_expInterval (ih h₀)
+  | sin e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_sin]
+        exact IntervalReal.mem_sinInterval (ih h₀)
+  | cos e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_cos]
+        exact IntervalReal.mem_cosInterval (ih h₀)
+  | log _ =>
+      simp [evalIntervalReal?] at hI
+  | atan e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_atan]
+        exact IntervalReal.mem_atanInterval (ih h₀)
+  | arsinh e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_arsinh]
+        exact IntervalReal.mem_arsinhInterval (ih h₀)
+  | atanh _ =>
+      simp [evalIntervalReal?] at hI
+  | sinc e =>
+      simp [evalIntervalReal?] at hI
+      subst I
+      simp only [Expr.eval_sinc]
+      exact Real.sinc_mem_Icc _
+  | erf e =>
+      simp [evalIntervalReal?] at hI
+      subst I
+      simp only [Expr.eval_erf]
+      exact Real.erf_mem_Icc _
+  | sinh e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_sinh]
+        exact IntervalReal.mem_sinhInterval (ih h₀)
+  | cosh e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_cosh]
+        exact IntervalReal.mem_coshInterval (ih h₀)
+  | tanh e =>
+      simp [evalIntervalReal?] at hI
+      subst I
+      simp only [Expr.eval_tanh, IntervalReal.mem_def]
+      constructor
+      · exact le_of_lt (Real.neg_one_lt_tanh _)
+      · exact le_of_lt (Real.tanh_lt_one _)
+  | sqrt e ih =>
+      simp only [evalIntervalReal?] at hI
+      split at hI <;> try contradiction
+      next I₀ h₀ =>
+        simp only [Option.some.injEq] at hI
+        subst I
+        simp only [Expr.eval_sqrt]
+        exact IntervalReal.mem_sqrtInterval (ih h₀)
+  | namedConst c =>
+      simp [evalIntervalReal?] at hI
+      subst I
+      simp only [Expr.eval_namedConst, IntervalReal.mem_def]
+      exact ⟨le_rfl, le_rfl⟩
+
 /-- Fundamental correctness theorem for real-endpoint interval evaluation.
     If variables are in their intervals, the expression evaluates to a value
     in the computed interval.
@@ -274,11 +487,21 @@ theorem evalIntervalReal_correct (e : Expr) (hsupp : ExprSupportedExt e)
 noncomputable def evalIntervalReal1 (e : Expr) (I : IntervalReal) : IntervalReal :=
   evalIntervalReal e (fun _ => I)
 
+/-- Strict single-variable real-endpoint interval evaluator. -/
+noncomputable def evalIntervalReal1? (e : Expr) (I : IntervalReal) : Option IntervalReal :=
+  evalIntervalReal? e (fun _ => I)
+
 /-- Correctness for single-variable evaluation -/
 theorem evalIntervalReal1_correct (e : Expr) (hsupp : ExprSupportedExt e)
     (x : ℝ) (I : IntervalReal) (hx : x ∈ I) :
     Expr.eval (fun _ => x) e ∈ evalIntervalReal1 e I :=
   evalIntervalReal_correct e hsupp _ _ (fun _ => hx)
+
+/-- Correctness for strict single-variable evaluation. -/
+theorem evalIntervalReal1?_correct (e : Expr) (x : ℝ) (I J : IntervalReal)
+    (hx : x ∈ I) (hJ : evalIntervalReal1? e I = some J) :
+    Expr.eval (fun _ => x) e ∈ J :=
+  evalIntervalReal?_correct e (fun _ => x) (fun _ => I) (fun _ => hx) hJ
 
 /-! ### Conversion from rational to real interval environment -/
 
