@@ -15,7 +15,7 @@ which allows us to support exp in a fully verified way.
 
 ## Main definitions
 
-* `ExprSupportedExt` - Extended predicate including exp
+* `ExprSupportedExt` - Extended predicate for the real-endpoint evaluator
 * `evalIntervalReal` - Evaluate an expression over real-endpoint intervals
 * `evalIntervalReal_correct` - Correctness theorem (fully proved)
 
@@ -37,8 +37,8 @@ open LeanCert.Core
 /-! ### Extended supported expression subset -/
 
 /-- Predicate indicating an expression is in the extended verified subset.
-    This includes exp in addition to the base subset.
-    Does NOT support: inv (requires nonzero interval checks) -/
+    This includes total functions handled by `evalIntervalReal`.
+    Does NOT support: inv/log/atanh, which require domain checks. -/
 inductive ExprSupportedExt : Expr → Prop where
   | const (q : ℚ) : ExprSupportedExt (Expr.const q)
   | var (idx : Nat) : ExprSupportedExt (Expr.var idx)
@@ -54,7 +54,11 @@ inductive ExprSupportedExt : Expr → Prop where
   | arsinh {e : Expr} : ExprSupportedExt e → ExprSupportedExt (Expr.arsinh e)
   | sinh {e : Expr} : ExprSupportedExt e → ExprSupportedExt (Expr.sinh e)
   | cosh {e : Expr} : ExprSupportedExt e → ExprSupportedExt (Expr.cosh e)
+  | tanh {e : Expr} : ExprSupportedExt e → ExprSupportedExt (Expr.tanh e)
   | sqrt {e : Expr} : ExprSupportedExt e → ExprSupportedExt (Expr.sqrt e)
+  | sinc {e : Expr} : ExprSupportedExt e → ExprSupportedExt (Expr.sinc e)
+  | erf {e : Expr} : ExprSupportedExt e → ExprSupportedExt (Expr.erf e)
+  | namedConst (c : MathConst) : ExprSupportedExt (Expr.namedConst c)
 
 /-- The base supported subset is a subset of the extended one -/
 theorem ExprSupported.toExt {e : Expr} (h : ExprSupported e) : ExprSupportedExt e := by
@@ -75,12 +79,12 @@ abbrev IntervalRealEnv := Nat → IntervalReal
 
 /-- Evaluate an expression over real-endpoint intervals.
 
-    For expressions in ExprSupportedExt (const, var, add, mul, neg, sin, cos, exp),
-    this computes correct interval bounds with a fully-verified proof.
+    For expressions in ExprSupportedExt, this computes correct interval bounds
+    with a fully-verified proof.
 
-    For unsupported expressions (inv, log), this returns a trivial interval.
-    Do not call evalIntervalReal on expressions containing inv or log unless
-    you are prepared for unsound results. -/
+    For unsupported partial expressions (inv, log, atanh), this legacy total
+    evaluator returns a trivial interval. Use it only through `ExprSupportedExt`
+    or a theorem that supplies the corresponding support proof. -/
 noncomputable def evalIntervalReal (e : Expr) (ρ : IntervalRealEnv) : IntervalReal :=
   match e with
   | Expr.const q => IntervalReal.singleton q
@@ -205,8 +209,7 @@ theorem IntervalReal.mem_mul' {x y : ℝ} {I J : IntervalReal}
     If variables are in their intervals, the expression evaluates to a value
     in the computed interval.
 
-    This theorem is FULLY PROVED (no sorry, no axioms) for ExprSupportedExt expressions.
-    This includes exp! -/
+    This theorem is fully proved for `ExprSupportedExt` expressions. -/
 theorem evalIntervalReal_correct (e : Expr) (hsupp : ExprSupportedExt e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalRealEnv) (hρ : envMemReal ρ_real ρ_int) :
     Expr.eval ρ_real e ∈ evalIntervalReal e ρ_int := by
@@ -247,9 +250,23 @@ theorem evalIntervalReal_correct (e : Expr) (hsupp : ExprSupportedExt e)
   | cosh _ ih =>
     simp only [Expr.eval_cosh, evalIntervalReal]
     exact IntervalReal.mem_coshInterval ih
+  | tanh _ =>
+    simp only [Expr.eval_tanh, evalIntervalReal, IntervalReal.mem_def]
+    constructor
+    · exact le_of_lt (Real.neg_one_lt_tanh _)
+    · exact le_of_lt (Real.tanh_lt_one _)
   | sqrt _ ih =>
     simp only [Expr.eval_sqrt, evalIntervalReal]
     exact IntervalReal.mem_sqrtInterval ih
+  | sinc _ _ =>
+    simp only [Expr.eval_sinc, evalIntervalReal]
+    exact Real.sinc_mem_Icc _
+  | erf _ _ =>
+    simp only [Expr.eval_erf, evalIntervalReal]
+    exact Real.erf_mem_Icc _
+  | namedConst c =>
+    simp only [Expr.eval_namedConst, evalIntervalReal, IntervalReal.mem_def]
+    exact ⟨le_rfl, le_rfl⟩
 
 /-! ### Convenience functions -/
 

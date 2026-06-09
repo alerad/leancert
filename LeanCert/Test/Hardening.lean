@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.DyadicAuto
 import LeanCert.Meta.ProveSupported
+import LeanCert.Engine.IntervalEvalReal
 
 /-!
 # Hardening Regression Tests
@@ -37,6 +38,23 @@ def fullUsesOnlyVar0Expr : Expr :=
 
 example : UsesOnlyVar0 fullUsesOnlyVar0Expr :=
   Expr.usesOnlyVar0_iff_UsesOnlyVar0.mp (by native_decide)
+
+def realEndpointExtExpr : Expr :=
+  Expr.add
+    (Expr.tanh (Expr.var 0))
+    (Expr.add
+      (Expr.sinc (Expr.var 0))
+      (Expr.add (Expr.erf (Expr.var 0)) (Expr.namedConst .eulerMascheroni)))
+
+example : ExprSupportedExt realEndpointExtExpr := by
+  unfold realEndpointExtExpr
+  exact ExprSupportedExt.add
+    (ExprSupportedExt.tanh (ExprSupportedExt.var 0))
+    (ExprSupportedExt.add
+      (ExprSupportedExt.sinc (ExprSupportedExt.var 0))
+      (ExprSupportedExt.add
+        (ExprSupportedExt.erf (ExprSupportedExt.var 0))
+        (ExprSupportedExt.namedConst .eulerMascheroni)))
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ (2 : ℚ) := by
   certify_kernel_fallback
