@@ -201,9 +201,238 @@ noncomputable def evalIntervalRefined (e : Expr) (ρ : IntervalEnv) : IntervalRa
   | Expr.sqrt e => (evalIntervalRefined e ρ).sqrtInterval
   | Expr.namedConst c => c.interval
 
+/-- Strict refined interval evaluation.
+
+This is the hardened counterpart to `evalIntervalRefined`: unsupported partial
+operations return `none` instead of `default`, and compound expressions return
+`none` if a required subexpression fails.
+-/
+noncomputable def evalIntervalRefined? (e : Expr) (ρ : IntervalEnv) : Option IntervalRat :=
+  match e with
+  | Expr.const q => some (IntervalRat.singleton q)
+  | Expr.var i => some (ρ i)
+  | Expr.add e₁ e₂ =>
+      match evalIntervalRefined? e₁ ρ, evalIntervalRefined? e₂ ρ with
+      | some I₁, some I₂ => some (IntervalRat.add I₁ I₂)
+      | _, _ => none
+  | Expr.mul e₁ e₂ =>
+      match evalIntervalRefined? e₁ ρ, evalIntervalRefined? e₂ ρ with
+      | some I₁, some I₂ => some (IntervalRat.mul I₁ I₂)
+      | _, _ => none
+  | Expr.neg e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (IntervalRat.neg I)
+      | none => none
+  | Expr.inv _ => none
+  | Expr.sin e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (sinIntervalRefined I)
+      | none => none
+  | Expr.cos e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (cosIntervalRefined I)
+      | none => none
+  | Expr.exp e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (expIntervalRefined I)
+      | none => none
+  | Expr.log _ => none
+  | Expr.atan e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (atanInterval I)
+      | none => none
+  | Expr.arsinh e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (arsinhInterval I)
+      | none => none
+  | Expr.atanh _ => none
+  | Expr.sinc _ => some ⟨-1, 1, by norm_num⟩
+  | Expr.erf _ => some ⟨-1, 1, by norm_num⟩
+  | Expr.sinh e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (sinhInterval I)
+      | none => none
+  | Expr.cosh e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (coshInterval I)
+      | none => none
+  | Expr.tanh e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some (tanhInterval I)
+      | none => none
+  | Expr.sqrt e =>
+      match evalIntervalRefined? e ρ with
+      | some I => some I.sqrtInterval
+      | none => none
+  | Expr.namedConst c => some c.interval
+
 /-- Single-variable refined interval evaluation -/
 noncomputable def evalIntervalRefined1 (e : Expr) (I : IntervalRat) : IntervalRat :=
   evalIntervalRefined e (fun _ => I)
+
+/-- Strict single-variable refined interval evaluation. -/
+noncomputable def evalIntervalRefined1? (e : Expr) (I : IntervalRat) : Option IntervalRat :=
+  evalIntervalRefined? e (fun _ => I)
+
+/-- Strict refined interval evaluation is correct whenever it returns an interval. -/
+theorem evalIntervalRefined?_correct (e : Expr)
+    (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (hρ : envMem ρ_real ρ_int)
+    {I : IntervalRat} (hI : evalIntervalRefined? e ρ_int = some I) :
+    Expr.eval ρ_real e ∈ I := by
+  induction e generalizing I with
+  | const q =>
+      simp [evalIntervalRefined?] at hI
+      subst I
+      simp only [Expr.eval_const]
+      exact IntervalRat.mem_singleton q
+  | var i =>
+      simp [evalIntervalRefined?] at hI
+      subst I
+      simp only [Expr.eval_var]
+      exact hρ i
+  | add e₁ e₂ ih₁ ih₂ =>
+      cases h₁ : evalIntervalRefined? e₁ ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₁] at hI
+      | some I₁ =>
+          cases h₂ : evalIntervalRefined? e₂ ρ_int with
+          | none =>
+              simp [evalIntervalRefined?, h₁, h₂] at hI
+          | some I₂ =>
+              simp [evalIntervalRefined?, h₁, h₂] at hI
+              subst I
+              simp only [Expr.eval_add]
+              exact IntervalRat.mem_add (ih₁ h₁) (ih₂ h₂)
+  | mul e₁ e₂ ih₁ ih₂ =>
+      cases h₁ : evalIntervalRefined? e₁ ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₁] at hI
+      | some I₁ =>
+          cases h₂ : evalIntervalRefined? e₂ ρ_int with
+          | none =>
+              simp [evalIntervalRefined?, h₁, h₂] at hI
+          | some I₂ =>
+              simp [evalIntervalRefined?, h₁, h₂] at hI
+              subst I
+              simp only [Expr.eval_mul]
+              exact IntervalRat.mem_mul (ih₁ h₁) (ih₂ h₂)
+  | neg e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_neg]
+          exact IntervalRat.mem_neg (ih h₀)
+  | inv _ =>
+      simp [evalIntervalRefined?] at hI
+  | sin e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_sin]
+          exact mem_sinIntervalRefined (ih h₀)
+  | cos e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_cos]
+          exact mem_cosIntervalRefined (ih h₀)
+  | exp e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_exp]
+          exact mem_expIntervalRefined (ih h₀)
+  | log _ =>
+      simp [evalIntervalRefined?] at hI
+  | atan e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_atan]
+          exact mem_atanInterval (ih h₀)
+  | arsinh e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_arsinh]
+          exact mem_arsinhInterval (ih h₀)
+  | atanh _ =>
+      simp [evalIntervalRefined?] at hI
+  | sinc e =>
+      simp [evalIntervalRefined?] at hI
+      subst I
+      simpa only [Expr.eval_sinc, IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
+        using Real.sinc_mem_Icc (Expr.eval ρ_real e)
+  | erf e =>
+      simp [evalIntervalRefined?] at hI
+      subst I
+      simpa only [Expr.eval_erf, IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
+        using Real.erf_mem_Icc (Expr.eval ρ_real e)
+  | sinh e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_sinh]
+          exact IntervalRat.mem_sinhComputable (ih h₀) 10
+  | cosh e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_cosh]
+          exact IntervalRat.mem_coshComputable (ih h₀) 10
+  | tanh e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_tanh]
+          exact mem_tanhInterval (ih h₀)
+  | sqrt e ih =>
+      cases h₀ : evalIntervalRefined? e ρ_int with
+      | none =>
+          simp [evalIntervalRefined?, h₀] at hI
+      | some I₀ =>
+          simp [evalIntervalRefined?, h₀] at hI
+          subst I
+          simp only [Expr.eval_sqrt]
+          exact IntervalRat.mem_sqrtInterval' (ih h₀)
+  | namedConst c =>
+      simp [evalIntervalRefined?] at hI
+      subst I
+      simp only [Expr.eval_namedConst]
+      exact c.mem_interval
+
+/-- Strict single-variable refined interval evaluation is correct. -/
+theorem evalIntervalRefined1?_correct (e : Expr) (x : ℝ) (I J : IntervalRat)
+    (hx : x ∈ I) (hJ : evalIntervalRefined1? e I = some J) :
+    Expr.eval (fun _ => x) e ∈ J :=
+  evalIntervalRefined?_correct e (fun _ => x) (fun _ => I) (fun _ => hx) hJ
 
 /-- Refined interval evaluation is correct for supported expressions -/
 theorem evalIntervalRefined_correct (e : Expr) (hsupp : ExprSupported e)

@@ -176,6 +176,10 @@ strict `Option` evaluators where available:
 - `evalIntervalReal1?`
 - `evalIntervalReal?_correct`
 - `evalIntervalReal1?_correct`
+- `evalIntervalRefined?`
+- `evalIntervalRefined1?`
+- `evalIntervalRefined?_correct`
+- `evalIntervalRefined1?_correct`
 
 These return `none` for unsupported partial operations such as `inv`, `log`, and
 `atanh`, so callers cannot accidentally treat a legacy fallback interval as a

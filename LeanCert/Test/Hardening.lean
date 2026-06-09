@@ -68,6 +68,15 @@ example :
       some ⟨-1, 1, by norm_num⟩ := by
   rfl
 
+example :
+    evalIntervalRefined1? (Expr.log (Expr.var 0)) ⟨0, 1, by norm_num⟩ = none := by
+  rfl
+
+example :
+    evalIntervalRefined1? (Expr.sinc (Expr.log (Expr.var 0))) ⟨0, 1, by norm_num⟩ =
+      some ⟨-1, 1, by norm_num⟩ := by
+  rfl
+
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ (2 : ℚ) := by
   certify_kernel_fallback
 
