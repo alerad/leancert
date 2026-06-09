@@ -331,9 +331,10 @@ import LeanCert.Tactic.Discovery
 | Tactic | Purpose | Trust | Speed |
 |--------|---------|-------|-------|
 | `certify_bound` | Prove bounds | `native_decide` | Medium |
-| `certify_kernel` | Prove bounds | `decide` / fallback | Fast |
+| `certify_kernel` | Prove bounds | `decide` | Fast when supported |
+| `certify_kernel_fallback` | Prove bounds | `decide`, then explicit native fallback | Fast |
 | `interval_decide` | Point inequalities | `native_decide` | Fast |
-| `interval_refute` | Find counter-examples | Verified | Slow |
+| `interval_refute` | Find diagnostic counter-example data | checker-dependent diagnostic | Slow |
 | `interval_roots` | Prove root exists | `native_decide` | Medium |
 | `interval_unique_root` | Prove root unique | `native_decide` | Slow |
 | `interval_minimize` | Prove min exists | `native_decide` | Slow |

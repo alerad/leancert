@@ -236,7 +236,7 @@ example : ∃ x ∈ I12, Expr.eval (fun _ => x)
 | Tight bounds (within 1% of true value) | 20-30 |
 | Very tight bounds | Use `interval_bound_subdiv` |
 
-### When to use `fast_bound` (dyadic)
+### When to use dyadic kernel/fallback tactics
 
 Use the dyadic backend when:
 - Deeply nested expressions: `sin(cos(sin(x)))`
@@ -244,11 +244,11 @@ Use the dyadic backend when:
 - Proofs with rational backend timeout or are slow
 
 ```lean
--- Dyadic handles nesting well
-example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by fast_bound
+-- Strict kernel path: no compiler/runtime fallback.
+example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_kernel
 
--- Equivalent but may be slower/fail with many terms
-example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_bound
+-- Explicit fallback path if strict kernel verification cannot close the goal.
+example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_kernel_fallback
 ```
 
 ---

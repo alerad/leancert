@@ -15,8 +15,13 @@ Main tactics and commands:
 ```lean
 certify_bound
 certify_kernel
+certify_kernel_fallback
 multivariate_bound
 ```
+
+`certify_kernel` is strict and only succeeds when the kernel-verified dyadic
+path can close the goal. Use `certify_kernel_fallback` when an explicit
+compiler/runtime fallback is acceptable.
 
 Minimal example:
 

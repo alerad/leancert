@@ -191,10 +191,9 @@ The `#explore` command analyzes a function on an interval and reports:
 The `interval_unique_root` tactic proves `∃! x ∈ I, f(x) = 0` by:
 1. Checking Newton iteration contracts (derivative bounded away from 0)
 2. Using Rolle's theorem for uniqueness
-3. Using IVT for existence (via contraction)
+3. Using IVT/contraction machinery for existence.
 
-NOTE: These tests require the theorem with a `sorry` for the existence part.
-The tactic will work at runtime but the proof contains `sorry`.
+These tests are expected to elaborate without inserting proof placeholders.
 -/
 
 -- Test 1: √2 is unique root of x² - 2 on [1, 2]
