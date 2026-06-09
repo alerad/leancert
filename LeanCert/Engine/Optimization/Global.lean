@@ -197,7 +197,9 @@ def evalOnBoxCore (e : Expr) (B : Box) (cfg : GlobalOptConfig) : IntervalRat :=
 
 /-- Evaluate expression on a box (computable version with division support).
     This is used by the Python bridge for applications where division is common.
-    Note: No formal correctness proof yet; returns sound but possibly wide bounds. -/
+    WARNING: No correctness theorem; the underlying `evalIntervalCoreWithDiv`
+    returns wide fallback bounds (not sound enclosures) when a denominator
+    interval straddles zero. Search/heuristic use only — never on a proof path. -/
 def evalOnBoxCoreDiv (e : Expr) (B : Box) (cfg : GlobalOptConfig) : IntervalRat :=
   evalIntervalCoreWithDiv e (Box.toEnv B) { taylorDepth := cfg.taylorDepth }
 

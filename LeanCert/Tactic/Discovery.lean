@@ -1314,7 +1314,7 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
     let supportProof ← mkSupportedCoreProof ast
 
     -- 4. Generate ContinuousOn proof
-    let contProof ← mkContinuousOnProof ast intervalExpr
+    let contProof ← mkContinuousOnProofWithDomain ast intervalExpr
 
     -- 5. Build config expression
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -1487,7 +1487,7 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
   let var0Proof ← mkUsesOnlyVar0Proof ast
 
   -- Generate ContinuousOn proof
-  let contProof ← LeanCert.Meta.mkContinuousOnProof ast intervalExpr
+  let contProof ← LeanCert.Meta.mkContinuousOnProofWithDomain ast intervalExpr
 
   -- Build EvalConfig (for the computable core check)
   let evalCfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]

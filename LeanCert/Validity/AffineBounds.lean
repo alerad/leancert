@@ -26,10 +26,14 @@ variable flows through multiple paths.
 ### Boolean Checkers
 * `checkUpperBoundAffine1` - Check if computed upper bound is ≤ c for single variable
 * `checkLowerBoundAffine1` - Check if computed lower bound is ≥ c for single variable
+* `checkUpperBoundAffine1Strict` - Strict checker that rejects unsupported/domain-invalid cases
+* `checkLowerBoundAffine1Strict` - Strict lower-bound checker
 
 ### Golden Theorems
 * `verify_upper_bound_affine1` - Single-variable upper bound verification
 * `verify_lower_bound_affine1` - Single-variable lower bound verification
+* `verify_upper_bound_affine1_strict` - Upper bound verification from the strict checker
+* `verify_lower_bound_affine1_strict` - Lower bound verification from the strict checker
 
 For `ExprSupported` expressions (no log), convenience versions are provided.
 
@@ -74,7 +78,99 @@ def checkLowerBoundAffine1 (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : AffineC
   let ρ := toAffineEnvConst I
   c ≤ (evalIntervalAffine e ρ cfg).toInterval.lo
 
+/-- Boolean affine domain-validity checker.
+
+This mirrors `evalDomainValidAffine`, but produces executable data for
+certificate checkers. -/
+def checkDomainValidAffine (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) : Bool :=
+  match e with
+  | Expr.const _ => true
+  | Expr.var _ => true
+  | Expr.add e₁ e₂ => checkDomainValidAffine e₁ ρ cfg && checkDomainValidAffine e₂ ρ cfg
+  | Expr.mul e₁ e₂ => checkDomainValidAffine e₁ ρ cfg && checkDomainValidAffine e₂ ρ cfg
+  | Expr.neg e => checkDomainValidAffine e ρ cfg
+  | Expr.inv e => checkDomainValidAffine e ρ cfg
+  | Expr.exp e => checkDomainValidAffine e ρ cfg
+  | Expr.sin e => checkDomainValidAffine e ρ cfg
+  | Expr.cos e => checkDomainValidAffine e ρ cfg
+  | Expr.log e =>
+      checkDomainValidAffine e ρ cfg &&
+        decide (0 < (evalIntervalAffine e ρ cfg).toInterval.lo)
+  | Expr.atan e => checkDomainValidAffine e ρ cfg
+  | Expr.arsinh e => checkDomainValidAffine e ρ cfg
+  | Expr.atanh e => checkDomainValidAffine e ρ cfg
+  | Expr.sinc e => checkDomainValidAffine e ρ cfg
+  | Expr.erf e => checkDomainValidAffine e ρ cfg
+  | Expr.sinh e => checkDomainValidAffine e ρ cfg
+  | Expr.cosh e => checkDomainValidAffine e ρ cfg
+  | Expr.tanh e => checkDomainValidAffine e ρ cfg
+  | Expr.sqrt e => checkDomainValidAffine e ρ cfg
+  | Expr.namedConst _ => true
+
+/-- Strict affine upper-bound checker.
+
+This rejects expressions that the strict affine evaluator does not accept and
+checks affine domain validity as part of the executable certificate. The bound
+itself is still computed with the legacy affine evaluator so existing affine
+correctness theorems apply directly once the Boolean check succeeds. -/
+def checkUpperBoundAffine1Strict
+    (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : AffineConfig := {}) : Bool :=
+  let ρ := toAffineEnvConst I
+  match evalAffineToInterval? e ρ cfg with
+  | none => false
+  | some _ =>
+      if checkDomainValidAffine e ρ cfg then
+        (evalIntervalAffine e ρ cfg).toInterval.hi ≤ c
+      else
+        false
+
+/-- Strict affine lower-bound checker. -/
+def checkLowerBoundAffine1Strict
+    (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : AffineConfig := {}) : Bool :=
+  let ρ := toAffineEnvConst I
+  match evalAffineToInterval? e ρ cfg with
+  | none => false
+  | some _ =>
+      if checkDomainValidAffine e ρ cfg then
+        c ≤ (evalIntervalAffine e ρ cfg).toInterval.lo
+      else
+        false
+
 /-! ### Helper Lemmas for Single-Variable Affine Proofs -/
+
+/-- The executable affine domain checker implies the Prop-valued domain predicate. -/
+theorem checkDomainValidAffine_correct {e : Expr} {ρ : AffineEnv} {cfg : AffineConfig}
+    (h : checkDomainValidAffine e ρ cfg = true) :
+    evalDomainValidAffine e ρ cfg := by
+  induction e with
+  | const q => trivial
+  | var idx => trivial
+  | add e₁ e₂ ih₁ ih₂ =>
+      simp [checkDomainValidAffine, evalDomainValidAffine] at h ⊢
+      exact ⟨ih₁ h.1, ih₂ h.2⟩
+  | mul e₁ e₂ ih₁ ih₂ =>
+      simp [checkDomainValidAffine, evalDomainValidAffine] at h ⊢
+      exact ⟨ih₁ h.1, ih₂ h.2⟩
+  | neg e ih
+  | inv e ih
+  | exp e ih
+  | sin e ih
+  | cos e ih
+  | atan e ih
+  | arsinh e ih
+  | atanh e ih
+  | sinc e ih
+  | erf e ih
+  | sinh e ih
+  | cosh e ih
+  | tanh e ih
+  | sqrt e ih =>
+      simp [checkDomainValidAffine, evalDomainValidAffine] at h ⊢
+      exact ih h
+  | log e ih =>
+      simp [checkDomainValidAffine, evalDomainValidAffine] at h ⊢
+      exact ⟨ih h.1, h.2⟩
+  | namedConst c => trivial
 
 /-- For x ∈ I, |x - mid(I)| ≤ rad(I) -/
 private lemma abs_sub_mid_le_rad {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
@@ -218,6 +314,63 @@ theorem verify_lower_bound_affine1 (e : Expr) (hsupp : ExprSupportedCore e)
   calc (c : ℝ)
       ≤ ((evalIntervalAffine e ρ_affine cfg).toInterval.lo : ℝ) := by exact_mod_cast h_check
     _ ≤ Expr.eval (fun _ => x) e := hlo
+
+/-! ### Strict Affine Checkers -/
+
+/-- Strict affine upper-bound verification.
+
+Compared with `verify_upper_bound_affine1`, the domain-validity obligation is
+part of the Boolean checker. The strict checker also rejects expressions whose
+strict affine evaluator returns `none`. -/
+theorem verify_upper_bound_affine1_strict (e : Expr) (hsupp : ExprSupportedCore e)
+    (I : IntervalRat) (c : ℚ) (cfg : AffineConfig)
+    (h_check : checkUpperBoundAffine1Strict e I c cfg = true) :
+    ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
+  unfold checkUpperBoundAffine1Strict at h_check
+  cases hstrict : evalAffineToInterval? e (toAffineEnvConst I) cfg with
+  | none =>
+      simp [hstrict] at h_check
+  | some J =>
+      simp [hstrict] at h_check
+      have hdom := checkDomainValidAffine_correct h_check.1
+      intro x hx
+      let ρ_real : Nat → ℝ := fun _ => x
+      let ρ_affine := toAffineEnvConst I
+      let eps := mkNoise1 I x
+      have hvalid : AffineForm.validNoise eps := mkNoise1_valid I x hx
+      have henv : envMemAffine ρ_real ρ_affine eps := mkNoise1_envMem I x hx
+      have hmem_affine :=
+        evalIntervalAffine_correct e hsupp ρ_real ρ_affine eps hvalid henv cfg hdom
+      have hmem := AffineForm.mem_toInterval_weak hvalid hmem_affine
+      calc Expr.eval (fun _ => x) e
+          ≤ ((evalIntervalAffine e ρ_affine cfg).toInterval.hi : ℝ) := hmem.2
+        _ ≤ c := by exact_mod_cast h_check.2
+
+/-- Strict affine lower-bound verification. -/
+theorem verify_lower_bound_affine1_strict (e : Expr) (hsupp : ExprSupportedCore e)
+    (I : IntervalRat) (c : ℚ) (cfg : AffineConfig)
+    (h_check : checkLowerBoundAffine1Strict e I c cfg = true) :
+    ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
+  unfold checkLowerBoundAffine1Strict at h_check
+  cases hstrict : evalAffineToInterval? e (toAffineEnvConst I) cfg with
+  | none =>
+      simp [hstrict] at h_check
+  | some J =>
+      simp [hstrict] at h_check
+      have hdom := checkDomainValidAffine_correct h_check.1
+      intro x hx
+      let ρ_real : Nat → ℝ := fun _ => x
+      let ρ_affine := toAffineEnvConst I
+      let eps := mkNoise1 I x
+      have hvalid : AffineForm.validNoise eps := mkNoise1_valid I x hx
+      have henv : envMemAffine ρ_real ρ_affine eps := mkNoise1_envMem I x hx
+      have hmem_affine :=
+        evalIntervalAffine_correct e hsupp ρ_real ρ_affine eps hvalid henv cfg hdom
+      have hmem := AffineForm.mem_toInterval_weak hvalid hmem_affine
+      calc (c : ℝ)
+          ≤ ((evalIntervalAffine e ρ_affine cfg).toInterval.lo : ℝ) := by
+              exact_mod_cast h_check.2
+        _ ≤ Expr.eval (fun _ => x) e := hmem.1
 
 /-! ### Convenience Theorems for ExprSupported
 

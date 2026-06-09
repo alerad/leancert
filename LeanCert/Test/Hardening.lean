@@ -8,6 +8,7 @@ import LeanCert.Meta.ProveSupported
 import LeanCert.Engine.AD.Eval
 import LeanCert.Engine.IntervalEvalReal
 import LeanCert.Engine.IntervalEvalAffine
+import LeanCert.Validity.AffineBounds
 
 /-!
 # Hardening Regression Tests
@@ -85,6 +86,24 @@ def affineHardeningEnv : AffineEnv :=
 example :
     evalIntervalAffine? (Expr.arsinh (Expr.var 0)) affineHardeningEnv = none := by
   rfl
+
+example :
+    LeanCert.Validity.checkUpperBoundAffine1Strict
+      (Expr.arsinh (Expr.var 0)) ⟨-1, 1, by norm_num⟩ 2 = false := by
+  rfl
+
+example :
+    LeanCert.Validity.checkUpperBoundAffine1Strict
+      (Expr.log (Expr.var 0)) ⟨0, 1, by norm_num⟩ 1 = false := by
+  native_decide
+
+example :
+    ∀ x ∈ (⟨1, 2, by norm_num⟩ : IntervalRat),
+      Expr.eval (fun _ => x) (Expr.log (Expr.var 0)) ≤ 2 :=
+  LeanCert.Validity.verify_upper_bound_affine1_strict
+    (Expr.log (Expr.var 0))
+    (ExprSupportedCore.log (ExprSupportedCore.var 0))
+    ⟨1, 2, by norm_num⟩ 2 {} (by native_decide)
 
 example :
     evalDual?1 (Expr.tanh (Expr.var 0)) ⟨-1, 1, by norm_num⟩ = none := by

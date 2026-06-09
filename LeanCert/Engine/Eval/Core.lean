@@ -11,6 +11,8 @@ import LeanCert.Core.IntervalRat.TrigReduced
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
+import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+import Mathlib.Analysis.Complex.ExponentialBounds
 import Mathlib.Analysis.Real.Pi.Bounds
 
 /-!
@@ -408,36 +410,88 @@ theorem mem_piInterval : Real.pi ∈ piInterval := by
 
 /-- Interval enclosure for the Euler–Mascheroni constant γ.
     Tight bounds derived from `eulerMascheroniSeq 100 < γ < eulerMascheroniSeq' 100`
-    combined with LeanCert's computable log intervals. -/
+    combined with explicit Taylor partial sums for `log`. The proofs below are
+    axiom-free (no `native_decide`): all rational arithmetic is certified by
+    `norm_num`, and the only analytic inputs are Mathlib's
+    `abs_log_sub_add_sum_range_le` and the d9 bounds on `log 2`. -/
 def eulerMascheroniInterval : IntervalRat :=
   ⟨5722/10000, 5823/10000, by norm_num⟩
 
-/-- Helper: log(101) ≤ (logPointComputable 101 30).hi, and that hi ≤ harmonic(100) - 5722/10000. -/
+/-- `harmonic 100` as an explicit rational literal. -/
+private lemma harmonic_100_eq : harmonic 100 =
+    14466636279520351160221518043104131447711/2788815009188499086581352357412492142272 := by
+  norm_num [harmonic_succ, harmonic_zero]
+
+/-- Series bound for `log (5/4) = -log (1 - 1/5)`: nine Taylor terms with the
+    Mathlib tail estimate `|x|^(n+1)/(1-|x|)`. -/
+private lemma log_five_quarter_approx :
+    |Real.log (5/4) - 219656921/984375000| ≤ (1/7812500 : ℝ) := by
+  have h := Real.abs_log_sub_add_sum_range_le (x := (1/5 : ℝ))
+    (by rw [abs_of_nonneg] <;> norm_num) 9
+  have hsum : (∑ i ∈ Finset.range 9, (1/5 : ℝ) ^ (i + 1) / (i + 1)) = 219656921/984375000 := by
+    simp [Finset.sum_range_succ]
+    norm_num
+  have hlog : Real.log (1 - 1/5) = -Real.log (5/4) := by
+    rw [show (1 - 1/5 : ℝ) = (5/4)⁻¹ by norm_num, Real.log_inv]
+  rw [hsum, hlog, abs_of_nonneg (by norm_num : (0:ℝ) ≤ 1/5)] at h
+  calc |Real.log (5/4) - 219656921/984375000|
+      = |(219656921/984375000 : ℝ) + -Real.log (5/4)| := by rw [← abs_neg]; ring_nf
+    _ ≤ (1/5 : ℝ) ^ 10 / (1 - 1/5) := h
+    _ ≤ (1/7812500 : ℝ) := by norm_num
+
+/-- Series bound for `log (101/100) = -log (1 - 1/101)`: three Taylor terms. -/
+private lemma log_ratio_101_approx :
+    |Real.log (101/100) - 61511/6181806| ≤ (1/103030100 : ℝ) := by
+  have h := Real.abs_log_sub_add_sum_range_le (x := (1/101 : ℝ))
+    (by rw [abs_of_nonneg] <;> norm_num) 3
+  have hsum : (∑ i ∈ Finset.range 3, (1/101 : ℝ) ^ (i + 1) / (i + 1)) = 61511/6181806 := by
+    simp [Finset.sum_range_succ]
+    norm_num
+  have hlog : Real.log (1 - 1/101) = -Real.log (101/100) := by
+    rw [show (1 - 1/101 : ℝ) = (101/100)⁻¹ by norm_num, Real.log_inv]
+  rw [hsum, hlog, abs_of_nonneg (by norm_num : (0:ℝ) ≤ 1/101)] at h
+  calc |Real.log (101/100) - 61511/6181806|
+      = |(61511/6181806 : ℝ) + -Real.log (101/100)| := by rw [← abs_neg]; ring_nf
+    _ ≤ (1/101 : ℝ) ^ 4 / (1 - 1/101) := h
+    _ ≤ (1/103030100 : ℝ) := by norm_num
+
+/-- Decompose `log 100` over `log 2` and `log (5/4)`: `100 = 2^6 * (5/4)^2`. -/
+private lemma log_100_eq : Real.log 100 = 6 * Real.log 2 + 2 * Real.log (5/4) := by
+  rw [show (100:ℝ) = 2^6 * (5/4)^2 by norm_num,
+      Real.log_mul (by norm_num) (by norm_num), Real.log_pow, Real.log_pow]
+  push_cast; ring
+
+/-- Decompose `log 101` as `log 100 + log (101/100)`. -/
+private lemma log_101_eq :
+    Real.log 101 = 6 * Real.log 2 + 2 * Real.log (5/4) + Real.log (101/100) := by
+  rw [← log_100_eq, show (101:ℝ) = 100 * (101/100) by norm_num,
+      Real.log_mul (by norm_num) (by norm_num)]
+  norm_num
+
+/-- Helper: `5722/10000 ≤ harmonic 100 - log 101` via explicit series bounds. -/
 private theorem eulerMascheroniSeq_100_ge :
     (5722/10000 : ℝ) ≤ Real.eulerMascheroniSeq 100 := by
-  have hlog := (IntervalRat.mem_logPointComputable (by norm_num : (101 : ℚ) > 0) 30).2
-  -- hlog : Real.log ↑101 ≤ ↑(logPointComputable 101 30).hi
-  have hcmp : (IntervalRat.logPointComputable 101 30).hi ≤ harmonic 100 - 5722/10000 := by
-    native_decide
-  have : Real.eulerMascheroniSeq 100 = ↑(harmonic 100 : ℚ) - Real.log 101 := by
+  have h54 := log_five_quarter_approx
+  have h101 := log_ratio_101_approx
+  have hlog2 := Real.log_two_lt_d9
+  have heq : Real.eulerMascheroniSeq 100 = ↑(harmonic 100 : ℚ) - Real.log 101 := by
     simp [Real.eulerMascheroniSeq]; ring_nf
-  rw [this]
-  have hle : Real.log 101 ≤ ↑(harmonic 100 : ℚ) - ↑(5722/10000 : ℚ) :=
-    le_trans hlog (by exact_mod_cast hcmp)
-  push_cast at hle ⊢; linarith
+  rw [heq, harmonic_100_eq, log_101_eq]
+  rw [abs_le] at h54 h101
+  push_cast
+  linarith [h54.1, h54.2, h101.1, h101.2]
 
-/-- Helper: harmonic(100) - 5823/10000 ≤ (logPointComputable 100 30).lo ≤ log(100). -/
+/-- Helper: `harmonic 100 - log 100 ≤ 5823/10000` via explicit series bounds. -/
 private theorem eulerMascheroniSeq'_100_le :
     Real.eulerMascheroniSeq' 100 ≤ (5823/10000 : ℝ) := by
-  have hlog := (IntervalRat.mem_logPointComputable (by norm_num : (100 : ℚ) > 0) 30).1
-  have hcmp : harmonic 100 - 5823/10000 ≤ (IntervalRat.logPointComputable 100 30).lo := by
-    native_decide
-  have : Real.eulerMascheroniSeq' 100 = ↑(harmonic 100 : ℚ) - Real.log 100 := by
+  have h54 := log_five_quarter_approx
+  have hlog2 := Real.log_two_gt_d9
+  have heq : Real.eulerMascheroniSeq' 100 = ↑(harmonic 100 : ℚ) - Real.log 100 := by
     simp [Real.eulerMascheroniSeq']
-  rw [this]
-  have hle : ↑(harmonic 100 : ℚ) - ↑(5823/10000 : ℚ) ≤ Real.log 100 :=
-    le_trans (by exact_mod_cast hcmp) hlog
-  push_cast at hle ⊢; linarith
+  rw [heq, harmonic_100_eq, log_100_eq]
+  rw [abs_le] at h54
+  push_cast
+  linarith [h54.1, h54.2]
 
 /-- Correctness of Euler–Mascheroni interval: γ ∈ eulerMascheroniInterval -/
 theorem mem_eulerMascheroniInterval :
@@ -497,7 +551,10 @@ private theorem invWideBound_pos : (0 : ℝ) < invWideBound := by
 /-- Computable interval inverse.
     For [a,b] with a > 0: returns [1/b, 1/a] (1/x is decreasing on positive reals)
     For [a,b] with b < 0: returns [1/b, 1/a] (1/x is decreasing on negative reals)
-    For intervals containing 0: returns very wide bounds [-M, M] as a sound default -/
+    For intervals containing 0: returns wide bounds [-M, M]. NOTE: this branch is
+    NOT a sound enclosure of x⁻¹ in general (1/x is unbounded near 0); the
+    correctness theorem `mem_invInterval` therefore requires the extra
+    hypothesis `|x⁻¹| ≤ invWideBound` in that case. -/
 def invInterval (I : IntervalRat) : IntervalRat :=
   if h : I.lo > 0 then
     -- Positive interval: 1/x is decreasing, so [1/b, 1/a]
@@ -690,10 +747,11 @@ def evalIntervalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : In
     when the denominator is bounded away from zero. Returns wide bounds when
     the denominator interval contains zero.
 
-    NOTE: This is less rigorous than evalInterval? because it doesn't fail
-    when 0 is in the denominator range - it just returns wide bounds. This is
-    useful for applications where we want to continue safely
-    even when the analysis is imprecise. -/
+    WARNING: This evaluator has NO correctness theorem and the wide fallback
+    bounds for zero-straddling denominators are NOT sound enclosures (1/x is
+    unbounded near 0). It exists only for unverified search/bridge heuristics;
+    never use it on a proof path — use `evalInterval?` (which fails on
+    zero-straddling denominators) or `evalIntervalCore` instead. -/
 def evalIntervalCoreWithDiv (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : IntervalRat :=
   match e with
   | Expr.const q => IntervalRat.singleton q

@@ -16,13 +16,13 @@ construction for expression trees.
 ## Main definitions
 
 * `TaylorModel.sin`, `TaylorModel.cos`, `TaylorModel.exp` - Interval-based composition
-* `TaylorModel.fromExpr`, `TaylorModel.fromExpr?` - Expression to Taylor model conversion
+* `TaylorModel.fromExpr?` - Verified expression-to-Taylor-model conversion
 * `expIntervalRefined` - Refined exp interval using Taylor models
 
 ## Main results
 
 * `fromExpr_evalSet_correct` - Taylor models from expressions are correct
-* `fromExpr_correct` - Expression evaluation lies in Taylor model bound
+* `fromExpr_correct` - Expression evaluation lies in Taylor model bound when `fromExpr?` succeeds
 * `mem_expIntervalRefined` - FTIA for refined exp interval
 -/
 
@@ -258,46 +258,6 @@ noncomputable def atanh? (tm : TaylorModel) (degree : ℕ) : Option TaylorModel 
     none
 
 /-! ### Building Taylor models from Expr -/
-
-/-- Convert an expression to a Taylor model (total builder used for examples). -/
-noncomputable def fromExpr (e : Expr) (domain : IntervalRat) (degree : ℕ) : TaylorModel :=
-  match e with
-  | Expr.const q => const q domain
-  | Expr.var _ => identity domain
-  | Expr.add e₁ e₂ => add (fromExpr e₁ domain degree) (fromExpr e₂ domain degree)
-  | Expr.mul e₁ e₂ => mul (fromExpr e₁ domain degree) (fromExpr e₂ domain degree) degree
-  | Expr.neg e => neg (fromExpr e domain degree)
-  | Expr.inv e =>
-      let tm := fromExpr e domain degree
-      -- Fallback to constant 0 if the bound contains 0 (keeps totality for examples).
-      if h : IntervalRat.containsZero tm.bound then
-        const 0 domain
-      else
-        TaylorModel.inv tm h
-  | Expr.exp e => exp (fromExpr e domain degree) degree
-  | Expr.sin e => sin (fromExpr e domain degree) degree
-  | Expr.cos e => cos (fromExpr e domain degree) degree
-  | Expr.log e =>
-      let tm := fromExpr e domain degree
-      match log? tm degree with
-      | some logTM => logTM
-      | none => const 0 domain  -- Fallback if domain not positive
-  | Expr.atan e => atan (fromExpr e domain degree) degree
-  | Expr.arsinh e => asinh (fromExpr e domain degree) degree
-  | Expr.atanh e => atanh (fromExpr e domain degree) degree
-  | Expr.sinc e => sinc (fromExpr e domain degree) degree
-  | Expr.erf e => erf (fromExpr e domain degree) degree
-  | Expr.sinh e => sinh (fromExpr e domain degree) degree
-  | Expr.cosh e => cosh (fromExpr e domain degree) degree
-  | Expr.tanh e => tanh (fromExpr e domain degree) degree
-  | Expr.sqrt e =>
-      -- sqrt? always succeeds, so we can safely extract
-      (sqrt? (fromExpr e domain degree)).getD (const 0 domain)
-  | Expr.namedConst c =>
-      { poly := 0
-        remainder := c.interval
-        center := domain.lo + (domain.hi - domain.lo) / 2
-        domain := domain }
 
 /-- Safe (partial) builder: convert an expression to a Taylor model, returning `none`
     if an inversion would require dividing by an interval that contains 0. -/

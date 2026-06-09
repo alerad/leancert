@@ -20,10 +20,17 @@ bound can be verified or the iteration limit is reached.
 * `verifyUpperBound1` - Single-variable version
 * `verifyLowerBound1` - Single-variable version
 
-## Main theorems
+## Main theorem boundary
 
-* `verifyUpperBound_correct` - If `verifyUpperBound` returns true, the bound holds
-* `verifyLowerBound_correct` - If `verifyLowerBound` returns true, the bound holds
+The correctness theorems in this file are stated over the noncomputable
+`globalMaximize` / `globalMinimize` specifications. The executable
+`verifyUpperBound` / `verifyLowerBound` checkers use `globalMaximizeCore` /
+`globalMinimizeCore`; they are useful adaptive checkers, but should not be read
+as having a Boolean soundness theorem until a matching core-algorithm theorem is
+added.
+
+* `verifyUpperBound_correct` - Noncomputable upper-bound theorem
+* `verifyLowerBound_correct` - Noncomputable lower-bound theorem
 
 ## Usage
 
@@ -230,7 +237,15 @@ def verifyLowerBound1WithWitness (e : Expr) (I : IntervalRat) (bound : ℚ)
     (cfg : BoundVerifyConfig := {}) : BoundVerifyResult :=
   verifyLowerBoundWithWitness e (Box.ofInterval I) bound cfg
 
-/-! ### Correctness theorems (noncomputable proofs) -/
+/-! ### Correctness theorems (noncomputable proofs)
+
+These theorems intentionally take premises involving `globalMaximize` and
+`globalMinimize`, not the executable Boolean checkers above. This keeps the
+current trust boundary explicit: the adaptive core is available for search and
+candidate checking, while proof-producing users should rely on the theorem
+premises below or on a future `globalMaximizeCore`/`globalMinimizeCore`
+soundness theorem.
+-/
 
 /-- Helper: convert single-variable environment to box membership -/
 theorem Box.ofInterval_envMem (I : IntervalRat) (x : ℝ) (hx : x ∈ I) :
@@ -247,9 +262,11 @@ theorem Box.ofInterval_zero (I : IntervalRat) (x : ℝ) :
     ∀ i, i ≥ (Box.ofInterval I).length → (fun _ => x) i = x := by
   intro i _; rfl
 
-/-- If verifyUpperBound succeeds, the upper bound holds for all points in the box.
-    Note: This uses the noncomputable globalMaximize for the proof, but the
-    computable globalMaximizeCore is used for execution. -/
+/-- Noncomputable upper-bound theorem.
+
+Despite the historical name, this is not a Boolean soundness theorem for
+`verifyUpperBound`; its premise is the semantic bound produced by
+`globalMaximize`. -/
 theorem verifyUpperBound_correct (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (bound : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMaximize e B cfg.toGlobalOptConfig).bound.hi ≤ bound) :
@@ -276,7 +293,11 @@ theorem verifyUpperBound_correct (e : Expr) (hsupp : ExprSupported e)
     ≤ -(globalMinimize (Expr.neg e) B cfg.toGlobalOptConfig).bound.lo := h1
     _ ≤ bound := by exact_mod_cast hverify
 
-/-- If verifyLowerBound succeeds, the lower bound holds for all points in the box. -/
+/-- Noncomputable lower-bound theorem.
+
+Despite the historical name, this is not a Boolean soundness theorem for
+`verifyLowerBound`; its premise is the semantic bound produced by
+`globalMinimize`. -/
 theorem verifyLowerBound_correct (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (bound : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMinimize e B cfg.toGlobalOptConfig).bound.lo ≥ bound) :

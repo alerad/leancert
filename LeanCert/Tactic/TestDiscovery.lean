@@ -30,6 +30,7 @@ def I_0_2 : IntervalRat := ⟨0, 2, by norm_num⟩
 def I_1_2 : IntervalRat := ⟨1, 2, by norm_num⟩
 def I_3_4 : IntervalRat := ⟨3, 4, by norm_num⟩
 def I_0_1 : IntervalRat := ⟨0, 1, by norm_num⟩
+def I_half_2 : IntervalRat := ⟨1 / 2, 2, by norm_num⟩
 
 -- Default config for tests
 def defaultCfg : EvalConfig := { taylorDepth := 10 }
@@ -122,6 +123,11 @@ theorem test_tactic_exp : ∃ x ∈ I_0_1,
 
 -- Test tactic on cos(x) = 0 on [1, 2] (π/2 ≈ 1.57)
 theorem test_tactic_cos : ∃ x ∈ I_1_2, Expr.eval (fun _ => x) (Expr.cos (Expr.var 0)) = 0 := by
+  interval_roots
+
+-- Test tactic on log(x) = 0 on a positive interval.
+theorem test_tactic_log_positive_domain :
+    ∃ x ∈ I_half_2, Expr.eval (fun _ => x) (Expr.log (Expr.var 0)) = 0 := by
   interval_roots
 
 /-! ## Test interval_minimize / interval_maximize tactics

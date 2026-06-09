@@ -342,6 +342,26 @@ theorem exprSupportedCore_continuousOn (e : LExpr) (hsupp : LeanCert.Engine.Expr
     simp only [LeanCert.Core.Expr.eval]
     exact continuousOn_const
 
+/-- Interval-specialized version of `exprSupportedCore_continuousOn`. -/
+theorem exprSupportedCore_continuousOn_interval
+    (e : LExpr) (hsupp : LeanCert.Engine.ExprSupportedCore e)
+    (I : LeanCert.Core.IntervalRat)
+    (hdom : exprContinuousDomainValid e (Set.Icc (I.lo : ℝ) I.hi)) :
+    ContinuousOn (fun x => LeanCert.Core.Expr.eval (fun _ => x) e)
+      (Set.Icc (I.lo : ℝ) I.hi) :=
+  exprSupportedCore_continuousOn e hsupp hdom
+
+/-- Domain-validity certificate for `log x` on a positive interval. -/
+theorem exprContinuousDomainValid_log_var_interval
+    (idx : Nat) (I : LeanCert.Core.IntervalRat) (hlo : 0 < I.lo) :
+    exprContinuousDomainValid (LeanCert.Core.Expr.log (LeanCert.Core.Expr.var idx))
+      (Set.Icc (I.lo : ℝ) I.hi) := by
+  constructor
+  · trivial
+  · intro x hx
+    simp only [LeanCert.Core.Expr.eval]
+    exact lt_of_lt_of_le (by exact_mod_cast hlo) hx.1
+
 /-! ## Metaprogramming: Continuity Proof Generation
 
 Generate proof terms of `ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc lo hi)`
@@ -471,6 +491,63 @@ def mkContinuousOnProof (e_ast : Lean.Expr) (interval : Lean.Expr) : MetaM Lean.
   let contProof ← mkContinuousCoreProof e_ast
   -- Apply the continuity theorem
   mkAppM ``exprContinuousCore_continuousOn_interval #[e_ast, contProof, interval]
+
+/-- Generate `exprContinuousDomainValid` for restricted-domain expressions.
+
+Currently this supports the common positive-domain root/integration case
+`log x` on an `IntervalRat` with positive lower endpoint, and recursively
+passes through total constructors. -/
+partial def mkContinuousDomainValidProof (e_ast : Lean.Expr) (interval : Lean.Expr) :
+    MetaM Lean.Expr := do
+  let fn := e_ast.getAppFn
+  let args := e_ast.getAppArgs
+  if fn.isConstOf ``LeanCert.Core.Expr.const ||
+      fn.isConstOf ``LeanCert.Core.Expr.var ||
+      fn.isConstOf ``LeanCert.Core.Expr.namedConst then
+    return mkConst ``True.intro
+  else if fn.isConstOf ``LeanCert.Core.Expr.add ||
+      fn.isConstOf ``LeanCert.Core.Expr.mul then
+    let h₁ ← mkContinuousDomainValidProof args[0]! interval
+    let h₂ ← mkContinuousDomainValidProof args[1]! interval
+    mkAppM ``And.intro #[h₁, h₂]
+  else if fn.isConstOf ``LeanCert.Core.Expr.neg ||
+      fn.isConstOf ``LeanCert.Core.Expr.exp ||
+      fn.isConstOf ``LeanCert.Core.Expr.sin ||
+      fn.isConstOf ``LeanCert.Core.Expr.cos ||
+      fn.isConstOf ``LeanCert.Core.Expr.atan ||
+      fn.isConstOf ``LeanCert.Core.Expr.arsinh ||
+      fn.isConstOf ``LeanCert.Core.Expr.atanh ||
+      fn.isConstOf ``LeanCert.Core.Expr.sinc ||
+      fn.isConstOf ``LeanCert.Core.Expr.erf ||
+      fn.isConstOf ``LeanCert.Core.Expr.sinh ||
+      fn.isConstOf ``LeanCert.Core.Expr.cosh ||
+      fn.isConstOf ``LeanCert.Core.Expr.tanh ||
+      fn.isConstOf ``LeanCert.Core.Expr.sqrt ||
+      fn.isConstOf ``LeanCert.Core.Expr.inv then
+    mkContinuousDomainValidProof args[0]! interval
+  else if fn.isConstOf ``LeanCert.Core.Expr.log then
+    let arg := args[0]!
+    let argFn := arg.getAppFn
+    let argArgs := arg.getAppArgs
+    if argFn.isConstOf ``LeanCert.Core.Expr.var && argArgs.size ≥ 1 then
+      let lo ← mkAppM ``IntervalRat.lo #[interval]
+      let hloTy ← mkAppM ``LT.lt #[toExpr (0 : ℚ), lo]
+      let hlo ← mkDecideProof hloTy
+      mkAppM ``exprContinuousDomainValid_log_var_interval #[argArgs[0]!, interval, hlo]
+    else
+      throwError "Cannot generate restricted-domain continuity proof for log argument: {arg}"
+  else
+    throwError "Cannot generate restricted-domain continuity proof for: {e_ast}"
+
+/-- Generate a ContinuousOn proof, falling back to restricted-domain continuity
+for supported-core expressions such as `log x` on positive intervals. -/
+def mkContinuousOnProofWithDomain (e_ast : Lean.Expr) (interval : Lean.Expr) : MetaM Lean.Expr := do
+  try
+    mkContinuousOnProof e_ast interval
+  catch _ =>
+    let supportProof ← mkSupportedCoreProof e_ast
+    let domainProof ← mkContinuousDomainValidProof e_ast interval
+    mkAppM ``exprSupportedCore_continuousOn_interval #[e_ast, supportProof, interval, domainProof]
 
 /-- Alternative: generate ContinuousOn proof with explicit lo/hi bounds -/
 def mkContinuousOnProofIcc (e_ast : Lean.Expr) (lo hi : Lean.Expr) : MetaM Lean.Expr := do

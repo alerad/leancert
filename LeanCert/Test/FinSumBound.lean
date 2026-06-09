@@ -37,6 +37,14 @@ example : ∑ _k ∈ Finset.Icc 5 3, (1 : ℝ) ≤ 1 := by
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (↑k : ℝ) ≤ 56 := by
   finsum_bound
 
+-- Shifted index cast: Nat.cast (k + 1)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (↑(k + 1) : ℝ) ≤ 66 := by
+  finsum_bound
+
+-- Scaled index cast: Nat.cast (2 * k)
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (↑(2 * k) : ℝ) ≤ 111 := by
+  finsum_bound
+
 -- Transcendental: ∑ exp(constant)
 example : ∑ _k ∈ Finset.Icc 1 5, Real.exp (1 : ℝ) ≤ 15 := by
   finsum_bound
@@ -53,6 +61,10 @@ example : ∑ k ∈ Finset.Icc (1 : ℕ) 100, (1 : ℝ) / (↑k * ↑k) ≤ 2 :=
 
 -- inv: harmonic partial sum lower bound
 example : (1 : ℝ) ≤ ∑ k ∈ Finset.Icc (1 : ℕ) 10, (1 : ℝ) / ↑k := by
+  finsum_bound
+
+-- inv with shifted denominator
+example : ∑ k ∈ Finset.Icc (1 : ℕ) 10, (1 : ℝ) / (↑(k + 1) : ℝ) ≤ 3 := by
   finsum_bound
 
 -- log: ∑ log(k) for k ≥ 1 (positive domain)

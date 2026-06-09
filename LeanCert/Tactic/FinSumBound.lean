@@ -146,18 +146,100 @@ private def isFVarOrFinVal (e : Lean.Expr) (kFVarId : FVarId) : Bool :=
         (fn.isConstOf ``Fin.val || fn.isConstOf ``Fin.toNat)
     else false
 
-/-- Replace occurrences of `Nat.cast k` (where `k` is the given fvar) with
-    a replacement expression. Also handles `Nat.cast (Fin.val k)` for Fin-indexed sums.
-    Checks both `Nat.cast` and `NatCast.natCast` forms. -/
-private def replaceNatCast (body : Lean.Expr) (kFVarId : FVarId)
+/-- Build a real numeral expression. -/
+private def mkRealNatLit (n : Nat) : MetaM Lean.Expr :=
+  mkAppOptM ``OfNat.ofNat #[some (mkConst ``Real), some (mkNatLit n), none]
+
+/-- Build a real addition expression. -/
+private def mkRealAdd (a b : Lean.Expr) : MetaM Lean.Expr :=
+  mkAppM ``HAdd.hAdd #[a, b]
+
+/-- Build a real multiplication expression. -/
+private def mkRealMul (a b : Lean.Expr) : MetaM Lean.Expr :=
+  mkAppM ``HMul.hMul #[a, b]
+
+/-- Last two arguments of an application, if present. -/
+private def lastTwoArgs? (args : Array Lean.Expr) : Option (Lean.Expr × Lean.Expr) :=
+  if _h : args.size ≥ 2 then
+    some (args[args.size - 2]!, args[args.size - 1]!)
+  else
+    none
+
+/-- Translate simple Nat index expressions to real expressions in a fresh variable.
+
+This supports the semiring-homomorphic fragment used by generated finite-sum
+tables: `k`, `Fin.val k`, Nat literals, `k + c`, `c + k`, and products such as
+`2 * k`. It intentionally does not translate Nat subtraction, since
+`Nat.cast (k - c)` needs a side condition. -/
+private partial def reifyNatIndexExprAsReal?
+    (natExpr : Lean.Expr) (kFVarId : FVarId) (x : Lean.Expr) : MetaM (Option Lean.Expr) := do
+  if isFVarOrFinVal natExpr kFVarId then
+    return some x
+  if let some n := ← extractNatLit natExpr then
+    return some (← mkRealNatLit n)
+  let fn := natExpr.getAppFn
+  let args := natExpr.getAppArgs
+  if fn.isConstOf ``Nat.succ && args.size ≥ 1 then
+    if let some e ← reifyNatIndexExprAsReal? args.back! kFVarId x then
+      return some (← mkRealAdd e (← mkRealNatLit 1))
+  if (fn.isConstOf ``HAdd.hAdd || fn.isConstOf ``Nat.add) then
+    if let some (a, b) := lastTwoArgs? args then
+      match ← reifyNatIndexExprAsReal? a kFVarId x,
+          ← reifyNatIndexExprAsReal? b kFVarId x with
+      | some ar, some br => return some (← mkRealAdd ar br)
+      | _, _ => return none
+  if (fn.isConstOf ``HMul.hMul || fn.isConstOf ``Nat.mul) then
+    if let some (a, b) := lastTwoArgs? args then
+      match ← reifyNatIndexExprAsReal? a kFVarId x,
+          ← reifyNatIndexExprAsReal? b kFVarId x with
+      | some ar, some br => return some (← mkRealMul ar br)
+      | _, _ => return none
+  return none
+
+/-- Extract the Nat argument from a Nat-cast application. -/
+private def natCastArg? (e : Lean.Expr) : Option Lean.Expr :=
+  let fn := e.getAppFn
+  let args := e.getAppArgs
+  if args.size ≥ 1 && (fn.isConstOf ``Nat.cast || fn.isConstOf ``NatCast.natCast) then
+    some args.back!
+  else
+    none
+
+/-- Replace occurrences of `Nat.cast` applied to simple index expressions with
+    a real expression in the fresh real variable. Also handles `Nat.cast (Fin.val k)`
+    for Fin-indexed sums. -/
+private partial def replaceNatCast (body : Lean.Expr) (kFVarId : FVarId)
+    (replacement : Lean.Expr) : MetaM Lean.Expr := do
+  if let some natArg := natCastArg? body then
+    if let some realExpr ← reifyNatIndexExprAsReal? natArg kFVarId replacement then
+      return realExpr
+  match body with
+  | .app f a =>
+      return .app (← replaceNatCast f kFVarId replacement)
+        (← replaceNatCast a kFVarId replacement)
+  | .mdata d e =>
+      return .mdata d (← replaceNatCast e kFVarId replacement)
+  | .proj s i e =>
+      return .proj s i (← replaceNatCast e kFVarId replacement)
+  | .letE n t v b nondep =>
+      return .letE n t (← replaceNatCast v kFVarId replacement)
+        (← replaceNatCast b kFVarId replacement) nondep
+  | .lam n t b bi =>
+      return .lam n t (← replaceNatCast b kFVarId replacement) bi
+  | .forallE n t b bi =>
+      return .forallE n t (← replaceNatCast b kFVarId replacement) bi
+  | _ => return body
+
+/-- Pure fast path used by Fin-sum rewriting over `Fin n`. -/
+private def replaceNatVarPure (body : Lean.Expr) (kFVarId : FVarId)
     (replacement : Lean.Expr) : Lean.Expr :=
   body.replace fun e =>
     let fn := e.getAppFn
     let args := e.getAppArgs
     if args.size ≥ 1 then
       let lastArg := args.back!
-      if isFVarOrFinVal lastArg kFVarId then
-        if fn.isConstOf ``Nat.cast || fn.isConstOf ``NatCast.natCast then
+      if lastArg.isFVar && lastArg.fvarId! == kFVarId then
+        if fn.isConstOf ``Fin.val || fn.isConstOf ``Fin.toNat then
           some replacement
         else none
       else none
@@ -172,10 +254,9 @@ private def reifyFinSumBody (bodyLambda : Lean.Expr) : MetaM Lean.Expr := do
     let k := vars[0]!
     let realTy := Lean.mkConst ``Real
     withLocalDeclD `_x realTy fun x => do
-      -- Replace Nat.cast k with x
-      let body' := replaceNatCast body k.fvarId! x
-      -- Also try: if k appears bare (e.g. in Nat operations), this won't be caught.
-      -- For now, we just reify what we can.
+      -- Replace Nat.cast of simple index expressions, e.g. `↑k`, `↑(k+1)`,
+      -- and `↑(2*k)`, with real expressions in x.
+      let body' ← replaceNatCast body k.fvarId! x
       let realLambda ← mkLambdaFVars #[x] body'
       reify realLambda
 
@@ -361,17 +442,7 @@ private def tryRewriteFinSum : TacticM Unit := do
     withLocalDeclD `k natTy fun k => do
       -- Replace all occurrences of Fin.val finVar (and the composed Fin→ℕ coercion)
       -- with k
-      let body' := innerBody.replace fun e =>
-        let fn := e.getAppFn
-        let args := e.getAppArgs
-        if args.size ≥ 1 then
-          let lastArg := args.back!
-          if lastArg.isFVar && lastArg.fvarId! == finVar.fvarId! then
-            if fn.isConstOf ``Fin.val || fn.isConstOf ``Fin.toNat then
-              some k
-            else none
-          else none
-        else none
+      let body' := replaceNatVarPure innerBody finVar.fvarId! k
       mkLambdaFVars #[k] body'
   -- Rewrite: rw [Fin.sum_univ_eq_sum_range f]
   let rwLemma ← mkAppM ``Fin.sum_univ_eq_sum_range #[f]

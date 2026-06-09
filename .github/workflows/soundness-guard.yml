@@ -58,5 +58,8 @@ jobs:
           echo "pretty-printer string matching candidates:"
           find LeanCert/Tactic LeanCert/Meta -name '*.lean' -print0 | xargs -0 grep -nE 'ppExpr|endsWith "inst' || true
 
+      - name: Build axiom audit imports
+        run: lake build LeanCert.Validity.Bounds LeanCert.Validity.AffineBounds
+
       - name: Guard - core axiom/sorry audit
         run: lake env lean Tests/AxiomAudit.lean
