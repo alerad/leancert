@@ -16,13 +16,15 @@ construction for expression trees.
 ## Main definitions
 
 * `TaylorModel.sin`, `TaylorModel.cos`, `TaylorModel.exp` - Interval-based composition
-* `TaylorModel.fromExpr`, `TaylorModel.fromExpr?` - Expression to Taylor model conversion
+* `TaylorModel.fromExpr?` - Verified expression-to-Taylor-model conversion
+* `TaylorModel.fromExpr`, `TaylorModel.fromExprFallback` - Total fallback builders for
+  examples and exploration
 * `expIntervalRefined` - Refined exp interval using Taylor models
 
 ## Main results
 
 * `fromExpr_evalSet_correct` - Taylor models from expressions are correct
-* `fromExpr_correct` - Expression evaluation lies in Taylor model bound
+* `fromExpr_correct` - Expression evaluation lies in Taylor model bound when `fromExpr?` succeeds
 * `mem_expIntervalRefined` - FTIA for refined exp interval
 -/
 
@@ -259,7 +261,15 @@ noncomputable def atanh? (tm : TaylorModel) (degree : ℕ) : Option TaylorModel 
 
 /-! ### Building Taylor models from Expr -/
 
-/-- Convert an expression to a Taylor model (total builder used for examples). -/
+/-- Convert an expression to a Taylor model using a total fallback path.
+
+This builder never fails. For invalid or unsupported partial operations, such as
+`log` on a non-positive interval or inversion across zero, it falls back to a
+coarse constant model so that exploratory/example code can keep running.
+
+Certificate-producing code should prefer `fromExpr?`: the correctness theorem
+`fromExpr_correct` is stated for successful `fromExpr?` construction, not for
+this total fallback builder. -/
 noncomputable def fromExpr (e : Expr) (domain : IntervalRat) (degree : ℕ) : TaylorModel :=
   match e with
   | Expr.const q => const q domain
@@ -298,6 +308,14 @@ noncomputable def fromExpr (e : Expr) (domain : IntervalRat) (degree : ℕ) : Ta
         remainder := c.interval
         center := domain.lo + (domain.hi - domain.lo) / 2
         domain := domain }
+
+/-- Explicit name for the total fallback Taylor-model builder.
+
+Prefer `fromExpr?` in verified paths. This alias exists so call sites can make
+the fallback trust boundary visible without changing behavior. -/
+noncomputable def fromExprFallback (e : Expr) (domain : IntervalRat) (degree : ℕ) :
+    TaylorModel :=
+  fromExpr e domain degree
 
 /-- Safe (partial) builder: convert an expression to a Taylor model, returning `none`
     if an inversion would require dividing by an interval that contains 0. -/

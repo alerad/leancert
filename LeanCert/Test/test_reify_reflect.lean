@@ -21,6 +21,9 @@ import LeanCert.Tactic.IntervalAuto
 #leancert_reflect (fun x : Real => Real.sinh x + Real.cosh x + Real.tanh x)
 #leancert_reflect (fun x : Real => max x (1 / 2 : Real))
 #leancert_reflect (fun x : Real => min x (1 / 2 : Real))
+#leancert_reflect (fun x : Real => x + Real.pi)
+#leancert_reflect (fun x : Real => x + Real.eulerMascheroniConstant)
+#leancert_reflect (fun x : Real => x + ((-2 : Int) : Real) + ((3 / 7 : Rat) : Real))
 
 theorem reify_norm_sub_div :
     ∀ x ∈ Set.Icc (1 : Real) 2, x - x / 2 ≤ (2 : Rat) := by
@@ -43,4 +46,8 @@ theorem reify_rpow_thirds_bound :
 
 theorem reify_rpow_neg_thirds_bound :
     ∀ x ∈ Set.Icc (2 : Real) 3, x ^ ((-2 : Real) / 3) ≤ (1 : Rat) := by
+  interval_bound
+
+theorem reify_named_const_pi_bound :
+    ∀ x ∈ Set.Icc (0 : Real) 1, x + Real.pi ≤ (5 : Rat) := by
   interval_bound
