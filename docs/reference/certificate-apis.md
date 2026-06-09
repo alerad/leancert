@@ -9,7 +9,7 @@ point is [Proof Templates](../proof-templates/overview.md).
 - [Asymptotic Envelopes](../proof-templates/asymptotic-envelopes.md)
 - [Pointwise Envelopes](../proof-templates/pointwise-envelopes.md)
 - [ConstantFactory](../proof-templates/constant-factory.md)
-- [QProduct Finite Integrals](../proof-templates/qproduct-finite-integrals.md)
+- [Exact Product-Integral Certificates](../proof-templates/qproduct-finite-integrals.md)
 - [Contour Shift](../proof-templates/contour-shift.md)
 
 ## Detailed Existing References

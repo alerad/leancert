@@ -9,6 +9,22 @@ and may contain placeholders while their verified counterparts are developed.
 The following production components have complete proofs with no Lean proof
 placeholders in the default LeanCert library path:
 
+## Proof Template Verification Status
+
+Proof templates package reusable certificate structure.  Some templates have
+executable checkers; others organize proof obligations that must be supplied by
+project-specific mathematics.
+
+| Template | Status | Trust boundary |
+|---|---|---|
+| `TableCert` | Verified generic traversal and row-soundness lifting | Generated rows are untrusted until the row checker succeeds |
+| `AsympEnv` | Verified semantic lower/upper envelope consequences and algebra | Projects supply the certificate proof for the underlying summatory estimate |
+| `PointwiseEnvelope` | Verified pointwise lower/upper consequences and basic algebra | Projects supply the pointwise error proof on the domain |
+| Exact product-integral certificates | Exact rational finite product-integral checkers and soundness theorems | Finite checker data is trusted only through the boolean/exact checker |
+| ConstantFactory exact observers | Verified finite observer identity for disjoint base/perturbation data | Disjointness and finite observer checker obligations must be discharged |
+| ConstantFactory interval banks | Verified interval observer theorem from kernel-bank correctness | Kernel interval bank correctness is supplied by exact or analytic certificates |
+| `ContourShiftCert` | Verified orientation/limit algebra for stable finite residue data | Rectangle identities, residue values, and decay/convergence proofs are supplied by the project |
+
 ### Interval Arithmetic (FTIA)
 
 The Fundamental Theorem of Interval Arithmetic is proved for all basic operations:

@@ -42,7 +42,7 @@ Use domain libraries when the theorem is naturally about a mathematical domain:
 - explicit-PNT transfer schemas;
 - q-product prime-limit certificates.
 
-Go to [Domain Libraries](domains/ant/overview.md).
+Go to [Domain Libraries](domains/overview.md).
 
 ## Trust Questions
 

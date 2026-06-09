@@ -18,6 +18,15 @@ certify_kernel
 multivariate_bound
 ```
 
+Minimal example:
+
+```lean
+import LeanCert.Tactic.IntervalAuto
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
+  certify_bound
+```
+
 Discovery commands can help find a candidate bound before formalizing it.  See
 [Optimization and Discovery](optimization-discovery.md).
 

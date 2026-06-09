@@ -30,3 +30,12 @@ ANT-specific transforms built on `AsympEnv` are documented in
 [Domain Libraries → ANT Asymptotic](../domains/ant/asymptotic-ant.md).
 
 Detailed API reference: [Asymptotic Envelope Certificates](../certificates/ant-asymp.md).
+
+Next:
+
+- For real-variable estimates over `x : ℝ`, see
+  [Pointwise Envelopes](pointwise-envelopes.md).
+- For ANT transforms built from `AsympEnv`, see
+  [ANT Asymptotic Transforms](../domains/ant/asymptotic-ant.md).
+- For trust status, see
+  [Verification Status](../architecture/verification-status.md).

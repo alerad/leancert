@@ -17,3 +17,8 @@ Reusable envelope templates:
 Detailed API reference:
 
 [Asymptotic Envelope Certificates](../../certificates/ant-asymp.md)
+
+This domain library builds on reusable proof templates:
+
+- [Asymptotic Envelopes](../../proof-templates/asymptotic-envelopes.md)
+- [Pointwise Envelopes](../../proof-templates/pointwise-envelopes.md)

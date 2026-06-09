@@ -68,9 +68,10 @@ nav:
     - Asymptotic Envelopes: proof-templates/asymptotic-envelopes.md
     - Pointwise Envelopes: proof-templates/pointwise-envelopes.md
     - ConstantFactory: proof-templates/constant-factory.md
-    - QProduct Finite Integrals: proof-templates/qproduct-finite-integrals.md
+    - Exact Product-Integral Certificates: proof-templates/qproduct-finite-integrals.md
     - Contour Shift: proof-templates/contour-shift.md
   - Domain Libraries:
+    - Overview: domains/overview.md
     - Analytic Number Theory:
       - Overview: domains/ant/overview.md
       - Chebyshev: domains/ant/chebyshev.md

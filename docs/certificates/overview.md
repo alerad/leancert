@@ -1,8 +1,10 @@
 # Certificate API Reference
 
-This page is a legacy API map for existing certificate pages.  For the
-conceptual entry point, start with [Proof Templates](../proof-templates/overview.md)
-or [Domain Libraries](../domains/ant/overview.md).
+This page is a legacy API map for existing certificate pages.  It is not the
+conceptual starting point.  Start with
+[Proof Templates](../proof-templates/overview.md) or
+[Domain Libraries](../domains/overview.md) unless you already know the API
+family name.
 
 LeanCert certificate APIs share the same basic pattern:
 

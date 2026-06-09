@@ -1,6 +1,8 @@
 # Choosing the Right Tactic
 
-Quick reference for picking the right LeanCert tactic for your goal.
+Quick reference for picking the right LeanCert tactic for a direct automation
+goal.  For the overall proof-shape chooser, start with
+[Choosing A Proof Shape](../choosing-proof-shape.md).
 
 > **Having issues?** See the [Troubleshooting Guide](troubleshooting.md) for common errors and solutions.
 

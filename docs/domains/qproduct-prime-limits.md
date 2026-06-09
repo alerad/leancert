@@ -8,7 +8,7 @@ prime-limit or limiting q-product theorem.
 
 Finite product-integral template:
 
-[QProduct Finite Integrals](../proof-templates/qproduct-finite-integrals.md)
+[Exact Product-Integral Certificates](../proof-templates/qproduct-finite-integrals.md)
 
 Detailed API reference:
 

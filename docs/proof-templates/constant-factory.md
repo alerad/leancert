@@ -25,6 +25,10 @@ F (R ∪ Q)
 
 by reducing them to certified moments of `R`.
 
+The q-product implementation is the first instance of this template; the
+reusable idea is to separate stable base-kernel certification from cheap finite
+perturbation verification.
+
 Core APIs:
 
 ```lean
@@ -39,3 +43,12 @@ but fully automatic Taylor-backed kernel-bank construction is a future
 constructor layer.
 
 Detailed API reference: [ConstantFactory Certificates](../certificates/constants.md).
+
+Next:
+
+- For exact finite product-integral identities, see
+  [Exact Product-Integral Certificates](qproduct-finite-integrals.md).
+- For prime-indexed limit arguments on top of finite q-products, see
+  [QProduct Prime Limits](../domains/qproduct-prime-limits.md).
+- For trust status, see
+  [Verification Status](../architecture/verification-status.md).

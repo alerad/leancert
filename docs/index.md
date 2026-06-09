@@ -27,7 +27,7 @@ LeanCert is organized around proof intent:
 | A summatory function with a main term and error term | [Proof Templates → Asymptotic Envelopes](proof-templates/asymptotic-envelopes.md) |
 | A real-variable approximation with an error radius | [Proof Templates → Pointwise Envelopes](proof-templates/pointwise-envelopes.md) |
 | A constant built by perturbing a reusable base object | [Proof Templates → ConstantFactory](proof-templates/constant-factory.md) |
-| A finite q-product integral | [Proof Templates → QProduct Finite Integrals](proof-templates/qproduct-finite-integrals.md) |
+| A finite q-product integral | [Proof Templates → Exact Product-Integral Certificates](proof-templates/qproduct-finite-integrals.md) |
 | A contour-shift identity | [Proof Templates → Contour Shift](proof-templates/contour-shift.md) |
 | Chebyshev, Abel, Euler-product, Dirichlet, or Mertens certificates | [Domain Libraries → Analytic Number Theory](domains/ant/overview.md) |
 | A neural-network or transformer verification problem | [ML Verification](ml/neural-networks.md) |
@@ -65,7 +65,7 @@ lake update
 | [Getting Started](choosing-proof-shape.md) | Choose the right proof path before selecting modules |
 | [Direct Automation](direct/bounds.md) | Tactics and commands for direct numeric goals |
 | [Proof Templates](proof-templates/overview.md) | Reusable certificate strategies and proof patterns |
-| [Domain Libraries](domains/ant/overview.md) | Domain-specific certificate packages |
+| [Domain Libraries](domains/overview.md) | Domain-specific certificate packages |
 | [Architecture and Trust](architecture/golden-theorems.md) | Why checkers imply theorems, and what is trusted |
 | [Reference](reference/imports.md) | Imports, tactics, and certificate API references |
 
