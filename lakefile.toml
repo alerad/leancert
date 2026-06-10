@@ -62,6 +62,79 @@ name = "HardeningTest"
 roots = ["LeanCert.Test.Hardening"]
 precompileModules = false
 
+# Full functional/regression test suite (everything under LeanCert/Test
+# except benchmarks). Build with: lake build FunctionalTests
+# Each test is its own root (built in its own process); a test module not
+# listed here is dead code — add new tests to this list.
+[[lean_lib]]
+name = "FunctionalTests"
+roots = [
+  "LeanCert.Test.AsympCheckers",
+  "LeanCert.Test.AsympEnv",
+  "LeanCert.Test.AsympTransforms",
+  "LeanCert.Test.BridgeTest",
+  "LeanCert.Test.ChebyshevPsi",
+  "LeanCert.Test.ChebyshevTheta",
+  "LeanCert.Test.EulerMascheroni",
+  "LeanCert.Test.FinSumBound",
+  "LeanCert.Test.FinSumExpandTest",
+  "LeanCert.Test.Hardening",
+  "LeanCert.Test.Numeral",
+  "LeanCert.Test.Pisano",
+  "LeanCert.Test.ReadmeTest",
+  "LeanCert.Test.ReleaseTest",
+  "LeanCert.Test.SqrtTest",
+  "LeanCert.Test.Support",
+  "LeanCert.Test.TestDyadicEval",
+  "LeanCert.Test.TestDyadicIntegration",
+  "LeanCert.Test.TestPhase3",
+  "LeanCert.Test.TransformerTest",
+  "LeanCert.Test.TrigReduction",
+  "LeanCert.Test.ValidityExports",
+  "LeanCert.Test.VecSimpTest",
+  "LeanCert.Test.WitnessSum",
+  "LeanCert.Test.test_ceil",
+  "LeanCert.Test.test_discovery_polish",
+  "LeanCert.Test.test_edge_bound_forms",
+  "LeanCert.Test.test_edge_bounds",
+  "LeanCert.Test.test_edge_decide_fast",
+  "LeanCert.Test.test_edge_discovery_forms",
+  "LeanCert.Test.test_edge_discovery_seticc",
+  "LeanCert.Test.test_edge_mv",
+  "LeanCert.Test.test_edge_mv_forms",
+  "LeanCert.Test.test_edge_refute",
+  "LeanCert.Test.test_exp_bound",
+  "LeanCert.Test.test_exp_bounds",
+  "LeanCert.Test.test_exp_fail",
+  "LeanCert.Test.test_log",
+  "LeanCert.Test.test_multivar",
+  "LeanCert.Test.test_reify_reflect",
+  "LeanCert.Test.test_stress_intervalrat",
+  "LeanCert.Test.test_stress_multivar",
+  "LeanCert.Test.test_stress_root",
+  "LeanCert.Test.test_stress_subdiv",
+  "LeanCert.Test.test_stress_univariate",
+  "LeanCert.Test.test_subdiv",
+  "LeanCert.Test.test_subdiv_lower",
+  "LeanCert.Test.test_subdiv_strict",
+  "LeanCert.Test.test_unique_root_fix",
+]
+precompileModules = false
+
+# Manual-run performance benchmarks. Build with: lake build Benchmarks
+# (Listed as separate roots: several define their own `main` and cannot be
+# imported into a single environment.)
+[[lean_lib]]
+name = "Benchmarks"
+roots = [
+  "LeanCert.Test.BenchmarkAffine",
+  "LeanCert.Test.BenchmarkBackends",
+  "LeanCert.Test.ExtremeBenchmark",
+  "LeanCert.Test.IntensiveBenchmark",
+  "LeanCert.Test.TimingBenchmark",
+]
+precompileModules = false
+
 [[lean_exe]]
 name = "leancert"
 root = "Main"
