@@ -26,7 +26,18 @@ import LeanCert.Engine.Optimize
 import LeanCert.Engine.RootFinding.Main
 import LeanCert.Engine.TaylorModel
 import LeanCert.Engine.IntervalEvalRefined
-import LeanCert.Validity.Bounds
+
+-- Validity layer: Golden Theorems lifting boolean certificate checks to
+-- semantic propositions. This is the user-facing certificate API.
+-- NOTE: `LeanCert.Validity.Integration` and `LeanCert.Validity.CertificateIntegration`
+-- are NOT imported here: they duplicate declarations from the
+-- `LeanCert.Validity.Bounds` monolith (half-finished file split) and clash
+-- with it. Import them directly if you need adaptive integration with inv,
+-- in a file that does not also import `LeanCert.Validity.Bounds`.
+import LeanCert.Validity
+import LeanCert.Validity.AffineBounds
+import LeanCert.Validity.IntegrationDyadic
+import LeanCert.Validity.Monotonicity
 -- v1.1: Dyadic evaluator (prevents denominator explosion)
 import LeanCert.Engine.IntervalEvalDyadic
 -- v1.1: Computable polynomial Taylor models (high-order integration)
@@ -261,6 +272,31 @@ export LeanCert.Validity (
   verify_strict_upper_bound
   verify_strict_lower_bound
   verify_bounds
+  -- Dyadic-backend golden theorems
+  verify_upper_bound_dyadic
+  verify_lower_bound_dyadic
+  verify_strict_upper_bound_dyadic
+  verify_strict_lower_bound_dyadic
+  -- Affine-backend golden theorems
+  checkUpperBoundAffine1
+  checkLowerBoundAffine1
+  checkUpperBoundAffine1Strict
+  checkLowerBoundAffine1Strict
+  verify_upper_bound_affine1
+  verify_lower_bound_affine1
+  verify_upper_bound_affine1_strict
+  verify_lower_bound_affine1_strict
+)
+
+-- Re-export root-finding golden theorems
+export LeanCert.Validity.RootFinding (
+  checkSignChange
+  checkNoRoot
+  checkNewtonContractsCore
+  verify_no_root
+  verify_sign_change
+  verify_unique_root_newton
+  verify_unique_root_core
 )
 
 -- Re-export root finding

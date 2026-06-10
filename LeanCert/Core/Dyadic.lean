@@ -105,22 +105,20 @@ def one : Dyadic := ⟨1, 0⟩
 instance : Zero Dyadic where zero := Dyadic.zero
 instance : One Dyadic where one := Dyadic.one
 
-@[simp]
-theorem toRat_zero : (0 : Dyadic).toRat = 0 := by
-  show toRat ⟨0, 0⟩ = 0
-  simp only [toRat, pow2Nat, Int.toNat_zero]
-  native_decide
-
-@[simp]
-theorem toRat_one : (1 : Dyadic).toRat = 1 := by
-  show toRat ⟨1, 0⟩ = 1
-  simp only [toRat, pow2Nat, Int.toNat_zero]
-  native_decide
-
 theorem toRat_ofInt (i : Int) : (ofInt i).toRat = i := by
   simp only [ofInt, toRat, pow2Nat, Int.toNat_zero, le_refl, ↓reduceIte]
   have h : Nat.shiftLeft 1 0 = 1 := rfl
   simp only [h, Nat.cast_one, Int.cast_one, mul_one]
+
+@[simp]
+theorem toRat_zero : (0 : Dyadic).toRat = 0 := by
+  have h := toRat_ofInt 0
+  simpa using h
+
+@[simp]
+theorem toRat_one : (1 : Dyadic).toRat = 1 := by
+  have h := toRat_ofInt 1
+  simpa using h
 
 /-! ### Arithmetic Operations -/
 

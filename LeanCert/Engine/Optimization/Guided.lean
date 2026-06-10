@@ -88,7 +88,7 @@ def floatToRat (f : Float) : ℚ :=
 /-- Helper: small positive width for interval creation -/
 private def smallWidth : ℚ := 1/1000000
 
-private theorem smallWidth_pos : 0 < smallWidth := by native_decide
+private theorem smallWidth_pos : 0 < smallWidth := by norm_num [smallWidth]
 
 /-- Convert a float environment to a rational point interval environment.
     Each float coordinate becomes a small interval around the rational approximation.
