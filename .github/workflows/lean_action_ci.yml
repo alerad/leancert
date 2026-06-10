@@ -17,6 +17,9 @@ jobs:
       - name: Build examples
         run: lake build examples
 
+      - name: Build FunctionalTests (full regression suite)
+        run: lake build FunctionalTests
+
       - name: Build Li2Verified (heavy numerical verification)
         run: lake build Li2Verified
 

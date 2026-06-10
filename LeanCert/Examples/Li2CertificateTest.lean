@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Validity.Bounds
+import LeanCert.Validity.CertificateIntegration
 
 /-!
 # Certificate-Based Integration Test for li(2)

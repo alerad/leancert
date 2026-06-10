@@ -2,7 +2,7 @@ import LeanCert.Tactic.IntervalAuto
 
 open LeanCert.Core
 
-def Icc01 : Set ℝ := Set.Icc (0:ℝ) 1
+abbrev Icc01 : Set ℝ := Set.Icc (0:ℝ) 1
 
 theorem edge_bound_def_seticc : ∀ x ∈ Icc01, x * x ≤ (1 : ℚ) := by
   interval_bound

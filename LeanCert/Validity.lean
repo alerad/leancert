@@ -8,6 +8,11 @@ import LeanCert.Validity.Types
 import LeanCert.Validity.Dyadic
 import LeanCert.Validity.FinSum
 import LeanCert.Validity.Chebyshev
+import LeanCert.Validity.Integration
+import LeanCert.Validity.CertificateIntegration
+import LeanCert.Validity.IntegrationDyadic
+import LeanCert.Validity.AffineBounds
+import LeanCert.Validity.Monotonicity
 
 /-!
 # Validity Layer

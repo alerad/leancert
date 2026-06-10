@@ -4,17 +4,6 @@ import LeanCert
 -- explicitly so the whole-library axiom sweep below actually covers them.
 -- `LeanCert.Test.*` and `LeanCert.Examples.*` are deliberately excluded:
 -- `native_decide` is a legitimate user-facing engine there.
-import LeanCert.Validity
-import LeanCert.Validity.AffineBounds
--- NOTE: `LeanCert.Validity.Integration`, `.CertificateIntegration` (which
--- imports `.Integration`), and the `LeanCert.Validity.Bounds.*` submodules are
--- NOT imported: they duplicate declarations inside the `LeanCert.Validity.Bounds`
--- monolith and clash with it (e.g. `integrateInterval1Core`,
--- `checkPointUpperBound` are each defined in both copies — a half-finished
--- file split). The Integration cluster gets its own sweep in
--- `Tests/AxiomAuditIntegration.lean`.
-import LeanCert.Validity.IntegrationDyadic
-import LeanCert.Validity.Monotonicity
 import LeanCert.Engine.Eval
 import LeanCert.Engine.Pisano
 import LeanCert.Engine.PentagonLucas
@@ -103,6 +92,14 @@ info: 'LeanCert.Validity.verify_upper_bound_dyadic' depends on axioms: [propext,
 -/
 #guard_msgs in
 #print axioms LeanCert.Validity.verify_upper_bound_dyadic
+
+/--
+info: 'LeanCert.Validity.Integration.integratePartitionWithInv_correct' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Validity.Integration.integratePartitionWithInv_correct
 
 /-! ### Whole-library sweep: no axioms minted inside LeanCert
 
