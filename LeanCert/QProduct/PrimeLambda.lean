@@ -20,11 +20,11 @@ namespace LeanCert.QProduct
 
 open scoped BigOperators
 
-private theorem nat_prime_two : Nat.Prime 2 := by native_decide
-private theorem nat_prime_three : Nat.Prime 3 := by native_decide
-private theorem nat_not_prime_zero : ¬ Nat.Prime 0 := by native_decide
-private theorem nat_not_prime_one : ¬ Nat.Prime 1 := by native_decide
-private theorem nat_not_prime_four : ¬ Nat.Prime 4 := by native_decide
+private theorem nat_prime_two : Nat.Prime 2 := Nat.prime_two
+private theorem nat_prime_three : Nat.Prime 3 := Nat.prime_three
+private theorem nat_not_prime_zero : ¬ Nat.Prime 0 := Nat.not_prime_zero
+private theorem nat_not_prime_one : ¬ Nat.Prime 1 := Nat.not_prime_one
+private theorem nat_not_prime_four : ¬ Nat.Prime 4 := by decide
 
 /-- Prime exponents up to `N`. -/
 def primesLE (N : Nat) : Finset Nat :=
@@ -223,6 +223,28 @@ private theorem qProd_intervalIntegrable (S : Finset Nat) :
   exact continuous_finsetProd S fun n hn =>
     continuous_const.sub (continuous_id.pow n)
 
+/-- Exact evaluation of the two-prime truncation integral, axiom-free
+    (powerset sum expanded via `Finset.sum_powerset_insert` + `norm_num`). -/
+private lemma finiteIntegralRat_primesLE_three :
+    finiteIntegralRat (primesLE 3) = 7 / 12 := by
+  rw [primesLE_three, show ({2, 3} : Finset Nat) = insert 2 {3} from rfl]
+  unfold finiteIntegralRat
+  rw [Finset.sum_powerset_insert (by norm_num),
+      show ({3} : Finset Nat) = insert 3 ∅ from rfl,
+      Finset.sum_powerset_insert (by norm_num),
+      Finset.sum_powerset_insert (by norm_num),
+      Finset.powerset_empty]
+  simp [subsetSign, subsetWeight]
+  norm_num
+
+/-- Exact evaluation of the `{3}`-moment at `k = 5`, axiom-free. -/
+private lemma momentRat_three_five : momentRat ({3} : Finset Nat) 5 = 1 / 18 := by
+  unfold momentRat
+  rw [show ({3} : Finset Nat) = insert 3 ∅ from rfl,
+      Finset.sum_powerset_insert (by norm_num), Finset.powerset_empty]
+  simp [subsetSign, subsetWeight]
+  norm_num
+
 /-- The elementary finite odd-tail certificate: every prime truncation is at least `19/36`. -/
 theorem primeFRat_lower_nineteen_thirtysix (M : Nat) :
     ((19 / 36 : ℚ) : ℝ) ≤ (primeFRat M : ℝ) := by
@@ -234,7 +256,8 @@ theorem primeFRat_lower_nineteen_thirtysix (M : Nat) :
     rw [finiteIntegralRat_correct]
     have hF3 : F (primesLE 3) = ((7 / 12 : ℚ) : ℝ) := by
       rw [← finiteIntegralRat_correct]
-      have hval : finiteIntegralRat (primesLE 3) = 7 / 12 := by native_decide
+      have hval : finiteIntegralRat (primesLE 3) = 7 / 12 :=
+        finiteIntegralRat_primesLE_three
       exact_mod_cast hval
     have hmono' : ((7 / 12 : ℚ) : ℝ) ≤ F (primesLE M) := by
       simpa [hF3] using hmono
@@ -263,11 +286,12 @@ theorem primeFRat_lower_nineteen_thirtysix (M : Nat) :
     rw [finiteIntegralRat_correct]
     have hF3 : F (primesLE 3) = ((7 / 12 : ℚ) : ℝ) := by
       rw [← finiteIntegralRat_correct]
-      have hval : finiteIntegralRat (primesLE 3) = 7 / 12 := by native_decide
+      have hval : finiteIntegralRat (primesLE 3) = 7 / 12 :=
+        finiteIntegralRat_primesLE_three
       exact_mod_cast hval
     have hmom : moment ({3} : Finset Nat) 5 = ((1 / 18 : ℚ) : ℝ) := by
       rw [← momentRat_correct]
-      have hval : momentRat ({3} : Finset Nat) 5 = 1 / 18 := by native_decide
+      have hval : momentRat ({3} : Finset Nat) 5 = 1 / 18 := momentRat_three_five
       exact_mod_cast hval
     rw [hF3, hmom] at hsub_int
     norm_num at hsub_int ⊢
@@ -517,11 +541,15 @@ theorem primeLambda_sandwich {N m : Nat}
 
 theorem primeSandwichErrorRat_three_five :
     primeSandwichErrorRat 3 5 = 1 / 18 := by
-  native_decide
+  unfold primeSandwichErrorRat
+  rw [show (primesLE 3).filter (fun p => p ≠ 2) = ({3} : Finset Nat) by decide]
+  exact momentRat_three_five
 
 theorem primeSandwichLowerRat_three_five :
     primeSandwichLowerRat 3 5 = 19 / 36 := by
-  native_decide
+  unfold primeSandwichLowerRat primeFRat
+  rw [finiteIntegralRat_primesLE_three, primeSandwichErrorRat_three_five]
+  norm_num
 
 theorem primeSandwichLowerRat_three_five_le_lambda :
     (primeSandwichLowerRat 3 5 : ℝ) ≤ primeLambda := by

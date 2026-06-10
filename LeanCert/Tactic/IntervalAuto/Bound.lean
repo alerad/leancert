@@ -59,7 +59,7 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
         | return m!"(Could not extract interval bounds for diagnostics)"
       let I : IntervalRat :=
         if hle : lo ≤ hi then ⟨lo, hi, hle⟩
-        else ⟨0, 1, by native_decide⟩
+        else ⟨0, 1, by norm_num⟩
 
       -- Reify function to actual AST value
       let ast ← reifyFuncForDiag func

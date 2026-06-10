@@ -85,7 +85,7 @@ private def mkBox (lo hi : ℚ) : Box :=
     ({ lo := lo, hi := hi, le := hle } : IntervalRat) :: []
   else
     -- Fallback (should not happen for valid intervals)
-    ({ lo := 0, hi := 1, le := by native_decide } : IntervalRat) :: []
+    ({ lo := 0, hi := 1, le := by norm_num } : IntervalRat) :: []
 
 /-- Reify a function expression to AST -/
 private def reifyFunc (func : Lean.Expr) : TacticM LBExpr := do
