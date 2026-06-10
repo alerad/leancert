@@ -676,8 +676,10 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
       try evalTactic (← `(tactic| push_cast)) catch _ => pure ()
       try evalTactic (← `(tactic| norm_num [Rat.divInt_eq_div])) catch _ => pure ()
 
-      -- Now call intervalBoundCore on the simplified goal
-      LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
+      -- norm_num may already close trivial bounds outright (constant or
+      -- identity objectives); only invoke the interval engine on a live goal.
+      if !(← getGoals).isEmpty then
+        LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
       trace[LeanCert.discovery] "✓ Proof complete (native syntax)"
     catch e =>
       throwError "interval_argmax: Could not prove universal bound.\n\
@@ -872,8 +874,10 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
       try evalTactic (← `(tactic| push_cast)) catch _ => pure ()
       try evalTactic (← `(tactic| norm_num [Rat.divInt_eq_div])) catch _ => pure ()
 
-      -- Now call intervalBoundCore on the simplified goal
-      LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
+      -- norm_num may already close trivial bounds outright (constant or
+      -- identity objectives); only invoke the interval engine on a live goal.
+      if !(← getGoals).isEmpty then
+        LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
       trace[LeanCert.discovery] "✓ Proof complete (native syntax)"
     catch e =>
       throwError "interval_argmin: Could not prove universal bound.\n\
