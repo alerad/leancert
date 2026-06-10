@@ -28,16 +28,10 @@ import LeanCert.Engine.TaylorModel
 import LeanCert.Engine.IntervalEvalRefined
 
 -- Validity layer: Golden Theorems lifting boolean certificate checks to
--- semantic propositions. This is the user-facing certificate API.
--- NOTE: `LeanCert.Validity.Integration` and `LeanCert.Validity.CertificateIntegration`
--- are NOT imported here: they duplicate declarations from the
--- `LeanCert.Validity.Bounds` monolith (half-finished file split) and clash
--- with it. Import them directly if you need adaptive integration with inv,
--- in a file that does not also import `LeanCert.Validity.Bounds`.
+-- semantic propositions. This is the user-facing certificate API. The
+-- umbrella covers all backends: rational, dyadic, affine, monotonicity,
+-- root finding, global optimization, and certified integration.
 import LeanCert.Validity
-import LeanCert.Validity.AffineBounds
-import LeanCert.Validity.IntegrationDyadic
-import LeanCert.Validity.Monotonicity
 -- v1.1: Dyadic evaluator (prevents denominator explosion)
 import LeanCert.Engine.IntervalEvalDyadic
 -- v1.1: Computable polynomial Taylor models (high-order integration)

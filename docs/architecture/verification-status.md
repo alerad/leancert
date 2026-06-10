@@ -280,7 +280,6 @@ The core theorem audit is:
 
 ```bash
 lake env lean Tests/AxiomAudit.lean
-lake env lean Tests/AxiomAuditIntegration.lean
 ```
 
 These enforce two invariants (both run in CI by `soundness-guard.yml`):

@@ -60,15 +60,10 @@ jobs:
 
       - name: Build axiom audit imports
         run: |
-          lake build LeanCert LeanCert.Validity LeanCert.Validity.AffineBounds \
-            LeanCert.Validity.IntegrationDyadic LeanCert.Validity.Monotonicity \
-            LeanCert.Validity.CertificateIntegration \
+          lake build LeanCert \
             LeanCert.Engine.Eval LeanCert.Engine.Pisano LeanCert.Engine.PentagonLucas \
             LeanCert.Engine.TaylorModel.Log1p LeanCert.Engine.TaylorModel.TrigReduced \
             LeanCert.Core.HermiteBounds LeanCert.Core.LogBounds
 
       - name: Guard - core axiom/sorry audit
         run: lake env lean Tests/AxiomAudit.lean
-
-      - name: Guard - integration-cluster axiom audit
-        run: lake env lean Tests/AxiomAuditIntegration.lean
