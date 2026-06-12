@@ -25,15 +25,26 @@ enclosure problem into a regular one.
 Model instance (`expm1_div_self_mem`): `(eˣ − 1)/x ∈ [1, e]` on `(0, 1)`,
 with the wall at `x = 0` and the regular data `1 ≤ eˣ ≤ e`.
 
+## Order-k walls
+
+For numerator and denominator vanishing to order `k`, the derivative data is
+packaged as a `DerivLadder k w b`: explicit functions `f 0, …, f k` with each
+`f (i+1)` the derivative of `f i` on `(w, b)`, all levels below the top
+vanishing at the wall. `quotient_mem_of_derivLadder` traps the bottom-level
+quotient by ratio bounds on the top level, by induction through the order-1
+core; positivity propagates down the denominator ladder by the mean value
+theorem (`DerivLadder.pos_of_top`).
+
+Order-2 model instance (`expm1_sub_self_div_sq_mem`):
+`(eᵗ − t − 1)/t² ∈ [1/2, e/2]` on `(0, 1)`.
+
 ## Status and roadmap
 
-This is the order-1 core. Planned extensions:
+Remaining extensions:
 
-* order-`k` walls (numerator and denominator vanishing to higher order), via
-  iterated Cauchy MVT or Taylor remainders — the case needed by integrands
-  like the symmetric log combination in the Li2 development, whose wall data
-  currently uses bespoke tail lemmas;
 * a left-of-wall variant and a two-sided wrapper;
+* ladders for the symmetric log integrand of the Li2 development (an order-2
+  wall at `t = 0`), replacing its bespoke tail lemmas;
 * engine hookup: a wall-aware partition step for `interval_integrate` that
   evaluates jets at singular endpoints and the standard interval engine
   elsewhere.

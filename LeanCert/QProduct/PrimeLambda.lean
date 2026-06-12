@@ -15,10 +15,11 @@ This file introduces the finite prime truncations and the directed prime limit a
 an infimum over the truncation values.  The tail-sandwich certificates live on
 top of these definitions.
 
-`primeLambda` is defined as the infimum of the finite-truncation values, and
-the theorems in this development are about that object. The identification of
-the infimum with the infinite prime-product integral `∫₀¹ ∏_p (1 - u^p) du`
-is not formalized here; see the `primeLambda` docstring.
+`primeLambda` is defined as the infimum of the finite-truncation values. The
+identification with the infinite prime-product integral
+`∫₀¹ ∏'_p (1 - u^p) du` is proved in `QProduct.InfiniteProduct`
+(`primeLambda_eq_integral_tprod`), so certified enclosures of `primeLambda`
+are enclosures of the analytic constant.
 -/
 
 namespace LeanCert.QProduct
@@ -56,10 +57,9 @@ noncomputable def primeSandwichLowerFun (N m : Nat) (u : ℝ) : ℝ :=
 finite-truncation values `primeFRat N`.
 
 The truncations are antitone (`primeFRat_antitone`) and bounded below by `0`,
-so this infimum coincides with the limit of the truncation sequence. The
-identification of that limit with the infinite prime-product integral
-`∫₀¹ ∏_p (1 - u^p) du` is not formalized; theorems about `primeLambda` are
-theorems about the truncation infimum. -/
+so this infimum coincides with the limit of the truncation sequence, and by
+`primeLambda_eq_integral_tprod` (in `QProduct.InfiniteProduct`) it equals the
+integral of the infinite prime product `∫₀¹ ∏'_p (1 - u^p) du`. -/
 noncomputable def primeLambda : ℝ :=
   sInf (Set.range fun N : Nat => (primeFRat N : ℝ))
 
