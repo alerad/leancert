@@ -31,3 +31,6 @@ jobs:
 
       - name: Build TableTest (table certificate smoke test)
         run: lake build TableTest
+
+      - name: Build DownstreamInterface (PrimeNumberTheoremAnd-facing surface)
+        run: lake build DownstreamInterface
