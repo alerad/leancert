@@ -22,9 +22,9 @@ lake target (`lake build Li2Verified`) in LeanCert CI.
 1. `Li2Verified.lean` ends with a statement-identity check that fails
    compilation if the types of the interface theorems below differ from the
    types of the verified theorems.
-2. `Tests/AxiomAudit.lean` sweeps the library for `sorryAx` dependence against
-   an exact allowlist of the four `Li2` declarations in this file; any other
-   sorry in LeanCert, including inline `:= by sorry` forms, fails CI.
+2. `Tests/AxiomAudit.lean` sweeps every library declaration's axiom set
+   against an exact allowlist of the four `Li2` declarations in this file;
+   any other sorry-dependent declaration in LeanCert fails CI.
 -/
 
 open MeasureTheory LeanCert.Engine.TaylorModel
