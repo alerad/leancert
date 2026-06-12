@@ -38,11 +38,16 @@ theorem (`DerivLadder.pos_of_top`).
 Order-2 model instance (`expm1_sub_self_div_sq_mem`):
 `(eᵗ − t − 1)/t² ∈ [1/2, e/2]` on `(0, 1)`.
 
+## Variants
+
+`quotient_mem_of_deriv_ratio_bounds_left` handles walls at the right
+endpoint, and `quotient_mem_of_deriv_ratio_bounds_two_sided` traps the
+quotient on a punctured interval around an interior wall.
+
 ## Status and roadmap
 
 Remaining extensions:
 
-* a left-of-wall variant and a two-sided wrapper;
 * ladders for the symmetric log integrand of the Li2 development (an order-2
   wall at `t = 0`), replacing its bespoke tail lemmas;
 * engine hookup: a wall-aware partition step for `interval_integrate` that

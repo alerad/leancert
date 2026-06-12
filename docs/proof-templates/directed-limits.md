@@ -52,6 +52,25 @@ Compare `LeanCert.QProduct.verify_primeLambda_interval_of_forall`, which
 requires a per-use `∀ M` tail hypothesis: this template factors that
 hypothesis out into the certificate, once.
 
+## The analytic bridge
+
+For any decidable exponent predicate, the directed limit of the q-product
+truncation integrals is the integral of the infinite product
+(`LeanCert.QProduct.sInf_F_filter_eq_integral_tprod`); the prime instance
+identifies `primeLambda` with the integral of the infinite prime product
+(`primeLambda_eq_integral_tprod`), and the positive-exponent instance gives
+Sandham's integral (OEIS A258232). Certified enclosures of these directed
+limits are therefore enclosures of the analytic constants.
+
+## Tail majorants from the difference calculus
+
+`LeanCert.QProduct.Differences` provides the tail collapse: with a retained
+exponent `1` (or `2`), the gap between a truncation and any finer truncation
+is at most one computable moment, `F S - F T <= moment (S.erase 1) m`
+(respectively `<= 2 * moment (S.erase 2) m`), where `m` bounds the missing
+exponents from below. These are ready-made `tail` functions for certificates
+over arbitrary exponent systems.
+
 ## Other candidate instances
 
 The Li2 tail-interval decomposition and the BKLNW tail bounds follow the same

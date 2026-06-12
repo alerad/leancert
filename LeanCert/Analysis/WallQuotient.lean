@@ -113,6 +113,90 @@ theorem expm1_div_self_mem {t : ℝ} (ht : t ∈ Ioo (0 : ℝ) 1) :
     ht
   simpa using h
 
+/-- Left-of-wall variant: `num` and `den` vanish at the right endpoint `w`,
+with positive `den′` on `(a, w)`. The same derivative-ratio bounds trap the
+quotient on the left side of the wall. -/
+theorem quotient_mem_of_deriv_ratio_bounds_left
+    {num den num' den' : ℝ → ℝ} {a w lo hi : ℝ}
+    (hnum0 : num w = 0) (hden0 : den w = 0)
+    (hnumc : ContinuousOn num (Icc a w))
+    (hdenc : ContinuousOn den (Icc a w))
+    (hnumd : ∀ x ∈ Ioo a w, HasDerivAt num (num' x) x)
+    (hdend : ∀ x ∈ Ioo a w, HasDerivAt den (den' x) x)
+    (hden'pos : ∀ x ∈ Ioo a w, 0 < den' x)
+    (hlo : ∀ x ∈ Ioo a w, lo * den' x ≤ num' x)
+    (hhi : ∀ x ∈ Ioo a w, num' x ≤ hi * den' x)
+    {t : ℝ} (ht : t ∈ Ioo a w) :
+    num t / den t ∈ Icc lo hi := by
+  obtain ⟨hat, htw⟩ := ht
+  have hIccSub : Icc t w ⊆ Icc a w := Icc_subset_Icc_left hat.le
+  have hIooSub : Ioo t w ⊆ Ioo a w := Ioo_subset_Ioo_left hat.le
+  -- `den t < 0` by the mean value theorem and `den′ > 0`.
+  obtain ⟨c₀, hc₀mem, hc₀⟩ := exists_hasDerivAt_eq_slope den den' htw
+    (hdenc.mono hIccSub) (fun x hx => hdend x (hIooSub hx))
+  have hdent_neg : den t < 0 := by
+    have hd := hden'pos c₀ (hIooSub hc₀mem)
+    have htw' : (0 : ℝ) < w - t := by linarith
+    have hEq : den w - den t = den' c₀ * (w - t) := by
+      rw [hc₀]
+      field_simp
+    have hpos := mul_pos hd htw'
+    rw [← hEq, hden0] at hpos
+    linarith
+  -- Cauchy MVT: the quotient is a derivative ratio at an interior point.
+  obtain ⟨c, hcmem, hc⟩ := exists_ratio_hasDerivAt_eq_ratio_slope num num' htw
+    (hnumc.mono hIccSub) (fun x hx => hnumd x (hIooSub hx))
+    den den' (hdenc.mono hIccSub) (fun x hx => hdend x (hIooSub hx))
+  rw [hnum0, hden0, zero_sub, zero_sub, neg_mul, neg_mul, neg_inj] at hc
+  -- hc : den t * num' c = num t * den' c
+  have hcb := hIooSub hcmem
+  have hd'c := hden'pos c hcb
+  have hquot : num t / den t = num' c / den' c := by
+    rw [div_eq_div_iff hdent_neg.ne hd'c.ne']
+    calc num t * den' c = den t * num' c := hc.symm
+      _ = num' c * den t := mul_comm _ _
+  rw [hquot]
+  exact ⟨(le_div_iff₀ hd'c).mpr (hlo c hcb), (div_le_iff₀ hd'c).mpr (hhi c hcb)⟩
+
+/-- Two-sided wall enclosure: `num` and `den` vanish at an interior point
+`w`, with the derivative hypotheses holding on the punctured interval. The
+quotient is trapped on both sides of the wall. -/
+theorem quotient_mem_of_deriv_ratio_bounds_two_sided
+    {num den num' den' : ℝ → ℝ} {a b w lo hi : ℝ} (hw : w ∈ Ioo a b)
+    (hnum0 : num w = 0) (hden0 : den w = 0)
+    (hnumc : ContinuousOn num (Icc a b))
+    (hdenc : ContinuousOn den (Icc a b))
+    (hnumd : ∀ x ∈ Ioo a b, HasDerivAt num (num' x) x)
+    (hdend : ∀ x ∈ Ioo a b, HasDerivAt den (den' x) x)
+    (hden'pos : ∀ x ∈ Ioo a b, x ≠ w → 0 < den' x)
+    (hlo : ∀ x ∈ Ioo a b, x ≠ w → lo * den' x ≤ num' x)
+    (hhi : ∀ x ∈ Ioo a b, x ≠ w → num' x ≤ hi * den' x)
+    {t : ℝ} (ht : t ∈ Ioo a b) (htw : t ≠ w) :
+    num t / den t ∈ Icc lo hi := by
+  rcases lt_or_gt_of_ne htw with h | h
+  · -- left of the wall: work on `(a, w)`.
+    have hsubI : Icc a w ⊆ Icc a b := Icc_subset_Icc_right hw.2.le
+    have hsubO : Ioo a w ⊆ Ioo a b := Ioo_subset_Ioo_right hw.2.le
+    have hne : ∀ x ∈ Ioo a w, x ≠ w := fun x hx => hx.2.ne
+    exact quotient_mem_of_deriv_ratio_bounds_left hnum0 hden0
+      (hnumc.mono hsubI) (hdenc.mono hsubI)
+      (fun x hx => hnumd x (hsubO hx)) (fun x hx => hdend x (hsubO hx))
+      (fun x hx => hden'pos x (hsubO hx) (hne x hx))
+      (fun x hx => hlo x (hsubO hx) (hne x hx))
+      (fun x hx => hhi x (hsubO hx) (hne x hx))
+      ⟨ht.1, h⟩
+  · -- right of the wall: work on `(w, b)`.
+    have hsubI : Icc w b ⊆ Icc a b := Icc_subset_Icc_left hw.1.le
+    have hsubO : Ioo w b ⊆ Ioo a b := Ioo_subset_Ioo_left hw.1.le
+    have hne : ∀ x ∈ Ioo w b, x ≠ w := fun x hx => hx.1.ne'
+    exact quotient_mem_of_deriv_ratio_bounds hnum0 hden0
+      (hnumc.mono hsubI) (hdenc.mono hsubI)
+      (fun x hx => hnumd x (hsubO hx)) (fun x hx => hdend x (hsubO hx))
+      (fun x hx => hden'pos x (hsubO hx) (hne x hx))
+      (fun x hx => hlo x (hsubO hx) (hne x hx))
+      (fun x hx => hhi x (hsubO hx) (hne x hx))
+      ⟨h, ht.2⟩
+
 /-! ### Order-`k` walls via derivative ladders
 
 When numerator and denominator both vanish to order `k` at the wall, the

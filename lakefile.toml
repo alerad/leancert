@@ -32,11 +32,27 @@ name = "Li2Verified"
 roots = ["LeanCert.Examples.Li2Verified"]
 precompileModules = false
 
-# Heavy BKLNW a2 bounds verification - for CI validation
+# Heavy BKLNW a2 bounds verification - for CI validation.
+# BKLNW_a2_pow2 and BKLNW_a2_bounds are the stable re-export interfaces
+# imported by PrimeNumberTheoremAnd; they are roots here so CI keeps them
+# building (they bitrotted once while unwired from any target).
 # Build explicitly with: lake build BKLNW_a2_reflective
 [[lean_lib]]
 name = "BKLNW_a2_reflective"
-roots = ["LeanCert.Examples.BKLNW_a2_reflective"]
+roots = [
+  "LeanCert.Examples.BKLNW_a2_reflective",
+  "LeanCert.Examples.BKLNW_a2_pow2",
+  "LeanCert.Examples.BKLNW_a2_bounds",
+]
+precompileModules = false
+
+# Downstream interface guard: imports every LeanCert module referenced by
+# PrimeNumberTheoremAnd and #check-pins every declaration it uses by name.
+# Removing or renaming any of them must fail CI here, not in the downstream
+# project's CI after a release. See LeanCert/Test/DownstreamInterface.lean.
+[[lean_lib]]
+name = "DownstreamInterface"
+roots = ["LeanCert.Test.DownstreamInterface"]
 precompileModules = false
 
 # Chebyshev psi smoke test (native_decide)
