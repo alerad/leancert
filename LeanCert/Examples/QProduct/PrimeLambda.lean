@@ -47,3 +47,13 @@ example : ((19 / 36 : ℚ) : ℝ) ≤ primeLambda := by
 
 example : (1 : ℝ) / 2 < primeLambda := by
   exact primeLambda_gt_half
+
+/-- The same two-sided enclosure through the directed-limit certificate:
+one boolean check at truncation index 1 (`approx 1 = primeFRat 3`,
+`tail 1 = primeSandwichErrorRat 3 5`), no tail hypothesis at the use site. -/
+example : ((19 / 36 : ℚ) : ℝ) ≤ primeLambda ∧ primeLambda ≤ ((7 / 12 : ℚ) : ℝ) :=
+  LeanCert.Validity.verify_limit_interval
+    primeLambda_le_shiftedTrunc
+    shiftedTrunc_sub_tail_le_primeLambda
+    1 (19 / 36) (7 / 12)
+    (by native_decide)

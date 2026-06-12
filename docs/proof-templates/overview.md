@@ -27,3 +27,5 @@ that must be supplied by project-specific mathematics.
 | [ConstantFactory](constant-factory.md) | a base object with reusable moments and finite perturbations |
 | [QProduct finite integrals](qproduct-finite-integrals.md) | exact finite product-integral identities |
 | [Contour-shift certificates](contour-shift.md) | rectangle identities, horizontal vanishing, vertical limits, and residue data |
+| [Directed-limit certificates](directed-limits.md) | a limit object enclosed by computable truncations with a computable tail majorant |
+| [Wall quotients](wall-quotients.md) | a `0/0` removable singularity whose enclosure must come from derivative data |

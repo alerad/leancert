@@ -13,6 +13,7 @@ import LeanCert.Validity.CertificateIntegration
 import LeanCert.Validity.IntegrationDyadic
 import LeanCert.Validity.AffineBounds
 import LeanCert.Validity.Monotonicity
+import LeanCert.Validity.DirectedLimit
 
 /-!
 # Validity Layer
