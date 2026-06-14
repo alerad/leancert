@@ -12,6 +12,7 @@ import LeanCert.Validity.Integration
 import LeanCert.Validity.CertificateIntegration
 import LeanCert.Validity.IntegrationDyadic
 import LeanCert.Validity.AffineBounds
+import LeanCert.Validity.AffineCover
 import LeanCert.Validity.Monotonicity
 import LeanCert.Validity.DirectedLimit
 
