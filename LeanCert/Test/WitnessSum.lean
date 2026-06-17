@@ -140,6 +140,6 @@ example : (1 : ℝ) ≤ ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) := by
     { precision := -53, taylorDepth := 10, roundAfterOps := 0 }
     (fun _ _ _ => constEval_correct _ _)
     (by native_decide)
-  norm_cast at h
+  exact_mod_cast h
 
 end LeanCert.Test.WitnessSum

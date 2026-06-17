@@ -200,7 +200,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
                      ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs,
                      Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
                      Rat.divInt_eq_div] at h0;
-          convert h0 using 1 <;> norm_num
+          convert! h0 using 1 <;> norm_num
         )))
         return true
       catch e2 =>

@@ -79,8 +79,8 @@ private def proveForallLeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
           have hnot : ¬ i < [_x].length := Nat.not_lt.mpr hi
           simp [List.getD, List.getElem?_eq_none (Nat.not_lt.mp hnot)]))
       evalTactic (← `(tactic| have heval := $conclusionTerm (fun i => List.getD [_x] i 0) hρ hzero))
-      evalTactic (← `(tactic| simp only [List.getD_cons_zero] at heval))
-      evalTactic (← `(tactic| convert heval using 1))
+      (try evalTactic (← `(tactic| simp only [List.getD_cons_zero] at heval)) catch _ => pure ())
+      evalTactic (← `(tactic| convert! heval using 1))
       let goals ← getGoals
       for g in goals do
         setGoals [g]
@@ -105,8 +105,8 @@ private def proveForallLeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
           have hnot : ¬ i < [_x].length := Nat.not_lt.mpr hi
           simp [List.getD, List.getElem?_eq_none (Nat.not_lt.mp hnot)]))
       evalTactic (← `(tactic| have heval := $conclusionTerm (fun i => List.getD [_x] i 0) hρ hzero))
-      evalTactic (← `(tactic| simp only [List.getD_cons_zero] at heval))
-      evalTactic (← `(tactic| convert heval using 1))
+      (try evalTactic (← `(tactic| simp only [List.getD_cons_zero] at heval)) catch _ => pure ())
+      evalTactic (← `(tactic| convert! heval using 1))
       let goals ← getGoals
       for g in goals do
         setGoals [g]
@@ -167,8 +167,8 @@ private def proveForallGeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
           have hnot : ¬ i < [_x].length := Nat.not_lt.mpr hi
           simp [List.getD, List.getElem?_eq_none (Nat.not_lt.mp hnot)]))
       evalTactic (← `(tactic| have heval := $conclusionTerm (fun i => List.getD [_x] i 0) hρ hzero))
-      evalTactic (← `(tactic| simp only [List.getD_cons_zero] at heval))
-      evalTactic (← `(tactic| convert heval using 1))
+      (try evalTactic (← `(tactic| simp only [List.getD_cons_zero] at heval)) catch _ => pure ())
+      evalTactic (← `(tactic| convert! heval using 1))
       let goals ← getGoals
       for g in goals do
         setGoals [g]
@@ -193,8 +193,8 @@ private def proveForallGeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
           have hnot : ¬ i < [_x].length := Nat.not_lt.mpr hi
           simp [List.getD, List.getElem?_eq_none (Nat.not_lt.mp hnot)]))
       evalTactic (← `(tactic| have heval := $conclusionTerm (fun i => List.getD [_x] i 0) hρ hzero))
-      evalTactic (← `(tactic| simp only [List.getD_cons_zero] at heval))
-      evalTactic (← `(tactic| convert heval using 1))
+      (try evalTactic (← `(tactic| simp only [List.getD_cons_zero] at heval)) catch _ => pure ())
+      evalTactic (← `(tactic| convert! heval using 1))
       let goals ← getGoals
       for g in goals do
         setGoals [g]

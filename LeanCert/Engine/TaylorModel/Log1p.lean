@@ -394,9 +394,9 @@ theorem tendsto_log_one_sub_div_self :
   have hderiv : HasDerivAt (fun x : ℝ => Real.log (1 - x)) (-1) 0 := by
     have hlog : HasDerivAt Real.log 1 1 := by simpa using Real.hasDerivAt_log (one_ne_zero)
     have hneg : HasDerivAt (fun x : ℝ => 1 - x) (-1) 0 := by
-      simpa using (hasDerivAt_const (0 : ℝ) (1 : ℝ)).sub (hasDerivAt_id 0)
+      simpa using! (hasDerivAt_const (0 : ℝ) (1 : ℝ)).sub (hasDerivAt_id 0)
     have hlog' : HasDerivAt Real.log 1 (1 - 0) := by simp only [sub_zero]; exact hlog
-    simpa using hlog'.comp 0 hneg
+    simpa using! hlog'.comp 0 hneg
   have htendsto := hderiv.tendsto_slope_zero_right
   simp only [sub_zero, Real.log_one, smul_eq_mul, inv_mul_eq_div] at htendsto
   convert htendsto using 2 with t
