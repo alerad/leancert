@@ -850,7 +850,7 @@ theorem minimizeInterval'_correct (e : Expr) (hsupp : ExprSupported e)
   simp only [minimizeInterval']
   have h := minimizeIntervalIdx_correct e hsupp (fun _ => I) varIdx maxDepth
     (fun _ => x) (fun _ => hx) x hx
-  simp at h
+  try simp at h
   convert h using 2
   funext i
   simp only [Expr.updateVar]
@@ -870,7 +870,7 @@ theorem maximizeInterval'_correct (e : Expr) (hsupp : ExprSupported e)
   simp only [maximizeInterval']
   have h := maximizeIntervalIdx_correct e hsupp (fun _ => I) varIdx maxDepth
     (fun _ => x) (fun _ => hx) x hx
-  simp at h
+  try simp at h
   convert h using 2
   funext i
   simp only [Expr.updateVar]

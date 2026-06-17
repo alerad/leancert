@@ -630,12 +630,12 @@ private lemma iteratedDeriv_one_add_sq_rpow_zero (a : ℝ) (n : ℕ) :
     have h_comp : HasFPowerSeriesAt ((fun y : ℝ => (1 + y) ^ a) ∘ (fun x : ℝ => x ^ 2))
         ((binomialSeries ℝ a).comp sqSeries) 0 := by
       apply HasFPowerSeriesAt.comp
-      · convert h_binom using 1; simp
+      · convert! h_binom using 1; simp
       · exact hsq
     -- Simplify the composed function
     have h_comp' : HasFPowerSeriesAt (fun x : ℝ => (1 + x ^ 2) ^ a)
         ((binomialSeries ℝ a).comp sqSeries) 0 := by
-      convert h_comp using 1
+      convert! h_comp using 1
     -- The canonical Taylor series has coefficients iteratedDeriv k f 0 / k!
     have h_taylor : HasFPowerSeriesAt (fun x : ℝ => (1 + x ^ 2) ^ a)
         (FormalMultilinearSeries.ofScalars ℝ
@@ -725,7 +725,7 @@ theorem Real.atanh_hasSum {x : ℝ} (hx : |x| < 1) :
     rw [Real.atanh, Real.log_div (ne_of_gt h1) (ne_of_gt h2)]
   rw [h_eq]
   -- Need: HasSum (fun k => x^(2k+1)/(2k+1)) ((1/2) * (log(1+x) - log(1-x)))
-  convert hlog.mul_left (1 / 2) using 1
+  convert! hlog.mul_left (1 / 2) using 1
   funext k
   field_simp
 

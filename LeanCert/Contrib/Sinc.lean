@@ -315,9 +315,9 @@ theorem sinc_eq_integral (x : ℝ) : sinc x = ∫ t in (0 : ℝ)..1, cos (t * x)
       intro t
       have : HasDerivAt (fun u => sin (u * x)) (x * cos (t * x)) t := by
         have := Real.hasDerivAt_sin (t * x)
-        convert HasDerivAt.comp t this (hasDerivAt_mul_const x) using 1
+        convert! HasDerivAt.comp t this (hasDerivAt_mul_const x) using 1
         ring
-      convert this.div_const x using 1
+      convert! this.div_const x using 1
       field_simp
     -- The antiderivative is sin(tx)/x, which is continuous
     have hcont_anti : ContinuousOn (fun t => sin (t * x) / x) (Set.Icc 0 1) :=

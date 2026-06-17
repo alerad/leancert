@@ -227,19 +227,19 @@ theorem sigmoid_deriv (x : ℝ) :
     have h1 := Real.hasDerivAt_exp (-x)
     have h2 := hasDerivAt_neg x
     have hcomp := HasDerivAt.comp x h1 h2
-    convert hcomp using 1
+    convert! hcomp using 1
     ring
   have hdenom_deriv : HasDerivAt (fun y => 1 + exp (-y)) (-exp (-x)) x := by
     have hconst : HasDerivAt (fun _ : ℝ => (1 : ℝ)) 0 x := hasDerivAt_const x 1
-    convert hconst.add hexp_deriv using 1
+    convert! hconst.add hexp_deriv using 1
     ring
   have hmain : HasDerivAt (fun y => 1 / (1 + exp (-y)))
       (exp (-x) / (1 + exp (-x))^2) x := by
     have h := hdenom_deriv.inv h_denom_ne
     simp only [one_div] at h ⊢
-    convert h using 1
+    convert! h using 1
     ring
-  convert hmain using 1
+  convert! hmain using 1
   -- Show: exp(-x)/(1+exp(-x))² = σ(x)·(1-σ(x))
   have h1 : 1 / (1 + exp (-x)) * (1 - 1 / (1 + exp (-x))) =
       exp (-x) / (1 + exp (-x))^2 := by

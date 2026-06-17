@@ -361,7 +361,7 @@ theorem sqrt_le_sqrtRatUpper {q : ℚ} (hq : 0 ≤ q) : Real.sqrt q ≤ (sqrtRat
                 rw [Real.sqrt_mul hnum_real_nn]
           _ ≤ ((s + 1 : ℕ) : ℝ) * Real.sqrt q.den := by
               exact mul_le_mul_of_nonneg_right hsqrt_le (le_of_lt hsqrt_den_pos)
-      convert hgoal using 2
+      convert! hgoal using 2
       push_cast
       ring
 

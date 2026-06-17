@@ -112,13 +112,11 @@ theorem toRat_ofInt (i : Int) : (ofInt i).toRat = i := by
 
 @[simp]
 theorem toRat_zero : (0 : Dyadic).toRat = 0 := by
-  have h := toRat_ofInt 0
-  simpa using h
+  have h := toRat_ofInt 0; rw [Int.cast_zero] at h; exact h
 
 @[simp]
 theorem toRat_one : (1 : Dyadic).toRat = 1 := by
-  have h := toRat_ofInt 1
-  simpa using h
+  have h := toRat_ofInt 1; rw [Int.cast_one] at h; exact h
 
 /-! ### Arithmetic Operations -/
 

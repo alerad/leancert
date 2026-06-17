@@ -257,7 +257,7 @@ theorem logPrimeOverPrimeLowerRat_le (N depth : Nat) :
   simp [hp'.2] at hlog
   have h := mul_le_mul_of_nonneg_right hlog hpos
   have hpq : (p : ℚ) ≠ 0 := by exact_mod_cast hp'.2.pos.ne'
-  simpa [Rat.cast_div, hpq, mul_div_assoc] using h
+  simpa [Rat.cast_div, hpq, mul_div_assoc] using! h
 
 theorem logPrimeOverPrime_le_upperRat (N depth : Nat) :
     logPrimeOverPrimeSum N ≤ (logPrimeOverPrimeUpperRat N depth : ℝ) := by
@@ -272,7 +272,7 @@ theorem logPrimeOverPrime_le_upperRat (N depth : Nat) :
   simp [hp'.2] at hlog
   have h := mul_le_mul_of_nonneg_right hlog hpos
   have hpq : (p : ℚ) ≠ 0 := by exact_mod_cast hp'.2.pos.ne'
-  simpa [Rat.cast_div, hpq, mul_div_assoc] using h
+  simpa [Rat.cast_div, hpq, mul_div_assoc] using! h
 
 theorem verify_harmonicSum_interval (N : Nat) (lo hi : ℚ)
     (hcheck : checkHarmonicSumInterval N lo hi = true) :

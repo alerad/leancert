@@ -409,7 +409,7 @@ theorem newton_preserves_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : Uses
         by_cases h : (derivInterval e (fun _ => I) 0).containsZero
         · exact absurd h hzero
         · simp only [h] at hTM
-          convert hTM using 2
+          convert! hTM using 2
       -- Key: tm.center = I.midpoint (theorem is in LeanCert.Engine namespace, not TaylorModel)
       have hc_eq : c = I.midpoint := fromExpr?_center e I 1 tm htm
       -- Prove the premises for newton_operator_preserves_root
@@ -482,7 +482,7 @@ theorem newton_preserves_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : Uses
         simp only [h] at hSimple
         -- Now hSimple : I.intersect {...} = some N
         -- Need to show our Newton equals the one in hSimple
-        convert hSimple using 2
+        convert! hSimple using 2
     -- Prove the premises for newton_operator_preserves_root
     have hc_in_I : (c : ℝ) ∈ I := IntervalRat.midpoint_mem I
     have hfc_correct : evalFunc1 e c ∈ fc := by

@@ -141,7 +141,7 @@ theorem mem_forwardAffine {xs : List ℝ} {Is : IntervalVector}
           |>.add (AffineForm.const params.epsilon)) |> AffineForm.sqrt).toInterval.lo) :
     let ys := layerNormReal xs params.gamma params.beta params.epsilon
     AffineVector.mem ys (params.forwardAffine Is) eps := by
-  simpa [LayerNormParams.forwardAffine] using
+  simpa [LayerNormParams.forwardAffine] using!
     (AffineVector.mem_layerNorm (v_real := xs)
       (v := AffineVector.ofIntervals (Is.map IntervalDyadic.toIntervalRat))
       (gamma := params.gamma) (beta := params.beta) (epsilon := params.epsilon)

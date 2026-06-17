@@ -495,7 +495,7 @@ theorem iteratedDeriv_sinc_zero (n : ℕ) :
         have h1 : HasDerivAt (fun y : ℝ => y) 1 (0:ℝ) := hasDerivAt_id (0:ℝ)
         have h2 : HasDerivAt Real.sinc (deriv Real.sinc (0:ℝ)) (0:ℝ) :=
           Real.differentiable_sinc.differentiableAt.hasDerivAt
-        convert h1.mul h2 using 1; ring
+        convert! h1.mul h2 using 1; ring
       simp only [zero_mul, add_zero] at hd
       rw [hd.deriv]
       simp only [Real.sinc_zero]; ring

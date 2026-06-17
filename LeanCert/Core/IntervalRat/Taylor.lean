@@ -627,7 +627,7 @@ theorem mem_evalTaylorSeries_exp {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   -- Step 2: Use zipIdx_range_map to eliminate zipIdx
   have h2 : (List.range (n + 1)).zipIdx.map (fun p : ℕ × ℕ => ((1 : ℚ) / ratFactorial p.1 : ℝ) * x ^ p.2) =
       (List.range (n + 1)).map (fun i => ((1 : ℚ) / ratFactorial i : ℝ) * x ^ i) := by
-    convert zipIdx_range_map (fun a b => ((1 : ℚ) / ratFactorial a : ℝ) * x ^ b) (n + 1) using 2
+    convert! zipIdx_range_map (fun a b => ((1 : ℚ) / ratFactorial a : ℝ) * x ^ b) (n + 1) using 2
   -- Step 3: Simplify the casts
   have h3 : (List.range (n + 1)).map (fun i => ((1 : ℚ) / ratFactorial i : ℝ) * x ^ i) =
       (List.range (n + 1)).map (fun i => (1 / i.factorial : ℝ) * x ^ i) := by
@@ -695,7 +695,7 @@ theorem mem_evalTaylorSeries_sin {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
           (fun i => if i % 2 = 1 then (-1 : ℚ) ^ ((i - 1) / 2) / i.factorial else 0) id) =
       (List.range (n + 1)).map (fun i =>
         ((if i % 2 = 1 then (-1 : ℚ) ^ ((i - 1) / 2) / i.factorial else 0 : ℚ) : ℝ) * x ^ i) := by
-    convert zipIdx_range_map
+    convert! zipIdx_range_map
       (fun a b => ((if a % 2 = 1 then (-1 : ℚ) ^ ((a - 1) / 2) / a.factorial else 0 : ℚ) : ℝ) * x ^ b)
       (n + 1) using 2
   rw [h1]
@@ -792,7 +792,7 @@ theorem mem_evalTaylorSeries_cos {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
           (fun i => if i % 2 = 0 then (-1 : ℚ) ^ (i / 2) / i.factorial else 0) id) =
       (List.range (n + 1)).map (fun i =>
         ((if i % 2 = 0 then (-1 : ℚ) ^ (i / 2) / i.factorial else 0 : ℚ) : ℝ) * x ^ i) := by
-    convert zipIdx_range_map
+    convert! zipIdx_range_map
       (fun a b => ((if a % 2 = 0 then (-1 : ℚ) ^ (a / 2) / a.factorial else 0 : ℚ) : ℝ) * x ^ b)
       (n + 1) using 2
   rw [h1]
@@ -1367,7 +1367,7 @@ theorem Real.atanh_hasSum' {x : ℝ} (hx : |x| < 1) :
   have h_eq : Real.atanh x = (1 / 2) * (Real.log (1 + x) - Real.log (1 - x)) := by
     rw [Real.atanh, Real.log_div (ne_of_gt h1) (ne_of_gt h2)]
   rw [h_eq]
-  convert hlog.mul_left (1 / 2) using 1
+  convert! hlog.mul_left (1 / 2) using 1
   funext k
   field_simp
 
@@ -1473,7 +1473,7 @@ theorem atanh_taylor_remainder_in_interval {q : ℚ} (hq : |(q : ℝ)| < 1) (n :
               (List.range (n + 1)).map
                 (fun i : ℕ =>
                   ((if i % 2 = 1 then ((i : ℚ) : ℚ)⁻¹ else 0 : ℚ) : ℝ) * (q : ℝ) ^ i) := by
-          convert zipIdx_range_map
+          convert! zipIdx_range_map
             (fun a b =>
               ((if a % 2 = 1 then ((a : ℚ) : ℚ)⁻¹ else 0 : ℚ) : ℝ) * (q : ℝ) ^ b) (n + 1) using 2
         rw [h1, h2]
@@ -1705,7 +1705,7 @@ theorem mem_ln2Computable (n : ℕ) : Real.log 2 ∈ ln2Computable n := by
       simp only [Rat.cast_ofNat]
       norm_num
     rw [h_arg] at h
-    convert h using 1
+    convert! h using 1
   rw [hlog_eq]
   -- atanh(1/3) ∈ atanhPointComputable (1/3) n by mem_atanhPointComputable
   have h_third_lt : |(↑(1/3 : ℚ) : ℝ)| < 1 := by

@@ -420,7 +420,7 @@ theorem log_taylor_remainder_bound' (J : IntervalRat) (c : ℚ) (n : ℕ) (z : �
     . grind only
   have hsum_eq : ∑ i ∈ Finset.range (n + 1), (iteratedDeriv i Real.log c / i.factorial) * (z - c)^i
       = Real.log c + Polynomial.aeval (z - (c : ℝ)) (logTaylorPolyAtCenter c n) := by
-    rw [Finset.sum_eq_add_sum_diff_singleton_of_mem (Finset.mem_range.mpr (Nat.zero_lt_succ n))]
+    rw [← Finset.add_sum_erase _ _ (Finset.mem_range.mpr (Nat.zero_lt_succ n))]
     simp only [pow_zero, mul_one, iteratedDeriv_zero, Nat.factorial_zero, Nat.cast_one, div_one]
     congr 1
     rw [logTaylorPolyAtCenter]
@@ -428,12 +428,12 @@ theorem log_taylor_remainder_bound' (J : IntervalRat) (c : ℚ) (n : ℕ) (z : �
     simp only [Polynomial.aeval_mul, Polynomial.aeval_C, Polynomial.aeval_X_pow]
     have h0_zero : (algebraMap ℚ ℝ) (logTaylorCoeffs c n 0) * (z - c)^0 = 0 := by
       simp only [logTaylorCoeffs, ite_true, map_zero, zero_mul]
-    rw [Finset.sum_eq_add_sum_diff_singleton_of_mem (Finset.mem_range.mpr (Nat.zero_lt_succ n))]
+    rw [← Finset.add_sum_erase _ _ (Finset.mem_range.mpr (Nat.zero_lt_succ n))]
     rw [h0_zero, zero_add]
     apply Finset.sum_congr rfl
     intro i hi
-    have hi_mem : i ∈ Finset.range (n + 1) := (Finset.mem_sdiff.mp hi).1
-    have hi_ne : i ≠ 0 := Finset.notMem_singleton.mp (Finset.mem_sdiff.mp hi).2
+    have hi_mem : i ∈ Finset.range (n + 1) := (Finset.mem_erase.mp hi).2
+    have hi_ne : i ≠ 0 := (Finset.mem_erase.mp hi).1
     simp only [eq_ratCast]
     rw [← hcoeffs_match i hi_mem hi_ne]
 

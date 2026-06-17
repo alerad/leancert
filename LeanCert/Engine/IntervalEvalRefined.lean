@@ -380,12 +380,12 @@ theorem evalIntervalRefined?_correct (e : Expr)
       simp [evalIntervalRefined?] at hI
       subst I
       simpa only [Expr.eval_sinc, IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-        using Real.sinc_mem_Icc (Expr.eval ρ_real e)
+        using! Real.sinc_mem_Icc (Expr.eval ρ_real e)
   | erf e =>
       simp [evalIntervalRefined?] at hI
       subst I
       simpa only [Expr.eval_erf, IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-        using Real.erf_mem_Icc (Expr.eval ρ_real e)
+        using! Real.erf_mem_Icc (Expr.eval ρ_real e)
   | sinh e ih =>
       cases h₀ : evalIntervalRefined? e ρ_int with
       | none =>

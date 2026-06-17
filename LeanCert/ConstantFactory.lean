@@ -49,7 +49,7 @@ private theorem continuous_qProd (S : Finset Nat) :
   · intro n S hn hS
     have hfactor : Continuous fun u : ℝ => 1 - u ^ n :=
       continuous_const.sub (continuous_id.pow n)
-    simpa [qProd, hn] using hfactor.mul hS
+    simpa [qProd, Finset.prod_insert hn] using! hfactor.mul hS
 
 /-- Observer algebra identity at the integrand level. -/
 theorem qProd_union_eq_observer_sum (R Q : Finset Nat) (hdisj : Disjoint R Q)
