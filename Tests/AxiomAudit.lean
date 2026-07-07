@@ -6,6 +6,9 @@ import LeanCert
 -- `native_decide` is a legitimate user-facing engine there.
 -- Exception: `Li2Bounds` (the PNT+-facing lightweight interface) IS imported,
 -- so the sorryAx sweep below can pin its sanctioned sorries exactly.
+-- `EulerMascheroniBounds` is also imported: it is sorry-free (native_decide
+-- inline), so the sweep verifies it stays that way, and its axiom set is
+-- pinned explicitly below.
 import LeanCert.Engine.Eval
 import LeanCert.Engine.Pisano
 import LeanCert.Engine.PentagonLucas
@@ -14,6 +17,7 @@ import LeanCert.Engine.TaylorModel.TrigReduced
 import LeanCert.Core.HermiteBounds
 import LeanCert.Core.LogBounds
 import LeanCert.Examples.Li2Bounds
+import LeanCert.Examples.EulerMascheroniBounds
 
 /-!
 Axiom/sorry guardrail for the certified interval evaluation path.
@@ -124,6 +128,37 @@ run_meta do
   unless offenders.isEmpty do
     throwError "Axioms minted inside LeanCert (library-internal native_decide leak?):\n\
       {offenders.toList}"
+
+/-! ### Euler–Mascheroni bounds: exact axiom pinning
+
+`EulerMascheroni.gamma_lower` / `gamma_upper` are sorry-free but verified via
+inline `native_decide` (a `2^20`-term reflective harmonic sum), so their axiom
+set is the three standard axioms plus `Lean.ofReduceBool` — the same trust
+shape as `PNT_PsiBounds` and the BKLNW bounds. The check below fails if the
+set ever grows (in particular, if a `sorry` sneaks in). -/
+
+open Lean in
+run_meta do
+  let allowedAxioms : Array Name :=
+    #[``propext, ``Classical.choice, ``Quot.sound, ``Lean.ofReduceBool]
+  -- `native_decide` mints one auxiliary axiom per declaration, named
+  -- `<decl>._native.native_decide.ax_*` and backed by `Lean.ofReduceBool`.
+  let isNativeDecideAux (a : Name) : Bool :=
+    match a with
+    | .str (.str _ "native_decide") _ => true
+    | _ => false
+  for n in [``EulerMascheroni.gamma_lower, ``EulerMascheroni.gamma_upper,
+      ``EulerMascheroni.gamma_bounds, ``EulerMascheroni.gamma_approx] do
+    let axs ← collectAxioms n
+    for a in axs do
+      unless allowedAxioms.contains a || isNativeDecideAux a do
+        throwError "{n} depends on unexpected axiom {a} \
+          (allowed: propext, Classical.choice, Quot.sound, Lean.ofReduceBool, \
+          native_decide auxiliaries)"
+    unless axs.contains ``Lean.ofReduceBool || axs.any isNativeDecideAux do
+      -- Sanity: the bounds are *supposed* to be native_decide-verified; if
+      -- that dependency vanishes, the proof changed shape — re-review.
+      logInfo m!"note: {n} no longer depends on native_decide"
 
 /-! ### Whole-library sorryAx sweep (exact allowlist)
 

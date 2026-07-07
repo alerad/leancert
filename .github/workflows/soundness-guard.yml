@@ -72,7 +72,7 @@ jobs:
             LeanCert.Engine.Eval LeanCert.Engine.Pisano LeanCert.Engine.PentagonLucas \
             LeanCert.Engine.TaylorModel.Log1p LeanCert.Engine.TaylorModel.TrigReduced \
             LeanCert.Core.HermiteBounds LeanCert.Core.LogBounds \
-            LeanCert.Examples.Li2Bounds
+            LeanCert.Examples.Li2Bounds LeanCert.Examples.EulerMascheroniBounds
 
       - name: Guard - core axiom/sorry audit
         run: lake env lean Tests/AxiomAudit.lean
