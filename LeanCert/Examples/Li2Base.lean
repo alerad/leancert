@@ -144,7 +144,13 @@ theorem g_intervalIntegrable_full : IntervalIntegrable g volume (0:ℝ) 1 := by
     have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
     unfold g
     unfold symmetricLogCombination
-    simpa [one_div] using hlog1p_inv.add hlog1m_inv
+    simp only [one_div]
+    rw [show (fun t : ℝ => (Real.log (1 + t))⁻¹ + (Real.log (1 - t))⁻¹) =
+        (fun t : ℝ => (Real.log (1 + t))⁻¹) +
+          (fun t : ℝ => (Real.log (1 - t))⁻¹) by
+      funext t
+      rw [Pi.add_apply]]
+    exact hlog1p_inv.add hlog1m_inv
   have hInt_Ioo : IntegrableOn g (Set.Ioo (0:ℝ) 1) volume := by
     apply Measure.integrableOn_of_bounded
     · exact measure_Ioo_lt_top.ne
@@ -170,7 +176,13 @@ theorem g_intervalIntegrable (a b : ℝ) (ha_pos : 0 < a) (hb_lt : b < 1) (hab :
     have hlog1p_inv : Measurable fun t : ℝ => (Real.log (1 + t))⁻¹ := hlog1p.inv
     have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
     unfold g symmetricLogCombination
-    simpa [one_div] using hlog1p_inv.add hlog1m_inv
+    simp only [one_div]
+    rw [show (fun t : ℝ => (Real.log (1 + t))⁻¹ + (Real.log (1 - t))⁻¹) =
+        (fun t : ℝ => (Real.log (1 + t))⁻¹) +
+          (fun t : ℝ => (Real.log (1 - t))⁻¹) by
+      funext t
+      rw [Pi.add_apply]]
+    exact hlog1p_inv.add hlog1m_inv
   have hInt_Ioo : IntegrableOn g (Set.Ioo a b) volume := by
     apply Measure.integrableOn_of_bounded
     · exact measure_Ioo_lt_top.ne
