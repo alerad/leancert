@@ -49,18 +49,20 @@ variable {x : ℝ}
 /-- Bound on |sin x - x| in terms of |x|³.
 For x > 0: sin x < x and x - x³/4 < sin x, so 0 < x - sin x < x³/4.
 By symmetry (sin(-x) = -sin(x)), |sin x - x| ≤ |x|³/4 for all x with |x| ≤ 1. -/
-theorem abs_sin_sub_self_le (x : ℝ) (hx : |x| ≤ 1) : |sin x - x| ≤ |x| ^ 3 / 4 := by
+theorem abs_sin_sub_self_le (x : ℝ) (_hx : |x| ≤ 1) : |sin x - x| ≤ |x| ^ 3 / 4 := by
   rcases le_or_gt x 0 with hx_neg | hx_pos
   · -- Case x ≤ 0
     have hx' : 0 ≤ -x := neg_nonneg.mpr hx_neg
-    have hx'' : -x ≤ 1 := by rwa [abs_of_nonpos hx_neg] at hx
     rcases eq_or_lt_of_le hx' with hx_zero | hx_pos'
     · -- x = 0
       have : x = 0 := neg_eq_zero.mp hx_zero.symm
       simp [this]
     · -- x < 0, i.e., 0 < -x ≤ 1
       have h1 : sin (-x) < -x := sin_lt hx_pos'
-      have h2 : -x - (-x) ^ 3 / 4 < sin (-x) := sin_gt_sub_cube hx_pos' hx''
+      have h2six : -x - (-x) ^ 3 / 6 < sin (-x) := sin_gt_sub_cube hx_pos'
+      have h2 : -x - (-x) ^ 3 / 4 < sin (-x) := by
+        have hcubed : 0 < (-x) ^ 3 := pow_pos hx_pos' _
+        linarith
       -- sin x = -sin(-x), so sin x - x = -sin(-x) - x
       -- From h1: sin(-x) < -x, so sin(-x) + x < 0
       -- Therefore -sin(-x) - x = -(sin(-x) + x) > 0
@@ -74,9 +76,11 @@ theorem abs_sin_sub_self_le (x : ℝ) (hx : |x| ≤ 1) : |sin x - x| ≤ |x| ^ 3
       -- Therefore -sin(-x) - x < (-x)^3/4
       linarith
   · -- Case x > 0
-    have hx' : x ≤ 1 := by rwa [abs_of_pos hx_pos] at hx
     have h1 : sin x < x := sin_lt hx_pos
-    have h2 : x - x ^ 3 / 4 < sin x := sin_gt_sub_cube hx_pos hx'
+    have h2six : x - x ^ 3 / 6 < sin x := sin_gt_sub_cube hx_pos
+    have h2 : x - x ^ 3 / 4 < sin x := by
+      have hcubed : 0 < x ^ 3 := pow_pos hx_pos _
+      linarith
     rw [abs_of_pos hx_pos]
     have hsub_pos : 0 < x - sin x := by linarith
     rw [abs_of_neg (by linarith : sin x - x < 0)]
