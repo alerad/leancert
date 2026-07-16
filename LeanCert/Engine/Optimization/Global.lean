@@ -8,6 +8,7 @@ import LeanCert.Engine.IntervalEvalRefined
 import LeanCert.Engine.IntervalEvalDyadic
 import LeanCert.Engine.IntervalEvalAffine
 import LeanCert.Engine.Affine.Basic
+import LeanCert.Engine.Affine.Environment
 import LeanCert.Engine.Optimization.Box
 import LeanCert.Engine.Optimization.Gradient
 
@@ -1523,80 +1524,6 @@ theorem globalMaximizeDyadic_hi_correct (e : Expr) (hsupp : ExprSupportedCore e)
 
 /-! ### Correctness theorems for Affine optimization -/
 
-private theorem linearSum_ofFn_zero {n : Nat} (eps : Fin n → ℝ) :
-    AffineForm.linearSum (List.ofFn (fun _ : Fin n => (0 : ℚ))) (List.ofFn eps) = 0 := by
-  unfold AffineForm.linearSum
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    simp only [List.ofFn_succ, List.zipWith_cons_cons, Rat.cast_zero, zero_mul, List.sum_cons,
-      zero_add]
-    exact ih (fun i => eps i.succ)
-
-private theorem linearSum_ofFn_basis {n : Nat} (idx : Nat) (rad : ℚ) (eps : Fin n → ℝ) :
-    AffineForm.linearSum
-      (List.ofFn (fun i : Fin n => if i.val = idx then rad else 0))
-      (List.ofFn eps)
-      = (rad : ℝ) * (if h : idx < n then eps ⟨idx, h⟩ else 0) := by
-  unfold AffineForm.linearSum
-  induction n generalizing idx with
-  | zero => simp
-  | succ n ih =>
-    simp only [List.ofFn_succ, List.zipWith_cons_cons, List.sum_cons, Fin.val_zero]
-    cases idx with
-    | zero =>
-      simp only [↓reduceDIte, Nat.zero_lt_succ, Fin.mk_zero]
-      have hcoeffs : (List.ofFn (fun i : Fin n => if i.succ.val = 0 then rad else 0)) =
-          (List.ofFn (fun _ : Fin n => (0 : ℚ))) := by
-        apply List.ext_getElem <;> simp
-      have htail : (List.zipWith (fun (c : ℚ) e => (c : ℝ) * e)
-          (List.ofFn (fun i : Fin n => if i.succ.val = 0 then rad else 0))
-          (List.ofFn (fun i => eps i.succ))).sum = 0 := by
-        simp only [hcoeffs]
-        exact linearSum_ofFn_zero (fun i => eps i.succ)
-      simp only [htail, add_zero, ↓reduceIte]
-    | succ idx' =>
-      have hne : ¬(0 = idx' + 1) := Nat.zero_ne_add_one idx'
-      simp only [hne, ↓reduceIte, Rat.cast_zero, zero_mul, zero_add, Nat.succ_lt_succ_iff]
-      have hcoeffs : (List.ofFn (fun i : Fin n => if i.succ.val = Nat.succ idx' then rad else 0)) =
-          (List.ofFn (fun i : Fin n => if i.val = idx' then rad else 0)) := by
-        apply List.ext_getElem
-        · simp
-        · intro k h1 h2
-          simp only [List.getElem_ofFn, Fin.val_succ, Nat.succ_eq_add_one, Nat.add_right_cancel_iff]
-      simp only [hcoeffs]
-      have hrec := ih idx' (fun i => eps i.succ)
-      unfold AffineForm.linearSum at hrec
-      rw [hrec]
-      -- Now need to show: rad * (if h : idx' < n then eps ⟨idx', h⟩.succ else 0)
-      --                 = rad * (if h : idx' < n then eps ⟨idx' + 1, h⟩ else 0)
-      by_cases hidx : idx' < n
-      · simp only [hidx, ↓reduceDIte, Fin.succ_mk]
-      · simp only [hidx, ↓reduceDIte]
-
-private theorem validNoise_ofFn {n : Nat} (f : Fin n → ℝ)
-    (hf : ∀ i, -1 ≤ f i ∧ f i ≤ 1) :
-    AffineForm.validNoise (List.ofFn f) := by
-  intro e he
-  simp only [List.mem_ofFn] at he
-  obtain ⟨i, rfl⟩ := he
-  exact hf i
-
-private lemma abs_sub_mid_le_rad {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
-    |x - ((I.lo + I.hi) / 2 : ℚ)| ≤ ((I.hi - I.lo) / 2 : ℚ) := by
-  have hx' : (I.lo : ℝ) ≤ x ∧ x ≤ I.hi := by
-    simpa [IntervalRat.mem_def] using hx
-  rw [abs_le]
-  constructor
-  · calc -((((I.hi : ℚ) - I.lo) / 2 : ℚ) : ℝ)
-        = (I.lo : ℝ) - ((I.lo : ℝ) + I.hi) / 2 := by push_cast; ring
-      _ ≤ x - ((I.lo : ℝ) + I.hi) / 2 := by linarith [hx'.1]
-      _ = x - ((((I.lo : ℚ) + I.hi) / 2 : ℚ) : ℝ) := by push_cast; ring
-  · calc x - ((((I.lo : ℚ) + I.hi) / 2 : ℚ) : ℝ)
-        = x - ((I.lo : ℝ) + I.hi) / 2 := by push_cast; ring
-      _ ≤ (I.hi : ℝ) - ((I.lo : ℝ) + I.hi) / 2 := by linarith [hx'.2]
-      _ = ((((I.hi : ℚ) - I.lo) / 2 : ℚ) : ℝ) := by push_cast; ring
-
 /-- The lower bound from Affine interval evaluation is correct.
     Note: Requires ExprSupportedCore, valid noise assignment, and domain validity for log. -/
 theorem evalOnBoxAffine_lo_correct (e : Expr) (hsupp : ExprSupportedCore e)
@@ -1605,103 +1532,15 @@ theorem evalOnBoxAffine_lo_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (hdom : evalDomainValidAffine e (toAffineEnv B)
       { taylorDepth := cfg.taylorDepth, maxNoiseSymbols := cfg.maxNoiseSymbols }) :
     (evalOnBoxAffine e B cfg).lo ≤ Expr.eval ρ e := by
-  set n := B.length
-  set affineEnv := toAffineEnv B
   set affineCfg : AffineConfig := { taylorDepth := cfg.taylorDepth, maxNoiseSymbols := cfg.maxNoiseSymbols }
-  -- Define noise assignment: for each dimension i, eps[i] encodes where ρ i lies in B[i]
-  -- If B[i] = [lo, hi] with mid = (lo+hi)/2 and rad = (hi-lo)/2, then
-  -- ρ i = mid + rad * eps[i], so eps[i] = (ρ i - mid) / rad (when rad > 0)
-  let eps : AffineForm.NoiseAssignment := List.ofFn (fun i : Fin n =>
-    let I := B.getD i.val (IntervalRat.singleton 0)
-    let mid := ((I.lo + I.hi) / 2 : ℚ)
-    let rad := ((I.hi - I.lo) / 2 : ℚ)
-    if hr : (rad : ℝ) = 0 then 0 else (ρ i.val - mid) / rad)
-  -- Prove the noise assignment is valid (all values in [-1, 1])
-  have hvalid : AffineForm.validNoise eps := by
-    apply validNoise_ofFn
-    intro ⟨i, hi⟩
-    simp only
-    set I := B.getD i (IntervalRat.singleton 0) with hI_def
-    set mid := ((I.lo + I.hi) / 2 : ℚ) with hmid_def
-    set rad := ((I.hi - I.lo) / 2 : ℚ) with hrad_def
-    split_ifs with hr
-    · exact ⟨by linarith, by linarith⟩
-    · have hρi : ρ i ∈ I := by
-        have hρ' := hρ ⟨i, hi⟩
-        simp only [hI_def, List.getD, List.getElem?_eq_getElem hi, Option.getD]
-        convert hρ'
-      have habs := abs_sub_mid_le_rad hρi
-      have hrad_nonneg : (0 : ℝ) ≤ rad := by
-        simp only [hrad_def]
-        have hI := I.le
-        have h : (0 : ℝ) ≤ ((I.hi - I.lo) / 2 : ℚ) := by
-          have : (0 : ℚ) ≤ (I.hi - I.lo) / 2 := by linarith
-          exact_mod_cast this
-        exact h
-      have hrad_pos : (0 : ℝ) < rad := lt_of_le_of_ne hrad_nonneg (Ne.symm hr)
-      constructor
-      · have h1 : -(rad : ℝ) ≤ ρ i - mid := by
-          rw [abs_le] at habs
-          exact habs.1
-        calc -1 = -(rad : ℝ) / rad := by field_simp
-          _ ≤ (ρ i - mid) / rad := div_le_div_of_nonneg_right h1 (le_of_lt hrad_pos)
-      · have h1 : ρ i - mid ≤ rad := by
-          rw [abs_le] at habs
-          exact habs.2
-        calc (ρ i - mid) / rad ≤ (rad : ℝ) / rad := div_le_div_of_nonneg_right h1 (le_of_lt hrad_pos)
-          _ = 1 := by field_simp
-  -- Prove environment membership
-  have henv : envMemAffine ρ affineEnv eps := by
-    intro i
-    simp only [AffineForm.mem_affine, affineEnv, toAffineEnv]
-    set I := B.getD i (IntervalRat.singleton 0) with hI_def
-    set mid := ((I.lo + I.hi) / 2 : ℚ) with hmid_def
-    set rad := ((I.hi - I.lo) / 2 : ℚ) with hrad_def
-    simp only [AffineForm.ofInterval, AffineForm.evalLinear]
-    use 0
-    constructor
-    · norm_num
-    · simp only [add_zero]
-      -- Need to show: ρ i = mid + linearSum (ofFn (fun j => if j = i then rad else 0)) eps
-      rw [linearSum_ofFn_basis]
-      by_cases hi : i < n
-      · -- eps[⟨i, hi⟩] = (let I := ...; if rad = 0 then 0 else (ρ i - mid) / rad)
-        -- The goal has a dite on whether (rad : ℝ) = 0
-        -- Since I and rad are defined in terms of B.getD i, we need to unfold carefully
-        have hI_eq : B.getD i (IntervalRat.singleton 0) = I := rfl
-        have hrad_eq : ((I.hi - I.lo) / 2 : ℚ) = rad := rfl
-        by_cases hrad0 : (rad : ℝ) = 0
-        · -- rad = 0 case: ρ i = mid
-          simp only [hI_eq, hrad_eq]
-          rw [dif_pos hrad0]
-          simp only [hrad0]
-          have hρi : ρ i ∈ I := by
-            have hρ' := hρ ⟨i, hi⟩
-            simp only [hI_def, List.getD, List.getElem?_eq_getElem hi, Option.getD]
-            convert hρ'
-          have habs := abs_sub_mid_le_rad hρi
-          rw [abs_le] at habs
-          have hle : ρ i - mid ≤ 0 := by linarith [habs.2, hrad0]
-          have hge : 0 ≤ ρ i - mid := by linarith [habs.1, hrad0]
-          linarith
-        · -- rad ≠ 0 case: reconstruct ρ i = mid + rad * eps[i]
-          simp only [hI_eq, hrad_eq]
-          rw [dif_neg hrad0, dif_pos hi]
-          -- Now goal is: ρ i = mid + rad * ((ρ i - mid) / rad)
-          have hrad_ne : (rad : ℝ) ≠ 0 := hrad0
-          field_simp [hrad_ne]
-          ring
-      · -- i ≥ n case: ρ i = 0 and I = singleton 0
-        have hzeroi : ρ i = 0 := hzero i (not_lt.mp hi)
-        have hI0 : I = IntervalRat.singleton 0 := by
-          simp only [hI_def, List.getD, List.getElem?_eq_none (not_lt.mp hi), Option.getD]
-        simp only [hI0, IntervalRat.singleton, hzeroi]
-        ring
+  obtain ⟨eps, hvalid, henv⟩ := exists_noise_toAffineEnv B ρ
+    (fun i hi => hρ ⟨i, hi⟩) hzero
   -- Use evalIntervalAffine_correct to get mem_affine, then mem_toInterval_weak
-  have hmem_affine := evalIntervalAffine_correct e hsupp ρ affineEnv eps hvalid henv affineCfg hdom
+  have hmem_affine := evalIntervalAffine_correct e hsupp ρ (toAffineEnv B) eps
+    hvalid henv affineCfg hdom
   have hmem := AffineForm.mem_toInterval_weak hvalid hmem_affine
   have hmem' : Expr.eval ρ e ∈ evalOnBoxAffine e B cfg := by
-    simpa [evalOnBoxAffine, affineEnv, affineCfg] using hmem
+    simpa [evalOnBoxAffine, affineCfg] using hmem
   exact ((IntervalRat.mem_def _ _).mp hmem').1
 
 /-- The key correctness theorem for Affine minimization.
@@ -2360,84 +2199,6 @@ def globalMaximizeAffineChecked (e : Expr) (B : Box) (cfg : GlobalOptConfigAffin
     (fun expr => checkedMonotonicityPruner expr cfg.useMonotonicity
       { taylorDepth := cfg.taylorDepth }) e B cfg.maxIterations cfg.tolerance
 
-/-- Every real point of a rational box has the standard affine-noise
-representation used by `toAffineEnv`. -/
-theorem exists_noise_toAffineEnv (B : Box) (rho : Nat → ℝ)
-    (hrho : Box.envMem rho B)
-    (hzero : ∀ i, i ≥ B.length → rho i = 0) :
-    ∃ eps : AffineForm.NoiseAssignment,
-      AffineForm.validNoise eps ∧ envMemAffine rho (toAffineEnv B) eps := by
-  let eps : AffineForm.NoiseAssignment := List.ofFn (fun i : Fin B.length =>
-    let I := B.getD i.val (IntervalRat.singleton 0)
-    let mid := ((I.lo + I.hi) / 2 : ℚ)
-    let rad := ((I.hi - I.lo) / 2 : ℚ)
-    if hr : (rad : ℝ) = 0 then 0 else (rho i.val - mid) / rad)
-  have hvalid : AffineForm.validNoise eps := by
-    apply validNoise_ofFn
-    intro ⟨i, hi⟩
-    simp only
-    set I := B.getD i (IntervalRat.singleton 0)
-    set mid := ((I.lo + I.hi) / 2 : ℚ)
-    set rad := ((I.hi - I.lo) / 2 : ℚ)
-    split_ifs with hrad
-    · exact ⟨by linarith, by linarith⟩
-    · have hrhoi : rho i ∈ I := by
-        have h := hrho ⟨i, hi⟩
-        simpa [I, List.getD, List.getElem?_eq_getElem hi, Option.getD] using h
-      have habs := abs_sub_mid_le_rad hrhoi
-      have hrad_nonneg : (0 : ℝ) ≤ rad := by
-        have hI := I.le
-        have hq : (0 : ℚ) ≤ (I.hi - I.lo) / 2 := by linarith
-        exact_mod_cast hq
-      have hrad_pos : (0 : ℝ) < rad := lt_of_le_of_ne hrad_nonneg (Ne.symm hrad)
-      rw [abs_le] at habs
-      constructor
-      · calc
-          -1 = -(rad : ℝ) / rad := by field_simp
-          _ ≤ (rho i - mid) / rad :=
-            div_le_div_of_nonneg_right habs.1 (le_of_lt hrad_pos)
-      · calc
-          (rho i - mid) / rad ≤ (rad : ℝ) / rad :=
-            div_le_div_of_nonneg_right habs.2 (le_of_lt hrad_pos)
-          _ = 1 := by field_simp
-  have henv : envMemAffine rho (toAffineEnv B) eps := by
-    intro i
-    simp only [AffineForm.mem_affine, toAffineEnv]
-    set I := B.getD i (IntervalRat.singleton 0)
-    set mid := ((I.lo + I.hi) / 2 : ℚ)
-    set rad := ((I.hi - I.lo) / 2 : ℚ)
-    simp only [AffineForm.ofInterval, AffineForm.evalLinear]
-    use 0
-    constructor
-    · norm_num
-    · simp only [add_zero]
-      rw [linearSum_ofFn_basis]
-      by_cases hi : i < B.length
-      · have hI_eq : B.getD i (IntervalRat.singleton 0) = I := rfl
-        have hrad_eq : ((I.hi - I.lo) / 2 : ℚ) = rad := rfl
-        by_cases hrad : (rad : ℝ) = 0
-        · simp only [hI_eq, hrad_eq]
-          rw [dif_pos hrad]
-          simp only [hrad]
-          have hrhoi : rho i ∈ I := by
-            have h := hrho ⟨i, hi⟩
-            simpa [I, List.getD, List.getElem?_eq_getElem hi, Option.getD] using h
-          have habs := abs_sub_mid_le_rad hrhoi
-          rw [abs_le] at habs
-          have hle : rho i - mid ≤ 0 := by linarith [habs.2, hrad]
-          have hge : 0 ≤ rho i - mid := by linarith [habs.1, hrad]
-          linarith
-        · simp only [hI_eq, hrad_eq]
-          rw [dif_neg hrad, dif_pos hi]
-          field_simp [hrad]
-          ring
-      · have hzeroi : rho i = 0 := hzero i (not_lt.mp hi)
-        have hI : I = IntervalRat.singleton 0 := by
-          simp [I, List.getElem?_eq_none (not_lt.mp hi), Option.getD]
-        simp only [hI, IntervalRat.singleton, hzeroi]
-        ring
-  exact ⟨eps, hvalid, henv⟩
-
 theorem evalOnBoxAffineChecked_lo_correct (e : Expr) (B : Box)
     (cfg : GlobalOptConfigAffine) (I : IntervalRat)
     (hsuccess : evalOnBoxAffineChecked e B cfg = .ok I)
@@ -2446,7 +2207,8 @@ theorem evalOnBoxAffineChecked_lo_correct (e : Expr) (B : Box)
     (I.lo : ℝ) ≤ Expr.eval rho e := by
   let acfg : AffineConfig := {
     taylorDepth := cfg.taylorDepth, maxNoiseSymbols := cfg.maxNoiseSymbols }
-  obtain ⟨eps, hvalid, henv⟩ := exists_noise_toAffineEnv B rho hrho hzero
+  obtain ⟨eps, hvalid, henv⟩ := LeanCert.Engine.exists_noise_toAffineEnv B rho
+    (fun i hi => hrho ⟨i, hi⟩) hzero
   cases heval : evalIntervalAffineChecked e (toAffineEnv B) acfg with
   | error err =>
       change (match evalIntervalAffineChecked e (toAffineEnv B) acfg with

@@ -5,14 +5,14 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.Eval.Extended
 import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.IntervalEvalAffine
+import LeanCert.Engine.Affine.Environment
 
 /-!
 # Unified interval-evaluation backends
 
-This module is the single policy boundary between callers and concrete interval
-implementations. Public callers select a backend here instead of calling a
-permissive evaluator directly.
+This module is the engine policy boundary between the public `LeanCert.evalInterval`
+façade and concrete interval implementations. Backend-aware engine clients may
+call the dispatcher directly; ordinary application code should use the façade.
 
 `auto` means "the fastest certified backend supported by this operation".
 For plain interval evaluation that is currently Dyadic. Explicit backend
@@ -60,9 +60,7 @@ structure BackendOptions where
 structure IntervalOutcome where
   interval : IntervalRat
   backend : ConcreteBackend
-  dyadic : Option IntervalDyadic := none
-  affine : Option AffineForm := none
-  deriving Repr
+  deriving Repr, DecidableEq
 
 /-- Whether a concrete backend has a certified implementation for an operation. -/
 def backendSupports : ConcreteBackend → BackendOperation → Bool
@@ -90,7 +88,7 @@ def resolveBackend (choice : BackendChoice) (operation : BackendOperation) :
 def intervalEnvOfList (box : List IntervalRat) : IntervalEnv :=
   fun i => box.getD i (IntervalRat.singleton 0)
 
-/-- The one certified entry point for evaluating an expression on a box.
+/-- Checked engine dispatcher for evaluating an expression on a box.
 
 All branches call checked evaluators. In particular, this function cannot
 expose legacy finite sentinels for reciprocal, logarithm, or `atanh` failures.
@@ -116,7 +114,7 @@ def evalIntervalWith (options : BackendOptions) (e : Expr)
             precision := options.dyadicPrecision
             taylorDepth := options.taylorDepth
           }
-          (fun result => { interval := result.toIntervalRat, backend, dyadic := some result }) <$>
+          (fun result => { interval := result.toIntervalRat, backend }) <$>
             evalIntervalDyadicChecked e
               (toDyadicEnv (intervalEnvOfList box) options.dyadicPrecision) cfg
     | .affine =>
@@ -124,7 +122,7 @@ def evalIntervalWith (options : BackendOptions) (e : Expr)
           taylorDepth := options.taylorDepth
           maxNoiseSymbols := options.maxNoiseSymbols
         }
-        (fun result => { interval := result.toInterval, backend, affine := some result }) <$>
+        (fun result => { interval := result.toInterval, backend }) <$>
           evalIntervalAffineChecked e (toAffineEnv box) cfg
 
 /-- `auto` is definitionally the checked Dyadic path for interval evaluation. -/
@@ -191,9 +189,9 @@ theorem evalIntervalWith_dyadic_correct (options : BackendOptions) (e : Expr)
       have hsound := evalIntervalDyadicChecked_correct e ρ ρd hρd cfg hprec I heval
       have hrat := IntervalDyadic.mem_toIntervalRat.mp hsound
       have hout : outcome = {
-          interval := I.toIntervalRat, backend := .dyadic, dyadic := some I } := by
+          interval := I.toIntervalRat, backend := .dyadic } := by
         have h : (Except.ok {
-            interval := I.toIntervalRat, backend := ConcreteBackend.dyadic, dyadic := some I } :
+            interval := I.toIntervalRat, backend := ConcreteBackend.dyadic } :
             EvalResult IntervalOutcome) = Except.ok outcome := by
           simpa [evalIntervalWith, resolveBackend, backendSupports, cfg, ρd,
             show ¬options.dyadicPrecision > 0 from not_lt.mpr hprec, heval] using hsuccess
@@ -226,14 +224,63 @@ theorem evalIntervalWith_affine_correct_of_noise (options : BackendOptions) (e :
         hvalid hρ cfg a heval
       have hinterval := AffineForm.mem_toInterval_weak hvalid hsound
       have hout : outcome = {
-          interval := a.toInterval, backend := .affine, affine := some a } := by
+          interval := a.toInterval, backend := .affine } := by
         have h : (Except.ok {
-            interval := a.toInterval, backend := ConcreteBackend.affine, affine := some a } :
+            interval := a.toInterval, backend := ConcreteBackend.affine } :
             EvalResult IntervalOutcome) = Except.ok outcome := by
           simpa [evalIntervalWith, resolveBackend, backendSupports, cfg, heval] using hsuccess
         injection h with h'
         exact h'.symm
       subst outcome
       exact hinterval
+
+/-- The Affine dispatcher has the same box-membership contract as the Rational
+and Dyadic branches. The standard correlated noise assignment is constructed
+inside the affine evaluation layer. -/
+theorem evalIntervalWith_affine_correct (options : BackendOptions) (e : Expr)
+    (box : List IntervalRat) (outcome : IntervalOutcome)
+    (hsuccess : evalIntervalWith { options with backend := .affine } e box = .ok outcome)
+    (rho : Nat → ℝ) (hrho : envMem rho (intervalEnvOfList box)) :
+    Expr.eval rho e ∈ outcome.interval := by
+  have hbox : ∀ i (hi : i < box.length), rho i ∈ box[i]'hi := by
+    intro i hi
+    simpa [intervalEnvOfList, List.getD, List.getElem?_eq_getElem hi, Option.getD]
+      using hrho i
+  have hzero : ∀ i, i ≥ box.length → rho i = 0 := by
+    intro i hi
+    have h := hrho i
+    have hmem : rho i ∈ IntervalRat.singleton 0 := by
+      simpa [intervalEnvOfList, List.getD, List.getElem?_eq_none hi, Option.getD] using h
+    have hb := (IntervalRat.mem_def _ _).mp hmem
+    norm_num [IntervalRat.singleton] at hb
+    linarith
+  obtain ⟨eps, hvalid, henv⟩ := exists_noise_toAffineEnv box rho hbox hzero
+  exact evalIntervalWith_affine_correct_of_noise options e box outcome hsuccess
+    rho eps hvalid henv
+
+/-- A successful dispatch through any backend encloses the expression value. -/
+theorem evalIntervalWith_correct (options : BackendOptions) (e : Expr)
+    (box : List IntervalRat) (outcome : IntervalOutcome)
+    (hsuccess : evalIntervalWith options e box = .ok outcome)
+    (rho : Nat → ℝ) (hrho : envMem rho (intervalEnvOfList box)) :
+    Expr.eval rho e ∈ outcome.interval := by
+  rcases options with ⟨backend, taylorDepth, dyadicPrecision, maxNoiseSymbols⟩
+  cases backend with
+  | auto =>
+      exact evalIntervalWith_dyadic_correct
+        { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+        e box outcome hsuccess rho hrho
+  | rational =>
+      exact evalIntervalWith_rational_correct
+        { backend := .rational, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+        e box outcome hsuccess rho hrho
+  | dyadic =>
+      exact evalIntervalWith_dyadic_correct
+        { backend := .dyadic, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+        e box outcome hsuccess rho hrho
+  | affine =>
+      exact evalIntervalWith_affine_correct
+        { backend := .affine, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+        e box outcome hsuccess rho hrho
 
 end LeanCert.Engine

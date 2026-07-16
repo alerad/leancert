@@ -226,17 +226,17 @@ def jsonNatFieldIs (field : String) (expected : Nat) (j : Json) : Bool :=
 })
 
 -- The same trust boundary applies to the optimized backends.
-#guard jsonStatusIs "domain_error" (handleEvalIntervalDyadic {
-  expr := Expr.log (Expr.var 0), box := #[zeroOneRaw]
+#guard jsonStatusIs "domain_error" (handleEvalInterval {
+  expr := Expr.log (Expr.var 0), box := #[zeroOneRaw], backend := .dyadic
 })
 
-#guard jsonStatusIs "domain_error" (handleEvalIntervalAffine {
-  expr := Expr.atanh (Expr.var 0), box := #[zeroOneRaw]
+#guard jsonStatusIs "domain_error" (handleEvalInterval {
+  expr := Expr.atanh (Expr.var 0), box := #[zeroOneRaw], backend := .affine
 })
 
 -- Implemented inverse hyperbolics produce certified, non-placeholder output.
-#guard jsonStatusIs "certified" (handleEvalIntervalAffine {
-  expr := Expr.arsinh (Expr.var 0), box := #[halfRaw]
+#guard jsonStatusIs "certified" (handleEvalInterval {
+  expr := Expr.arsinh (Expr.var 0), box := #[halfRaw], backend := .affine
 })
 
 #guard jsonStatusIs "certified" (handleEvalInterval {

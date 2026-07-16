@@ -21,6 +21,8 @@ import LeanCert.Core.IntervalDyadic
 -- Numerics modules
 import LeanCert.Engine.IntervalEval
 import LeanCert.Engine.Eval.Backend
+import LeanCert.API.Eval
+import LeanCert.API.Backend
 import LeanCert.Engine.IntervalEvalReal
 import LeanCert.Engine.AD
 import LeanCert.Engine.Integrate
@@ -193,15 +195,12 @@ export LeanCert.Engine (
   ExprSupported
   ExprSupportedCore
   EvalConfig
-  evalInterval
-  evalInterval1
-  evalInterval_correct
-  evalInterval1_correct
+  -- Legacy evaluator names remain available during the façade migration.
+  -- The unsafe `Engine.evalInterval` name is intentionally not re-exported.
   evalIntervalCore
   evalIntervalCore1
   evalIntervalCore_correct
   evalIntervalCore1_correct
-  -- Refined evaluation (uses Taylor models for tighter bounds)
   evalIntervalRefined?
   evalIntervalRefined1?
   evalIntervalRefined?_correct
@@ -217,7 +216,6 @@ export LeanCert.Engine (
   evalDualRefined
   evalDualRefined1
   evalDualRefined_val_correct
-  -- v1.1: Dyadic evaluation (prevents denominator explosion)
   DyadicConfig
   evalIntervalDyadicChecked
   evalIntervalDyadicChecked_correct

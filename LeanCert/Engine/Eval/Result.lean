@@ -27,7 +27,7 @@ inductive EvalError where
   | unsupportedFeature (feature : String)
   | invalidConfiguration (message : String)
   | nestedFailure (operation : String) (cause : EvalError)
-  deriving Repr
+  deriving Repr, DecidableEq
 
 /-- Result type used by checked evaluators and public computation APIs. -/
 abbrev EvalResult (α : Type) := Except EvalError α

@@ -1,9 +1,15 @@
 # Interval Backend Selection
 
-LeanCert exposes one backend policy in `LeanCert.Engine.Eval.Backend`.
-Callers use `evalIntervalWith` with `BackendOptions`; JSON callers use the
-ordinary `eval_interval`, `check_bound`, `global_min`, and `global_max`
-methods with a `backend` field.
+LeanCert exposes one authoritative checked evaluation façade:
+`LeanCert.evalInterval` with `LeanCert.EvalOptions`. Its implementation
+dispatches through `LeanCert.Engine.evalIntervalWith`; that engine function is
+not the recommended application entry point. JSON callers use the ordinary
+`eval_interval`, `check_bound`, `global_min`, and `global_max` methods with a
+`backend` field.
+
+The public `IntervalOutcome` contains only the backend-independent rational
+enclosure and the concrete backend used. Backend-native results are available
+through the checked `LeanCert.Backend.Rational`, `.Dyadic`, and `.Affine` APIs.
 
 Supported selector values are `auto`, `rational`, `dyadic`, and `affine`.
 
@@ -22,12 +28,32 @@ Every successful evaluation comes from a checked evaluator and records the
 concrete backend in its result. Reciprocal intervals containing zero,
 nonpositive logarithm domains, invalid `atanh` domains, and invalid Dyadic
 rounding precision return structured errors. Legacy total evaluators remain
-available internally for theorem statements and compatibility, but public
-bridge handlers do not expose their finite fallback values.
+available internally for theorem statements and compatibility. The golden
+theorem `LeanCert.evalInterval_correct` proves that every successful public
+result encloses the real expression value, independently of which backend was
+selected.
 
-The historical suffixed JSON methods (`eval_interval_dyadic`,
-`eval_interval_affine`, `global_min_dyadic`, and so on) are compatibility
-aliases. New clients should use the generic method and selector.
+```lean
+import LeanCert
+
+open LeanCert
+
+def unit : IntervalRat := ⟨0, 1, by norm_num⟩
+
+def preciseDyadic : EvalOptions := {
+  backend := .dyadic
+  precisionOptions := { dyadicExponent := -80, taylorDepth := 12 }
+}
+
+#eval evalInterval (.exp (.var 0)) [unit]
+#eval evalInterval (.exp (.var 0)) [unit] { backend := .affine }
+#eval evalInterval (.exp (.var 0)) [unit] preciseDyadic
+```
+
+The historical `eval_interval_dyadic` and `eval_interval_affine` JSON methods
+were removed; use `eval_interval` with the `backend` selector. Suffixed global
+optimization methods remain temporary compatibility aliases until the global
+configuration API is consolidated.
 
 At the Lean API level, division-capable guided optimization and
 counterexample search now return `EvalResult`: `globalMinimizeGuidedDiv`,

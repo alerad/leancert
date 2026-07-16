@@ -40,7 +40,7 @@ structure IntervalRat where
   lo : ℚ
   hi : ℚ
   le : lo ≤ hi
-  deriving Repr
+  deriving Repr, DecidableEq
 
 /-- Default interval [0, 0] for unsupported expression branches -/
 instance : Inhabited IntervalRat where

@@ -9,8 +9,9 @@ import LeanCert.Engine.Optimization.Global
 /-!
 # Unified global-optimization backends
 
-This is the optimization counterpart of `evalIntervalWith`.  It owns backend
-selection and translates common options to concrete optimizer configurations.
+This is the optimization counterpart of the checked evaluation dispatcher. It
+owns backend selection and translates common options to concrete optimizer
+configurations.
 -/
 
 namespace LeanCert.Engine.Optimization
@@ -29,30 +30,6 @@ structure BackendGlobalOptConfig extends BackendOptions where
 structure GlobalOutcome where
   result : GlobalResult
   backend : ConcreteBackend
-
-/-- The Affine dispatcher has the same public box-membership contract as the
-Rational and Dyadic branches.  The standard affine noise interpretation is
-constructed internally from the point's membership in `box`. -/
-theorem evalIntervalWith_affine_correct (options : BackendOptions) (e : Core.Expr)
-    (box : List Core.IntervalRat) (outcome : IntervalOutcome)
-    (hsuccess : evalIntervalWith { options with backend := .affine } e box = .ok outcome)
-    (rho : Nat → ℝ) (hrho : envMem rho (intervalEnvOfList box)) :
-    Expr.eval rho e ∈ outcome.interval := by
-  have hbox : Box.envMem rho box := by
-    intro i
-    simpa [intervalEnvOfList, List.getD, List.getElem?_eq_getElem i.isLt, Option.getD]
-      using hrho i.val
-  have hzero : ∀ i, i ≥ box.length → rho i = 0 := by
-    intro i hi
-    have h := hrho i
-    have hmem : rho i ∈ IntervalRat.singleton 0 := by
-      simpa [intervalEnvOfList, List.getD, List.getElem?_eq_none hi, Option.getD] using h
-    have hb := (IntervalRat.mem_def _ _).mp hmem
-    norm_num [IntervalRat.singleton] at hb
-    linarith
-  obtain ⟨eps, hvalid, henv⟩ := exists_noise_toAffineEnv box rho hbox hzero
-  exact evalIntervalWith_affine_correct_of_noise options e box outcome hsuccess
-    rho eps hvalid henv
 
 private def rationalConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfig := {
   maxIterations := cfg.maxIterations
@@ -227,16 +204,3 @@ theorem globalMaximizeWith_upper_correct (cfg : BackendGlobalOptConfig)
                 outcome.result hrun
 
 end LeanCert.Engine.Optimization
-
-namespace LeanCert.Engine
-
-/-- Backend-independent Affine soundness contract, re-exported beside the
-Rational and Dyadic dispatcher theorems. -/
-theorem evalIntervalWith_affine_correct (options : BackendOptions) (e : Core.Expr)
-    (box : List Core.IntervalRat) (outcome : IntervalOutcome)
-    (hsuccess : evalIntervalWith { options with backend := .affine } e box = .ok outcome)
-    (rho : Nat → ℝ) (hrho : envMem rho (intervalEnvOfList box)) :
-    Core.Expr.eval rho e ∈ outcome.interval :=
-  Optimization.evalIntervalWith_affine_correct options e box outcome hsuccess rho hrho
-
-end LeanCert.Engine

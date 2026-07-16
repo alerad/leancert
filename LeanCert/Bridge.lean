@@ -8,7 +8,7 @@ import LeanCert.Core.Expr
 import LeanCert.Engine.IntervalEval
 import LeanCert.Engine.IntervalEvalDyadic
 import LeanCert.Engine.IntervalEvalAffine
-import LeanCert.Engine.Eval.Backend
+import LeanCert.API.Eval
 import LeanCert.Engine.Optimization.Global
 import LeanCert.Engine.Optimization.Backend
 import LeanCert.Engine.Optimization.Gradient
@@ -42,9 +42,7 @@ We use a simplified JSON-RPC 2.0 style over line-delimited JSON.
 ```
 
 ## Supported Methods
-- `eval_interval`: Evaluate expression over a box using interval arithmetic
-- `eval_interval_dyadic`: High-performance evaluation using Dyadic arithmetic (avoids denominator explosion)
-- `eval_interval_affine`: Affine arithmetic evaluation (tracks correlations, tighter bounds)
+- `eval_interval`: Checked evaluation with selectable Rational, Dyadic, or Affine backend
 - `global_min`: Find global minimum using branch-and-bound optimization
 - `global_max`: Find global maximum using branch-and-bound optimization
 - `check_bound`: Verify a bound certificate
@@ -151,103 +149,6 @@ def evalFailureStatus : EvalError → String
 def evalFailureJson (err : EvalError) : Json := Json.mkObj [
   ("status", evalFailureStatus err),
   ("error", evalErrorToJson err)]
-
-/-! ### Dyadic Serialization -/
-
-/-- Raw Dyadic for JSON IO. Uses mantissa and exponent. -/
-structure RawDyadic where
-  mantissa : Int
-  exponent : Int
-  deriving Repr, Inhabited
-
-instance : FromJson RawDyadic where
-  fromJson? j := do
-    let mantissa ← j.getObjValAs? Int "mantissa"
-    let exponent ← j.getObjValAs? Int "exponent"
-    return { mantissa, exponent }
-
-instance : ToJson RawDyadic where
-  toJson d := Json.mkObj [("mantissa", toJson d.mantissa), ("exponent", toJson d.exponent)]
-
-/-- Convert RawDyadic to Dyadic -/
-def RawDyadic.toDyadic (r : RawDyadic) : Core.Dyadic :=
-  { mantissa := r.mantissa, exponent := r.exponent }
-
-/-- Convert Dyadic to RawDyadic -/
-def toRawDyadic (d : Core.Dyadic) : RawDyadic :=
-  { mantissa := d.mantissa, exponent := d.exponent }
-
-/-- Raw Dyadic interval for JSON IO -/
-structure RawDyadicInterval where
-  lo : RawDyadic
-  hi : RawDyadic
-  deriving Repr, Inhabited
-
-instance : FromJson RawDyadicInterval where
-  fromJson? j := do
-    let lo ← j.getObjValAs? RawDyadic "lo"
-    let hi ← j.getObjValAs? RawDyadic "hi"
-    return { lo, hi }
-
-instance : ToJson RawDyadicInterval where
-  toJson i := Json.mkObj [("lo", toJson i.lo), ("hi", toJson i.hi)]
-
-/-- Convert RawDyadicInterval to IntervalDyadic, using default for invalid intervals -/
-def RawDyadicInterval.toInterval (r : RawDyadicInterval) : Core.IntervalDyadic :=
-  let lo := r.lo.toDyadic
-  let hi := r.hi.toDyadic
-  if h : lo.toRat ≤ hi.toRat then { lo := lo, hi := hi, le := h }
-  else Core.IntervalDyadic.singleton Core.Dyadic.zero
-
-/-- Convert IntervalDyadic to RawDyadicInterval -/
-def toRawDyadicInterval (i : Core.IntervalDyadic) : RawDyadicInterval :=
-  { lo := toRawDyadic i.lo, hi := toRawDyadic i.hi }
-
-/-- Dyadic configuration for JSON IO -/
-structure RawDyadicConfig where
-  precision : Int := -53
-  taylorDepth : Nat := 10
-  deriving Repr, Inhabited
-
-instance : FromJson RawDyadicConfig where
-  fromJson? j := do
-    let precision := (j.getObjValAs? Int "precision").toOption.getD (-53)
-    let taylorDepth := (j.getObjValAs? Nat "taylorDepth").toOption.getD 10
-    return { precision, taylorDepth }
-
-instance : ToJson RawDyadicConfig where
-  toJson c := Json.mkObj [
-    ("precision", toJson c.precision),
-    ("taylorDepth", toJson c.taylorDepth)
-  ]
-
-/-- Convert RawDyadicConfig to DyadicConfig -/
-def RawDyadicConfig.toDyadicConfig (r : RawDyadicConfig) : DyadicConfig :=
-  { precision := r.precision, taylorDepth := r.taylorDepth }
-
-/-! ### Affine Config Serialization -/
-
-/-- Affine configuration for JSON IO -/
-structure RawAffineConfig where
-  taylorDepth : Nat := 10
-  maxNoiseSymbols : Nat := 0
-  deriving Repr, Inhabited
-
-instance : FromJson RawAffineConfig where
-  fromJson? j := do
-    let taylorDepth := (j.getObjValAs? Nat "taylorDepth").toOption.getD 10
-    let maxNoiseSymbols := (j.getObjValAs? Nat "maxNoiseSymbols").toOption.getD 0
-    return { taylorDepth, maxNoiseSymbols }
-
-instance : ToJson RawAffineConfig where
-  toJson c := Json.mkObj [
-    ("taylorDepth", toJson c.taylorDepth),
-    ("maxNoiseSymbols", toJson c.maxNoiseSymbols)
-  ]
-
-/-- Convert RawAffineConfig to AffineConfig -/
-def RawAffineConfig.toAffineConfig (r : RawAffineConfig) : AffineConfig :=
-  { taylorDepth := r.taylorDepth, maxNoiseSymbols := r.maxNoiseSymbols }
 
 /-! ## 2. Expression Deserialization -/
 
@@ -592,38 +493,6 @@ instance : FromJson VerifyAdaptiveRequest where
       maxNoiseSymbols := maxNoiseSymbols
     }
 
-/-- Request for high-performance Dyadic interval evaluation -/
-structure EvalDyadicRequest where
-  expr : LExpr
-  box  : Array RawInterval
-  config : RawDyadicConfig := {}
-
-instance : FromJson EvalDyadicRequest where
-  fromJson? j := do
-    let expr ← j.getObjValAs? LExpr "expr"
-    let boxJson ← j.getObjVal? "box"
-    let boxArr ← match boxJson with
-      | Json.arr arr => arr.mapM (FromJson.fromJson? (α := RawInterval))
-      | _ => throw "box must be an array"
-    let config := (j.getObjValAs? RawDyadicConfig "config").toOption.getD {}
-    return { expr, box := boxArr, config }
-
-/-- Request for Affine interval evaluation (tracks correlations) -/
-structure EvalAffineRequest where
-  expr : LExpr
-  box  : Array RawInterval
-  config : RawAffineConfig := {}
-
-instance : FromJson EvalAffineRequest where
-  fromJson? j := do
-    let expr ← j.getObjValAs? LExpr "expr"
-    let boxJson ← j.getObjVal? "box"
-    let boxArr ← match boxJson with
-      | Json.arr arr => arr.mapM (FromJson.fromJson? (α := RawInterval))
-      | _ => throw "box must be an array"
-    let config := (j.getObjValAs? RawAffineConfig "config").toOption.getD {}
-    return { expr, box := boxArr, config }
-
 /-- Request for global optimization with Dyadic backend -/
 structure OptimizeDyadicRequest where
   expr : LExpr
@@ -727,66 +596,22 @@ instance : FromJson DerivIntervalRequest where
 /-- Handle interval evaluation request -/
 def handleEvalInterval (req : EvalRequest) : Json :=
   let intervals := req.box.toList.map RawInterval.toInterval
-  let options : BackendOptions := {
+  let options : EvalOptions := {
     backend := req.backend
-    taylorDepth := req.taylorDepth
-    dyadicPrecision := req.precision
-    maxNoiseSymbols := req.maxNoiseSymbols
+    precisionOptions := {
+      taylorDepth := req.taylorDepth
+      dyadicExponent := req.precision
+      maxNoiseSymbols := req.maxNoiseSymbols
+    }
   }
-  match evalIntervalWith options req.expr intervals with
+  match LeanCert.evalInterval req.expr intervals options with
   | .ok result =>
-      let fields := [
+      Json.mkObj [
         ("status", Json.str "certified"),
         ("backend", Json.str (concreteBackendName result.backend)),
         ("lo", toJson (toRawRat result.interval.lo)),
         ("hi", toJson (toRawRat result.interval.hi))]
-      let fields := match result.dyadic with
-        | some I => fields ++ [("dyadic", Json.mkObj [
-            ("lo", toJson (toRawDyadic I.lo)),
-            ("hi", toJson (toRawDyadic I.hi))])]
-        | none => fields
-      let fields := match result.affine with
-        | some a => fields ++ [("affine", Json.mkObj [
-            ("c0", toJson (toRawRat a.c0)),
-            ("radius", toJson (toRawRat a.deviationBound))])]
-        | none => fields
-      Json.mkObj fields
   | .error err => evalFailureJson err
-
-/-- Handle high-performance Dyadic interval evaluation request.
-
-This evaluator uses Dyadic arithmetic (n * 2^e) instead of rationals,
-preventing denominator explosion for deep expressions. It's 10-100x
-faster for complex expressions like neural networks or nested Taylor series.
-
-The unified result retains both exact Dyadic endpoints and Rational endpoints
-for compatibility with the existing API. -/
-def handleEvalIntervalDyadic (req : EvalDyadicRequest) : Json :=
-  handleEvalInterval {
-    expr := req.expr
-    box := req.box
-    backend := .dyadic
-    taylorDepth := req.config.taylorDepth
-    precision := req.config.precision
-  }
-
-/-- Handle Affine interval evaluation request.
-
-This evaluator uses Affine Arithmetic to track correlations between variables,
-solving the "dependency problem" in interval arithmetic. For example:
-- Interval: x - x on [-1, 1] gives [-2, 2]
-- Affine: x - x on [-1, 1] gives [0, 0] (exact!)
-
-Affine arithmetic gives 50-90% tighter bounds for expressions with repeated
-variables, which is common in neural network verification. -/
-def handleEvalIntervalAffine (req : EvalAffineRequest) : Json :=
-  handleEvalInterval {
-    expr := req.expr
-    box := req.box
-    backend := .affine
-    taylorDepth := req.config.taylorDepth
-    maxNoiseSymbols := req.config.maxNoiseSymbols
-  }
 
 /-- Serialize a checked optimization result. -/
 def checkedGlobalResultJson : EvalResult GlobalResult → Json
@@ -879,13 +704,15 @@ def handleGlobalMaxAffine (req : OptimizeAffineRequest) : Json :=
 def handleCheckBound (req : CheckBoundRequest) : Json :=
   let intervals := req.box.toList.map RawInterval.toInterval
   let bound := req.bound.toRat
-  let options : BackendOptions := {
+  let options : EvalOptions := {
     backend := req.backend
-    taylorDepth := req.taylorDepth
-    dyadicPrecision := req.precision
-    maxNoiseSymbols := req.maxNoiseSymbols
+    precisionOptions := {
+      taylorDepth := req.taylorDepth
+      dyadicExponent := req.precision
+      maxNoiseSymbols := req.maxNoiseSymbols
+    }
   }
-  match evalIntervalWith options req.expr intervals with
+  match LeanCert.evalInterval req.expr intervals options with
   | .error err => Json.mkObj [
       ("status", evalFailureStatus err),
       ("verified", false),
@@ -1238,16 +1065,6 @@ def processRequest (line : String) : IO Unit := do
           match fromJson? (α := EvalRequest) args with
           | Except.ok req => Json.mkObj [("result", handleEvalInterval req)]
           | Except.error e => Json.mkObj [("error", s!"Invalid eval_interval params: {e}")]
-
-        | "eval_interval_dyadic" =>
-          match fromJson? (α := EvalDyadicRequest) args with
-          | Except.ok req => Json.mkObj [("result", handleEvalIntervalDyadic req)]
-          | Except.error e => Json.mkObj [("error", s!"Invalid eval_interval_dyadic params: {e}")]
-
-        | "eval_interval_affine" =>
-          match fromJson? (α := EvalAffineRequest) args with
-          | Except.ok req => Json.mkObj [("result", handleEvalIntervalAffine req)]
-          | Except.error e => Json.mkObj [("error", s!"Invalid eval_interval_affine params: {e}")]
 
         | "global_min" =>
           match fromJson? (α := OptimizeRequest) args with

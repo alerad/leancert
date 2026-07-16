@@ -168,10 +168,16 @@ Dyadic polynomial Taylor models (`Engine/CompPoly.lean`) avoiding rational coeff
 
 ### Strict Partial Evaluators
 
-Real-endpoint evaluation exposes only strict `Option` results. Refined
-evaluation also provides a total wrapper, but that wrapper requires an
-`ExprSupported` proof and obtains its value from the strict evaluator; it has
-no fallback branches. For arbitrary expressions, use:
+Application code should use the authoritative checked façade
+`LeanCert.evalInterval`, whose successful results are covered by the
+backend-independent theorem `LeanCert.evalInterval_correct`. It supports the
+Rational, Dyadic, and Affine backends through one structured `EvalResult` API.
+
+The following strict primitives remain useful to backend implementers. Real-
+endpoint evaluation exposes only strict `Option` results. Refined evaluation
+also provides a total wrapper, but that wrapper requires an `ExprSupported`
+proof and obtains its value from the strict evaluator; it has no fallback
+branches:
 
 - `evalIntervalReal?`
 - `evalIntervalReal1?`

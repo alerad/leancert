@@ -103,6 +103,7 @@ roots = [
   "LeanCert.Test.Hardening",
   "LeanCert.Test.Numeral",
   "LeanCert.Test.Pisano",
+  "LeanCert.Test.PublicEvalAPI",
   "LeanCert.Test.ReadmeTest",
   "LeanCert.Test.ReleaseTest",
   "LeanCert.Test.SqrtTest",
