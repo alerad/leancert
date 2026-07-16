@@ -135,4 +135,49 @@ theorem ExprSupported.toWithInv {e : Expr} (h : ExprSupported e) : ExprSupported
   | cos _ ih => exact ExprSupportedWithInv.cos ih
   | exp _ ih => exact ExprSupportedWithInv.exp ih
 
+/-- Every expression constructor is covered by `ExprSupportedWithInv`.
+
+The predicate is retained for compatibility with existing theorem statements,
+but strict evaluators can use this theorem to expose a success-implies-
+enclosure result for arbitrary expressions. Domain restrictions remain a
+property of successful evaluation, not of this syntactic predicate. -/
+theorem Expr.supportedWithInv (e : Expr) : ExprSupportedWithInv e := by
+  induction e with
+  | const q => exact .const q
+  | var idx => exact .var idx
+  | add _ _ ih₁ ih₂ => exact .add ih₁ ih₂
+  | mul _ _ ih₁ ih₂ => exact .mul ih₁ ih₂
+  | neg _ ih => exact .neg ih
+  | inv _ ih => exact .inv ih
+  | exp _ ih => exact .exp ih
+  | sin _ ih => exact .sin ih
+  | cos _ ih => exact .cos ih
+  | log _ ih => exact .log ih
+  | atan _ ih => exact .atan ih
+  | arsinh _ ih => exact .arsinh ih
+  | atanh _ ih => exact .atanh ih
+  | sinc _ ih => exact .sinc ih
+  | erf _ ih => exact .erf ih
+  | sinh _ ih => exact .sinh ih
+  | cosh _ ih => exact .cosh ih
+  | tanh _ ih => exact .tanh ih
+  | sqrt _ ih => exact .sqrt ih
+  | namedConst c => exact .namedConst c
+
+/-- Computable recognition of the differentiable `ExprSupported` subset used
+by Newton/AD backends. -/
+def Expr.checkSupported : Expr → Bool
+  | .const _ | .var _ => true
+  | .add e₁ e₂ | .mul e₁ e₂ => e₁.checkSupported && e₂.checkSupported
+  | .neg e | .exp e | .sin e | .cos e => e.checkSupported
+  | _ => false
+
+/-- Computable recognition of `ExprSupportedCore`. -/
+def Expr.checkSupportedCore : Expr → Bool
+  | .const _ | .var _ | .namedConst _ => true
+  | .add e₁ e₂ | .mul e₁ e₂ => e₁.checkSupportedCore && e₂.checkSupportedCore
+  | .neg e | .exp e | .sin e | .cos e | .log e | .sqrt e |
+      .sinh e | .cosh e | .tanh e | .erf e => e.checkSupportedCore
+  | _ => false
+
 end LeanCert.Core

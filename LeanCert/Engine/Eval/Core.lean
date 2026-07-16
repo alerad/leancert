@@ -775,7 +775,8 @@ def evalIntervalCoreWithDiv (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {
         if h : invLo ≤ invHi then { lo := invLo, hi := invHi, le := h }
         else { lo := invHi, hi := invLo, le := by linarith }
       else
-        -- Interval contains zero: return wide bounds (sound but imprecise)
+        -- Legacy heuristic sentinel. This is not an enclosure of an unbounded
+        -- reciprocal image and must never be exposed as a certified result.
         ⟨-1000000000000000000000000000000, 1000000000000000000000000000000, by norm_num⟩
   | Expr.exp e => IntervalRat.expComputable (evalIntervalCoreWithDiv e ρ cfg) cfg.taylorDepth
   | Expr.sin e => IntervalRat.sinComputableReduced (evalIntervalCoreWithDiv e ρ cfg) cfg.taylorDepth
@@ -786,7 +787,7 @@ def evalIntervalCoreWithDiv (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {
       IntervalRat.logComputable arg cfg.taylorDepth
   | Expr.atan e => atanInterval (evalIntervalCoreWithDiv e ρ cfg)
   | Expr.arsinh e => arsinhInterval (evalIntervalCoreWithDiv e ρ cfg)
-  | Expr.atanh _ => ⟨-100, 100, by norm_num⟩  -- Safe wide default for atanh
+  | Expr.atanh _ => ⟨-100, 100, by norm_num⟩  -- Legacy heuristic sentinel; not certified
   | Expr.sinc _ => ⟨-1, 1, by norm_num⟩  -- sinc is bounded by [-1, 1]
   | Expr.erf e => erfInterval (evalIntervalCoreWithDiv e ρ cfg) cfg.taylorDepth
   | Expr.sinh e => sinhInterval (evalIntervalCoreWithDiv e ρ cfg) cfg.taylorDepth

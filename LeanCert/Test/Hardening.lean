@@ -8,6 +8,9 @@ import LeanCert.Meta.ProveSupported
 import LeanCert.Engine.AD.Eval
 import LeanCert.Engine.IntervalEvalReal
 import LeanCert.Engine.IntervalEvalAffine
+import LeanCert.Engine.IntervalEvalDyadic
+import LeanCert.Engine.Eval.Extended
+import LeanCert.Engine.Optimization.Global
 import LeanCert.Validity.AffineBounds
 
 /-!
@@ -18,6 +21,7 @@ Small tests for trust-boundary and support-predicate hardening.
 
 open LeanCert.Core
 open LeanCert.Engine
+open LeanCert.Engine.Optimization
 
 namespace LeanCert.Test.Hardening
 
@@ -84,13 +88,48 @@ def affineHardeningEnv : AffineEnv :=
   toAffineEnv [⟨-1, 1, by norm_num⟩]
 
 example :
-    evalIntervalAffine? (Expr.arsinh (Expr.var 0)) affineHardeningEnv = none := by
-  rfl
+    (evalIntervalAffine? (Expr.arsinh (Expr.var 0)) affineHardeningEnv).isSome := by
+  native_decide
 
 example :
     LeanCert.Validity.checkUpperBoundAffine1Strict
-      (Expr.arsinh (Expr.var 0)) ⟨-1, 1, by norm_num⟩ 2 = false := by
-  rfl
+      (Expr.arsinh (Expr.var 0)) ⟨-1, 1, by norm_num⟩ 2 = true := by
+  native_decide
+
+def IHalf : IntervalRat := ⟨1 / 2, 1 / 2, by norm_num⟩
+
+def IZeroOne : IntervalRat := ⟨0, 1, by norm_num⟩
+
+#guard (match evalIntervalChecked (Expr.atanh (Expr.var 0)) (fun _ => IHalf) with
+  | .ok I => 0 < I.lo ∧ I.lo ≤ I.hi
+  | .error _ => false)
+
+#guard (match evalIntervalChecked (Expr.inv (Expr.var 0)) (fun _ => IZeroOne) with
+  | .error (.reciprocalContainsZero _) => true
+  | _ => false)
+
+#guard (match evalIntervalChecked (Expr.log (Expr.var 0)) (fun _ => IZeroOne) with
+  | .error (.logNonpositive _) => true
+  | _ => false)
+
+#guard (match evalIntervalAffineChecked (Expr.atanh (Expr.var 0))
+    (toAffineEnv [IHalf]) with
+  | .ok a => 0 < a.toInterval.lo ∧ a.toInterval.lo ≤ a.toInterval.hi
+  | .error _ => false)
+
+#guard (match evalIntervalAffineChecked (Expr.inv (Expr.var 0))
+    (toAffineEnv [IZeroOne]) with
+  | .error (.reciprocalContainsZero _) => true
+  | _ => false)
+
+#guard (match evalIntervalDyadicChecked (Expr.log (Expr.var 0))
+    (toDyadicEnv (fun _ => IZeroOne)) with
+  | .error (.logNonpositive _) => true
+  | _ => false)
+
+#guard (match globalMinimizeRationalChecked (Expr.inv (Expr.var 0)) [IZeroOne] with
+  | .error _ => true
+  | .ok _ => false)
 
 example :
     LeanCert.Validity.checkUpperBoundAffine1Strict

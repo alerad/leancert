@@ -195,4 +195,42 @@ def parseFails (json : Json) : Bool :=
   raw.toRat = 0
 )
 
+/-! ## Checked evaluator boundary regressions -/
+
+def zeroOneRaw : RawInterval := {
+  lo := { n := 0, d := 1 }, hi := { n := 1, d := 1 }
+}
+
+def halfRaw : RawInterval := {
+  lo := { n := 1, d := 2 }, hi := { n := 1, d := 2 }
+}
+
+def jsonStatusIs (expected : String) (j : Json) : Bool :=
+  match j.getObjValAs? String "status" with
+  | .ok actual => actual = expected
+  | .error _ => false
+
+-- A reciprocal singularity is an error, never a finite pseudo-interval.
+#guard jsonStatusIs "domain_error" (handleEvalInterval {
+  expr := Expr.inv (Expr.var 0), box := #[zeroOneRaw]
+})
+
+-- The same trust boundary applies to the optimized backends.
+#guard jsonStatusIs "domain_error" (handleEvalIntervalDyadic {
+  expr := Expr.log (Expr.var 0), box := #[zeroOneRaw]
+})
+
+#guard jsonStatusIs "domain_error" (handleEvalIntervalAffine {
+  expr := Expr.atanh (Expr.var 0), box := #[zeroOneRaw]
+})
+
+-- Implemented inverse hyperbolics produce certified, non-placeholder output.
+#guard jsonStatusIs "certified" (handleEvalIntervalAffine {
+  expr := Expr.arsinh (Expr.var 0), box := #[halfRaw]
+})
+
+#guard jsonStatusIs "certified" (handleEvalInterval {
+  expr := Expr.atanh (Expr.var 0), box := #[halfRaw]
+})
+
 end LeanCert.Test.BridgeTest

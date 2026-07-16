@@ -167,7 +167,7 @@ def sqrtIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadi
     For any x > 0, log(x) ∈ (-∞, ∞), but we use a finite interval.
     For x ∈ [lo, hi] with lo > 0:
     - log is monotone, so log(x) ∈ [log(lo), log(hi)]
-    - Conservative bound: use [-100, max(hi, 1)] as a wide safe interval -/
+    - Legacy total-evaluator fallback; strict callers reject this domain -/
 def logIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
   -- Compute log using Taylor series via atanh reduction
   -- Convert to rational, compute, convert back with outward rounding
@@ -176,8 +176,8 @@ def logIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic
     let result := IntervalRat.logComputable IRat cfg.taylorDepth
     IntervalDyadic.ofIntervalRat result cfg.precision
   else
-    -- Input may include zero or negative values, return wide fallback interval
-    -- for soundness (though in practice this shouldn't happen for valid inputs)
+    -- Legacy heuristic sentinel for invalid input. It is not a sound log
+    -- enclosure; `evalIntervalDyadicChecked` rejects this branch.
     ⟨Core.Dyadic.ofInt (-1000), Core.Dyadic.ofInt 1000, by simp [Dyadic.toRat_ofInt]⟩
 
 /-- Real power from a cached logarithm interval.
@@ -385,6 +385,46 @@ theorem checkDomainValidDyadic_correct (e : Expr) (ρ : IntervalDyadicEnv) (cfg 
   | tanh e ih => simp only [checkDomainValidDyadic, evalDomainValidDyadic]; exact ih
   | sqrt e ih => simp only [checkDomainValidDyadic, evalDomainValidDyadic]; exact ih
   | namedConst _ => intro; trivial
+
+/-- Diagnose the first failed Dyadic domain check. -/
+def diagnoseEvalIntervalDyadicFailure (e : Expr) (ρ : IntervalDyadicEnv)
+    (cfg : DyadicConfig := {}) : EvalError :=
+  match e with
+  | .add e₁ e₂ | .mul e₁ e₂ =>
+      if checkDomainValidDyadic e₁ ρ cfg then
+        .nestedFailure "right operand" (diagnoseEvalIntervalDyadicFailure e₂ ρ cfg)
+      else
+        .nestedFailure "left operand" (diagnoseEvalIntervalDyadicFailure e₁ ρ cfg)
+  | .neg e | .exp e | .sin e | .cos e | .atan e | .arsinh e | .sinc e |
+      .erf e | .sinh e | .cosh e | .tanh e | .sqrt e =>
+      .nestedFailure "unary operand" (diagnoseEvalIntervalDyadicFailure e ρ cfg)
+  | .inv e =>
+      if checkDomainValidDyadic e ρ cfg then
+        .reciprocalContainsZero (evalIntervalDyadic e ρ cfg).toIntervalRat
+      else
+        .nestedFailure "reciprocal operand" (diagnoseEvalIntervalDyadicFailure e ρ cfg)
+  | .log e =>
+      if checkDomainValidDyadic e ρ cfg then
+        .logNonpositive (evalIntervalDyadic e ρ cfg).toIntervalRat
+      else
+        .nestedFailure "logarithm operand" (diagnoseEvalIntervalDyadicFailure e ρ cfg)
+  | .atanh e =>
+      if checkDomainValidDyadic e ρ cfg then
+        .atanhOutsideUnitBall (evalIntervalDyadic e ρ cfg).toIntervalRat
+      else
+        .nestedFailure "atanh operand" (diagnoseEvalIntervalDyadicFailure e ρ cfg)
+  | .const _ | .var _ | .namedConst _ =>
+      .unsupportedBackend "internal: total Dyadic expression unexpectedly failed"
+termination_by e
+
+/-- Checked Dyadic evaluator. The finite fallback branches of the legacy total
+evaluator are never exposed after a failed domain check. -/
+def evalIntervalDyadicChecked (e : Expr) (ρ : IntervalDyadicEnv)
+    (cfg : DyadicConfig := {}) : EvalResult IntervalDyadic :=
+  if checkDomainValidDyadic e ρ cfg then
+    .ok (evalIntervalDyadic e ρ cfg)
+  else
+    .error (diagnoseEvalIntervalDyadicFailure e ρ cfg)
 
 /-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
 theorem evalDomainValidDyadic_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
@@ -655,6 +695,24 @@ theorem evalIntervalDyadic_correct_withInv (e : Expr) (hsupp : ExprSupportedWith
   | namedConst c =>
     simp only [Expr.eval_namedConst, evalIntervalDyadic]
     exact IntervalDyadic.mem_ofIntervalRat c.mem_interval cfg.precision hprec
+
+/-- Successful checked Dyadic evaluation encloses the true value for every
+expression, provided outward-rounding precision is nonpositive. -/
+theorem evalIntervalDyadicChecked_correct (e : Expr)
+    (ρ_real : Nat → ℝ) (ρ_dyad : IntervalDyadicEnv)
+    (hρ : envMemDyadic ρ_real ρ_dyad) (cfg : DyadicConfig := {})
+    (hprec : cfg.precision ≤ 0 := by norm_num)
+    (result : IntervalDyadic)
+    (hsuccess : evalIntervalDyadicChecked e ρ_dyad cfg = .ok result) :
+    Expr.eval ρ_real e ∈ result := by
+  unfold evalIntervalDyadicChecked at hsuccess
+  split at hsuccess
+  · rename_i hcheck
+    injection hsuccess with hresult
+    subst result
+    exact evalIntervalDyadic_correct_withInv e (Expr.supportedWithInv e)
+      ρ_real ρ_dyad hρ cfg hprec (checkDomainValidDyadic_correct e ρ_dyad cfg hcheck)
+  · contradiction
 
 /-! ### Convenience Functions -/
 

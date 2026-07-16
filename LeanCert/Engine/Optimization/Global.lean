@@ -1813,4 +1813,124 @@ theorem globalMaximizeAffine_hi_correct (e : Expr) (hsupp : ExprSupportedCore e)
   have h : Expr.eval ρ e ≤ (-(globalMinimizeAffine (Expr.neg e) B cfg).bound.lo : ℝ) := by linarith
   exact_mod_cast h
 
+/-! ### Checked branch-and-bound
+
+These entry points never consume a finite fallback from a legacy evaluator.
+Domain failures are propagated to the caller. Monotonicity pruning is omitted
+here because its derivative backend has a smaller supported language; it can be
+reintroduced behind its own checked interface. -/
+
+/-- One backend-independent checked branch-and-bound step. -/
+def minimizeStepCheckedWith (evalBox : Box → EvalResult IntervalRat) (tolerance : ℚ)
+    (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) :
+    EvalResult (Option (List (ℚ × Box) × ℚ × ℚ × Box)) :=
+  match popBest queue with
+  | none => .ok none
+  | some ((lb, B), rest) =>
+    if lb > bestUB then
+      .ok (some (rest, bestLB, bestUB, bestBox))
+    else do
+      let I ← evalBox B
+      let newBestLB := min bestLB I.lo
+      let (newBestUB, newBestBox) :=
+        if I.hi < bestUB then (I.hi, B) else (bestUB, bestBox)
+      if Box.maxWidth B ≤ tolerance then
+        return some (rest, newBestLB, newBestUB, newBestBox)
+      let (B₁, B₂) := Box.splitWidest B
+      let I₁ ← evalBox B₁
+      let I₂ ← evalBox B₂
+      let queue' := if I₁.lo ≤ newBestUB then insertByBound rest I₁.lo B₁ else rest
+      let queue' := if I₂.lo ≤ newBestUB then insertByBound queue' I₂.lo B₂ else queue'
+      return some (queue', newBestLB, newBestUB, newBestBox)
+
+/-- Checked branch-and-bound loop. -/
+def minimizeLoopCheckedWith (evalBox : Box → EvalResult IntervalRat)
+    (maxIterations : Nat) (tolerance : ℚ)
+    (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) :
+    Nat → EvalResult GlobalResult
+  | 0 => .ok {
+      bound := { lo := bestLB, hi := bestUB, bestBox := bestBox, iterations := maxIterations }
+      remainingBoxes := queue }
+  | n + 1 => do
+      let step ← minimizeStepCheckedWith evalBox tolerance queue bestLB bestUB bestBox
+      match step with
+      | none => return {
+          bound := { lo := bestLB, hi := bestUB, bestBox := bestBox,
+                     iterations := maxIterations - n - 1 }
+          remainingBoxes := [] }
+      | some (queue', bestLB', bestUB', bestBox') =>
+          minimizeLoopCheckedWith evalBox maxIterations tolerance
+            queue' bestLB' bestUB' bestBox' n
+
+/-- Checked minimization parameterized by a sound finite-enclosure backend. -/
+def globalMinimizeCheckedWith (evalBox : Box → EvalResult IntervalRat)
+    (B : Box) (maxIterations : Nat) (tolerance : ℚ) : EvalResult GlobalResult := do
+  let I ← evalBox B
+  minimizeLoopCheckedWith evalBox maxIterations tolerance
+    [(I.lo, B)] I.lo I.hi B maxIterations
+
+/-- Checked maximization parameterized by a sound finite-enclosure backend. -/
+def globalMaximizeCheckedWith (evalBox : Expr → Box → EvalResult IntervalRat)
+    (e : Expr) (B : Box) (maxIterations : Nat) (tolerance : ℚ) : EvalResult GlobalResult := do
+  let result ← globalMinimizeCheckedWith (evalBox (Expr.neg e)) B maxIterations tolerance
+  return {
+    bound := { lo := -result.bound.hi
+               hi := -result.bound.lo
+               bestBox := result.bound.bestBox
+               iterations := result.bound.iterations }
+    remainingBoxes := result.remainingBoxes.map fun (lb, box) => (-lb, box) }
+
+/-- Checked rational evaluation on a box. -/
+def evalOnBoxRationalChecked (e : Expr) (B : Box) : EvalResult IntervalRat :=
+  evalIntervalChecked e (Box.toEnv B)
+
+def globalMinimizeRationalChecked (e : Expr) (B : Box) (cfg : GlobalOptConfig := {}) :
+    EvalResult GlobalResult :=
+  globalMinimizeCheckedWith (evalOnBoxRationalChecked e) B cfg.maxIterations cfg.tolerance
+
+def globalMaximizeRationalChecked (e : Expr) (B : Box) (cfg : GlobalOptConfig := {}) :
+    EvalResult GlobalResult :=
+  globalMaximizeCheckedWith evalOnBoxRationalChecked e B cfg.maxIterations cfg.tolerance
+
+/-- Checked Dyadic evaluation on a box. -/
+def evalOnBoxDyadicChecked (e : Expr) (B : Box) (cfg : GlobalOptConfigDyadic) :
+    EvalResult IntervalRat :=
+  let ρ : IntervalDyadicEnv := fun i =>
+    let I := B.getD i (IntervalRat.singleton 0)
+    Core.IntervalDyadic.ofIntervalRat I cfg.precision
+  let dcfg : DyadicConfig := {
+    precision := cfg.precision, taylorDepth := cfg.taylorDepth, roundAfterOps := 0 }
+  match evalIntervalDyadicChecked e ρ dcfg with
+  | .ok I => .ok I.toIntervalRat
+  | .error err => .error err
+
+def globalMinimizeDyadicChecked (e : Expr) (B : Box) (cfg : GlobalOptConfigDyadic := {}) :
+    EvalResult GlobalResult :=
+  globalMinimizeCheckedWith (fun box => evalOnBoxDyadicChecked e box cfg)
+    B cfg.maxIterations cfg.tolerance
+
+def globalMaximizeDyadicChecked (e : Expr) (B : Box) (cfg : GlobalOptConfigDyadic := {}) :
+    EvalResult GlobalResult :=
+  globalMaximizeCheckedWith (fun e box => evalOnBoxDyadicChecked e box cfg)
+    e B cfg.maxIterations cfg.tolerance
+
+/-- Checked affine evaluation on a box. -/
+def evalOnBoxAffineChecked (e : Expr) (B : Box) (cfg : GlobalOptConfigAffine) :
+    EvalResult IntervalRat :=
+  let acfg : AffineConfig := {
+    taylorDepth := cfg.taylorDepth, maxNoiseSymbols := cfg.maxNoiseSymbols }
+  match evalIntervalAffineChecked e (toAffineEnv B) acfg with
+  | .ok a => .ok a.toInterval
+  | .error err => .error err
+
+def globalMinimizeAffineChecked (e : Expr) (B : Box) (cfg : GlobalOptConfigAffine := {}) :
+    EvalResult GlobalResult :=
+  globalMinimizeCheckedWith (fun box => evalOnBoxAffineChecked e box cfg)
+    B cfg.maxIterations cfg.tolerance
+
+def globalMaximizeAffineChecked (e : Expr) (B : Box) (cfg : GlobalOptConfigAffine := {}) :
+    EvalResult GlobalResult :=
+  globalMaximizeCheckedWith (fun e box => evalOnBoxAffineChecked e box cfg)
+    e B cfg.maxIterations cfg.tolerance
+
 end LeanCert.Engine.Optimization
