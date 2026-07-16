@@ -269,7 +269,7 @@ Despite the historical name, this is not a Boolean soundness theorem for
 `globalMaximize`. -/
 theorem verifyUpperBound_correct (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (bound : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMaximize e B cfg.toGlobalOptConfig).bound.hi ≤ bound) :
+    (hverify : (globalMaximize e hsupp B cfg.toGlobalOptConfig).bound.hi ≤ bound) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       Expr.eval ρ e ≤ bound := by
   intro ρ hρ hzero
@@ -281,16 +281,17 @@ theorem verifyUpperBound_correct (e : Expr) (hsupp : ExprSupported e)
   -- hmax : (globalMinimize (Expr.neg e) B cfg.toGlobalOptConfig).bound.lo ≤ -Expr.eval ρ e
   -- Goal : Expr.eval ρ e ≤ bound
   -- We have: globalMaximize.hi = -(globalMinimize (neg e)).lo
-  have hhi_eq : (globalMaximize e B cfg.toGlobalOptConfig).bound.hi =
-      -(globalMinimize (Expr.neg e) B cfg.toGlobalOptConfig).bound.lo := by
+  have hhi_eq : (globalMaximize e hsupp B cfg.toGlobalOptConfig).bound.hi =
+      -(globalMinimize (Expr.neg e) (.neg hsupp) B cfg.toGlobalOptConfig).bound.lo := by
     simp only [globalMaximize]
   rw [hhi_eq] at hverify
   -- hverify : -(globalMinimize (Expr.neg e) ...).bound.lo ≤ bound
   -- hmax : (globalMinimize (Expr.neg e) ...).bound.lo ≤ -Expr.eval ρ e
-  have h1 : Expr.eval ρ e ≤ -(globalMinimize (Expr.neg e) B cfg.toGlobalOptConfig).bound.lo := by
+  have h1 : Expr.eval ρ e ≤
+      -(globalMinimize (Expr.neg e) (.neg hsupp) B cfg.toGlobalOptConfig).bound.lo := by
     linarith [hmax]
   calc Expr.eval ρ e
-    ≤ -(globalMinimize (Expr.neg e) B cfg.toGlobalOptConfig).bound.lo := h1
+    ≤ -(globalMinimize (Expr.neg e) (.neg hsupp) B cfg.toGlobalOptConfig).bound.lo := h1
     _ ≤ bound := by exact_mod_cast hverify
 
 /-- Noncomputable lower-bound theorem.
@@ -300,13 +301,13 @@ Despite the historical name, this is not a Boolean soundness theorem for
 `globalMinimize`. -/
 theorem verifyLowerBound_correct (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (bound : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMinimize e B cfg.toGlobalOptConfig).bound.lo ≥ bound) :
+    (hverify : (globalMinimize e hsupp B cfg.toGlobalOptConfig).bound.lo ≥ bound) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       bound ≤ Expr.eval ρ e := by
   intro ρ hρ hzero
   have hmin := globalMinimize_lo_correct e hsupp B cfg.toGlobalOptConfig ρ hρ hzero
   calc (bound : ℝ)
-    ≤ (globalMinimize e B cfg.toGlobalOptConfig).bound.lo := by exact_mod_cast hverify
+    ≤ (globalMinimize e hsupp B cfg.toGlobalOptConfig).bound.lo := by exact_mod_cast hverify
     _ ≤ Expr.eval ρ e := hmin
 
 /-! ### Tactic-facing lemmas for adaptive bound verification -/
@@ -317,7 +318,7 @@ theorem verifyLowerBound_correct (e : Expr) (hsupp : ExprSupported e)
 theorem adaptive_upper_bound (e : Expr) (hsupp : ExprSupported e)
     (he : e.usesOnlyVar0 = true)
     (I : IntervalRat) (c : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMaximize e [I] cfg.toGlobalOptConfig).bound.hi ≤ c) :
+    (hverify : (globalMaximize e hsupp [I] cfg.toGlobalOptConfig).bound.hi ≤ c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
   -- Construct ρ' : Nat → ℝ with ρ' 0 = x and ρ' i = 0 for i ≥ 1
@@ -349,7 +350,7 @@ theorem adaptive_upper_bound (e : Expr) (hsupp : ExprSupported e)
 theorem adaptive_lower_bound (e : Expr) (hsupp : ExprSupported e)
     (he : e.usesOnlyVar0 = true)
     (I : IntervalRat) (c : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMinimize e [I] cfg.toGlobalOptConfig).bound.lo ≥ c) :
+    (hverify : (globalMinimize e hsupp [I] cfg.toGlobalOptConfig).bound.lo ≥ c) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   let ρ' : Nat → ℝ := fun i => if i = 0 then x else 0
@@ -378,7 +379,7 @@ theorem adaptive_lower_bound (e : Expr) (hsupp : ExprSupported e)
 theorem adaptive_upper_bound_strict (e : Expr) (hsupp : ExprSupported e)
     (he : e.usesOnlyVar0 = true)
     (I : IntervalRat) (c : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMaximize e [I] cfg.toGlobalOptConfig).bound.hi < c) :
+    (hverify : (globalMaximize e hsupp [I] cfg.toGlobalOptConfig).bound.hi < c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
   intro x hx
   let ρ' : Nat → ℝ := fun i => if i = 0 then x else 0
@@ -397,28 +398,31 @@ theorem adaptive_upper_bound_strict (e : Expr) (hsupp : ExprSupported e)
   -- Use strict bound from verification
   have hmax := globalMinimize_lo_correct (Expr.neg e) (ExprSupported.neg hsupp) [I] cfg.toGlobalOptConfig ρ' hρ'mem hρ'zero
   simp only [Expr.eval_neg] at hmax
-  have hhi_eq : (globalMaximize e [I] cfg.toGlobalOptConfig).bound.hi =
-      -(globalMinimize (Expr.neg e) [I] cfg.toGlobalOptConfig).bound.lo := by
+  have hhi_eq : (globalMaximize e hsupp [I] cfg.toGlobalOptConfig).bound.hi =
+      -(globalMinimize (Expr.neg e) (.neg hsupp) [I] cfg.toGlobalOptConfig).bound.lo := by
     simp only [globalMaximize]
   have heq : Expr.eval (fun _ => x) e = Expr.eval ρ' e := by
     apply Expr.eval_usesOnlyVar0_eq e he
     simp only [ρ', ↓reduceIte]
   rw [heq]
-  have hbound : Expr.eval ρ' e ≤ -(globalMinimize (Expr.neg e) [I] cfg.toGlobalOptConfig).bound.lo := by
+  have hbound : Expr.eval ρ' e ≤
+      -(globalMinimize (Expr.neg e) (.neg hsupp) [I] cfg.toGlobalOptConfig).bound.lo := by
     linarith [hmax]
-  have hhi_lt : (-(globalMinimize (Expr.neg e) [I] cfg.toGlobalOptConfig).bound.lo : ℝ) < c := by
-    have : ((globalMaximize e [I] cfg.toGlobalOptConfig).bound.hi : ℝ) < c := by exact_mod_cast hverify
+  have hhi_lt :
+      (-(globalMinimize (Expr.neg e) (.neg hsupp) [I] cfg.toGlobalOptConfig).bound.lo : ℝ) < c := by
+    have : ((globalMaximize e hsupp [I] cfg.toGlobalOptConfig).bound.hi : ℝ) < c := by
+      exact_mod_cast hverify
     simp only [globalMaximize, Rat.cast_neg] at this
     exact this
   calc Expr.eval ρ' e
-    ≤ -(globalMinimize (Expr.neg e) [I] cfg.toGlobalOptConfig).bound.lo := hbound
+    ≤ -(globalMinimize (Expr.neg e) (.neg hsupp) [I] cfg.toGlobalOptConfig).bound.lo := hbound
     _ < c := hhi_lt
 
 /-- Strict lower bound version -/
 theorem adaptive_lower_bound_strict (e : Expr) (hsupp : ExprSupported e)
     (he : e.usesOnlyVar0 = true)
     (I : IntervalRat) (c : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMinimize e [I] cfg.toGlobalOptConfig).bound.lo > c) :
+    (hverify : (globalMinimize e hsupp [I] cfg.toGlobalOptConfig).bound.lo > c) :
     ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
   intro x hx
   let ρ' : Nat → ℝ := fun i => if i = 0 then x else 0
@@ -440,7 +444,7 @@ theorem adaptive_lower_bound_strict (e : Expr) (hsupp : ExprSupported e)
     simp only [ρ', ↓reduceIte]
   rw [heq]
   calc (c : ℝ)
-    < (globalMinimize e [I] cfg.toGlobalOptConfig).bound.lo := by exact_mod_cast hverify
+    < (globalMinimize e hsupp [I] cfg.toGlobalOptConfig).bound.lo := by exact_mod_cast hverify
     _ ≤ Expr.eval ρ' e := hmin
 
 /-! ### Theorem versions for Set.Icc (for tactic compatibility) -/
@@ -449,7 +453,7 @@ theorem adaptive_lower_bound_strict (e : Expr) (hsupp : ExprSupported e)
 theorem adaptive_upper_bound_Icc (e : Expr) (hsupp : ExprSupported e)
     (he : e.usesOnlyVar0 = true)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMaximize e [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.hi ≤ c) :
+    (hverify : (globalMaximize e hsupp [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.hi ≤ c) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
   have hxI : x ∈ (⟨lo, hi, hle⟩ : IntervalRat) := by
@@ -461,7 +465,7 @@ theorem adaptive_upper_bound_Icc (e : Expr) (hsupp : ExprSupported e)
 theorem adaptive_lower_bound_Icc (e : Expr) (hsupp : ExprSupported e)
     (he : e.usesOnlyVar0 = true)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMinimize e [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.lo ≥ c) :
+    (hverify : (globalMinimize e hsupp [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.lo ≥ c) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   have hxI : x ∈ (⟨lo, hi, hle⟩ : IntervalRat) := by
@@ -473,7 +477,7 @@ theorem adaptive_lower_bound_Icc (e : Expr) (hsupp : ExprSupported e)
 theorem adaptive_upper_bound_Icc_strict (e : Expr) (hsupp : ExprSupported e)
     (he : e.usesOnlyVar0 = true)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMaximize e [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.hi < c) :
+    (hverify : (globalMaximize e hsupp [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.hi < c) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, Expr.eval (fun _ => x) e < c := by
   intro x hx
   have hxI : x ∈ (⟨lo, hi, hle⟩ : IntervalRat) := by
@@ -485,7 +489,7 @@ theorem adaptive_upper_bound_Icc_strict (e : Expr) (hsupp : ExprSupported e)
 theorem adaptive_lower_bound_Icc_strict (e : Expr) (hsupp : ExprSupported e)
     (he : e.usesOnlyVar0 = true)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : BoundVerifyConfig)
-    (hverify : (globalMinimize e [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.lo > c) :
+    (hverify : (globalMinimize e hsupp [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.lo > c) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, c < Expr.eval (fun _ => x) e := by
   intro x hx
   have hxI : x ∈ (⟨lo, hi, hle⟩ : IntervalRat) := by

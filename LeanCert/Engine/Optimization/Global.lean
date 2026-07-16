@@ -116,12 +116,13 @@ def popBest (queue : List (ℚ × Box)) : Option ((ℚ × Box) × List (ℚ × B
 /-! ### Core algorithm -/
 
 /-- Evaluate expression on a box and get interval bounds -/
-noncomputable def evalOnBox (e : Expr) (B : Box) (_cfg : GlobalOptConfig) : IntervalRat :=
-  evalIntervalRefined e (Box.toEnv B)
+noncomputable def evalOnBox (e : Expr) (hsupp : ExprSupported e)
+    (B : Box) (_cfg : GlobalOptConfig) : IntervalRat :=
+  evalIntervalRefined e hsupp (Box.toEnv B)
 
 /-- One step of branch-and-bound for minimization with explicit global-safe lower bound tracking.
     When `cfg.useMonotonicity` is true, applies gradient-based pruning before evaluation. -/
-noncomputable def minimizeStep (e : Expr) (cfg : GlobalOptConfig)
+noncomputable def minimizeStep (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) :
     Option (List (ℚ × Box) × ℚ × ℚ × Box) :=
   match popBest queue with
@@ -139,7 +140,7 @@ noncomputable def minimizeStep (e : Expr) (cfg : GlobalOptConfig)
           (pruneBoxForMin B grad).1
         else B
       -- Step 2: Evaluate on (potentially pruned) box
-      let I := evalOnBox e B_curr cfg
+      let I := evalOnBox e hsupp B_curr cfg
       -- Update the global-safe lower bound. This value is intentionally monotone
       -- downward, preserving the simple invariant `bestLB ≤ f(ρ)` on the original
       -- box. It is not the tightest lower bound over the active queue.
@@ -154,8 +155,8 @@ noncomputable def minimizeStep (e : Expr) (cfg : GlobalOptConfig)
       else
         -- Step 3: Split and add children
         let (B1, B2) := Box.splitWidest B_curr
-        let I1 := evalOnBox e B1 cfg
-        let I2 := evalOnBox e B2 cfg
+        let I1 := evalOnBox e hsupp B1 cfg
+        let I2 := evalOnBox e hsupp B2 cfg
         -- Only add boxes that can potentially improve
         let queue' := rest
         let queue' := if I1.lo ≤ newBestUB then insertByBound queue' I1.lo B1 else queue'
@@ -164,7 +165,7 @@ noncomputable def minimizeStep (e : Expr) (cfg : GlobalOptConfig)
 
 /-- Run branch-and-bound for a fixed number of iterations with explicit global-safe
 lower bound tracking. -/
-noncomputable def minimizeLoop (e : Expr) (cfg : GlobalOptConfig)
+noncomputable def minimizeLoop (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) (iters : Nat) :
     GlobalResult :=
   match iters with
@@ -172,25 +173,27 @@ noncomputable def minimizeLoop (e : Expr) (cfg : GlobalOptConfig)
     { bound := { lo := bestLB, hi := bestUB, bestBox := bestBox, iterations := cfg.maxIterations }
       remainingBoxes := queue }
   | n + 1 =>
-    match minimizeStep e cfg queue bestLB bestUB bestBox with
+    match minimizeStep e hsupp cfg queue bestLB bestUB bestBox with
     | none =>
       { bound := { lo := bestLB, hi := bestUB, bestBox := bestBox, iterations := cfg.maxIterations - n - 1 }
         remainingBoxes := [] }
     | some (queue', bestLB', bestUB', bestBox') =>
-      minimizeLoop e cfg queue' bestLB' bestUB' bestBox' n
+      minimizeLoop e hsupp cfg queue' bestLB' bestUB' bestBox' n
 
 /-- Global minimization over a box -/
-noncomputable def globalMinimize (e : Expr) (B : Box) (cfg : GlobalOptConfig := {}) : GlobalResult :=
-  let I := evalOnBox e B cfg
+noncomputable def globalMinimize (e : Expr) (hsupp : ExprSupported e)
+    (B : Box) (cfg : GlobalOptConfig := {}) : GlobalResult :=
+  let I := evalOnBox e hsupp B cfg
   let initialQueue : List (ℚ × Box) := [(I.lo, B)]
   let initialBestLB : ℚ := I.lo
   let initialBestUB : ℚ := I.hi
   let initialBestBox : Box := B
-  minimizeLoop e cfg initialQueue initialBestLB initialBestUB initialBestBox cfg.maxIterations
+  minimizeLoop e hsupp cfg initialQueue initialBestLB initialBestUB initialBestBox cfg.maxIterations
 
 /-- Global maximization over a box (minimize -e) -/
-noncomputable def globalMaximize (e : Expr) (B : Box) (cfg : GlobalOptConfig := {}) : GlobalResult :=
-  let result := globalMinimize (Expr.neg e) B cfg
+noncomputable def globalMaximize (e : Expr) (hsupp : ExprSupported e)
+    (B : Box) (cfg : GlobalOptConfig := {}) : GlobalResult :=
+  let result := globalMinimize (Expr.neg e) (.neg hsupp) B cfg
   { bound := { lo := -result.bound.hi
                hi := -result.bound.lo
                bestBox := result.bound.bestBox
@@ -283,7 +286,7 @@ def globalMaximizeCore (e : Expr) (B : Box) (cfg : GlobalOptConfig := {}) : Glob
 theorem evalOnBox_lo_correct (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (cfg : GlobalOptConfig) (ρ : Nat → ℝ) (hρ : Box.envMem ρ B)
     (hzero : ∀ i, i ≥ B.length → ρ i = 0) :
-    (evalOnBox e B cfg).lo ≤ Expr.eval ρ e := by
+    (evalOnBox e hsupp B cfg).lo ≤ Expr.eval ρ e := by
   have henv := Box.envMem_toEnv ρ B hρ hzero
   have hmem := evalIntervalRefined_correct e hsupp ρ (Box.toEnv B) henv
   simp only [evalOnBox]
@@ -293,7 +296,7 @@ theorem evalOnBox_lo_correct (e : Expr) (hsupp : ExprSupported e)
 theorem evalOnBox_hi_correct (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (cfg : GlobalOptConfig) (ρ : Nat → ℝ) (hρ : Box.envMem ρ B)
     (hzero : ∀ i, i ≥ B.length → ρ i = 0) :
-    Expr.eval ρ e ≤ (evalOnBox e B cfg).hi := by
+    Expr.eval ρ e ≤ (evalOnBox e hsupp B cfg).hi := by
   have henv := Box.envMem_toEnv ρ B hρ hzero
   have hmem := evalIntervalRefined_correct e hsupp ρ (Box.toEnv B) henv
   simp only [evalOnBox]
@@ -353,17 +356,17 @@ theorem mem_insertByBound (queue : List (ℚ × Box)) (lb : ℚ) (B : Box) (lb' 
     all_goals tauto
 
 /-- minimizeStep always returns some for non-empty queue -/
-theorem minimizeStep_nonempty (e : Expr) (cfg : GlobalOptConfig)
+theorem minimizeStep_nonempty (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) :
-    ∃ result, minimizeStep e cfg (hd :: tl) bestLB bestUB bestBox = some result := by
+    ∃ result, minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some result := by
   simp only [minimizeStep, popBest]
   split_ifs <;> exact ⟨_, rfl⟩
 
 /-- Helper: bestUB only decreases during minimizeStep -/
-theorem minimizeStep_bestUB_le (e : Expr) (cfg : GlobalOptConfig)
+theorem minimizeStep_bestUB_le (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
-    (hStep : minimizeStep e cfg queue bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
+    (hStep : minimizeStep e hsupp cfg queue bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
     bestUB' ≤ bestUB := by
   cases queue with
   | nil => simp [minimizeStep, popBest] at hStep
@@ -375,10 +378,10 @@ theorem minimizeStep_bestUB_le (e : Expr) (cfg : GlobalOptConfig)
     all_goals exact le_of_lt ‹_›
 
 /-- Helper: bestLB only decreases during minimizeStep -/
-theorem minimizeStep_bestLB_le (e : Expr) (cfg : GlobalOptConfig)
+theorem minimizeStep_bestLB_le (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
-    (hStep : minimizeStep e cfg queue bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
+    (hStep : minimizeStep e hsupp cfg queue bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
     bestLB' ≤ bestLB := by
   cases queue with
   | nil => simp [minimizeStep, popBest] at hStep
@@ -390,10 +393,10 @@ theorem minimizeStep_bestLB_le (e : Expr) (cfg : GlobalOptConfig)
     all_goals exact min_le_left _ _
 
 /-- Helper: new queue entries either come from original tail or have lb ≤ newBestUB -/
-theorem minimizeStep_queue_entries (e : Expr) (cfg : GlobalOptConfig)
+theorem minimizeStep_queue_entries (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
-    (hStep : minimizeStep e cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
+    (hStep : minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
     (lb : ℚ) (B' : Box) (hmem : (lb, B') ∈ queue') :
     (lb, B') ∈ tl ∨ lb ≤ bestUB' := by
   simp only [minimizeStep, popBest] at hStep
@@ -417,10 +420,10 @@ theorem minimizeStep_queue_entries (e : Expr) (cfg : GlobalOptConfig)
 
 /-- Helper: bestBox' is either bestBox or a subset of hd.2 (the pruned box B_curr).
     When monotonicity pruning is enabled, bestBox' may be the pruned version of hd.2. -/
-theorem minimizeStep_bestBox_cases (e : Expr) (cfg : GlobalOptConfig)
+theorem minimizeStep_bestBox_cases (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
-    (hStep : minimizeStep e cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
+    (hStep : minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
     bestBox' = bestBox ∨
     bestBox' = (if cfg.useMonotonicity then
         (pruneBoxForMin hd.2 (gradientIntervalN e hd.2 hd.2.length)).1 else hd.2) := by
@@ -431,10 +434,10 @@ theorem minimizeStep_bestBox_cases (e : Expr) (cfg : GlobalOptConfig)
   all_goals first | left; rfl | right; simp_all
 
 /-- Helper: queue entries in result are either from tl or splits of B_curr (the possibly pruned hd.2) -/
-theorem minimizeStep_queue_boxes (e : Expr) (cfg : GlobalOptConfig)
+theorem minimizeStep_queue_boxes (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
-    (hStep : minimizeStep e cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
+    (hStep : minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
     (lb : ℚ) (B' : Box) (hmem : (lb, B') ∈ queue') :
     let B_curr := if cfg.useMonotonicity then
         (pruneBoxForMin hd.2 (gradientIntervalN e hd.2 hd.2.length)).1 else hd.2
@@ -475,7 +478,7 @@ theorem minimizeStep_queue_boxes (e : Expr) (cfg : GlobalOptConfig)
 theorem minimizeStep_bestUB_achievable (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
-    (hStep : minimizeStep e cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
+    (hStep : minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
     (hBestUB : ∃ ρ, Box.envMem ρ bestBox ∧ (∀ i, i ≥ bestBox.length → ρ i = 0) ∧
       Expr.eval ρ e ≤ bestUB) :
     ∃ ρ, Box.envMem ρ bestBox' ∧ (∀ i, i ≥ bestBox'.length → ρ i = 0) ∧
@@ -567,7 +570,7 @@ theorem minimizeStep_preserves_LB (e : Expr) (hsupp : ExprSupported e) (cfg : Gl
     (origB : Box)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
-    (hStep : minimizeStep e cfg queue bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
+    (hStep : minimizeStep e hsupp cfg queue bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
     (hLB : ∀ ρ, Box.envMem ρ origB → (∀ i, i ≥ origB.length → ρ i = 0) → bestLB ≤ Expr.eval ρ e)
     (hUB : ∃ ρ, Box.envMem ρ origB ∧ (∀ i, i ≥ origB.length → ρ i = 0) ∧ Expr.eval ρ e ≤ bestUB)
     (hQueueSub : ∀ lb B', (lb, B') ∈ queue →
@@ -602,8 +605,8 @@ theorem minimizeStep_preserves_LB (e : Expr) (hsupp : ExprSupported e) (cfg : Gl
            · -- Lower bound: min bestLB I.lo ≤ f(ρ) for all ρ in origB
              intro ρ hρ hzero
              have hLB_old := hLB ρ hρ hzero
-             have hmin_le : bestLB ⊓ (evalOnBox e B_curr cfg).lo ≤ bestLB := min_le_left _ _
-             calc ((bestLB ⊓ (evalOnBox e B_curr cfg).lo : ℚ) : ℝ)
+             have hmin_le : bestLB ⊓ (evalOnBox e hsupp B_curr cfg).lo ≤ bestLB := min_le_left _ _
+             calc ((bestLB ⊓ (evalOnBox e hsupp B_curr cfg).lo : ℚ) : ℝ)
                ≤ bestLB := by exact_mod_cast hmin_le
                _ ≤ Expr.eval ρ e := hLB_old
            · -- Upper bound: witness exists
@@ -629,8 +632,8 @@ theorem minimizeStep_preserves_LB (e : Expr) (hsupp : ExprSupported e) (cfg : Gl
              intro ρ hρ hzero
              have hLB_old := hLB ρ hρ hzero
              rw [← hLB']
-             have hmin_le : bestLB ⊓ (evalOnBox e B_curr cfg).lo ≤ bestLB := min_le_left _ _
-             calc ((bestLB ⊓ (evalOnBox e B_curr cfg).lo : ℚ) : ℝ)
+             have hmin_le : bestLB ⊓ (evalOnBox e hsupp B_curr cfg).lo ≤ bestLB := min_le_left _ _
+             calc ((bestLB ⊓ (evalOnBox e hsupp B_curr cfg).lo : ℚ) : ℝ)
                ≤ bestLB := by exact_mod_cast hmin_le
                _ ≤ Expr.eval ρ e := hLB_old
            · -- Upper bound witness: two cases based on whether UB improved
@@ -731,7 +734,7 @@ theorem minimizeLoop_correct (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalO
     (hUB : ∃ ρ, Box.envMem ρ origB ∧ (∀ i, i ≥ origB.length → ρ i = 0) ∧ Expr.eval ρ e ≤ bestUB)
     (hQueueSub : ∀ lb B', (lb, B') ∈ queue →
         ∀ ρ, Box.envMem ρ B' → Box.envMem ρ origB ∧ B'.length = origB.length) :
-    let result := minimizeLoop e cfg queue bestLB bestUB bestBox iters
+    let result := minimizeLoop e hsupp cfg queue bestLB bestUB bestBox iters
     (∀ ρ, Box.envMem ρ origB → (∀ i, i ≥ origB.length → ρ i = 0) →
         result.bound.lo ≤ Expr.eval ρ e) ∧
     (∃ ρ, Box.envMem ρ origB ∧ (∀ i, i ≥ origB.length → ρ i = 0) ∧
@@ -742,7 +745,7 @@ theorem minimizeLoop_correct (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalO
     exact ⟨hLB, hUB⟩
   | succ n ih =>
     simp only [minimizeLoop]
-    cases hstep : minimizeStep e cfg queue bestLB bestUB bestBox with
+    cases hstep : minimizeStep e hsupp cfg queue bestLB bestUB bestBox with
     | none =>
       simp only
       exact ⟨hLB, hUB⟩
@@ -760,10 +763,10 @@ theorem minimizeLoop_correct (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalO
 theorem globalMinimize_lo_correct (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (cfg : GlobalOptConfig) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
-      (globalMinimize e B cfg).bound.lo ≤ Expr.eval ρ e := by
+      (globalMinimize e hsupp B cfg).bound.lo ≤ Expr.eval ρ e := by
   intro ρ hρ hzero
   simp only [globalMinimize]
-  let I := evalOnBox e B cfg
+  let I := evalOnBox e hsupp B cfg
   -- Initial invariants
   have hLB0 : ∀ ρ', Box.envMem ρ' B → (∀ i, i ≥ B.length → ρ' i = 0) →
       I.lo ≤ Expr.eval ρ' e := by
@@ -790,9 +793,9 @@ theorem globalMinimize_lo_correct (e : Expr) (hsupp : ExprSupported e)
 theorem globalMinimize_hi_achievable (e : Expr) (hsupp : ExprSupported e)
     (B : Box) (cfg : GlobalOptConfig) :
     ∃ (ρ : Nat → ℝ), Box.envMem ρ B ∧ (∀ i, i ≥ B.length → ρ i = 0) ∧
-      Expr.eval ρ e ≤ (globalMinimize e B cfg).bound.hi := by
+      Expr.eval ρ e ≤ (globalMinimize e hsupp B cfg).bound.hi := by
   simp only [globalMinimize]
-  let I := evalOnBox e B cfg
+  let I := evalOnBox e hsupp B cfg
   -- Initial invariants
   have hLB0 : ∀ ρ', Box.envMem ρ' B → (∀ i, i ≥ B.length → ρ' i = 0) →
       I.lo ≤ Expr.eval ρ' e := by

@@ -202,6 +202,10 @@ export LeanCert.Engine (
   evalIntervalCore_correct
   evalIntervalCore1_correct
   -- Refined evaluation (uses Taylor models for tighter bounds)
+  evalIntervalRefined?
+  evalIntervalRefined1?
+  evalIntervalRefined?_correct
+  evalIntervalRefined1?_correct
   evalIntervalRefined
   evalIntervalRefined1
   evalIntervalRefined_correct
@@ -215,11 +219,8 @@ export LeanCert.Engine (
   evalDualRefined_val_correct
   -- v1.1: Dyadic evaluation (prevents denominator explosion)
   DyadicConfig
-  evalIntervalDyadic
-  evalIntervalDyadic_correct
-  checkUpperBoundDyadic
-  checkLowerBoundDyadic
-  checkBoundsDyadic
+  evalIntervalDyadicChecked
+  evalIntervalDyadicChecked_correct
 )
 
 -- Re-export reflective sum evaluator (O(1) proof size for finite sums)

@@ -144,14 +144,16 @@ noncomputable def I01Real : IntervalReal := ⟨0, 1, by norm_num⟩
 
 /-- Verified: exp(x) on [0, 1] gives a value in the computed interval.
     This theorem has NO SORRY - exp is now fully supported! -/
-theorem exp_interval_correct (x : ℝ) (hx : x ∈ I01Real) :
-    Expr.eval (fun _ => x) exprExp ∈ evalIntervalReal1 exprExp I01Real :=
-  evalIntervalReal1_correct exprExp exprExp_supportedExt x I01Real hx
+theorem exp_interval_correct (x : ℝ) (hx : x ∈ I01Real) (J : IntervalReal)
+    (hJ : evalIntervalReal1? exprExp I01Real = some J) :
+    Expr.eval (fun _ => x) exprExp ∈ J :=
+  evalIntervalReal1?_correct exprExp x I01Real J hx hJ
 
 /-- Verified: exp(x²) on [0, 1] gives a value in the computed interval.
     This demonstrates chained exp support! -/
-theorem expXSquared_interval_correct (x : ℝ) (hx : x ∈ I01Real) :
-    Expr.eval (fun _ => x) exprExpXSquared ∈ evalIntervalReal1 exprExpXSquared I01Real :=
-  evalIntervalReal1_correct exprExpXSquared exprExpXSquared_supportedExt x I01Real hx
+theorem expXSquared_interval_correct (x : ℝ) (hx : x ∈ I01Real) (J : IntervalReal)
+    (hJ : evalIntervalReal1? exprExpXSquared I01Real = some J) :
+    Expr.eval (fun _ => x) exprExpXSquared ∈ J :=
+  evalIntervalReal1?_correct exprExpXSquared x I01Real J hx hJ
 
 end LeanCert.Examples.Calculus

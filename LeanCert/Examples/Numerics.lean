@@ -270,7 +270,7 @@ The refined evaluators use Taylor models for tighter bounds on transcendentals.
 
 /-- sin(x) on [0, 0.5] - the refined evaluator gives tighter bounds than [-1, 1] -/
 noncomputable def sinSmall_refined : IntervalRat :=
-  evalIntervalRefined1 exprSin ⟨0, 1/2, by norm_num⟩
+  evalIntervalRefined1 exprSin exprSin_supported ⟨0, 1/2, by norm_num⟩
 
 /-- Correctness of refined evaluation -/
 theorem sinSmall_refined_correct (x : ℝ) (hx : x ∈ (⟨0, 1/2, by norm_num⟩ : IntervalRat)) :

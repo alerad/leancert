@@ -16,9 +16,8 @@ which allows us to support exp in a fully verified way.
 ## Main definitions
 
 * `ExprSupportedExt` - Extended predicate for the real-endpoint evaluator
-* `evalIntervalReal` - Evaluate an expression over real-endpoint intervals
 * `evalIntervalReal?` - Strict partial evaluator that rejects unsupported partial operations
-* `evalIntervalReal_correct` - Correctness theorem (fully proved)
+* `evalIntervalReal?_correct` - Correctness theorem for successful evaluation
 
 ## Design notes
 
@@ -38,7 +37,7 @@ open LeanCert.Core
 /-! ### Extended supported expression subset -/
 
 /-- Predicate indicating an expression is in the extended verified subset.
-    This includes total functions handled by `evalIntervalReal`.
+    This includes total functions handled by `evalIntervalReal?`.
     Does NOT support: inv/log/atanh, which require domain checks. -/
 inductive ExprSupportedExt : Expr → Prop where
   | const (q : ℚ) : ExprSupportedExt (Expr.const q)
@@ -78,44 +77,12 @@ theorem ExprSupported.toExt {e : Expr} (h : ExprSupported e) : ExprSupportedExt 
 /-- Variable assignment as real-endpoint intervals -/
 abbrev IntervalRealEnv := Nat → IntervalReal
 
-/-- Evaluate an expression over real-endpoint intervals.
-
-    For expressions in ExprSupportedExt, this computes correct interval bounds
-    with a fully-verified proof.
-
-    For unsupported partial expressions (inv, log, atanh), this legacy total
-    evaluator returns a trivial interval. Use it only through `ExprSupportedExt`
-    or a theorem that supplies the corresponding support proof. -/
-noncomputable def evalIntervalReal (e : Expr) (ρ : IntervalRealEnv) : IntervalReal :=
-  match e with
-  | Expr.const q => IntervalReal.singleton q
-  | Expr.var idx => ρ idx
-  | Expr.add e₁ e₂ => IntervalReal.add (evalIntervalReal e₁ ρ) (evalIntervalReal e₂ ρ)
-  | Expr.mul e₁ e₂ => IntervalReal.mul (evalIntervalReal e₁ ρ) (evalIntervalReal e₂ ρ)
-  | Expr.neg e => IntervalReal.neg (evalIntervalReal e ρ)
-  | Expr.inv _ => ⟨0, 0, le_refl 0⟩  -- Unsupported: returns trivial interval
-  | Expr.exp e => IntervalReal.expInterval (evalIntervalReal e ρ)
-  | Expr.sin e => IntervalReal.sinInterval (evalIntervalReal e ρ)
-  | Expr.cos e => IntervalReal.cosInterval (evalIntervalReal e ρ)
-  | Expr.log _ => ⟨0, 0, le_refl 0⟩  -- Unsupported: returns trivial interval
-  | Expr.atan e => IntervalReal.atanInterval (evalIntervalReal e ρ)
-  | Expr.arsinh e => IntervalReal.arsinhInterval (evalIntervalReal e ρ)
-  | Expr.atanh _ => ⟨0, 0, le_refl 0⟩  -- Partial function: returns trivial interval
-  | Expr.sinc _ => ⟨-1, 1, by norm_num⟩  -- sinc is bounded by [-1, 1]
-  | Expr.erf _ => ⟨-1, 1, by norm_num⟩  -- erf is bounded by [-1, 1]
-  | Expr.sinh e => IntervalReal.sinhInterval (evalIntervalReal e ρ)
-  | Expr.cosh e => IntervalReal.coshInterval (evalIntervalReal e ρ)
-  | Expr.tanh _ => ⟨-1, 1, by norm_num⟩  -- tanh is bounded by (-1, 1)
-  | Expr.sqrt e => IntervalReal.sqrtInterval (evalIntervalReal e ρ)
-  | Expr.namedConst c => ⟨c.toReal, c.toReal, le_refl _⟩
-
 /-- Strict real-endpoint interval evaluator.
 
-Unlike the legacy total `evalIntervalReal`, this returns `none` for unsupported
-partial operations (`inv`, `log`, `atanh`) and for compound expressions whose
-required subexpression failed. Globally bounded total functions such as `sinc`,
-`erf`, and `tanh` still return their global range without requiring a refined
-subexpression interval.
+Returns `none` for unsupported partial operations (`inv`, `log`, `atanh`) and
+for compound expressions whose required subexpression failed. Globally bounded
+total functions such as `sinc`, `erf`, and `tanh` still return their global
+range without requiring a refined subexpression interval.
 -/
 noncomputable def evalIntervalReal? (e : Expr) (ρ : IntervalRealEnv) : Option IntervalReal :=
   match e with
@@ -418,84 +385,11 @@ theorem evalIntervalReal?_correct (e : Expr) (ρ_real : Nat → ℝ)
       simp only [Expr.eval_namedConst, IntervalReal.mem_def]
       exact ⟨le_rfl, le_rfl⟩
 
-/-- Fundamental correctness theorem for real-endpoint interval evaluation.
-    If variables are in their intervals, the expression evaluates to a value
-    in the computed interval.
-
-    This theorem is fully proved for `ExprSupportedExt` expressions. -/
-theorem evalIntervalReal_correct (e : Expr) (hsupp : ExprSupportedExt e)
-    (ρ_real : Nat → ℝ) (ρ_int : IntervalRealEnv) (hρ : envMemReal ρ_real ρ_int) :
-    Expr.eval ρ_real e ∈ evalIntervalReal e ρ_int := by
-  induction hsupp with
-  | const q =>
-    simp only [Expr.eval_const, evalIntervalReal]
-    exact IntervalReal.mem_singleton_rat q
-  | var idx =>
-    simp only [Expr.eval_var, evalIntervalReal]
-    exact hρ idx
-  | add _ _ ih₁ ih₂ =>
-    simp only [Expr.eval_add, evalIntervalReal]
-    exact IntervalReal.mem_add ih₁ ih₂
-  | mul _ _ ih₁ ih₂ =>
-    simp only [Expr.eval_mul, evalIntervalReal]
-    exact IntervalReal.mem_mul' ih₁ ih₂
-  | neg _ ih =>
-    simp only [Expr.eval_neg, evalIntervalReal]
-    exact IntervalReal.mem_neg ih
-  | sin _ ih =>
-    simp only [Expr.eval_sin, evalIntervalReal]
-    exact IntervalReal.mem_sinInterval ih
-  | cos _ ih =>
-    simp only [Expr.eval_cos, evalIntervalReal]
-    exact IntervalReal.mem_cosInterval ih
-  | exp _ ih =>
-    simp only [Expr.eval_exp, evalIntervalReal]
-    exact IntervalReal.mem_expInterval ih
-  | atan _ ih =>
-    simp only [Expr.eval_atan, evalIntervalReal]
-    exact IntervalReal.mem_atanInterval ih
-  | arsinh _ ih =>
-    simp only [Expr.eval_arsinh, evalIntervalReal]
-    exact IntervalReal.mem_arsinhInterval ih
-  | sinh _ ih =>
-    simp only [Expr.eval_sinh, evalIntervalReal]
-    exact IntervalReal.mem_sinhInterval ih
-  | cosh _ ih =>
-    simp only [Expr.eval_cosh, evalIntervalReal]
-    exact IntervalReal.mem_coshInterval ih
-  | tanh _ =>
-    simp only [Expr.eval_tanh, evalIntervalReal, IntervalReal.mem_def]
-    constructor
-    · exact le_of_lt (Real.neg_one_lt_tanh _)
-    · exact le_of_lt (Real.tanh_lt_one _)
-  | sqrt _ ih =>
-    simp only [Expr.eval_sqrt, evalIntervalReal]
-    exact IntervalReal.mem_sqrtInterval ih
-  | sinc _ _ =>
-    simp only [Expr.eval_sinc, evalIntervalReal]
-    exact Real.sinc_mem_Icc _
-  | erf _ _ =>
-    simp only [Expr.eval_erf, evalIntervalReal]
-    exact Real.erf_mem_Icc _
-  | namedConst c =>
-    simp only [Expr.eval_namedConst, evalIntervalReal, IntervalReal.mem_def]
-    exact ⟨le_rfl, le_rfl⟩
-
 /-! ### Convenience functions -/
-
-/-- Evaluate an expression with a single variable over a real-endpoint interval -/
-noncomputable def evalIntervalReal1 (e : Expr) (I : IntervalReal) : IntervalReal :=
-  evalIntervalReal e (fun _ => I)
 
 /-- Strict single-variable real-endpoint interval evaluator. -/
 noncomputable def evalIntervalReal1? (e : Expr) (I : IntervalReal) : Option IntervalReal :=
   evalIntervalReal? e (fun _ => I)
-
-/-- Correctness for single-variable evaluation -/
-theorem evalIntervalReal1_correct (e : Expr) (hsupp : ExprSupportedExt e)
-    (x : ℝ) (I : IntervalReal) (hx : x ∈ I) :
-    Expr.eval (fun _ => x) e ∈ evalIntervalReal1 e I :=
-  evalIntervalReal_correct e hsupp _ _ (fun _ => hx)
 
 /-- Correctness for strict single-variable evaluation. -/
 theorem evalIntervalReal1?_correct (e : Expr) (x : ℝ) (I J : IntervalReal)
@@ -513,61 +407,5 @@ def toIntervalRealEnv (ρ : IntervalEnv) : IntervalRealEnv :=
 theorem mem_toIntervalRealEnv {x : ℝ} {ρ : IntervalEnv} {i : Nat}
     (hx : x ∈ ρ i) : x ∈ toIntervalRealEnv ρ i :=
   IntervalReal.mem_ofRat hx
-
-/-! ### Tactic-facing lemmas for interval bounds (extended subset with exp) -/
-
-/-- Upper bound lemma for extended subset (includes exp).
-    FULLY PROVED - no sorry, no axioms. -/
-theorem exprExt_le_of_interval_hi (e : Expr) (hsupp : ExprSupportedExt e)
-    (I : IntervalReal) (c : ℝ) (hhi : (evalIntervalReal1 e I).hi ≤ c) :
-    ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
-  intro x hx
-  have hmem := evalIntervalReal1_correct e hsupp x I hx
-  simp only [IntervalReal.mem_def] at hmem
-  exact le_trans hmem.2 hhi
-
-/-- Lower bound lemma for extended subset (includes exp).
-    FULLY PROVED - no sorry, no axioms. -/
-theorem exprExt_ge_of_interval_lo (e : Expr) (hsupp : ExprSupportedExt e)
-    (I : IntervalReal) (c : ℝ) (hlo : c ≤ (evalIntervalReal1 e I).lo) :
-    ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
-  intro x hx
-  have hmem := evalIntervalReal1_correct e hsupp x I hx
-  simp only [IntervalReal.mem_def] at hmem
-  exact le_trans hlo hmem.1
-
-/-- Strict upper bound for extended subset.
-    FULLY PROVED - no sorry, no axioms. -/
-theorem exprExt_lt_of_interval_hi_lt (e : Expr) (hsupp : ExprSupportedExt e)
-    (I : IntervalReal) (c : ℝ) (hhi : (evalIntervalReal1 e I).hi < c) :
-    ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
-  intro x hx
-  have hmem := evalIntervalReal1_correct e hsupp x I hx
-  simp only [IntervalReal.mem_def] at hmem
-  exact lt_of_le_of_lt hmem.2 hhi
-
-/-- Strict lower bound for extended subset.
-    FULLY PROVED - no sorry, no axioms. -/
-theorem exprExt_gt_of_interval_lo_gt (e : Expr) (hsupp : ExprSupportedExt e)
-    (I : IntervalReal) (c : ℝ) (hlo : c < (evalIntervalReal1 e I).lo) :
-    ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
-  intro x hx
-  have hmem := evalIntervalReal1_correct e hsupp x I hx
-  simp only [IntervalReal.mem_def] at hmem
-  exact lt_of_lt_of_le hlo hmem.1
-
-/-- Point variant for extended subset. -/
-theorem exprExt_le_of_mem_interval (e : Expr) (hsupp : ExprSupportedExt e)
-    (I : IntervalReal) (c : ℝ) (x : ℝ) (hx : x ∈ I)
-    (hhi : (evalIntervalReal1 e I).hi ≤ c) :
-    Expr.eval (fun _ => x) e ≤ c :=
-  exprExt_le_of_interval_hi e hsupp I c hhi x hx
-
-/-- Point variant for extended subset. -/
-theorem exprExt_ge_of_mem_interval (e : Expr) (hsupp : ExprSupportedExt e)
-    (I : IntervalReal) (c : ℝ) (x : ℝ) (hx : x ∈ I)
-    (hlo : c ≤ (evalIntervalReal1 e I).lo) :
-    c ≤ Expr.eval (fun _ => x) e :=
-  exprExt_ge_of_interval_lo e hsupp I c hlo x hx
 
 end LeanCert.Engine

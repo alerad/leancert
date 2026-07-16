@@ -168,9 +168,10 @@ Dyadic polynomial Taylor models (`Engine/CompPoly.lean`) avoiding rational coeff
 
 ### Strict Partial Evaluators
 
-Some legacy evaluators are total for API compatibility and return coarse fallback
-intervals for unsupported partial operations. New hardened APIs should prefer
-strict `Option` evaluators where available:
+Real-endpoint evaluation exposes only strict `Option` results. Refined
+evaluation also provides a total wrapper, but that wrapper requires an
+`ExprSupported` proof and obtains its value from the strict evaluator; it has
+no fallback branches. For arbitrary expressions, use:
 
 - `evalIntervalReal?`
 - `evalIntervalReal1?`
@@ -184,8 +185,9 @@ strict `Option` evaluators where available:
 - `evalAffineToInterval?`
 
 These return `none` for unsupported partial operations such as `inv`, `log`, and
-`atanh`, so callers cannot accidentally treat a legacy fallback interval as a
-certificate.
+`atanh`, so callers cannot accidentally treat a fallback interval as a
+certificate. The affine backend still has a legacy total interface; new code
+should use its strict variants.
 
 ### Neural Network Verification
 
