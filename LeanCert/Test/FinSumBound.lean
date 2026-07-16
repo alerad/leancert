@@ -55,7 +55,7 @@ example : ∑ _k ∈ Finset.Icc 1 100, (1 : ℝ) ≤ 101 := by
 
 /-! ### Bodies with inv/log (domain validity checked per-k) -/
 
--- inv: ∑ 1/(k*k) upper bound (uses ExprSupportedWithInv)
+-- inv: ∑ 1/(k*k) upper bound (uses checked evaluation)
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 100, (1 : ℝ) / (↑k * ↑k) ≤ 2 := by
   finsum_bound
 
@@ -131,7 +131,7 @@ example : ∑ _k ∈ Finset.Icc (1 : ℕ) 3, (((-2 : ℤ) : ℝ) + 3) ≤ 4 := b
 
 Unlike the automatic mode, witness mode lets the user supply
 a custom per-term interval evaluator.  The evaluators below use the
-engine's `evalSumTermDyadic` which calls `evalIntervalDyadic`—producing
+engine's `evalSumTermDyadic` which calls `LeanCert.Internal.Dyadic.evalUnchecked`—producing
 *real* intervals with dyadic rounding error, not point singletons. -/
 
 open LeanCert.Core
@@ -155,7 +155,7 @@ theorem invEval_correct (k : Nat) (cfg : DyadicConfig)
     (hdom : evalDomainValidDyadic (.inv (.var 0)) (sumBodyEnvSimple k cfg.precision) cfg) :
     (1 : ℝ) / ↑k ∈ invEval k cfg := by
   rw [one_div]
-  exact mem_evalSumTermDyadic_withInv (.inv (.var 0)) (.inv (.var 0)) k cfg hprec hdom
+  exact mem_evalSumTermDyadic_checked (.inv (.var 0)) k cfg hprec hdom
 
 /-- Interval evaluator for exp(1/k): nested inv inside exp. -/
 def expInvEval (k : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
@@ -166,7 +166,7 @@ theorem expInvEval_correct (k : Nat) (cfg : DyadicConfig)
     (hdom : evalDomainValidDyadic (.exp (.inv (.var 0))) (sumBodyEnvSimple k cfg.precision) cfg) :
     Real.exp ((1 : ℝ) / ↑k) ∈ expInvEval k cfg := by
   rw [one_div]
-  exact mem_evalSumTermDyadic_withInv (.exp (.inv (.var 0))) (.exp (.inv (.var 0))) k cfg hprec hdom
+  exact mem_evalSumTermDyadic_checked (.exp (.inv (.var 0))) k cfg hprec hdom
 
 /-- Interval evaluator for 1/(k*k). -/
 def invSqEval (k : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
@@ -178,8 +178,8 @@ theorem invSqEval_correct (k : Nat) (cfg : DyadicConfig)
         (sumBodyEnvSimple k cfg.precision) cfg) :
     (1 : ℝ) / (↑k * ↑k) ∈ invSqEval k cfg := by
   rw [one_div]
-  exact mem_evalSumTermDyadic_withInv (.inv (.mul (.var 0) (.var 0)))
-    (.inv (.mul (.var 0) (.var 0))) k cfg hprec hdom
+  exact mem_evalSumTermDyadic_checked (.inv (.mul (.var 0) (.var 0)))
+    k cfg hprec hdom
 
 -- exp(k) upper bound (trivial domain, no inv/log)
 example : ∑ k ∈ Finset.Icc (1 : ℕ) 5, Real.exp (↑k : ℝ) ≤ 234 := by

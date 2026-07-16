@@ -104,10 +104,10 @@ noncomputable def bisectRoot (e : Expr) (I : IntervalRat) (maxIter : ℕ)
 
 /-- Key lemma: checkRootStatus returns noRoot only when excludesZero is true -/
 theorem checkRootStatus_noRoot_implies_excludesZero (e : Expr) (J : IntervalRat) :
-    checkRootStatus e J = RootStatus.noRoot → excludesZero (evalInterval1 e J) = true := by
+    checkRootStatus e J = RootStatus.noRoot → excludesZero (LeanCert.Internal.Rational.evalUnchecked1 e J) = true := by
   unfold checkRootStatus
   intro h
-  by_cases hexcl : excludesZero (evalInterval1 e J) = true
+  by_cases hexcl : excludesZero (LeanCert.Internal.Rational.evalUnchecked1 e J) = true
   · exact hexcl
   · simp only [hexcl, Bool.false_eq_true, ↓reduceIte] at h
     by_cases hsign : signChange e J = true
@@ -121,7 +121,7 @@ theorem checkRootStatus_hasRoot_implies_signChange (e : Expr) (J : IntervalRat) 
     checkRootStatus e J = RootStatus.hasRoot → signChange e J = true := by
   unfold checkRootStatus
   intro h
-  by_cases hexcl : excludesZero (evalInterval1 e J) = true
+  by_cases hexcl : excludesZero (LeanCert.Internal.Rational.evalUnchecked1 e J) = true
   · simp only [hexcl, ↓reduceIte] at h
     cases h
   · simp only [hexcl, Bool.false_eq_true, ↓reduceIte] at h
@@ -513,7 +513,7 @@ theorem go_subinterval (e : Expr) (tol : ℚ) (maxIter : ℕ) (I : IntervalRat)
 
     **Note about noRoot**: The algorithm discards noRoot intervals, so they
     never appear in the output. Thus bisectRoot_noRoot_correct is vacuously true.  -/
-theorem bisectRoot_hasRoot_correct (e : Expr) (hsupp : ExprSupported e) (I : IntervalRat)
+theorem bisectRoot_hasRoot_correct (e : Expr) (hsupp : ADSupported e) (I : IntervalRat)
     (maxIter : ℕ) (tol : ℚ) (htol : 0 < tol)
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi)) :
     let result := bisectRoot e I maxIter tol htol
@@ -555,7 +555,7 @@ theorem bisectRoot_hasRoot_correct (e : Expr) (hsupp : ExprSupported e) (I : Int
     never appears in the output intervals list.
 
     This means the theorem is vacuously true: there are no (J, noRoot) pairs in the output. -/
-theorem bisectRoot_noRoot_correct (e : Expr) (_hsupp : ExprSupported e) (I : IntervalRat)
+theorem bisectRoot_noRoot_correct (e : Expr) (_hsupp : ADSupported e) (I : IntervalRat)
     (maxIter : ℕ) (tol : ℚ) (htol : 0 < tol) :
     let result := bisectRoot e I maxIter tol htol
     ∀ J s, (J, s) ∈ result.intervals → s = RootStatus.noRoot →

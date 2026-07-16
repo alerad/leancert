@@ -22,12 +22,12 @@ No sorry, no axioms beyond the standard Lean/Mathlib foundations.
 We have two evaluation strategies:
 
 1. **Core (computable)**: For expressions in `ExprSupportedCore`
-   (const, var, add, mul, neg, sin, cos), we use `evalIntervalCore1`
+   (const, var, add, mul, neg, sin, cos), we use `LeanCert.Internal.Rational.evalTotalCore1`
    which is fully computable. The `interval_le`, `interval_ge`, etc.
    tactics work with `native_decide`.
 
 2. **Extended (noncomputable)**: For expressions with `exp`, we use
-   `evalInterval1` which requires noncomputable evaluation due to
+   `LeanCert.Internal.Rational.evalUnchecked1` which requires noncomputable evaluation due to
    Real.exp floor/ceil bounds. These proofs use FTIA directly.
 -/
 
@@ -47,8 +47,8 @@ def exprXSq_core : ExprSupportedCore exprXSq :=
   ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0)
 
 /-- Proof that x² is supported -/
-def exprXSq_supp : ExprSupported exprXSq :=
-  ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0)
+def exprXSq_supp : ADSupported exprXSq :=
+  ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)
 
 /-- The unit interval [0, 1] -/
 def I01 : IntervalRat := ⟨0, 1, by norm_num⟩
@@ -94,8 +94,8 @@ def exprSin_core : ExprSupportedCore exprSin :=
   ExprSupportedCore.sin (ExprSupportedCore.var 0)
 
 /-- Proof that sin(x) is supported -/
-def exprSin_supp : ExprSupported exprSin :=
-  ExprSupported.sin (ExprSupported.var 0)
+def exprSin_supp : ADSupported exprSin :=
+  ADSupported.sin (ADSupported.var 0)
 
 /-- Example: sin(x) ≤ 1 for all x ∈ [0, 1] using native_decide. -/
 theorem sin_le_one_native : ∀ x ∈ I01, Expr.eval (fun _ => x) exprSin ≤ (1 : ℚ) := by
@@ -134,10 +134,10 @@ def exprXSqPlusSin_core : ExprSupportedCore exprXSqPlusSin :=
     (ExprSupportedCore.sin (ExprSupportedCore.var 0))
 
 /-- Proof that x² + sin(x) is supported -/
-def exprXSqPlusSin_supp : ExprSupported exprXSqPlusSin :=
-  ExprSupported.add
-    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-    (ExprSupported.sin (ExprSupported.var 0))
+def exprXSqPlusSin_supp : ADSupported exprXSqPlusSin :=
+  ADSupported.add
+    (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+    (ADSupported.sin (ADSupported.var 0))
 
 /-- Example: x² + sin(x) ≤ 2 for all x ∈ [0, 1] using native_decide. -/
 theorem xsq_plus_sin_le_two_native : ∀ x ∈ I01, Expr.eval (fun _ => x) exprXSqPlusSin ≤ (2 : ℚ) := by
@@ -186,10 +186,10 @@ def exprXSqMinus2_core : ExprSupportedCore exprXSqMinus2 :=
     (ExprSupportedCore.neg (ExprSupportedCore.const 2))
 
 /-- Proof that x² - 2 is supported -/
-def exprXSqMinus2_supp : ExprSupported exprXSqMinus2 :=
-  ExprSupported.add
-    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-    (ExprSupported.neg (ExprSupported.const 2))
+def exprXSqMinus2_supp : ADSupported exprXSqMinus2 :=
+  ADSupported.add
+    (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+    (ADSupported.neg (ADSupported.const 2))
 
 /-- Example: x² - 2 < 0 for all x ∈ [0, 1] using native_decide.
     Since x² ≤ 1 on [0,1], we have x² - 2 ≤ -1 < 0. -/
@@ -228,13 +228,13 @@ def exprPoly_core : ExprSupportedCore exprPoly :=
     (ExprSupportedCore.const 1)
 
 /-- Proof that 2x² + 3x + 1 is supported -/
-def exprPoly_supp : ExprSupported exprPoly :=
-  ExprSupported.add
-    (ExprSupported.add
-      (ExprSupported.mul (ExprSupported.const 2)
-        (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0)))
-      (ExprSupported.mul (ExprSupported.const 3) (ExprSupported.var 0)))
-    (ExprSupported.const 1)
+def exprPoly_supp : ADSupported exprPoly :=
+  ADSupported.add
+    (ADSupported.add
+      (ADSupported.mul (ADSupported.const 2)
+        (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)))
+      (ADSupported.mul (ADSupported.const 3) (ADSupported.var 0)))
+    (ADSupported.const 1)
 
 /-- Example: 2x² + 3x + 1 ≤ 6 for all x ∈ [0, 1] using native_decide.
     At x=1: 2 + 3 + 1 = 6. -/
@@ -275,7 +275,7 @@ theorem one_le_poly : ∀ x ∈ I01, (1 : ℚ) ≤ Expr.eval (fun _ => x) exprPo
 
 /-! ### Examples with exp (noncomputable)
 
-Expressions containing `exp` use the extended evaluator `evalInterval1`,
+Expressions containing `exp` use the extended evaluator `LeanCert.Internal.Rational.evalUnchecked1`,
 which is noncomputable due to Real.exp floor/ceil bounds. These examples
 demonstrate bounds using direct FTIA application rather than native_decide.
 -/
@@ -284,8 +284,8 @@ demonstrate bounds using direct FTIA application rather than native_decide.
 def exprExp : Expr := Expr.exp (Expr.var 0)
 
 /-- Proof that exp(x) is supported (but NOT in ExprSupportedCore) -/
-def exprExp_supp : ExprSupported exprExp :=
-  ExprSupported.exp (ExprSupported.var 0)
+def exprExp_supp : ADSupported exprExp :=
+  ADSupported.exp (ADSupported.var 0)
 
 /-- Example: exp(x) ≤ 3 for all x ∈ [0, 1].
     Since exp(1) ≈ 2.718, this bound holds.
@@ -315,8 +315,8 @@ theorem one_le_exp : ∀ x ∈ I01, (1 : ℚ) ≤ Expr.eval (fun _ => x) exprExp
 def exprXPlusExp : Expr := Expr.add (Expr.var 0) (Expr.exp (Expr.var 0))
 
 /-- Proof that x + exp(x) is supported -/
-def exprXPlusExp_supp : ExprSupported exprXPlusExp :=
-  ExprSupported.add (ExprSupported.var 0) (ExprSupported.exp (ExprSupported.var 0))
+def exprXPlusExp_supp : ADSupported exprXPlusExp :=
+  ADSupported.add (ADSupported.var 0) (ADSupported.exp (ADSupported.var 0))
 
 /-- Example: x + exp(x) ≤ 4 for all x ∈ [0, 1].
     x ≤ 1 and exp(x) ≤ 3, so x + exp(x) ≤ 4. -/

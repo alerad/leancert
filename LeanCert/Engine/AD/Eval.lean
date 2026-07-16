@@ -15,7 +15,7 @@ mapping expressions to dual intervals.
 ## Main definitions
 
 * `DualEnv` - Environment mapping variable indices to dual intervals
-* `evalDual` - Main evaluator for supported expressions (total)
+* `LeanCert.Internal.AD.evalUnchecked` - Main evaluator for supported expressions (total)
 * `evalDual?` - Partial evaluator supporting domain-checked functions (returns Option)
 * `evalDual?1` - Single-variable version of evalDual?
 * `mkDualEnv` - Create a dual environment for differentiation w.r.t. a variable
@@ -33,6 +33,12 @@ open LeanCert.Core
 /-- Environment for dual evaluation -/
 abbrev DualEnv := Nat → DualInterval
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.AD
+
+open LeanCert.Core LeanCert.Engine
+
 /-- Evaluate expression in dual interval mode.
 
     For supported expressions (const, var, add, mul, neg, sin, cos, exp), this
@@ -41,28 +47,34 @@ abbrev DualEnv := Nat → DualInterval
     For unsupported expressions (inv, log), returns a default interval.
     Do not rely on results for expressions containing inv or log.
     Use evalDual? for partial functions like inv and log. -/
-noncomputable def evalDual (e : Expr) (ρ : DualEnv) : DualInterval :=
+noncomputable def evalUnchecked (e : Expr) (ρ : DualEnv) : DualInterval :=
   match e with
   | Expr.const q => DualInterval.const q
   | Expr.var idx => ρ idx
-  | Expr.add e₁ e₂ => DualInterval.add (evalDual e₁ ρ) (evalDual e₂ ρ)
-  | Expr.mul e₁ e₂ => DualInterval.mul (evalDual e₁ ρ) (evalDual e₂ ρ)
-  | Expr.neg e => DualInterval.neg (evalDual e ρ)
-  | Expr.inv _ => default  -- Not in ExprSupported; safe default
-  | Expr.exp e => DualInterval.exp (evalDual e ρ)
-  | Expr.sin e => DualInterval.sin (evalDual e ρ)
-  | Expr.cos e => DualInterval.cos (evalDual e ρ)
-  | Expr.log _ => default  -- Not in ExprSupported; use evalDual? for log
-  | Expr.atan e => DualInterval.atan (evalDual e ρ)
-  | Expr.arsinh e => DualInterval.arsinh (evalDual e ρ)
+  | Expr.add e₁ e₂ => DualInterval.add (LeanCert.Internal.AD.evalUnchecked e₁ ρ) (LeanCert.Internal.AD.evalUnchecked e₂ ρ)
+  | Expr.mul e₁ e₂ => DualInterval.mul (LeanCert.Internal.AD.evalUnchecked e₁ ρ) (LeanCert.Internal.AD.evalUnchecked e₂ ρ)
+  | Expr.neg e => DualInterval.neg (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.inv _ => default  -- Not in ADSupported; safe default
+  | Expr.exp e => DualInterval.exp (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.sin e => DualInterval.sin (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.cos e => DualInterval.cos (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.log _ => default  -- Not in ADSupported; use evalDual? for log
+  | Expr.atan e => DualInterval.atan (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.arsinh e => DualInterval.arsinh (LeanCert.Internal.AD.evalUnchecked e ρ)
   | Expr.atanh _ => default  -- Partial function; use evalDual? for atanh
-  | Expr.sinc e => DualInterval.sinc (evalDual e ρ)
-  | Expr.erf e => DualInterval.erf (evalDual e ρ)
-  | Expr.sinh e => DualInterval.sinh (evalDual e ρ)
-  | Expr.cosh e => DualInterval.cosh (evalDual e ρ)
-  | Expr.tanh e => DualInterval.tanh (evalDual e ρ)
-  | Expr.sqrt e => DualInterval.sqrt (evalDual e ρ)
+  | Expr.sinc e => DualInterval.sinc (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.erf e => DualInterval.erf (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.sinh e => DualInterval.sinh (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.cosh e => DualInterval.cosh (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.tanh e => DualInterval.tanh (LeanCert.Internal.AD.evalUnchecked e ρ)
+  | Expr.sqrt e => DualInterval.sqrt (LeanCert.Internal.AD.evalUnchecked e ρ)
   | Expr.namedConst c => DualInterval.ofMathConst c
+
+end LeanCert.Internal.AD
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
 
 /-! ### Partial dual evaluation -/
 
@@ -141,7 +153,7 @@ noncomputable def evalDual? (e : Expr) (ρ : DualEnv) : Option DualInterval :=
       | some d => some (DualInterval.cosh d)
       | none => none
   | Expr.tanh _ =>
-      -- See the docstring above: `evalDual`/`evalDualCore` support tanh, but
+      -- See the docstring above: `LeanCert.Internal.AD.evalUnchecked`/`LeanCert.Internal.AD.evalTotalCore` support tanh, but
       -- the partial `evalDual?` correctness theorem currently treats tanh as
       -- outside this Option API.
       none
@@ -163,7 +175,7 @@ def mkDualEnv (ρ : IntervalEnv) (idx : Nat) : DualEnv :=
 
 /-- Evaluate and differentiate with respect to variable `idx` -/
 noncomputable def evalWithDeriv (e : Expr) (ρ : IntervalEnv) (idx : Nat) : DualInterval :=
-  evalDual e (mkDualEnv ρ idx)
+  LeanCert.Internal.AD.evalUnchecked e (mkDualEnv ρ idx)
 
 /-- Get just the derivative interval -/
 noncomputable def derivInterval (e : Expr) (ρ : IntervalEnv) (idx : Nat) : IntervalRat :=
@@ -171,6 +183,6 @@ noncomputable def derivInterval (e : Expr) (ρ : IntervalEnv) (idx : Nat) : Inte
 
 /-- Evaluate and differentiate a single-variable expression -/
 noncomputable def evalWithDeriv1 (e : Expr) (I : IntervalRat) : DualInterval :=
-  evalDual e (fun _ => DualInterval.varActive I)
+  LeanCert.Internal.AD.evalUnchecked e (fun _ => DualInterval.varActive I)
 
 end LeanCert.Engine

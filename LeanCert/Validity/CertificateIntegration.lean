@@ -189,12 +189,12 @@ theorem singleton_mul_hi_nonneg (w : ℚ) (J : IntervalRat) (hw : 0 ≤ w) :
 
 /-- Single partition bound correctness.
 
-The proof uses `integrateInterval1WithInv_correct` which shows that for
+The proof uses `integrateInterval1Checked_correct` which shows that for
 `evalInterval?1 e I = some J`, the integral ∫[I.lo, I.hi] f ∈ I.width * J.
 
 Since `checkPartitionBound` verifies that `entry.bound` contains `width * computed`,
 we get that the integral is in `entry.bound`. -/
-theorem partition_bound_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem partition_bound_correct (e : Expr)
     (entry : PartitionEntry)
     (hcheck : checkPartitionBound e entry = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
@@ -208,11 +208,11 @@ theorem partition_bound_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
   | some computed =>
     simp only [heval, decide_eq_true_eq] at hcheck
     obtain ⟨hlo_check, hhi_check⟩ := hcheck
-    -- Use integrateInterval1WithInv_correct to get integral bounds
-    have hsome : integrateInterval1WithInv e entry.domain =
+    -- Use integrateInterval1Checked_correct to get integral bounds
+    have hsome : integrateInterval1Checked e entry.domain =
         some (IntervalRat.mul (IntervalRat.singleton entry.domain.width) computed) := by
-      simp only [integrateInterval1WithInv, heval]
-    have hmem := integrateInterval1WithInv_correct e hsupp entry.domain
+      simp only [integrateInterval1Checked, heval]
+    have hmem := integrateInterval1Checked_correct e entry.domain
       (IntervalRat.mul (IntervalRat.singleton entry.domain.width) computed) hsome hInt
     -- hmem says: integral ∈ IntervalRat.mul (singleton width) computed
     -- hlo_check says: entry.bound.lo ≤ computed.lo * width
@@ -232,7 +232,7 @@ theorem partition_bound_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         ((IntervalRat.mul (IntervalRat.singleton entry.domain.width) computed).hi : ℝ) ∨
         ((IntervalRat.mul (IntervalRat.singleton entry.domain.width) computed).hi : ℝ) ≤
         (entry.domain.width * computed.hi : ℝ) := le_total _ _
-    -- The interval bound from integrateInterval1WithInv satisfies:
+    -- The interval bound from integrateInterval1Checked satisfies:
     -- lo ≤ width * computed.lo and width * computed.hi ≤ hi (when width ≥ 0)
     -- This follows from how IntervalRat.mul is defined for singletons
     have hlo_eq : (computed.lo * (entry.domain.hi - entry.domain.lo) : ℚ) =
@@ -682,7 +682,7 @@ The proof proceeds as follows:
 4. Use sum_mem_sum_intervals to show the sum of integrals ∈ sum of bounds
 5. Use checkSumInTarget to show sum of bounds ⊆ target
 -/
-theorem verify_certificate_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem verify_certificate_correct (e : Expr)
     (cert : IntegralCertificate) (target : IntervalRat)
     (hverify : verifyCertificate e cert target = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
@@ -723,7 +723,7 @@ theorem verify_certificate_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       apply integrable_subinterval _ cert.domain.lo cert.domain.hi entry.domain.lo entry.domain.hi
         (Rat.cast_le.mpr cert.domain.le) (Rat.cast_le.mpr entry.domain.le)
         (Rat.cast_le.mpr hlo) (Rat.cast_le.mpr hhi) hInt
-    exact partition_bound_correct e hsupp entry hcheck hInt_i
+    exact partition_bound_correct e entry hcheck hInt_i
   -- Step 3: Apply sum_mem_sum_intervals
   have h_in_sum := sum_mem_sum_intervals integrals bounds hlen hmem
   -- The sumBounds equals foldl add zero bounds
@@ -822,7 +822,7 @@ def checkIntegralCertUpperBound (e : Expr) (cert : IntegralCertificate) (c : ℚ
   decide ((sumBounds cert.partitions).hi ≤ c)
 
 /-- **Golden Theorem**: Certificate-verified integral lower bound -/
-theorem verify_integral_cert_lower_bound (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem verify_integral_cert_lower_bound (e : Expr)
     (cert : IntegralCertificate) (c : ℚ)
     (hcheck : checkIntegralCertLowerBound e cert c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
@@ -841,12 +841,12 @@ theorem verify_integral_cert_lower_bound (e : Expr) (hsupp : ExprSupportedWithIn
   have hverify : verifyCertificate e cert target = true := by
     simp only [verifyCertificate, Bool.and_eq_true]
     exact ⟨⟨hcov, hbounds⟩, hsum⟩
-  have hmem := verify_certificate_correct e hsupp cert target hverify hInt
+  have hmem := verify_certificate_correct e cert target hverify hInt
   simp only [IntervalRat.mem_def] at hmem
   exact_mod_cast hmem.1
 
 /-- **Golden Theorem**: Certificate-verified integral upper bound -/
-theorem verify_integral_cert_upper_bound (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem verify_integral_cert_upper_bound (e : Expr)
     (cert : IntegralCertificate) (c : ℚ)
     (hcheck : checkIntegralCertUpperBound e cert c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
@@ -865,7 +865,7 @@ theorem verify_integral_cert_upper_bound (e : Expr) (hsupp : ExprSupportedWithIn
   have hverify : verifyCertificate e cert target = true := by
     simp only [verifyCertificate, Bool.and_eq_true]
     exact ⟨⟨hcov, hbounds⟩, hsum⟩
-  have hmem := verify_certificate_correct e hsupp cert target hverify hInt
+  have hmem := verify_certificate_correct e cert target hverify hInt
   simp only [IntervalRat.mem_def] at hmem
   exact_mod_cast hmem.2
 

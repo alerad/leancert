@@ -17,13 +17,13 @@ This file re-exports the interval evaluation infrastructure for `LeanCert.Core.E
 
 The implementation is split across several files:
 
-* `LeanCert.Core.Support` - Expression support predicates (`ExprSupportedCore`,
-  `ExprSupported`, `ExprSupportedWithInv`)
+* `LeanCert.Core.Support` - Expression support predicates for total core
+  evaluation and automatic differentiation
 
-* `LeanCert.Engine.Eval.Core` - Computable interval evaluator (`evalIntervalCore`)
+* `LeanCert.Engine.Eval.Core` - Computable interval evaluator (`LeanCert.Internal.Rational.evalTotalCore`)
   and transcendental interval bounds
 
-* `LeanCert.Engine.Eval.Extended` - Noncomputable evaluator (`evalInterval`) and
+* `LeanCert.Engine.Eval.Extended` - Internal noncomputable evaluator and the
   partial evaluator with inv/log support (`evalInterval?`)
 
 * `LeanCert.Tactic.Bound.Lemmas` - Tactic-facing lemmas for proving bounds
@@ -32,12 +32,11 @@ The implementation is split across several files:
 
 ### Expression support predicates
 * `ExprSupportedCore` - Computable subset (const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh, pi)
-* `ExprSupported` - Noncomputable AD subset (const, var, add, mul, neg, sin, cos, exp)
-* `ExprSupportedWithInv` - Syntactic support including inv and log
+* `ADSupported` - Noncomputable AD subset (const, var, add, mul, neg, sin, cos, exp)
 
 ### Evaluators
-* `evalIntervalCore` - Computable interval evaluator (uses Taylor series)
-* `evalInterval` - Noncomputable evaluator (uses floor/ceil for exp)
+* `LeanCert.Internal.Rational.evalTotalCore` - Computable interval evaluator (uses Taylor series)
+* `LeanCert.Internal.Rational.evalUnchecked` - Internal noncomputable evaluator
 * `evalInterval?` - Partial evaluator with inv/log support
 
 ### Correctness theorems
@@ -52,7 +51,7 @@ The implementation is split across several files:
 ## Design notes
 
 The evaluators are split by computability:
-- `evalIntervalCore` is COMPUTABLE, enabling `native_decide` in tactics
+- `LeanCert.Internal.Rational.evalTotalCore` is COMPUTABLE, enabling `native_decide` in tactics
 - `evalInterval` is NONCOMPUTABLE, using Real.exp with floor/ceil bounds
 - Both are fully verified (no sorry, no axioms)
 -/

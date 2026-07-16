@@ -11,7 +11,7 @@ import LeanCert.Meta.ProveContinuous
 # Integration Certificates
 
 This module provides certificate-driven verification for definite integrals using
-interval arithmetic with both computable (Core) and noncomputable (WithInv) evaluation.
+interval arithmetic with both computable (Core) and noncomputable (Checked) evaluation.
 
 ## Main definitions
 
@@ -22,14 +22,14 @@ interval arithmetic with both computable (Core) and noncomputable (WithInv) eval
 * `checkIntegralBoundsCore` - Boolean checker for integral bounds
 * `verify_integral_bound` - Golden theorem for integration bounds
 
-### Integration with Inverse Support (WithInv)
-* `integrateInterval1WithInv` - Single-interval integration with inv/log support
-* `integratePartitionWithInv` - Partitioned integration with inv/log support
-* `collectBoundsWithInv` - Collect bounds over partition
+### Integration with Inverse Support (Checked)
+* `integrateInterval1Checked` - Single-interval integration with inv/log support
+* `integratePartitionChecked` - Partitioned integration with inv/log support
+* `collectBoundsChecked` - Collect bounds over partition
 
 ### Adaptive Integration
-* `AdaptiveResultWithInv` - Result structure for adaptive integration
-* `integrateAdaptiveWithInv` - Adaptive integration with error tolerance
+* `AdaptiveResultChecked` - Result structure for adaptive integration
+* `integrateAdaptiveChecked` - Adaptive integration with error tolerance
 * `checkIntegralAdaptiveLowerBound` - Boolean checker for adaptive lower bounds
 * `checkIntegralAdaptiveUpperBound` - Boolean checker for adaptive upper bounds
 
@@ -49,12 +49,12 @@ open MeasureTheory
 /-! ### Computable Integration Infrastructure
 
 For `interval_integrate` tactic, we need:
-1. A computable integration function using `evalIntervalCore1`
+1. A computable integration function using `LeanCert.Internal.Rational.evalTotalCore1`
 2. A theorem that `ExprSupportedCore` implies `IntervalIntegrable`
 3. A verification theorem linking the computation to the real integral
 -/
 
-/-- Computable uniform partition using evalIntervalCore1 -/
+/-- Computable uniform partition using LeanCert.Internal.Rational.evalTotalCore1 -/
 def uniformPartitionCore (I : IntervalRat) (n : ℕ) (hn : 0 < n) : List IntervalRat :=
   let width := (I.hi - I.lo) / n
   List.ofFn fun i : Fin n =>
@@ -70,11 +70,11 @@ def uniformPartitionCore (I : IntervalRat) (n : ℕ) (hn : 0 < n) : List Interva
           · have : (0 : ℚ) < n := by exact_mod_cast hn
             linarith }
 
-/-- Sum of interval bounds over a partition using computable evalIntervalCore1 -/
+/-- Sum of interval bounds over a partition using computable LeanCert.Internal.Rational.evalTotalCore1 -/
 def sumIntervalBoundsCore (e : Expr) (parts : List IntervalRat) (cfg : EvalConfig) : IntervalRat :=
   parts.foldl
     (fun acc I =>
-      let fBound := evalIntervalCore1 e I cfg
+      let fBound := LeanCert.Internal.Rational.evalTotalCore1 e I cfg
       let contribution := IntervalRat.mul
         (IntervalRat.singleton I.width)
         fBound
@@ -88,7 +88,7 @@ def integrateIntervalCore (e : Expr) (I : IntervalRat) (n : ℕ) (hn : 0 < n)
 
 /-- For single-interval integration (n=1), computable version -/
 def integrateInterval1Core (e : Expr) (I : IntervalRat) (cfg : EvalConfig := default) : IntervalRat :=
-  let fBound := evalIntervalCore1 e I cfg
+  let fBound := LeanCert.Internal.Rational.evalTotalCore1 e I cfg
   IntervalRat.mul (IntervalRat.singleton I.width) fBound
 
 /-! ### IntervalIntegrable from ExprSupportedCore
@@ -115,7 +115,7 @@ theorem exprSupportedCore_intervalIntegrable (e : Expr) (hsupp : ExprSupportedCo
 /-- Single-interval integration correctness for ExprSupportedCore.
 
 This is proved directly using the same structure as integrateInterval1_correct but
-with the computable evalIntervalCore1 instead of noncomputable evalInterval1.
+with the computable LeanCert.Internal.Rational.evalTotalCore1 instead of noncomputable LeanCert.Internal.Rational.evalUnchecked1.
 
 The `hdom` hypothesis ensures evaluation domain validity (e.g., log arguments have positive interval bounds).
 The `hcontdom` hypothesis ensures continuity domain validity (e.g., log arguments are positive on the set). -/
@@ -125,7 +125,7 @@ theorem integrateInterval1Core_correct (e : Expr) (hsupp : ExprSupportedCore e)
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ integrateInterval1Core e I cfg := by
   unfold integrateInterval1Core
   -- Get bounds from interval evaluation
-  set fBound := evalIntervalCore1 e I cfg with hfBound_def
+  set fBound := LeanCert.Internal.Rational.evalTotalCore1 e I cfg with hfBound_def
   have hbounds : ∀ x : ℝ, x ∈ I → Expr.eval (fun _ => x) e ∈ fBound := fun x hx =>
     evalIntervalCore1_correct e hsupp x I hx cfg hdom
   have hlo : ∀ x ∈ Set.Icc (I.lo : ℝ) (I.hi : ℝ), (fBound.lo : ℝ) ≤ Expr.eval (fun _ => x) e := by
@@ -217,23 +217,23 @@ theorem integral_in_bound (e : Expr) (hsupp : ExprSupportedCore e)
   simp only [IntervalRat.mem_def, getIntegralBound] at hmem ⊢
   exact hmem
 
-/-! ### Single-interval integration for ExprSupportedWithInv -/
+/-! ### Single-interval integration for arbitrary expressions -/
 
 /-- Computable single-interval integration using evalInterval?1.
     Returns `none` if interval evaluation fails (e.g., log domain invalid). -/
-def integrateInterval1WithInv (e : Expr) (I : IntervalRat) : Option IntervalRat :=
+def integrateInterval1Checked (e : Expr) (I : IntervalRat) : Option IntervalRat :=
   match evalInterval?1 e I with
   | some J => some (IntervalRat.mul (IntervalRat.singleton I.width) J)
   | none => none
 
-/-- Single-interval integration correctness for ExprSupportedWithInv.
+/-- Single-interval integration correctness for arbitrary expressions.
     Requires that evalInterval?1 succeeds on the interval. -/
-theorem integrateInterval1WithInv_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integrateInterval1Checked_correct (e : Expr)
     (I : IntervalRat) (bound : IntervalRat)
-    (hsome : integrateInterval1WithInv e I = some bound)
+    (hsome : integrateInterval1Checked e I = some bound)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ bound := by
-  unfold integrateInterval1WithInv at hsome
+  unfold integrateInterval1Checked at hsome
   cases h_eval : evalInterval?1 e I with
   | none =>
     simp only [h_eval] at hsome
@@ -243,7 +243,7 @@ theorem integrateInterval1WithInv_correct (e : Expr) (hsupp : ExprSupportedWithI
     cases hsome
     -- Bounds from evalInterval?1
     have hbounds : ∀ x : ℝ, x ∈ I → Expr.eval (fun _ => x) e ∈ J := fun x hx =>
-      evalInterval?1_correct e hsupp I J h_eval x hx
+      evalInterval?1_correct e I J h_eval x hx
     have hlo : ∀ x ∈ Set.Icc (I.lo : ℝ) (I.hi : ℝ),
         (J.lo : ℝ) ≤ Expr.eval (fun _ => x) e := by
       intro x hx; exact (hbounds x hx).1
@@ -288,97 +288,97 @@ theorem integrateInterval1WithInv_correct (e : Expr) (hsupp : ExprSupportedWithI
 
 /-- Check if the computed integration bound contains a target value.
     Returns false if interval evaluation fails. -/
-def checkIntegralBoundsWithInv (e : Expr) (I : IntervalRat) (target : ℚ) : Bool :=
+def checkIntegralBoundsChecked (e : Expr) (I : IntervalRat) (target : ℚ) : Bool :=
   match evalInterval?1 e I with
   | some J =>
       let bound := IntervalRat.mul (IntervalRat.singleton I.width) J
       decide (bound.lo ≤ target && target ≤ bound.hi)
   | none => false
 
-/-- **Golden Theorem for Integration Bounds (WithInv)**
+/-- **Golden Theorem for Integration Bounds (Checked)**
 
-If `checkIntegralBoundsWithInv e I target = true`, then the integral lies in the
+If `checkIntegralBoundsChecked e I target = true`, then the integral lies in the
 computed bound. The `target` parameter is for the `native_decide` workflow. -/
-theorem verify_integral_bound_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem verify_integral_bound_checked (e : Expr)
     (I : IntervalRat) (_target : ℚ)
-    (h_cert : checkIntegralBoundsWithInv e I _target = true)
+    (h_cert : checkIntegralBoundsChecked e I _target = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
-    ∃ bound, integrateInterval1WithInv e I = some bound ∧
+    ∃ bound, integrateInterval1Checked e I = some bound ∧
       ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ bound := by
-  simp only [checkIntegralBoundsWithInv] at h_cert
+  simp only [checkIntegralBoundsChecked] at h_cert
   cases h_eval : evalInterval?1 e I with
   | none =>
     simp only [h_eval] at h_cert
     cases h_cert
   | some J =>
-    have hbound : integrateInterval1WithInv e I =
+    have hbound : integrateInterval1Checked e I =
         some (IntervalRat.mul (IntervalRat.singleton I.width) J) := by
-      simp only [integrateInterval1WithInv, h_eval]
+      simp only [integrateInterval1Checked, h_eval]
     refine ⟨IntervalRat.mul (IntervalRat.singleton I.width) J, hbound, ?_⟩
-    exact integrateInterval1WithInv_correct e hsupp I
+    exact integrateInterval1Checked_correct e I
       (IntervalRat.mul (IntervalRat.singleton I.width) J) hbound hInt
 
-/-! ### Partitioned integration for ExprSupportedWithInv -/
+/-! ### Partitioned integration for arbitrary expressions -/
 
 /-- Collect per-subinterval bounds using evalInterval?1.
     Returns `none` if any subinterval fails. -/
-def collectBoundsWithInv (e : Expr) (parts : List IntervalRat) : Option (List IntervalRat) :=
+def collectBoundsChecked (e : Expr) (parts : List IntervalRat) : Option (List IntervalRat) :=
   match parts with
   | [] => some []
   | I :: Is =>
-      match integrateInterval1WithInv e I, collectBoundsWithInv e Is with
+      match integrateInterval1Checked e I, collectBoundsChecked e Is with
       | some J, some Js => some (J :: Js)
       | _, _ => none
 
 /-- Sum bounds over a uniform partition using evalInterval?1. -/
-def integratePartitionWithInv (e : Expr) (I : IntervalRat) (n : ℕ) : Option IntervalRat :=
+def integratePartitionChecked (e : Expr) (I : IntervalRat) (n : ℕ) : Option IntervalRat :=
   if hn : 0 < n then
-    match collectBoundsWithInv e (uniformPartition I n hn) with
+    match collectBoundsChecked e (uniformPartition I n hn) with
     | some bounds => some (bounds.foldl IntervalRat.add (IntervalRat.singleton 0))
     | none => none
   else
     none
 
-theorem collectBoundsWithInv_length (e : Expr) :
+theorem collectBoundsChecked_length (e : Expr) :
     ∀ parts bounds,
-      collectBoundsWithInv e parts = some bounds →
+      collectBoundsChecked e parts = some bounds →
       bounds.length = parts.length := by
   intro parts
   induction parts with
   | nil =>
     intro bounds h
-    simp [collectBoundsWithInv] at h
+    simp [collectBoundsChecked] at h
     cases h
     rfl
   | cons I Is ih =>
     intro bounds h
-    simp [collectBoundsWithInv] at h
-    cases hI : integrateInterval1WithInv e I <;>
-      cases hIs : collectBoundsWithInv e Is <;>
+    simp [collectBoundsChecked] at h
+    cases hI : integrateInterval1Checked e I <;>
+      cases hIs : collectBoundsChecked e Is <;>
       simp [hI, hIs] at h
     cases h
     have hlen := ih _ hIs
     simp [hlen]
 
-theorem collectBoundsWithInv_getElem (e : Expr) :
-    ∀ parts bounds (h : collectBoundsWithInv e parts = some bounds),
+theorem collectBoundsChecked_getElem (e : Expr) :
+    ∀ parts bounds (h : collectBoundsChecked e parts = some bounds),
       ∀ i (hi : i < parts.length),
-        integrateInterval1WithInv e (parts[i]'(by simpa using hi)) =
+        integrateInterval1Checked e (parts[i]'(by simpa using hi)) =
           some (bounds[i]'(by
-          have hlen := collectBoundsWithInv_length e parts bounds h
+          have hlen := collectBoundsChecked_length e parts bounds h
           exact hlen ▸ hi)) := by
   intro parts
   induction parts with
   | nil =>
     intro bounds h i hi
-    simp [collectBoundsWithInv] at h
+    simp [collectBoundsChecked] at h
     cases h
     simp at hi
   | cons I Is ih =>
     intro bounds h i hi
-    simp [collectBoundsWithInv] at h
-    cases hI : integrateInterval1WithInv e I <;>
-      cases hIs : collectBoundsWithInv e Is <;>
+    simp [collectBoundsChecked] at h
+    cases hI : integrateInterval1Checked e I <;>
+      cases hIs : collectBoundsChecked e Is <;>
       simp [hI, hIs] at h
     cases h
     cases i with
@@ -390,28 +390,28 @@ theorem collectBoundsWithInv_getElem (e : Expr) :
       have hrec := ih _ hIs i hi'
       simp [hrec]
 
-theorem integral_subinterval_bounded_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_subinterval_bounded_checked (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (k : ℕ) (hk : k < n)
     (bound : IntervalRat)
-    (hsome : integrateInterval1WithInv e (partitionInterval I n hn k hk) = some bound)
+    (hsome : integrateInterval1Checked e (partitionInterval I n hn k hk) = some bound)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (partitionPoints I n k)..(partitionPoints I n (k + 1)),
       Expr.eval (fun _ => x) e ∈ bound := by
   rw [partitionPoints_eq_lo I n hn k hk, partitionPoints_eq_hi I n hn k hk]
-  exact integrateInterval1WithInv_correct e hsupp _ bound hsome
+  exact integrateInterval1Checked_correct e _ bound hsome
     (intervalIntegrable_on_partition e I n hn hInt k hk)
 
-theorem integratePartitionWithInv_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integratePartitionChecked_correct (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (bound : IntervalRat)
-    (hsome : integratePartitionWithInv e I n = some bound)
+    (hsome : integratePartitionChecked e I n = some bound)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ bound := by
   -- Decompose integral into sum over subintervals
   rw [integral_partition_sum e I n hn hInt]
   -- Unpack the computed bounds list
-  unfold integratePartitionWithInv at hsome
+  unfold integratePartitionChecked at hsome
   simp only [hn, ↓reduceDIte] at hsome
-  cases hbounds : collectBoundsWithInv e (uniformPartition I n hn) with
+  cases hbounds : collectBoundsChecked e (uniformPartition I n hn) with
   | none =>
     simp [hbounds] at hsome
   | some bounds =>
@@ -432,7 +432,7 @@ theorem integratePartitionWithInv_correct (e : Expr) (hsupp : ExprSupportedWithI
         Expr.eval (fun _ => x) e) with hintegrals_def
     -- Show lengths match
     have hlen : integrals.length = bounds.length := by
-      have hlen_bounds := collectBoundsWithInv_length e _ _ hbounds
+      have hlen_bounds := collectBoundsChecked_length e _ _ hbounds
       simp [hintegrals_def, uniformPartition] at hlen_bounds ⊢
       exact hlen_bounds.symm
     -- Each integral is bounded by the corresponding bound
@@ -444,20 +444,20 @@ theorem integratePartitionWithInv_correct (e : Expr) (hsupp : ExprSupportedWithI
       simp only [hintegrals_def]
       rw [List.getElem_ofFn]
       have hparts :
-          integrateInterval1WithInv e ((uniformPartition I n hn)[i]'(by
+          integrateInterval1Checked e ((uniformPartition I n hn)[i]'(by
             simp [uniformPartition]; exact hi')) = some (bounds[i]'(hlen ▸ hi)) := by
-        exact collectBoundsWithInv_getElem e _ _ hbounds i (by
+        exact collectBoundsChecked_getElem e _ _ hbounds i (by
           simpa [uniformPartition] using hi')
       have hpart_eq :
           (uniformPartition I n hn)[i]'(by simp [uniformPartition]; exact hi') =
             partitionInterval I n hn i hi' := by
         simp [partitionInterval, uniformPartition]
       rw [hpart_eq] at hparts
-      exact integral_subinterval_bounded_withInv e hsupp I n hn i hi' _ hparts hInt
+      exact integral_subinterval_bounded_checked e I n hn i hi' _ hparts hInt
     -- Apply sum_mem_foldl_add
     exact sum_mem_foldl_add hlen hmem
 
-/-! ### Adaptive Integration for ExprSupportedWithInv
+/-! ### Adaptive Integration for arbitrary expressions
 
 Adaptive integration concentrates partitions where the error is high (near singularities),
 dramatically reducing the number of function evaluations compared to uniform partitioning.
@@ -472,7 +472,7 @@ This naturally concentrates partitions near singularities where the function var
 -/
 
 /-- Result of adaptive integration with inverse support -/
-structure AdaptiveResultWithInv where
+structure AdaptiveResultChecked where
   /-- Interval containing the integral -/
   bound : IntervalRat
   /-- Number of subintervals used -/
@@ -482,25 +482,25 @@ structure AdaptiveResultWithInv where
 /-- Error estimate for adaptive integration: width of the refined bound -/
 def adaptiveErrorEstimate (bound : IntervalRat) : ℚ := bound.width
 
-/-- Compute a refined bound (n=2) on a single interval using WithInv support.
+/-- Compute a refined bound (n=2) on a single interval using Checked support.
     Returns `none` if evaluation fails (domain issues). -/
-def integrateRefinedWithInv (e : Expr) (I : IntervalRat) : Option IntervalRat :=
-  integratePartitionWithInv e I 2
+def integrateRefinedChecked (e : Expr) (I : IntervalRat) : Option IntervalRat :=
+  integratePartitionChecked e I 2
 
 /-- Recursive adaptive integration with inverse support.
     At each level, computes refined bound and either:
     - Returns if error ≤ tol or maxDepth = 0
     - Subdivides and recurses -/
-def integrateAdaptiveAuxWithInv (e : Expr) (I : IntervalRat) (tol : ℚ)
-    (maxDepth : ℕ) : Option AdaptiveResultWithInv :=
+def integrateAdaptiveAuxChecked (e : Expr) (I : IntervalRat) (tol : ℚ)
+    (maxDepth : ℕ) : Option AdaptiveResultChecked :=
   match maxDepth with
   | 0 =>
     -- Base case: return the best bound we can compute
-    match integrateRefinedWithInv e I with
+    match integrateRefinedChecked e I with
     | some refined => some { bound := refined, partitions := 2 }
     | none => none
   | n + 1 =>
-    match integrateRefinedWithInv e I with
+    match integrateRefinedChecked e I with
     | none => none
     | some refined =>
       if adaptiveErrorEstimate refined ≤ tol then
@@ -510,8 +510,8 @@ def integrateAdaptiveAuxWithInv (e : Expr) (I : IntervalRat) (tol : ℚ)
         -- Subdivide and recurse
         let (I₁, I₂) := splitMid I
         let localTol := tol / 2  -- Split tolerance between halves
-        match integrateAdaptiveAuxWithInv e I₁ localTol n,
-              integrateAdaptiveAuxWithInv e I₂ localTol n with
+        match integrateAdaptiveAuxChecked e I₁ localTol n,
+              integrateAdaptiveAuxChecked e I₂ localTol n with
         | some r₁, some r₂ =>
           some {
             bound := IntervalRat.add r₁.bound r₂.bound
@@ -521,22 +521,22 @@ def integrateAdaptiveAuxWithInv (e : Expr) (I : IntervalRat) (tol : ℚ)
 
 /-- Adaptive integration with inverse support and error tolerance.
     Keeps subdividing until the uncertainty is below `tol`. -/
-def integrateAdaptiveWithInv (e : Expr) (I : IntervalRat) (tol : ℚ)
-    (maxDepth : ℕ) : Option AdaptiveResultWithInv :=
-  integrateAdaptiveAuxWithInv e I tol maxDepth
+def integrateAdaptiveChecked (e : Expr) (I : IntervalRat) (tol : ℚ)
+    (maxDepth : ℕ) : Option AdaptiveResultChecked :=
+  integrateAdaptiveAuxChecked e I tol maxDepth
 
 /-! #### Correctness proofs for adaptive integration with inverse support -/
 
-/-- integrateRefinedWithInv is correct (direct from integratePartitionWithInv_correct) -/
-theorem integrateRefinedWithInv_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+/-- integrateRefinedChecked is correct (direct from integratePartitionChecked_correct) -/
+theorem integrateRefinedChecked_correct (e : Expr)
     (I : IntervalRat) (bound : IntervalRat)
-    (hsome : integrateRefinedWithInv e I = some bound)
+    (hsome : integrateRefinedChecked e I = some bound)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ bound :=
-  integratePartitionWithInv_correct e hsupp I 2 (by norm_num) bound hsome hInt
+  integratePartitionChecked_correct e I 2 (by norm_num) bound hsome hInt
 
 /-- Integrability on left half after midpoint split -/
-theorem intervalIntegrable_splitMid_left_withInv (e : Expr) (I : IntervalRat)
+theorem intervalIntegrable_splitMid_left_checked (e : Expr) (I : IntervalRat)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume
       (splitMid I).1.lo (splitMid I).1.hi := by
@@ -544,7 +544,7 @@ theorem intervalIntegrable_splitMid_left_withInv (e : Expr) (I : IntervalRat)
   exact hInt.mono_set (Set.uIcc_subset_uIcc (Set.left_mem_uIcc) (midpoint_mem_uIcc I))
 
 /-- Integrability on right half after midpoint split -/
-theorem intervalIntegrable_splitMid_right_withInv (e : Expr) (I : IntervalRat)
+theorem intervalIntegrable_splitMid_right_checked (e : Expr) (I : IntervalRat)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume
       (splitMid I).2.lo (splitMid I).2.hi := by
@@ -552,7 +552,7 @@ theorem intervalIntegrable_splitMid_right_withInv (e : Expr) (I : IntervalRat)
   exact hInt.mono_set (Set.uIcc_subset_uIcc (midpoint_mem_uIcc I) (Set.right_mem_uIcc))
 
 /-- Integral over split interval equals sum of integrals over halves -/
-theorem integral_split_mid_withInv (e : Expr) (I : IntervalRat)
+theorem integral_split_mid_checked (e : Expr) (I : IntervalRat)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e =
     (∫ x in (I.lo : ℝ)..(I.midpoint : ℝ), Expr.eval (fun _ => x) e) +
@@ -565,47 +565,47 @@ theorem integral_split_mid_withInv (e : Expr) (I : IntervalRat)
 
 /-- Main soundness theorem: adaptive integration returns a bound containing the true integral.
     This is proved by induction on maxDepth. -/
-theorem integrateAdaptiveAuxWithInv_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
-    (I : IntervalRat) (tol : ℚ) (maxDepth : ℕ) (result : AdaptiveResultWithInv)
-    (hsome : integrateAdaptiveAuxWithInv e I tol maxDepth = some result)
+theorem integrateAdaptiveAuxChecked_correct (e : Expr)
+    (I : IntervalRat) (tol : ℚ) (maxDepth : ℕ) (result : AdaptiveResultChecked)
+    (hsome : integrateAdaptiveAuxChecked e I tol maxDepth = some result)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ result.bound := by
   induction maxDepth generalizing I tol result with
   | zero =>
-    -- Base case: returns integrateRefinedWithInv, which is correct
-    simp only [integrateAdaptiveAuxWithInv] at hsome
-    cases hrefined : integrateRefinedWithInv e I with
+    -- Base case: returns integrateRefinedChecked, which is correct
+    simp only [integrateAdaptiveAuxChecked] at hsome
+    cases hrefined : integrateRefinedChecked e I with
     | none => simp [hrefined] at hsome
     | some refined =>
       simp only [hrefined, Option.some.injEq] at hsome
       cases hsome
-      exact integrateRefinedWithInv_correct e hsupp I refined hrefined hInt
+      exact integrateRefinedChecked_correct e I refined hrefined hInt
   | succ n ih =>
-    simp only [integrateAdaptiveAuxWithInv] at hsome
-    cases hrefined : integrateRefinedWithInv e I with
+    simp only [integrateAdaptiveAuxChecked] at hsome
+    cases hrefined : integrateRefinedChecked e I with
     | none => simp [hrefined] at hsome
     | some refined =>
       simp only [hrefined] at hsome
       split_ifs at hsome with herr
-      · -- Error acceptable: returns integrateRefinedWithInv
+      · -- Error acceptable: returns integrateRefinedChecked
         simp only [Option.some.injEq] at hsome
         cases hsome
-        exact integrateRefinedWithInv_correct e hsupp I refined hrefined hInt
+        exact integrateRefinedChecked_correct e I refined hrefined hInt
       · -- Subdivide case
-        cases hr1 : integrateAdaptiveAuxWithInv e (splitMid I).1 (tol / 2) n with
+        cases hr1 : integrateAdaptiveAuxChecked e (splitMid I).1 (tol / 2) n with
         | none => simp [hr1] at hsome
         | some r1 =>
-          cases hr2 : integrateAdaptiveAuxWithInv e (splitMid I).2 (tol / 2) n with
+          cases hr2 : integrateAdaptiveAuxChecked e (splitMid I).2 (tol / 2) n with
           | none => simp [hr1, hr2] at hsome
           | some r2 =>
             simp only [hr1, hr2, Option.some.injEq] at hsome
             cases hsome
             -- Split the integral
-            have hsplit := integral_split_mid_withInv e I hInt
+            have hsplit := integral_split_mid_checked e I hInt
             rw [hsplit]
             -- Get bounds for each half
-            have hInt₁ := intervalIntegrable_splitMid_left_withInv e I hInt
-            have hInt₂ := intervalIntegrable_splitMid_right_withInv e I hInt
+            have hInt₁ := intervalIntegrable_splitMid_left_checked e I hInt
+            have hInt₂ := intervalIntegrable_splitMid_right_checked e I hInt
             have h1 := ih (splitMid I).1 (tol / 2) r1 hr1 hInt₁
             have h2 := ih (splitMid I).2 (tol / 2) r2 hr2 hInt₂
             -- The bounds are correct, so their sum contains the sum of integrals
@@ -614,12 +614,12 @@ theorem integrateAdaptiveAuxWithInv_correct (e : Expr) (hsupp : ExprSupportedWit
             exact IntervalRat.mem_add h1 h2
 
 /-- Soundness of the main adaptive integration function with inverse support -/
-theorem integrateAdaptiveWithInv_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
-    (I : IntervalRat) (tol : ℚ) (maxDepth : ℕ) (result : AdaptiveResultWithInv)
-    (hsome : integrateAdaptiveWithInv e I tol maxDepth = some result)
+theorem integrateAdaptiveChecked_correct (e : Expr)
+    (I : IntervalRat) (tol : ℚ) (maxDepth : ℕ) (result : AdaptiveResultChecked)
+    (hsome : integrateAdaptiveChecked e I tol maxDepth = some result)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ result.bound :=
-  integrateAdaptiveAuxWithInv_correct e hsupp I tol maxDepth result hsome hInt
+  integrateAdaptiveAuxChecked_correct e I tol maxDepth result hsome hInt
 
 /-! #### Adaptive integral bound checkers for native_decide -/
 
@@ -627,7 +627,7 @@ theorem integrateAdaptiveWithInv_correct (e : Expr) (hsupp : ExprSupportedWithIn
     More efficient than uniform partitioning for functions with singularities. -/
 def checkIntegralAdaptiveLowerBound (e : Expr) (I : IntervalRat) (tol : ℚ)
     (maxDepth : ℕ) (c : ℚ) : Bool :=
-  match integrateAdaptiveWithInv e I tol maxDepth with
+  match integrateAdaptiveChecked e I tol maxDepth with
   | some result => decide (c ≤ result.bound.lo)
   | none => false
 
@@ -635,38 +635,38 @@ def checkIntegralAdaptiveLowerBound (e : Expr) (I : IntervalRat) (tol : ℚ)
     More efficient than uniform partitioning for functions with singularities. -/
 def checkIntegralAdaptiveUpperBound (e : Expr) (I : IntervalRat) (tol : ℚ)
     (maxDepth : ℕ) (c : ℚ) : Bool :=
-  match integrateAdaptiveWithInv e I tol maxDepth with
+  match integrateAdaptiveChecked e I tol maxDepth with
   | some result => decide (result.bound.hi ≤ c)
   | none => false
 
 /-- Bridge theorem: if `checkIntegralAdaptiveLowerBound` returns true, the integral is ≥ c. -/
-theorem integral_adaptive_lower_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_adaptive_lower_of_check (e : Expr)
     (I : IntervalRat) (tol : ℚ) (maxDepth : ℕ) (c : ℚ)
     (hcheck : checkIntegralAdaptiveLowerBound e I tol maxDepth c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     (c : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := by
   unfold checkIntegralAdaptiveLowerBound at hcheck
-  cases hbound : integrateAdaptiveWithInv e I tol maxDepth with
+  cases hbound : integrateAdaptiveChecked e I tol maxDepth with
   | none => simp [hbound] at hcheck
   | some result =>
     simp only [hbound, decide_eq_true_eq] at hcheck
-    have hmem := integrateAdaptiveWithInv_correct e hsupp I tol maxDepth result hbound hInt
+    have hmem := integrateAdaptiveChecked_correct e I tol maxDepth result hbound hInt
     simp only [IntervalRat.mem_def] at hmem
     calc (c : ℝ) ≤ (result.bound.lo : ℝ) := by exact_mod_cast hcheck
       _ ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := hmem.1
 
 /-- Bridge theorem: if `checkIntegralAdaptiveUpperBound` returns true, the integral is ≤ c. -/
-theorem integral_adaptive_upper_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_adaptive_upper_of_check (e : Expr)
     (I : IntervalRat) (tol : ℚ) (maxDepth : ℕ) (c : ℚ)
     (hcheck : checkIntegralAdaptiveUpperBound e I tol maxDepth c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (c : ℝ) := by
   unfold checkIntegralAdaptiveUpperBound at hcheck
-  cases hbound : integrateAdaptiveWithInv e I tol maxDepth with
+  cases hbound : integrateAdaptiveChecked e I tol maxDepth with
   | none => simp [hbound] at hcheck
   | some result =>
     simp only [hbound, decide_eq_true_eq] at hcheck
-    have hmem := integrateAdaptiveWithInv_correct e hsupp I tol maxDepth result hbound hInt
+    have hmem := integrateAdaptiveChecked_correct e I tol maxDepth result hbound hInt
     simp only [IntervalRat.mem_def] at hmem
     calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (result.bound.hi : ℝ) := hmem.2
       _ ≤ (c : ℝ) := by exact_mod_cast hcheck
@@ -694,7 +694,7 @@ def searchPartitionLowerAux (e : Expr) (I : IntervalRat) (n maxN : ℕ) (c : ℚ
   | fuel' + 1 =>
     if n > maxN then none
     else if _hn : 0 < n then
-      match integratePartitionWithInv e I n with
+      match integratePartitionChecked e I n with
       | some J =>
         if decide (c ≤ J.lo) then some J
         else searchPartitionLowerAux e I (2 * n) maxN c fuel'
@@ -714,7 +714,7 @@ def searchPartitionUpperAux (e : Expr) (I : IntervalRat) (n maxN : ℕ) (c : ℚ
   | fuel' + 1 =>
     if n > maxN then none
     else if _hn : 0 < n then
-      match integratePartitionWithInv e I n with
+      match integratePartitionChecked e I n with
       | some J =>
         if decide (J.hi ≤ c) then some J
         else searchPartitionUpperAux e I (2 * n) maxN c fuel'
@@ -750,7 +750,7 @@ theorem searchPartitionLowerAux_spec (e : Expr) (I : IntervalRat) (n maxN : ℕ)
     split at hfind
     · simp at hfind
     · split at hfind
-      · cases hint : integratePartitionWithInv e I n with
+      · cases hint : integratePartitionChecked e I n with
         | none => simp [hint] at hfind
         | some J' =>
           simp only [hint] at hfind
@@ -772,7 +772,7 @@ theorem searchPartitionUpperAux_spec (e : Expr) (I : IntervalRat) (n maxN : ℕ)
     split at hfind
     · simp at hfind
     · split at hfind
-      · cases hint : integratePartitionWithInv e I n with
+      · cases hint : integratePartitionChecked e I n with
         | none => simp [hint] at hfind
         | some J' =>
           simp only [hint] at hfind
@@ -784,7 +784,7 @@ theorem searchPartitionUpperAux_spec (e : Expr) (I : IntervalRat) (n maxN : ℕ)
       · simp at hfind
 
 /-- Helper: searchPartitionLowerAux returns a valid integration bound. -/
-theorem searchPartitionLowerAux_valid (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem searchPartitionLowerAux_valid (e : Expr)
     (I : IntervalRat) (n maxN : ℕ) (_hn : 0 < n) (c : ℚ) (fuel : ℕ) (J : IntervalRat)
     (hfind : searchPartitionLowerAux e I n maxN c fuel = some J)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
@@ -798,21 +798,21 @@ theorem searchPartitionLowerAux_valid (e : Expr) (hsupp : ExprSupportedWithInv e
     · simp only [hle, ↓reduceIte] at hfind
       by_cases hn' : 0 < n
       · simp only [hn', ↓reduceDIte] at hfind
-        cases hint : integratePartitionWithInv e I n with
+        cases hint : integratePartitionChecked e I n with
         | none => simp [hint] at hfind
         | some J' =>
           simp only [hint] at hfind
           by_cases hdec : c ≤ J'.lo
           · simp only [decide_eq_true hdec, ↓reduceIte, Option.some.injEq] at hfind
             subst hfind
-            exact integratePartitionWithInv_correct e hsupp I n hn' J' hint hInt
+            exact integratePartitionChecked_correct e I n hn' J' hint hInt
           · simp only [decide_eq_false hdec, Bool.false_eq_true, ↓reduceIte] at hfind
             have h2n_pos : 0 < 2 * n := by omega
             exact ih (2 * n) h2n_pos hfind
       · simp [hn'] at hfind
 
 /-- Helper: searchPartitionUpperAux returns a valid integration bound. -/
-theorem searchPartitionUpperAux_valid (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem searchPartitionUpperAux_valid (e : Expr)
     (I : IntervalRat) (n maxN : ℕ) (_hn : 0 < n) (c : ℚ) (fuel : ℕ) (J : IntervalRat)
     (hfind : searchPartitionUpperAux e I n maxN c fuel = some J)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
@@ -826,21 +826,21 @@ theorem searchPartitionUpperAux_valid (e : Expr) (hsupp : ExprSupportedWithInv e
     · simp only [hle, ↓reduceIte] at hfind
       by_cases hn' : 0 < n
       · simp only [hn', ↓reduceDIte] at hfind
-        cases hint : integratePartitionWithInv e I n with
+        cases hint : integratePartitionChecked e I n with
         | none => simp [hint] at hfind
         | some J' =>
           simp only [hint] at hfind
           by_cases hdec : J'.hi ≤ c
           · simp only [decide_eq_true hdec, ↓reduceIte, Option.some.injEq] at hfind
             subst hfind
-            exact integratePartitionWithInv_correct e hsupp I n hn' J' hint hInt
+            exact integratePartitionChecked_correct e I n hn' J' hint hInt
           · simp only [decide_eq_false hdec, Bool.false_eq_true, ↓reduceIte] at hfind
             have h2n_pos : 0 < 2 * n := by omega
             exact ih (2 * n) h2n_pos hfind
       · simp [hn'] at hfind
 
 /-- Bridge theorem: if exponential search succeeds, the integral satisfies the lower bound. -/
-theorem integral_search_lower_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_search_lower_of_check (e : Expr)
     (I : IntervalRat) (startN maxN : ℕ) (hstart : 0 < startN) (c : ℚ)
     (hcheck : checkIntegralSearchLowerBound e I startN maxN c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
@@ -849,13 +849,13 @@ theorem integral_search_lower_of_check (e : Expr) (hsupp : ExprSupportedWithInv 
   simp only [Option.isSome_iff_exists] at hcheck
   obtain ⟨J, hJ⟩ := hcheck
   have hcJ := searchPartitionLowerAux_spec e I startN maxN c 20 J hJ
-  have hmem := searchPartitionLowerAux_valid e hsupp I startN maxN hstart c 20 J hJ hInt
+  have hmem := searchPartitionLowerAux_valid e I startN maxN hstart c 20 J hJ hInt
   simp only [IntervalRat.mem_def] at hmem
   calc (c : ℝ) ≤ (J.lo : ℝ) := by exact_mod_cast hcJ
     _ ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := hmem.1
 
 /-- Bridge theorem: if exponential search succeeds, the integral satisfies the upper bound. -/
-theorem integral_search_upper_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_search_upper_of_check (e : Expr)
     (I : IntervalRat) (startN maxN : ℕ) (hstart : 0 < startN) (c : ℚ)
     (hcheck : checkIntegralSearchUpperBound e I startN maxN c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
@@ -864,7 +864,7 @@ theorem integral_search_upper_of_check (e : Expr) (hsupp : ExprSupportedWithInv 
   simp only [Option.isSome_iff_exists] at hcheck
   obtain ⟨J, hJ⟩ := hcheck
   have hcJ := searchPartitionUpperAux_spec e I startN maxN c 20 J hJ
-  have hmem := searchPartitionUpperAux_valid e hsupp I startN maxN hstart c 20 J hJ hInt
+  have hmem := searchPartitionUpperAux_valid e I startN maxN hstart c 20 J hJ hInt
   simp only [IntervalRat.mem_def] at hmem
   calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (J.hi : ℝ) := hmem.2
     _ ≤ (c : ℝ) := by exact_mod_cast hcJ

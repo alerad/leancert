@@ -79,14 +79,14 @@ theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
 | Global upper bound | `verify_global_upper_bound` | `checkGlobalUpperBound` |
 
 ```lean
-theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupported e)
+theorem verify_global_lower_bound (e : Expr) (hsupp : ADSupported e)
     (B : Box) (c : ℚ) (cfg : GlobalOptConfig)
     (h_cert : checkGlobalLowerBound e B c cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       c ≤ Expr.eval ρ e
 ```
 
-> **Note**: Global optimization uses `ExprSupported` (not `ExprSupportedCore`) and multivariate environments.
+> **Note**: Global optimization uses `ADSupported` (not `ExprSupportedCore`) and multivariate environments.
 
 ### Integration
 
@@ -103,7 +103,7 @@ theorem verify_integral_bound (e : Expr) (hsupp : ExprSupportedCore e)
 **Dyadic backend** (for complex integrands like Li₂ where rational arithmetic explodes):
 
 ```lean
-theorem integrateInterval1Dyadic_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integrateInterval1Dyadic_correct (e : Expr)
     (I : IntervalRat) (cfg : DyadicConfig)
     (hprec : cfg.precision ≤ 0)
     (hdom : evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat I cfg.precision) cfg)
@@ -112,13 +112,13 @@ theorem integrateInterval1Dyadic_correct (e : Expr) (hsupp : ExprSupportedWithIn
       integrateInterval1Dyadic e I cfg
 ```
 
-The theorem-level dyadic integration path supports `ExprSupportedWithInv`
+The theorem-level dyadic integration path accepts arbitrary expressions
 (including `inv`, `log`, `atanh`) under explicit domain-validity hypotheses.
 Public computational endpoints use checked evaluators and return a domain error
 instead of exposing finite fallback bounds.
 
 ```lean
-theorem integratePartitionDyadic_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integratePartitionDyadic_correct (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (cfg : DyadicConfig)
     (hprec : cfg.precision ≤ 0)
     (hdom : ∀ k (hk : k < n), evalDomainValidDyadic e ...)
@@ -332,7 +332,7 @@ Prove monotonicity properties using automatic differentiation with interval arit
 | Antitone (weak) | `verify_antitone` | `checkStrictlyDecreasing` |
 
 ```lean
-theorem verify_strictly_increasing (e : Expr) (hsupp : ExprSupported e)
+theorem verify_strictly_increasing (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h_check : checkStrictlyIncreasing e I cfg = true) :
     StrictMonoOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi)
@@ -351,7 +351,7 @@ The mathematical foundation is the Mean Value Theorem: if f' has consistent sign
 theorem exp_strictly_increasing :
     StrictMonoOn (fun x => Real.exp x) (Set.Icc 0 1) := by
   have h := verify_strictly_increasing (Expr.exp (Expr.var 0))
-    (ExprSupported.exp (ExprSupported.var 0))
+    (ADSupported.exp (ADSupported.var 0))
     ⟨0, 1, by norm_num⟩ {} (by native_decide)
   simp only [Expr.eval_exp, Expr.eval_var] at h
   convert h using 2 <;> simp
@@ -373,14 +373,12 @@ That module provides rational bounds for `π` and `2π`, computable period
 shifting, and correctness lemmas reused by both interval-rational and Taylor
 model trigonometric evaluators.
 
-### ExprSupportedWithInv
+### Checked evaluation and domains
 
-Extended support including partial functions:
-
-- Everything in `ExprSupportedCore`
-- `inv`, `log`, `atan`, `arsinh`, `atanh`, `sinc`, `erf`
-
-These require `evalInterval?` which may return `none` if domain constraints are violated.
+Checked evaluators accept arbitrary `Expr` values. Partial functions such as
+`inv`, `log`, and `atanh` are governed by runtime domain checks rather than a
+second syntactic support predicate. A successful `Option`/`EvalResult` carries
+an enclosure; an invalid domain returns `none` or a structured error.
 
 ## Arithmetic Backends
 
@@ -418,7 +416,7 @@ Key parameters:
 - `prec : Int` - Precision (negative = more precision, must be ≤ 0)
 - `depth : Nat` - Taylor series depth for transcendentals
 
-The `'` variant (`verify_upper_bound_dyadic'`) uses `ExprSupported` and handles domain validity automatically.
+The `'` variant (`verify_upper_bound_dyadic'`) uses `ADSupported` and handles domain validity automatically.
 
 Essential for neural network verification and optimization loops where expression depth can be in the hundreds.
 
@@ -434,7 +432,7 @@ theorem verify_upper_bound_affine1 (e : Expr) (hsupp : ExprSupportedCore e)
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c
 ```
 
-The `'` variant (`verify_upper_bound_affine1'`) uses `ExprSupported` and handles domain validity automatically.
+The `'` variant (`verify_upper_bound_affine1'`) uses `ADSupported` and handles domain validity automatically.
 
 Affine arithmetic represents values as `x̂ = c₀ + Σᵢ cᵢ·εᵢ + [-r, r]` where εᵢ ∈ [-1, 1] are noise symbols. This means:
 
@@ -450,7 +448,7 @@ Use affine when the same variable appears multiple times in an expression.
 | Upper bound | `verify_upper_bound` | `verify_upper_bound_dyadic` | `verify_upper_bound_affine1` |
 | Lower bound | `verify_lower_bound` | `verify_lower_bound_dyadic` | `verify_lower_bound_affine1` |
 
-Each backend also provides `'` variants for `ExprSupported` expressions where domain validity is automatic:
+Each backend also provides `'` variants for `ADSupported` expressions where domain validity is automatic:
 - `verify_upper_bound_dyadic'`
 - `verify_lower_bound_affine1'`
 - etc.
@@ -608,5 +606,5 @@ lake env lean examples/Sqrt2.lean
 | **Dependency problem** (`v*v` gives `[-1,1]` instead of `[0,1]`) | Split domain and prove separately on `[0,1]` and `[-1,0]` |
 | **Rational cast errors** (`(2/5 : ℚ)` in expressions) | Use plain fractions: `2/5` without type annotation |
 | **Taylor overflow on wide intervals** (sin/cos) | Use narrower intervals or accept looser bounds |
-| **Division not computable** (`1/x` bounds) | Division bounds require `ExprSupportedWithInv`, not pure `native_decide` |
+| **Division has a domain** (`1/x` bounds) | Use a checked evaluator/checker; intervals containing zero are rejected |
 | **Discovery command syntax** | Use `#bounds (fun x => ...) on [a, b]` with integer endpoints |

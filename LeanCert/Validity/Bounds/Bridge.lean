@@ -45,7 +45,7 @@ allowing tactics to work with the more natural Set.Icc syntax.
 -/
 
 /-- Bridge from IntervalRat proof to Set.Icc upper bound goal -/
-theorem verify_upper_bound_Icc (e : Expr) (hsupp : ExprSupported e)
+theorem verify_upper_bound_Icc (e : Expr) (hsupp : ADSupported e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
     (h_cert : checkUpperBoundSmart e ⟨lo, hi, hle⟩ c cfg = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e ≤ c := by
@@ -55,7 +55,7 @@ theorem verify_upper_bound_Icc (e : Expr) (hsupp : ExprSupported e)
   rwa [IntervalRat.mem_iff_mem_Icc]
 
 /-- Bridge from IntervalRat proof to Set.Icc lower bound goal -/
-theorem verify_lower_bound_Icc (e : Expr) (hsupp : ExprSupported e)
+theorem verify_lower_bound_Icc (e : Expr) (hsupp : ADSupported e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : EvalConfig)
     (h_cert : checkLowerBoundSmart e ⟨lo, hi, hle⟩ c cfg = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c ≤ Expr.eval (fun _ => x) e := by

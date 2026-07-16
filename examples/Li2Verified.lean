@@ -49,46 +49,46 @@ open scoped ENNReal
 
 /-! ### Helper definitions for certified integral bounds via native_decide -/
 
-/-- Boolean checker for integral lower bounds using `integratePartitionWithInv`. -/
+/-- Boolean checker for integral lower bounds using `integratePartitionChecked`. -/
 def checkIntegralLowerBound (e : Expr) (I : IntervalRat) (n : ℕ) (c : ℚ) : Bool :=
-  match integratePartitionWithInv e I n with
+  match integratePartitionChecked e I n with
   | some J => decide (c ≤ J.lo)
   | none => false
 
-/-- Boolean checker for integral upper bounds using `integratePartitionWithInv`. -/
+/-- Boolean checker for integral upper bounds using `integratePartitionChecked`. -/
 def checkIntegralUpperBound (e : Expr) (I : IntervalRat) (n : ℕ) (c : ℚ) : Bool :=
-  match integratePartitionWithInv e I n with
+  match integratePartitionChecked e I n with
   | some J => decide (J.hi ≤ c)
   | none => false
 
 /-- Bridge theorem: if `checkIntegralLowerBound` returns true, the integral is ≥ c. -/
-theorem integral_lower_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_lower_of_check (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)
     (hcheck : checkIntegralLowerBound e I n c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
     (c : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := by
   unfold checkIntegralLowerBound at hcheck
-  cases hbound : integratePartitionWithInv e I n with
+  cases hbound : integratePartitionChecked e I n with
   | none => simp [hbound] at hcheck
   | some J =>
     simp only [hbound, decide_eq_true_eq] at hcheck
-    have hmem := integratePartitionWithInv_correct e hsupp I n hn J hbound hInt
+    have hmem := integratePartitionChecked_correct e I n hn J hbound hInt
     simp only [IntervalRat.mem_def] at hmem
     calc (c : ℝ) ≤ (J.lo : ℝ) := by exact_mod_cast hcheck
       _ ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := hmem.1
 
 /-- Bridge theorem: if `checkIntegralUpperBound` returns true, the integral is ≤ c. -/
-theorem integral_upper_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_upper_of_check (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)
     (hcheck : checkIntegralUpperBound e I n c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (c : ℝ) := by
   unfold checkIntegralUpperBound at hcheck
-  cases hbound : integratePartitionWithInv e I n with
+  cases hbound : integratePartitionChecked e I n with
   | none => simp [hbound] at hcheck
   | some J =>
     simp only [hbound, decide_eq_true_eq] at hcheck
-    have hmem := integratePartitionWithInv_correct e hsupp I n hn J hbound hInt
+    have hmem := integratePartitionChecked_correct e I n hn J hbound hInt
     simp only [IntervalRat.mem_def] at hmem
     calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (J.hi : ℝ) := hmem.2
       _ ≤ (c : ℝ) := by exact_mod_cast hcheck
@@ -219,7 +219,7 @@ theorem li2_upper_crude : li2 ≤ 2 := by
       have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
       unfold g
       unfold symmetricLogCombination
-      simpa [one_div] using hlog1p_inv.add hlog1m_inv
+      exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
     have hInt_Ioo : IntegrableOn g (Set.Ioo (0:ℝ) 1) volume := by
       apply Measure.integrableOn_of_bounded
       · exact measure_Ioo_lt_top.ne
@@ -279,7 +279,7 @@ theorem li2_pos : 0 < li2 := by
       have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
       unfold g
       unfold symmetricLogCombination
-      simpa [one_div] using hlog1p_inv.add hlog1m_inv
+      exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
     have hInt_Ioo : IntegrableOn g (Set.Ioo (0:ℝ) 1) volume := by
       apply Measure.integrableOn_of_bounded
       · exact measure_Ioo_lt_top.ne
@@ -351,21 +351,6 @@ def g_expr : Expr :=
     (Expr.inv (Expr.log (Expr.add (Expr.const 1) (Expr.var 0))))
     (Expr.inv (Expr.log (Expr.add (Expr.const 1) (Expr.neg (Expr.var 0)))))
 
-theorem g_expr_supported : ExprSupportedWithInv g_expr := by
-  unfold g_expr
-  refine ExprSupportedWithInv.add ?_ ?_
-  · refine ExprSupportedWithInv.inv ?_
-    refine ExprSupportedWithInv.log ?_
-    refine ExprSupportedWithInv.add ?_ ?_
-    · exact ExprSupportedWithInv.const 1
-    · exact ExprSupportedWithInv.var 0
-  · refine ExprSupportedWithInv.inv ?_
-    refine ExprSupportedWithInv.log ?_
-    refine ExprSupportedWithInv.add ?_ ?_
-    · exact ExprSupportedWithInv.const 1
-    · refine ExprSupportedWithInv.neg ?_
-      exact ExprSupportedWithInv.var 0
-
 theorem g_expr_eval (t : ℝ) : Expr.eval (fun _ => t) g_expr = g t := by
   have hlog : (-t + 1) = (1 - t) := by ring
   have h :
@@ -385,28 +370,6 @@ def g_alt_expr : Expr :=
       (Expr.mul
         (Expr.log (Expr.add (Expr.const 1) (Expr.var 0)))
         (Expr.log (Expr.add (Expr.const 1) (Expr.neg (Expr.var 0))))))
-
-theorem g_alt_expr_supported : ExprSupportedWithInv g_alt_expr := by
-  unfold g_alt_expr
-  refine ExprSupportedWithInv.mul ?_ ?_
-  · refine ExprSupportedWithInv.log ?_
-    refine ExprSupportedWithInv.add ?_ ?_
-    · exact ExprSupportedWithInv.const 1
-    · refine ExprSupportedWithInv.neg ?_
-      refine ExprSupportedWithInv.mul ?_ ?_
-      · exact ExprSupportedWithInv.var 0
-      · exact ExprSupportedWithInv.var 0
-  · refine ExprSupportedWithInv.inv ?_
-    refine ExprSupportedWithInv.mul ?_ ?_
-    · refine ExprSupportedWithInv.log ?_
-      refine ExprSupportedWithInv.add ?_ ?_
-      · exact ExprSupportedWithInv.const 1
-      · exact ExprSupportedWithInv.var 0
-    · refine ExprSupportedWithInv.log ?_
-      refine ExprSupportedWithInv.add ?_ ?_
-      · exact ExprSupportedWithInv.const 1
-      · refine ExprSupportedWithInv.neg ?_
-        exact ExprSupportedWithInv.var 0
 
 theorem g_alt_expr_eval (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 1) :
     Expr.eval (fun _ => t) g_alt_expr = g t := by
@@ -442,7 +405,7 @@ theorem g_intervalIntegrable_mid :
     have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
     unfold g
     unfold symmetricLogCombination
-    simpa [one_div] using hlog1p_inv.add hlog1m_inv
+    exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
   have hInt_Ioo : IntegrableOn g
       (Set.Ioo (g_mid_interval.lo : ℝ) (g_mid_interval.hi : ℝ)) volume := by
     apply Measure.integrableOn_of_bounded
@@ -467,7 +430,7 @@ theorem g_intervalIntegrable_mid :
   exact (intervalIntegrable_iff_integrableOn_Ioo_of_le (μ:=volume) (f:=g) hab).2 hInt_Ioo
 
 def g_mid_bound : Option IntervalRat :=
-  integrateInterval1WithInv g_expr g_mid_interval
+  integrateInterval1Checked g_expr g_mid_interval
 
 theorem g_mid_integral_mem (bound : IntervalRat) (hbound : g_mid_bound = some bound) :
     ∫ t in (g_mid_interval.lo : ℝ)..(g_mid_interval.hi : ℝ), g t ∈ bound := by
@@ -475,7 +438,7 @@ theorem g_mid_integral_mem (bound : IntervalRat) (hbound : g_mid_bound = some bo
       (g_mid_interval.lo : ℝ) (g_mid_interval.hi : ℝ) := by
     simpa [g_expr_eval] using g_intervalIntegrable_mid
   have hmem :=
-    integrateInterval1WithInv_correct g_expr g_expr_supported g_mid_interval bound
+    integrateInterval1Checked_correct g_expr g_mid_interval bound
       (by simpa [g_mid_bound] using hbound) hInt
   simpa [g_expr_eval] using hmem
 
@@ -497,7 +460,7 @@ theorem g_integral_tail_upper (ε : ℝ) (hε_pos : 0 < ε) (hε_lt : ε < 1) :
       have hlog1p_inv : Measurable fun t : ℝ => (Real.log (1 + t))⁻¹ := hlog1p.inv
       have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
       unfold g symmetricLogCombination
-      simpa [one_div] using hlog1p_inv.add hlog1m_inv
+      exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
     have hInt_Ioo : IntegrableOn g (Set.Ioo (0:ℝ) ε) volume := by
       apply Measure.integrableOn_of_bounded
       · exact measure_Ioo_lt_top.ne
@@ -538,7 +501,7 @@ theorem g_integral_right_tail_upper (ε : ℝ) (hε_pos : 0 < ε) (hε_lt : ε <
       have hlog1p_inv : Measurable fun t : ℝ => (Real.log (1 + t))⁻¹ := hlog1p.inv
       have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
       unfold g symmetricLogCombination
-      simpa [one_div] using hlog1p_inv.add hlog1m_inv
+      exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
     have hInt_Ioo : IntegrableOn g (Set.Ioo (1 - ε:ℝ) 1) volume := by
       apply Measure.integrableOn_of_bounded
       · exact measure_Ioo_lt_top.ne
@@ -726,7 +689,7 @@ theorem g_intervalIntegrable (a b : ℝ) (ha_pos : 0 < a) (hb_lt : b < 1) (hab :
     have hlog1p_inv : Measurable fun t : ℝ => (Real.log (1 + t))⁻¹ := hlog1p.inv
     have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
     unfold g symmetricLogCombination
-    simpa [one_div] using hlog1p_inv.add hlog1m_inv
+    exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
   have hInt_Ioo : IntegrableOn g (Set.Ioo a b) volume := by
     apply Measure.integrableOn_of_bounded
     · exact measure_Ioo_lt_top.ne
@@ -779,7 +742,7 @@ theorem li2_decomposition :
       have hlog1p_inv : Measurable fun t : ℝ => (Real.log (1 + t))⁻¹ := hlog1p.inv
       have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
       unfold g symmetricLogCombination
-      simpa [one_div] using hlog1p_inv.add hlog1m_inv
+      exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
     have hInt_Ioo : IntegrableOn g (Set.Ioo (0:ℝ) 1) volume := by
       apply Measure.integrableOn_of_bounded
       · exact measure_Ioo_lt_top.ne
@@ -873,7 +836,7 @@ theorem integral_upper_bound (a b c : ℝ) (ha_pos : 0 < a) (hb_lt : b < 1)
 
 /-! ### Numerical Bounds from Interval Arithmetic
 
-The following bounds were computed using `integratePartitionWithInv`:
+The following bounds were computed using `integratePartitionChecked`:
 - [0.00001, 0.0001] with 90 partitions: [0.0000856, 0.0000948]
 - [0.0001, 0.001] with 90 partitions: [0.00086, 0.00095]
 - [0.001, 0.999] with 2994 partitions: [1.03775, 1.04840]
@@ -902,11 +865,11 @@ theorem g_intervalIntegrable_main :
   exact g_intervalIntegrable (g_mid_interval_main.lo) (g_mid_interval_main.hi)
     hlo_pos hhi_lt hab
 
-/-- Compute the bound using integratePartitionWithInv with the alternative expression.
+/-- Compute the bound using integratePartitionChecked with the alternative expression.
     With n = 3000 partitions, g_alt_expr gives bounds [1.03775, 1.04840].
     The alternative form avoids cancellation issues in interval arithmetic. -/
 def g_mid_bound_main (n : ℕ) : Option IntervalRat :=
-  integratePartitionWithInv g_alt_expr g_mid_interval_main n
+  integratePartitionChecked g_alt_expr g_mid_interval_main n
 
 /-- The g_alt_expr integral equals the g integral on [1/1000, 999/1000]. -/
 theorem g_alt_integral_eq :
@@ -974,9 +937,9 @@ theorem g_alt_intervalIntegrable_main :
 
 set_option maxHeartbeats 4000000 in
 /-- Verified lower bound on ∫[1/1000, 999/1000] g(t) dt.
-    Computed via integratePartitionWithInv with 3000 partitions using g_alt_expr.
+    Computed via integratePartitionChecked with 3000 partitions using g_alt_expr.
 
-    The computation `integratePartitionWithInv g_alt_expr g_mid_interval_main 3000`
+    The computation `integratePartitionChecked g_alt_expr g_mid_interval_main 3000`
     returns `some I` where `I.lo ≥ 103775/100000` and `I.hi ≤ 104840/100000`.
     This was verified in temp_tests/CheckAltFinal2.lean. -/
 theorem g_mid_integral_lower :
@@ -989,12 +952,11 @@ theorem g_mid_integral_lower :
   -- Apply the certified bound theorem
   have hcheck : checkIntegralLowerBound g_alt_expr g_mid_interval_main 3000 (103775/100000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_main
   have hlo : (g_mid_interval_main.lo : ℝ) = 1/1000 := by norm_num [g_mid_interval_main]
   have hhi : (g_mid_interval_main.hi : ℝ) = 999/1000 := by norm_num [g_mid_interval_main]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_mid_interval_main 3000 (by norm_num)
     (103775/100000) hcheck hInt
 
 set_option maxHeartbeats 4000000 in
@@ -1006,12 +968,11 @@ theorem g_mid_integral_upper :
   rw [hcast]
   have hcheck : checkIntegralUpperBound g_alt_expr g_mid_interval_main 3000 (104840/100000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_main
   have hlo : (g_mid_interval_main.lo : ℝ) = 1/1000 := by norm_num [g_mid_interval_main]
   have hhi : (g_mid_interval_main.hi : ℝ) = 999/1000 := by norm_num [g_mid_interval_main]
   rw [← hlo, ← hhi]
-  exact integral_upper_of_check g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num)
+  exact integral_upper_of_check g_alt_expr g_mid_interval_main 3000 (by norm_num)
     (104840/100000) hcheck hInt
 
 /-! ### Additional Interval Bounds -/
@@ -1057,7 +1018,7 @@ theorem g_alt_intervalIntegrable_12 :
   exact hg.congr heqon
 
 /-- Lower bound for [1/10000, 1/1000] using numerical integration.
-    Computed via integratePartitionWithInv with 100 partitions using g_alt_expr.
+    Computed via integratePartitionChecked with 100 partitions using g_alt_expr.
     Verified in temp_tests/SimpleCheck.lean: lo ≥ 0.0008 = true -/
 theorem g_integral_12_lower_numerical :
     (8:ℚ)/10000 ≤ ∫ t in (1/10000:ℝ)..(1/1000), g t := by
@@ -1066,12 +1027,11 @@ theorem g_integral_12_lower_numerical :
   rw [hcast]
   have hcheck : checkIntegralLowerBound g_alt_expr g_interval_12 100 (8/10000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_12
   have hlo : (g_interval_12.lo : ℝ) = 1/10000 := by norm_num [g_interval_12]
   have hhi : (g_interval_12.hi : ℝ) = 1/1000 := by norm_num [g_interval_12]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_interval_12 100 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_interval_12 100 (by norm_num)
     (8/10000) hcheck hInt
 
 theorem g_integral_12_lower :
@@ -1117,12 +1077,11 @@ theorem g_integral_45_lower_numerical :
   rw [hcast]
   have hcheck : checkIntegralLowerBound g_alt_expr g_interval_45 100 (8/10000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_45
   have hlo : (g_interval_45.lo : ℝ) = 999/1000 := by norm_num [g_interval_45]
   have hhi : (g_interval_45.hi : ℝ) = 9999/10000 := by norm_num [g_interval_45]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_interval_45 100 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_interval_45 100 (by norm_num)
     (8/10000) hcheck hInt
 
 theorem g_integral_45_lower :
@@ -1166,12 +1125,11 @@ theorem g_integral_56_lower_numerical :
   rw [hcast]
   have hcheck : checkIntegralLowerBound g_alt_expr g_interval_56 100 (8/100000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_56
   have hlo : (g_interval_56.lo : ℝ) = 9999/10000 := by norm_num [g_interval_56]
   have hhi : (g_interval_56.hi : ℝ) = 99999/100000 := by norm_num [g_interval_56]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_interval_56 100 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_interval_56 100 (by norm_num)
     (8/100000) hcheck hInt
 
 theorem g_integral_56_lower :
@@ -1215,12 +1173,11 @@ theorem g_integral_01_lower_numerical :
   rw [hcast]
   have hcheck : checkIntegralLowerBound g_alt_expr g_interval_01 100 (8/100000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_01
   have hlo : (g_interval_01.lo : ℝ) = 1/100000 := by norm_num [g_interval_01]
   have hhi : (g_interval_01.hi : ℝ) = 1/10000 := by norm_num [g_interval_01]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_interval_01 100 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_interval_01 100 (by norm_num)
     (8/100000) hcheck hInt
 
 /-- Lower bound for [0, 1/100000] using g > 0 (weak bound).
@@ -1236,7 +1193,7 @@ theorem g_integral_00_lower :
     have hlog1p_inv : Measurable fun t : ℝ => (Real.log (1 + t))⁻¹ := hlog1p.inv
     have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
     unfold g symmetricLogCombination
-    simpa [one_div] using hlog1p_inv.add hlog1m_inv
+    exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
   have hInt_Ioo : IntegrableOn g (Set.Ioo (0:ℝ) (1/100000)) volume := by
     apply Measure.integrableOn_of_bounded
     · exact measure_Ioo_lt_top.ne
@@ -1265,7 +1222,7 @@ theorem g_integral_67_lower :
     have hlog1p_inv : Measurable fun t : ℝ => (Real.log (1 + t))⁻¹ := hlog1p.inv
     have hlog1m_inv : Measurable fun t : ℝ => (Real.log (1 - t))⁻¹ := hlog1m.inv
     unfold g symmetricLogCombination
-    simpa [one_div] using hlog1p_inv.add hlog1m_inv
+    exact (measurable_const.div hlog1p).add (measurable_const.div hlog1m)
   have hInt_Ioo : IntegrableOn g (Set.Ioo (99999/100000:ℝ) 1) volume := by
     apply Measure.integrableOn_of_bounded
     · exact measure_Ioo_lt_top.ne

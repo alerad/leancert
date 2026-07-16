@@ -17,7 +17,7 @@ namespace LeanCert.Test.ValidityExports
 #check LeanCert.Validity.FinSum.verify_witness_sum_upper_cached
 #check LeanCert.Validity.FinSum.verify_witness_sum_upper_list_full
 #check LeanCert.Validity.Dyadic.verify_upper_bound_dyadic
-#check LeanCert.Validity.Dyadic.verify_upper_bound_dyadic_withInv
+#check LeanCert.Validity.Dyadic.verify_upper_bound_dyadic_checked
 #check LeanCert.Validity.Chebyshev.verify_psi_le_mul
 #check LeanCert.Validity.Chebyshev.verify_theta_rel_error
 

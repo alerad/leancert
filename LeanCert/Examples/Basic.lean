@@ -29,8 +29,8 @@ open LeanCert.Engine
 def xSq : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 /-- Proof that x² is in the supported subset -/
-def xSq_supported : ExprSupported xSq :=
-  ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0)
+def xSq_supported : ADSupported xSq :=
+  ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)
 
 /-- The expression x² + 2x + 1 = (x + 1)² -/
 def exprSquare : Expr :=
@@ -39,22 +39,22 @@ def exprSquare : Expr :=
            (Expr.const 1)
 
 /-- Proof that x² + 2x + 1 is in the supported subset -/
-def exprSquare_supported : ExprSupported exprSquare :=
-  ExprSupported.add
-    (ExprSupported.add
-      (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-      (ExprSupported.mul (ExprSupported.const 2) (ExprSupported.var 0)))
-    (ExprSupported.const 1)
+def exprSquare_supported : ADSupported exprSquare :=
+  ADSupported.add
+    (ADSupported.add
+      (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+      (ADSupported.mul (ADSupported.const 2) (ADSupported.var 0)))
+    (ADSupported.const 1)
 
 /-- The expression sin(x) + cos(x) -/
 def exprSinCos : Expr :=
   Expr.add (Expr.sin (Expr.var 0)) (Expr.cos (Expr.var 0))
 
 /-- Proof that sin(x) + cos(x) is in the supported subset -/
-def exprSinCos_supported : ExprSupported exprSinCos :=
-  ExprSupported.add
-    (ExprSupported.sin (ExprSupported.var 0))
-    (ExprSupported.cos (ExprSupported.var 0))
+def exprSinCos_supported : ADSupported exprSinCos :=
+  ADSupported.add
+    (ADSupported.sin (ADSupported.var 0))
+    (ADSupported.cos (ADSupported.var 0))
 
 /-! ### Interval construction -/
 
@@ -94,28 +94,28 @@ example : Expr.eval (fun _ => 3) xSq = 9 := by
 /-- Key example: x² evaluated over [0, 1] gives a value in the computed interval.
     This uses the FULLY PROVED evalInterval1_correct theorem. -/
 example (x : ℝ) (hx : x ∈ I01) :
-    Expr.eval (fun _ => x) xSq ∈ evalInterval1 xSq I01 :=
+    Expr.eval (fun _ => x) xSq ∈ LeanCert.Internal.Rational.evalUnchecked1 xSq I01 :=
   evalInterval1_correct xSq xSq_supported x I01 hx
 
 /-- x² + 2x + 1 evaluated over [0, 1] gives a value in the computed interval. -/
 example (x : ℝ) (hx : x ∈ I01) :
-    Expr.eval (fun _ => x) exprSquare ∈ evalInterval1 exprSquare I01 :=
+    Expr.eval (fun _ => x) exprSquare ∈ LeanCert.Internal.Rational.evalUnchecked1 exprSquare I01 :=
   evalInterval1_correct exprSquare exprSquare_supported x I01 hx
 
 /-- sin(x) + cos(x) evaluated over [-1, 1] gives a value in the computed interval. -/
 example (x : ℝ) (hx : x ∈ symInterval) :
-    Expr.eval (fun _ => x) exprSinCos ∈ evalInterval1 exprSinCos symInterval :=
+    Expr.eval (fun _ => x) exprSinCos ∈ LeanCert.Internal.Rational.evalUnchecked1 exprSinCos symInterval :=
   evalInterval1_correct exprSinCos exprSinCos_supported x symInterval hx
 
 /-! ### Using smart constructors -/
 
 /-- Build x² using smart constructors that carry the support proof -/
-def xSq' : { e : Expr // ExprSupported e } :=
+def xSq' : { e : Expr // ADSupported e } :=
   mkMul (mkVar 0) (mkVar 0)
 
 /-- Using smart constructors makes proofs trivial -/
 example (x : ℝ) (hx : x ∈ I01) :
-    Expr.eval (fun _ => x) xSq'.val ∈ evalInterval1 xSq'.val I01 :=
+    Expr.eval (fun _ => x) xSq'.val ∈ LeanCert.Internal.Rational.evalUnchecked1 xSq'.val I01 :=
   evalInterval1_correct xSq'.val xSq'.property x I01 hx
 
 /-! ### Multi-variable example -/
@@ -123,8 +123,8 @@ example (x : ℝ) (hx : x ∈ I01) :
 /-- The expression x * y (product of two variables) -/
 def exprXY : Expr := Expr.mul (Expr.var 0) (Expr.var 1)
 
-def exprXY_supported : ExprSupported exprXY :=
-  ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 1)
+def exprXY_supported : ADSupported exprXY :=
+  ADSupported.mul (ADSupported.var 0) (ADSupported.var 1)
 
 /-- Multi-variable interval environment -/
 def ρ_xy : IntervalEnv := fun i => if i = 0 then I01 else symInterval
@@ -132,7 +132,7 @@ def ρ_xy : IntervalEnv := fun i => if i = 0 then I01 else symInterval
 /-- Verified evaluation with multiple variables -/
 example (x y : ℝ) (hx : x ∈ I01) (hy : y ∈ symInterval) :
     Expr.eval (fun i => if i = 0 then x else y) exprXY ∈
-    evalInterval exprXY ρ_xy := by
+    LeanCert.Internal.Rational.evalUnchecked exprXY ρ_xy := by
   apply evalInterval_correct exprXY exprXY_supported
   intro i
   simp only [ρ_xy]

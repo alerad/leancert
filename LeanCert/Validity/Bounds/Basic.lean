@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Validity.Bounds.Core
-import LeanCert.Validity.Bounds.WithInv
+import LeanCert.Validity.Bounds.Checked
 import LeanCert.Validity.Bounds.Smart
 import LeanCert.Validity.Bounds.Bridge
 
@@ -16,7 +16,7 @@ This module re-exports all components of the bounds verification infrastructure.
 ## Submodules
 
 - `Core`: Basic boolean checkers and golden theorems for bound verification
-- `WithInv`: Support for expressions with inverse-like operations (inv, log, atan, etc.)
+- `Checked`: Support for expressions with inverse-like operations (inv, log, atan, etc.)
 - `Smart`: Monotonicity-aware bounds using derivative information
 - `Bridge`: Set.Icc bridge theorems and subdivision combinators
 

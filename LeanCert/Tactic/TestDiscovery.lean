@@ -42,7 +42,7 @@ theorem test_x_root : ∃ x ∈ I_neg1_1, Expr.eval (fun _ => x) (Expr.var 0) = 
   refine LeanCert.Validity.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
   · exact ExprSupportedCore.var 0
   · exact LeanCert.Meta.exprSupportedCore_continuousOn (Expr.var 0) (ExprSupportedCore.var 0)
-      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ExprSupported.var 0))
+      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ADSupported.var 0))
   · native_decide
 
 -- Test 2: x² - 2 = 0 has a root on [1, 2] (f(1) = -1 < 0, f(2) = 2 > 0)
@@ -55,9 +55,9 @@ theorem test_sqrt2_exists : ∃ x ∈ I_1_2,
   · exact LeanCert.Meta.exprSupportedCore_continuousOn _ (ExprSupportedCore.add
       (ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0))
       (ExprSupportedCore.neg (ExprSupportedCore.const 2)))
-      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ExprSupported.add
-        (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-        (ExprSupported.neg (ExprSupported.const 2))))
+      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ADSupported.add
+        (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+        (ADSupported.neg (ADSupported.const 2))))
   · native_decide
 
 -- Test 3: sin(x) = 0 has a root near π
@@ -66,7 +66,7 @@ theorem test_sin_root : ∃ x ∈ I_3_4, Expr.eval (fun _ => x) (Expr.sin (Expr.
   refine LeanCert.Validity.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
   · exact ExprSupportedCore.sin (ExprSupportedCore.var 0)
   · exact LeanCert.Meta.exprSupportedCore_continuousOn _ (ExprSupportedCore.sin (ExprSupportedCore.var 0))
-      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ExprSupported.sin (ExprSupported.var 0)))
+      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ADSupported.sin (ADSupported.var 0)))
   · native_decide
 
 -- Test 4: exp(x) - 2 = 0 has a root (ln(2) ≈ 0.693)
@@ -79,9 +79,9 @@ theorem test_exp_root : ∃ x ∈ I_0_1,
   · exact LeanCert.Meta.exprSupportedCore_continuousOn _ (ExprSupportedCore.add
       (ExprSupportedCore.exp (ExprSupportedCore.var 0))
       (ExprSupportedCore.neg (ExprSupportedCore.const 2)))
-      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ExprSupported.add
-        (ExprSupported.exp (ExprSupported.var 0))
-        (ExprSupported.neg (ExprSupported.const 2))))
+      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ADSupported.add
+        (ADSupported.exp (ADSupported.var 0))
+        (ADSupported.neg (ADSupported.const 2))))
   · native_decide
 
 -- Test 5: cos(x) = 0 has a root (π/2 ≈ 1.57)
@@ -90,7 +90,7 @@ theorem test_cos_root : ∃ x ∈ I_1_2, Expr.eval (fun _ => x) (Expr.cos (Expr.
   refine LeanCert.Validity.RootFinding.verify_sign_change _ ?_ _ defaultCfg ?_ ?_
   · exact ExprSupportedCore.cos (ExprSupportedCore.var 0)
   · exact LeanCert.Meta.exprSupportedCore_continuousOn _ (ExprSupportedCore.cos (ExprSupportedCore.var 0))
-      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ExprSupported.cos (ExprSupported.var 0)))
+      (LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported (ADSupported.cos (ADSupported.var 0)))
   · native_decide
 
 /-! ## Test interval_roots tactic

@@ -56,7 +56,7 @@ example : ∑ _k ∈ Finset.Icc 1 5, (1 : ℝ) ≤ 6 := by
 
 ```
 (Fin n rewrite) → Parse goal → reify body (ℕ → ℝ) to Core.Expr
-  → build ExprSupportedCore or ExprSupportedWithInv proof
+  → select the checked Dyadic evaluation path
   → build DyadicConfig
   → checkFinSumUpperBoundFull/LowerBoundFull : Bool (domain + bound)
   → native_decide
@@ -262,25 +262,6 @@ private def reifyFinSumBody (bodyLambda : Lean.Expr) : MetaM Lean.Expr := do
 
 /-! ## Tactic Kernel -/
 
-/-- Result of support level detection. -/
-private inductive SupportLevel
-  | core (proof : Lean.Expr)     -- ExprSupportedCore
-  | withInv (proof : Lean.Expr)  -- ExprSupportedWithInv
-
-/-- Try to build a support proof. Tries ExprSupportedCore first,
-    then falls back to ExprSupportedWithInv for bodies with inv/atan/arsinh/atanh. -/
-private def detectSupportLevel (ast : Lean.Expr) : MetaM SupportLevel := do
-  try
-    let proof ← mkSupportedCoreProof ast
-    return .core proof
-  catch _ =>
-    try
-      let proof ← mkSupportedWithInvProof ast
-      return .withInv proof
-    catch _ =>
-      throwError "finsum_bound: could not prove ExprSupportedCore or ExprSupportedWithInv \
-        for the reified body. The body may contain unsupported operations."
-
 /-- Core implementation of `finsum_bound` for Finset.Icc goals. -/
 private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
   let goal ← getMainGoal
@@ -295,9 +276,6 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int) (taylorDepth :
     -- Reify the sum body
     let ast ← reifyFinSumBody fsGoal.bodyLambda
     trace[finsum_bound] "Reified AST: {ast}"
-
-    -- Build support proof (try Core, fallback WithInv)
-    let support ← detectSupportLevel ast
 
     -- Build configuration
     let precExpr := toExpr prec
@@ -317,16 +295,14 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int) (taylorDepth :
     let checkEqTrue ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
     let checkMVar ← mkFreshExprMVar (some checkEqTrue) (kind := .syntheticOpaque)
 
-    -- Select bridge theorem based on support level and direction
-    let (bridgeThm, supportProof) := match support, fsGoal.isUpper with
-      | .core p,    true  => (``verify_finsum_upper_full, p)
-      | .core p,    false => (``verify_finsum_lower_full, p)
-      | .withInv p, true  => (``verify_finsum_upper_full_withInv, p)
-      | .withInv p, false => (``verify_finsum_lower_full_withInv, p)
+    let bridgeThm := if fsGoal.isUpper then
+      ``verify_finsum_upper_full_checked
+    else
+      ``verify_finsum_lower_full_checked
 
     -- Build bridge theorem proof (no domain proof needed — it's in the checker)
     let proof ← mkAppM bridgeThm
-      #[ast, supportProof, fsGoal.aExpr, fsGoal.bExpr, targetExpr, cfgExpr,
+      #[ast, fsGoal.aExpr, fsGoal.bExpr, targetExpr, cfgExpr,
         precLeZeroProof, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
@@ -359,9 +335,6 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int) (taylorDe
     let ast ← reifyFinSumBody fsGoal.bodyLambda
     trace[finsum_bound] "Reified AST (list path): {ast}"
 
-    -- Build support proof
-    let support ← detectSupportLevel ast
-
     -- Build configuration
     let precExpr := toExpr prec
     let depthExpr := toExpr taylorDepth
@@ -382,16 +355,14 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int) (taylorDe
     let checkEqTrue ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
     let checkMVar ← mkFreshExprMVar (some checkEqTrue) (kind := .syntheticOpaque)
 
-    -- Select bridge theorem
-    let (bridgeThm, supportProof) := match support, fsGoal.isUpper with
-      | .core p,    true  => (``verify_finsum_upper_list_full, p)
-      | .core p,    false => (``verify_finsum_lower_list_full, p)
-      | .withInv p, true  => (``verify_finsum_upper_list_full_withInv, p)
-      | .withInv p, false => (``verify_finsum_lower_list_full_withInv, p)
+    let bridgeThm := if fsGoal.isUpper then
+      ``verify_finsum_upper_list_full_checked
+    else
+      ``verify_finsum_lower_list_full_checked
 
     -- Build bridge proof
     let proof ← mkAppM bridgeThm
-      #[ast, supportProof, fsGoal.finsetExpr, fsGoal.indicesExpr, targetExpr, cfgExpr,
+      #[ast, fsGoal.finsetExpr, fsGoal.indicesExpr, targetExpr, cfgExpr,
         precLeZeroProof, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)

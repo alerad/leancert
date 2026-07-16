@@ -29,7 +29,7 @@ We use uniform partitioning with interval evaluation:
 
 ## Verification status
 
-The `integrateInterval_correct_n1` theorem is fully proved for `ExprSupported` expressions.
+The `integrateInterval_correct_n1` theorem is fully proved for `ADSupported` expressions.
 This demonstrates the end-to-end verification pipeline.
 -/
 
@@ -94,7 +94,7 @@ def uniformPartition (I : IntervalRat) (n : ℕ) (hn : 0 < n) : List IntervalRat
 noncomputable def sumIntervalBounds (e : Expr) (parts : List IntervalRat) : IntervalRat :=
   parts.foldl
     (fun acc I =>
-      let fBound := evalInterval1 e I
+      let fBound := LeanCert.Internal.Rational.evalUnchecked1 e I
       let contribution := IntervalRat.mul
         (IntervalRat.singleton I.width)
         fBound
@@ -109,7 +109,7 @@ noncomputable def integrateInterval (e : Expr) (I : IntervalRat) (n : ℕ) (hn :
 
 /-- For single-interval integration (n=1), we can compute the result directly. -/
 noncomputable def integrateInterval1 (e : Expr) (I : IntervalRat) : IntervalRat :=
-  let fBound := evalInterval1 e I
+  let fBound := LeanCert.Internal.Rational.evalUnchecked1 e I
   IntervalRat.mul (IntervalRat.singleton I.width) fBound
 
 /-- The single-interval integration is contained in the general integration for n=1 -/
@@ -123,20 +123,20 @@ theorem integrateInterval1_eq (e : Expr) (I : IntervalRat) :
   -- The singleton width is the same
   congr 1
   · simp only [IntervalRat.width]; ring_nf
-  · -- evalInterval1 is the same since the interval is the same
-    unfold evalInterval1
+  · -- LeanCert.Internal.Rational.evalUnchecked1 is the same since the interval is the same
+    unfold LeanCert.Internal.Rational.evalUnchecked1
     congr 1
     funext _
     ring_nf
 
 /-- The single-interval correctness theorem.
     This is FULLY PROVED - no sorry, no axioms. -/
-theorem integrateInterval1_correct (e : Expr) (hsupp : ExprSupported e) (I : IntervalRat)
+theorem integrateInterval1_correct (e : Expr) (hsupp : ADSupported e) (I : IntervalRat)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ integrateInterval1 e I := by
   unfold integrateInterval1
   -- Get bounds from interval evaluation
-  set fBound := evalInterval1 e I with hfBound_def
+  set fBound := LeanCert.Internal.Rational.evalUnchecked1 e I with hfBound_def
   have hbounds : ∀ x : ℝ, x ∈ I → Expr.eval (fun _ => x) e ∈ fBound := fun x hx =>
     evalInterval1_correct e hsupp x I hx
   have hlo : ∀ x ∈ Set.Icc (I.lo : ℝ) (I.hi : ℝ), (fBound.lo : ℝ) ≤ Expr.eval (fun _ => x) e := by
@@ -210,7 +210,7 @@ theorem add_zero_left_mem {r : ℝ} {I : IntervalRat} (hr : r ∈ I) :
 
 /-- Correctness for n = 1 (single interval, no partition).
     This is FULLY PROVED - no sorry, no axioms. -/
-theorem integrateInterval_correct_n1 (e : Expr) (hsupp : ExprSupported e) (I : IntervalRat)
+theorem integrateInterval_correct_n1 (e : Expr) (hsupp : ADSupported e) (I : IntervalRat)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
     integrateInterval e I 1 (by norm_num) := by
@@ -349,7 +349,7 @@ theorem integral_partition_sum (e : Expr) (I : IntervalRat) (n : ℕ) (hn : 0 < 
 /-! ### Summing interval bounds over partitions -/
 
 /-- Each subinterval integral is bounded by integrateInterval1 on that subinterval -/
-theorem integral_subinterval_bounded (e : Expr) (hsupp : ExprSupported e) (I : IntervalRat)
+theorem integral_subinterval_bounded (e : Expr) (hsupp : ADSupported e) (I : IntervalRat)
     (n : ℕ) (hn : 0 < n) (k : ℕ) (hk : k < n)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (partitionPoints I n k)..(partitionPoints I n (k + 1)),
@@ -433,7 +433,7 @@ theorem sum_mem_foldl_add {values : List ℝ} {intervals : List IntervalRat}
 
 /-- Helper: generalized foldl lemma relating sumIntervalBounds-style fold with add fold -/
 theorem foldl_sumBound_eq_foldl_add (e : Expr) (parts : List IntervalRat) (acc : IntervalRat) :
-    parts.foldl (fun a I => IntervalRat.add a (IntervalRat.mul (IntervalRat.singleton I.width) (evalInterval1 e I))) acc =
+    parts.foldl (fun a I => IntervalRat.add a (IntervalRat.mul (IntervalRat.singleton I.width) (LeanCert.Internal.Rational.evalUnchecked1 e I))) acc =
     (parts.map (integrateInterval1 e)).foldl IntervalRat.add acc := by
   induction parts generalizing acc with
   | nil => rfl
@@ -450,7 +450,7 @@ theorem sumIntervalBounds_eq_foldl_map (e : Expr) (parts : List IntervalRat) :
   exact foldl_sumBound_eq_foldl_add e parts (IntervalRat.singleton 0)
 
 /-- Main theorem: the integral lies in integrateInterval for general n -/
-theorem integrateInterval_correct (e : Expr) (hsupp : ExprSupported e) (I : IntervalRat)
+theorem integrateInterval_correct (e : Expr) (hsupp : ADSupported e) (I : IntervalRat)
     (n : ℕ) (hn : 0 < n)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
@@ -653,13 +653,13 @@ noncomputable def integrateAdaptive (e : Expr) (I : IntervalRat) (tol : ℚ) (_h
 /-! #### Correctness proofs for adaptive integration -/
 
 /-- integrateRefined is correct (direct from integrateInterval_correct) -/
-theorem integrateRefined_correct (e : Expr) (hsupp : ExprSupported e) (I : IntervalRat)
+theorem integrateRefined_correct (e : Expr) (hsupp : ADSupported e) (I : IntervalRat)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ integrateRefined e I :=
   integrateInterval_correct e hsupp I 2 (by norm_num) hInt
 
 /-- integrateCoarse is correct -/
-theorem integrateCoarse_correct (e : Expr) (hsupp : ExprSupported e) (I : IntervalRat)
+theorem integrateCoarse_correct (e : Expr) (hsupp : ADSupported e) (I : IntervalRat)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ integrateCoarse e I :=
   integrateInterval_correct e hsupp I 1 (by norm_num) hInt
@@ -710,7 +710,7 @@ theorem intervalIntegrable_splitMid_right (e : Expr) (I : IntervalRat)
 
 /-- Main soundness theorem: adaptive integration returns a bound containing the true integral.
     This is proved by induction on maxDepth. -/
-theorem integrateAdaptiveAux_correct (e : Expr) (hsupp : ExprSupported e)
+theorem integrateAdaptiveAux_correct (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (tol : ℚ) (maxDepth : ℕ)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
@@ -740,7 +740,7 @@ theorem integrateAdaptiveAux_correct (e : Expr) (hsupp : ExprSupported e)
       exact IntervalRat.mem_add h1 h2
 
 /-- Soundness of the main adaptive integration function -/
-theorem integrateAdaptive_correct (e : Expr) (hsupp : ExprSupported e)
+theorem integrateAdaptive_correct (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (tol : ℚ) (htol : 0 < tol) (maxDepth : ℕ)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈

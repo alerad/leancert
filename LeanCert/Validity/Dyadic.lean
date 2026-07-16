@@ -23,15 +23,15 @@ export LeanCert.Validity
     verify_lower_bound_dyadic
     verify_upper_bound_dyadic'
     verify_lower_bound_dyadic'
-    checkUpperBoundDyadicWithInv
-    checkLowerBoundDyadicWithInv
-    verify_upper_bound_dyadic_withInv
-    verify_lower_bound_dyadic_withInv
+    checkUpperBoundDyadicChecked
+    checkLowerBoundDyadicChecked
+    verify_upper_bound_dyadic_checked
+    verify_lower_bound_dyadic_checked
     verify_strict_upper_bound_dyadic
     verify_strict_lower_bound_dyadic
     verify_strict_upper_bound_dyadic'
     verify_strict_lower_bound_dyadic'
-    verify_strict_upper_bound_dyadic_withInv
-    verify_strict_lower_bound_dyadic_withInv )
+    verify_strict_upper_bound_dyadic_checked
+    verify_strict_lower_bound_dyadic_checked )
 
 end LeanCert.Validity.Dyadic

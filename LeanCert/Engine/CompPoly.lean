@@ -369,15 +369,15 @@ def dyTMFromExpr (e : Expr) (domain : IntervalDyadic)
     DyTM.log _tm maxDeg nTerms cfg maxBits
   | .exp e => do
     let _tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
-    let expBound := evalIntervalDyadic (.exp e) (fun _ => domain) cfg
+    let expBound := LeanCert.Internal.Dyadic.evalUnchecked (.exp e) (fun _ => domain) cfg
     pure (DyTM.fromInterval expBound domain cfg.precision)
   | .sin e => do
     let _tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
-    let sinBound := evalIntervalDyadic (.sin e) (fun _ => domain) cfg
+    let sinBound := LeanCert.Internal.Dyadic.evalUnchecked (.sin e) (fun _ => domain) cfg
     pure (DyTM.fromInterval sinBound domain cfg.precision)
   | .cos e => do
     let _tm ← dyTMFromExpr e domain maxDeg nTerms cfg maxBits
-    let cosBound := evalIntervalDyadic (.cos e) (fun _ => domain) cfg
+    let cosBound := LeanCert.Internal.Dyadic.evalUnchecked (.cos e) (fun _ => domain) cfg
     pure (DyTM.fromInterval cosBound domain cfg.precision)
   | _ => none
 
@@ -401,7 +401,7 @@ def integrateDyTM (tm : DyTM) : IntervalRat :=
 def integrateDyadicFallback (e : Expr) (partRat : IntervalRat)
     (cfg : DyadicConfig) : IntervalRat :=
   let partDyad := IntervalDyadic.ofIntervalRat partRat cfg.precision
-  let fBound := evalIntervalDyadic e (fun _ => partDyad) cfg
+  let fBound := LeanCert.Internal.Dyadic.evalUnchecked e (fun _ => partDyad) cfg
   let widthDyad := IntervalDyadic.addRounded (IntervalDyadic.singleton partDyad.hi)
     (IntervalDyadic.neg (IntervalDyadic.singleton partDyad.lo)) cfg.precision
   (IntervalDyadic.mulRounded widthDyad fBound cfg.precision).toIntervalRat

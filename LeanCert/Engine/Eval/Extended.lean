@@ -22,7 +22,7 @@ supporting exp with floor/ceil bounds and partial evaluation for inv/log.
 ## Design notes
 
 The extended evaluator uses `Real.exp` with floor/ceil bounds, which requires
-noncomputability. For computability, use `evalIntervalCore` instead.
+noncomputability. For computability, use `LeanCert.Internal.Rational.evalTotalCore` instead.
 
 The partial evaluator `evalInterval?` returns `none` when:
 - The denominator interval for `inv` contains zero
@@ -38,6 +38,12 @@ open LeanCert.Core
 
 /-! ### Extended interval evaluation (noncomputable, supports exp) -/
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Rational
+
+open LeanCert.Core LeanCert.Engine
+
 /-- Noncomputable interval evaluator supporting exp.
 
     For supported expressions (const, var, add, mul, neg, sin, cos, exp), this
@@ -48,79 +54,97 @@ open LeanCert.Core
     Use evalInterval? for partial functions like inv and log.
 
     This evaluator is NONCOMPUTABLE due to exp using Real.exp with floor/ceil. -/
-noncomputable def evalInterval (e : Expr) (ρ : IntervalEnv) : IntervalRat :=
+noncomputable def evalUnchecked (e : Expr) (ρ : IntervalEnv) : IntervalRat :=
   match e with
   | Expr.const q => IntervalRat.singleton q
   | Expr.var idx => ρ idx
-  | Expr.add e₁ e₂ => IntervalRat.add (evalInterval e₁ ρ) (evalInterval e₂ ρ)
-  | Expr.mul e₁ e₂ => IntervalRat.mul (evalInterval e₁ ρ) (evalInterval e₂ ρ)
-  | Expr.neg e => IntervalRat.neg (evalInterval e ρ)
-  | Expr.inv _ => default  -- Not in ExprSupported; safe default
-  | Expr.exp e => IntervalRat.expInterval (evalInterval e ρ)
-  | Expr.sin e => sinInterval (evalInterval e ρ)
-  | Expr.cos e => cosInterval (evalInterval e ρ)
-  | Expr.log _ => default  -- Not in ExprSupported; use evalInterval? for log
-  | Expr.atan e => atanInterval (evalInterval e ρ)
-  | Expr.arsinh e => arsinhInterval (evalInterval e ρ)
-  | Expr.atanh _ => default  -- Not in ExprSupported; use evalInterval? for atanh
+  | Expr.add e₁ e₂ => IntervalRat.add (evalUnchecked e₁ ρ) (evalUnchecked e₂ ρ)
+  | Expr.mul e₁ e₂ => IntervalRat.mul (evalUnchecked e₁ ρ) (evalUnchecked e₂ ρ)
+  | Expr.neg e => IntervalRat.neg (evalUnchecked e ρ)
+  | Expr.inv _ => default  -- Not in ADSupported; safe default
+  | Expr.exp e => IntervalRat.expInterval (evalUnchecked e ρ)
+  | Expr.sin e => sinInterval (evalUnchecked e ρ)
+  | Expr.cos e => cosInterval (evalUnchecked e ρ)
+  | Expr.log _ => default  -- Not in ADSupported; use evalInterval? for log
+  | Expr.atan e => atanInterval (evalUnchecked e ρ)
+  | Expr.arsinh e => arsinhInterval (evalUnchecked e ρ)
+  | Expr.atanh _ => default  -- Not in ADSupported; use evalInterval? for atanh
   | Expr.sinc _ => ⟨-1, 1, by norm_num⟩  -- sinc is bounded by [-1, 1]
   | Expr.erf _ => ⟨-1, 1, by norm_num⟩  -- erf is bounded by [-1, 1]
-  | Expr.sinh _ => default  -- sinh unbounded; use evalIntervalCore for tight bounds
-  | Expr.cosh _ => default  -- cosh unbounded; use evalIntervalCore for tight bounds
-  | Expr.tanh _ => default  -- tanh bounded but not in ExprSupported; use evalIntervalCore
-  | Expr.sqrt e => IntervalRat.sqrtInterval (evalInterval e ρ)
+  | Expr.sinh _ => default  -- sinh unbounded; use LeanCert.Internal.Rational.evalTotalCore for tight bounds
+  | Expr.cosh _ => default  -- cosh unbounded; use LeanCert.Internal.Rational.evalTotalCore for tight bounds
+  | Expr.tanh _ => default  -- tanh bounded but not in ADSupported; use LeanCert.Internal.Rational.evalTotalCore
+  | Expr.sqrt e => IntervalRat.sqrtInterval (evalUnchecked e ρ)
   | Expr.namedConst c => c.interval
+
+end LeanCert.Internal.Rational
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
 
 /-- Fundamental correctness theorem for extended evaluation.
 
     This theorem is FULLY PROVED (no sorry, no axioms) for supported expressions.
     The `hsupp` hypothesis ensures we only consider expressions in the verified subset. -/
-theorem evalInterval_correct (e : Expr) (hsupp : ExprSupported e)
+theorem evalInterval_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (hρ : envMem ρ_real ρ_int) :
-    Expr.eval ρ_real e ∈ evalInterval e ρ_int := by
+    Expr.eval ρ_real e ∈ LeanCert.Internal.Rational.evalUnchecked e ρ_int := by
   induction hsupp with
   | const q =>
-    simp only [Expr.eval_const, evalInterval]
+    simp only [Expr.eval_const, LeanCert.Internal.Rational.evalUnchecked]
     exact IntervalRat.mem_singleton q
   | var idx =>
-    simp only [Expr.eval_var, evalInterval]
+    simp only [Expr.eval_var, LeanCert.Internal.Rational.evalUnchecked]
     exact hρ idx
   | add h₁ h₂ ih₁ ih₂ =>
-    simp only [Expr.eval_add, evalInterval]
+    simp only [Expr.eval_add, LeanCert.Internal.Rational.evalUnchecked]
     exact IntervalRat.mem_add ih₁ ih₂
   | mul h₁ h₂ ih₁ ih₂ =>
-    simp only [Expr.eval_mul, evalInterval]
+    simp only [Expr.eval_mul, LeanCert.Internal.Rational.evalUnchecked]
     exact IntervalRat.mem_mul ih₁ ih₂
   | neg _ ih =>
-    simp only [Expr.eval_neg, evalInterval]
+    simp only [Expr.eval_neg, LeanCert.Internal.Rational.evalUnchecked]
     exact IntervalRat.mem_neg ih
   | sin _ ih =>
-    simp only [Expr.eval_sin, evalInterval]
+    simp only [Expr.eval_sin, LeanCert.Internal.Rational.evalUnchecked]
     exact mem_sinInterval ih
   | cos _ ih =>
-    simp only [Expr.eval_cos, evalInterval]
+    simp only [Expr.eval_cos, LeanCert.Internal.Rational.evalUnchecked]
     exact mem_cosInterval ih
   | exp _ ih =>
-    simp only [Expr.eval_exp, evalInterval]
+    simp only [Expr.eval_exp, LeanCert.Internal.Rational.evalUnchecked]
     exact IntervalRat.mem_expInterval ih
 
 /-! ### Convenience functions
 
-Note: evalIntervalCore now uses Taylor series for exp/sin/cos, which gives
+Note: LeanCert.Internal.Rational.evalTotalCore now uses Taylor series for exp/sin/cos, which gives
 different (often tighter) intervals than evalInterval's floor/ceil bounds.
 Both are correct, but they are not necessarily equal.
 
 For purely algebraic expressions (const, var, add, mul, neg),
 both evaluators give identical results. -/
 
-/-- Noncomputable single-variable evaluation for extended expressions -/
-noncomputable def evalInterval1 (e : Expr) (I : IntervalRat) : IntervalRat :=
-  evalInterval e (fun _ => I)
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Rational
+
+open LeanCert.Core LeanCert.Engine
+
+/-- Internal single-variable wrapper around `evalUnchecked`. -/
+noncomputable def evalUnchecked1 (e : Expr) (I : IntervalRat) : IntervalRat :=
+  evalUnchecked e (fun _ => I)
+
+end LeanCert.Internal.Rational
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
 
 /-- Correctness for single-variable extended evaluation -/
-theorem evalInterval1_correct (e : Expr) (hsupp : ExprSupported e)
+theorem evalInterval1_correct (e : Expr) (hsupp : ADSupported e)
     (x : ℝ) (I : IntervalRat) (hx : x ∈ I) :
-    Expr.eval (fun _ => x) e ∈ evalInterval1 e I :=
+    Expr.eval (fun _ => x) e ∈ LeanCert.Internal.Rational.evalUnchecked1 e I :=
   evalInterval_correct e hsupp _ _ (fun _ => hx)
 
 /-! ### Partial interval evaluation with inv support -/
@@ -235,16 +259,16 @@ def evalInterval? (e : Expr) (ρ : IntervalEnv) : Option IntervalRat :=
     2. All inv denominators along the evaluation are guaranteed nonzero
        (because their intervals don't contain zero)
 
-    This follows your suggestion to keep ExprSupported syntactic and add
+    This follows your suggestion to keep ADSupported syntactic and add
     separate semantic hypotheses. The key insight is that if evalInterval?
     succeeds (returns Some), the interval arithmetic has already verified
     that no denominator interval contains zero. -/
-theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem evalInterval?_correct (e : Expr)
     (ρ_int : IntervalEnv) (I : IntervalRat)
     (hsome : evalInterval? e ρ_int = some I)
     (ρ_real : Nat → ℝ) (hρ : envMem ρ_real ρ_int) :
     Expr.eval ρ_real e ∈ I := by
-  induction hsupp generalizing I with
+  induction e generalizing I with
   | const q =>
     simp only [evalInterval?] at hsome
     cases hsome
@@ -255,7 +279,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
     cases hsome
     simp only [Expr.eval_var]
     exact hρ idx
-  | @add e₁ e₂ h₁ h₂ ih₁ ih₂ =>
+  | add e₁ e₂ ih₁ ih₂ =>
     simp only [evalInterval?] at hsome
     cases heq₁ : evalInterval? e₁ ρ_int with
     | none => simp only [heq₁] at hsome; contradiction
@@ -267,7 +291,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         cases hsome
         simp only [Expr.eval_add]
         exact IntervalRat.mem_add (ih₁ I₁ heq₁) (ih₂ I₂ heq₂)
-  | @mul e₁ e₂ h₁ h₂ ih₁ ih₂ =>
+  | mul e₁ e₂ ih₁ ih₂ =>
     simp only [evalInterval?] at hsome
     cases heq₁ : evalInterval? e₁ ρ_int with
     | none => simp only [heq₁] at hsome; contradiction
@@ -279,7 +303,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         cases hsome
         simp only [Expr.eval_mul]
         exact IntervalRat.mem_mul (ih₁ I₁ heq₁) (ih₂ I₂ heq₂)
-  | @neg e h ih =>
+  | neg e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -288,7 +312,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_neg]
       exact IntervalRat.mem_neg (ih I' heq)
-  | @inv e h ih =>
+  | inv e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -314,7 +338,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
           · have hlo_pos : (0 : ℝ) < J.lo := by exact_mod_cast hlo
             exact absurd hJ_mem.1 (not_le.mpr hlo_pos)
         exact IntervalRat.mem_invNonzero hJ_mem heval_ne
-  | @exp e h ih =>
+  | exp e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -323,7 +347,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_exp]
       exact IntervalRat.mem_expComputable (ih I' heq) evalIntervalExpDepth
-  | @sin e h ih =>
+  | sin e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -332,7 +356,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_sin]
       exact mem_sinInterval (ih I' heq)
-  | @cos e h ih =>
+  | cos e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -341,7 +365,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_cos]
       exact mem_cosInterval (ih I' heq)
-  | @log e h ih =>
+  | log e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -355,7 +379,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         -- The argument is positive because J.lo > 0 and eval ∈ J
         exact IntervalRat.mem_logComputable hJ_mem hpos evalIntervalLogDepth
       · contradiction
-  | @sinh e h ih =>
+  | sinh e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -364,7 +388,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_sinh, sinhInterval]
       exact IntervalRat.mem_sinhComputable (ih I' heq) 10
-  | @cosh e h ih =>
+  | cosh e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -373,7 +397,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_cosh, coshInterval]
       exact IntervalRat.mem_coshComputable (ih I' heq) 10
-  | @tanh e h ih =>
+  | tanh e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -382,7 +406,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_tanh]
       exact mem_tanhInterval (ih I' heq)
-  | @atan e h ih =>
+  | atan e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -391,7 +415,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_atan]
       exact mem_atanInterval (ih I' heq)
-  | @arsinh e h ih =>
+  | arsinh e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -400,7 +424,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_arsinh]
       exact mem_arsinhInterval (ih I' heq)
-  | @atanh e h ih =>
+  | atanh e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -413,7 +437,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
         exact IntervalRat.mem_atanhComputable (ih J heq) hunit.1 hunit.2
           evalIntervalAtanhDepth
       · contradiction
-  | @sinc e h ih =>
+  | sinc e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -425,7 +449,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       simp only [IntervalRat.mem_def]
       simpa only [Set.mem_Icc, Rat.cast_neg, Rat.cast_one] using
         (Real.sinc_mem_Icc (Expr.eval ρ_real e))
-  | @erf e h ih =>
+  | erf e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -437,7 +461,7 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       simp only [IntervalRat.mem_def]
       simpa only [Set.mem_Icc, Rat.cast_neg, Rat.cast_one] using
         (Real.erf_mem_Icc (Expr.eval ρ_real e))
-  | @sqrt e h ih =>
+  | sqrt e ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
     | none => simp only [heq] at hsome; contradiction
@@ -505,41 +529,41 @@ theorem evalIntervalChecked_correct (e : Expr) (ρ_int : IntervalEnv) (I : Inter
     rw [evalIntervalChecked, heval] at hsuccess
     injection hsuccess with hJI
     subst I
-    exact evalInterval?_correct e (Expr.supportedWithInv e) ρ_int J heval ρ_real hρ
+    exact evalInterval?_correct e ρ_int J heval ρ_real hρ
 
 /-- Single-variable version of evalInterval? -/
 def evalInterval?1 (e : Expr) (I : IntervalRat) : Option IntervalRat :=
   evalInterval? e (fun _ => I)
 
 /-- Correctness for single-variable partial evaluation -/
-theorem evalInterval?1_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem evalInterval?1_correct (e : Expr)
     (I : IntervalRat) (J : IntervalRat)
     (hsome : evalInterval?1 e I = some J)
     (x : ℝ) (hx : x ∈ I) :
     Expr.eval (fun _ => x) e ∈ J :=
-  evalInterval?_correct e hsupp _ J hsome _ (fun _ => hx)
+  evalInterval?_correct e _ J hsome _ (fun _ => hx)
 
 /-- When evalInterval? succeeds, we get bounds -/
-theorem evalInterval?_le_of_hi (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem evalInterval?_le_of_hi (e : Expr)
     (I : IntervalRat) (J : IntervalRat) (c : ℚ)
     (hsome : evalInterval?1 e I = some J)
     (hhi : J.hi ≤ c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
-  have hmem := evalInterval?1_correct e hsupp I J hsome x hx
+  have hmem := evalInterval?1_correct e I J hsome x hx
   simp only [IntervalRat.mem_def] at hmem
   have heval_le_hi : Expr.eval (fun _ => x) e ≤ J.hi := hmem.2
   have hhi_le_c : (J.hi : ℝ) ≤ c := by exact_mod_cast hhi
   exact le_trans heval_le_hi hhi_le_c
 
 /-- When evalInterval? succeeds, we get lower bounds -/
-theorem evalInterval?_ge_of_lo (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem evalInterval?_ge_of_lo (e : Expr)
     (I : IntervalRat) (J : IntervalRat) (c : ℚ)
     (hsome : evalInterval?1 e I = some J)
     (hlo : c ≤ J.lo) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
-  have hmem := evalInterval?1_correct e hsupp I J hsome x hx
+  have hmem := evalInterval?1_correct e I J hsome x hx
   simp only [IntervalRat.mem_def] at hmem
   have hlo_le_eval : J.lo ≤ Expr.eval (fun _ => x) e := hmem.1
   have hc_le_lo : (c : ℝ) ≤ J.lo := by exact_mod_cast hlo

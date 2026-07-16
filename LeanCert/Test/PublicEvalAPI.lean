@@ -38,6 +38,23 @@ def failed (result : EvalResult IntervalOutcome) : Bool :=
   | .ok _ => false
   | .error _ => true
 
+def oneStepSearch : SearchOptions := {
+  maxIterations := 1
+  tolerance := 1 / 100
+  useMonotonicity := false
+}
+
+def optimizationOptions (backend : BackendChoice) : GlobalOptOptions := {
+  evaluation := { backend }
+  search := oneStepSearch
+}
+
+def usedOptimizationBackend (expected : ConcreteBackend)
+    (result : EvalResult GlobalOutcome) : Bool :=
+  match result with
+  | .ok outcome => decide (outcome.backend = expected)
+  | .error _ => false
+
 #guard usedBackend .dyadic (evalInterval identity [unitInterval])
 #guard usedBackend .rational
   (evalInterval identity [unitInterval] { backend := .rational })
@@ -54,6 +71,15 @@ def failed (result : EvalResult IntervalOutcome) : Bool :=
 #guard failed (evalInterval (.log identity) [crossesZero])
 #guard failed
   (evalInterval identity [unitInterval] invalidDyadicOptions)
+
+#guard usedOptimizationBackend .dyadic
+  (globalMinimize identity [unitInterval] (optimizationOptions .auto))
+#guard usedOptimizationBackend .rational
+  (globalMinimize identity [unitInterval] (optimizationOptions .rational))
+#guard usedOptimizationBackend .dyadic
+  (globalMaximize identity [unitInterval] (optimizationOptions .dyadic))
+#guard usedOptimizationBackend .affine
+  (globalMaximize identity [unitInterval] (optimizationOptions .affine))
 
 example (e : Expr) (box : List IntervalRat) (options : EvalOptions) (outcome : IntervalOutcome)
     (hsuccess : evalInterval e box options = .ok outcome)
@@ -85,5 +111,17 @@ example (result : Engine.Affine.AffineForm)
     (rho : Nat → ℝ) (hrho : BoxEnvMem rho [unitInterval]) :
     Expr.eval rho identity ∈ result.toInterval :=
   Backend.Affine.eval_correct hsuccess hrho
+
+example (outcome : GlobalOutcome)
+    (hsuccess : globalMinimize identity [unitInterval] = .ok outcome)
+    (rho : Nat → ℝ) (hrho : BoxEnvMem rho [unitInterval]) :
+    (outcome.result.bound.lo : ℝ) ≤ Expr.eval rho identity :=
+  globalMinimize_correct hsuccess hrho
+
+example (outcome : GlobalOutcome)
+    (hsuccess : globalMaximize identity [unitInterval] = .ok outcome)
+    (rho : Nat → ℝ) (hrho : BoxEnvMem rho [unitInterval]) :
+    Expr.eval rho identity ≤ (outcome.result.bound.hi : ℝ) :=
+  globalMaximize_correct hsuccess hrho
 
 end LeanCert.Test.PublicEvalAPI

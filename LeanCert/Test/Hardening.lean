@@ -27,14 +27,10 @@ open LeanCert.Engine.Search
 
 namespace LeanCert.Test.Hardening
 
-def hyperbolicWithInvExpr : Expr :=
+def hyperbolicCheckedExpr : Expr :=
   Expr.add
     (Expr.sinh (Expr.inv (Expr.add (Expr.var 0) (Expr.const 2))))
     (Expr.add (Expr.cosh (Expr.var 0)) (Expr.tanh (Expr.var 0)))
-
-example : ExprSupportedWithInv hyperbolicWithInvExpr := by
-  unfold hyperbolicWithInvExpr
-  repeat constructor
 
 def fullUsesOnlyVar0Expr : Expr :=
   Expr.add

@@ -125,7 +125,7 @@ while uniform partitioning involves the search/subdivision logic.
 -/
 
 -- Quick smoke test: uniform integration works on small interval
-example : (LeanCert.Validity.Integration.integratePartitionWithInv g_alt_expr small_interval 10).isSome = true := by
+example : (LeanCert.Validity.Integration.integratePartitionChecked g_alt_expr small_interval 10).isSome = true := by
   native_decide
 
 end Li2CertificateTest

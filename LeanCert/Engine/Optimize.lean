@@ -15,13 +15,13 @@ branch-and-bound with interval arithmetic and derivative bounds.
 ## Phase Status
 
 **This module is now largely Phase 1 (verified).** The core correctness theorems
-are fully proved for the ExprSupported subset.
+are fully proved for the ADSupported subset.
 
 ## Main definitions
 
 * `minimizeInterval` - Find a lower bound on min f over an interval
 * `maximizeInterval` - Find an upper bound on max f over an interval
-* Correctness theorems (fully proved for ExprSupported)
+* Correctness theorems (fully proved for ADSupported)
 
 ## Algorithm
 
@@ -72,19 +72,19 @@ where
   go (J : IntervalRat) (depth : ℕ) : OptResult :=
     if depth = 0 then
       -- Base case: just use interval evaluation
-      { valueBound := evalInterval1 e J
+      { valueBound := LeanCert.Internal.Rational.evalUnchecked1 e J
         argBound := some J
         depth := maxDepth }
     else
       -- Check monotonicity
       if derivStrictlyPositive e J varIdx then
         -- f is increasing, minimum is at left endpoint
-        { valueBound := evalInterval1 e (IntervalRat.singleton J.lo)
+        { valueBound := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton J.lo)
           argBound := some (IntervalRat.singleton J.lo)
           depth := maxDepth - depth }
       else if derivStrictlyNegative e J varIdx then
         -- f is decreasing, minimum is at right endpoint
-        { valueBound := evalInterval1 e (IntervalRat.singleton J.hi)
+        { valueBound := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton J.hi)
           argBound := some (IntervalRat.singleton J.hi)
           depth := maxDepth - depth }
       else
@@ -118,9 +118,9 @@ where
 
 /-- Base case correctness: interval evaluation gives a valid lower bound.
     This theorem is FULLY PROVED - no sorry, no axioms. -/
-theorem minimizeInterval_base_correct (e : Expr) (hsupp : ExprSupported e)
+theorem minimizeInterval_base_correct (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) :
-    ∀ x ∈ I, (evalInterval1 e I).lo ≤ Expr.eval (fun _ => x) e := by
+    ∀ x ∈ I, (LeanCert.Internal.Rational.evalUnchecked1 e I).lo ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   have h := evalInterval1_correct e hsupp x I hx
   simp only [IntervalRat.mem_def] at h
@@ -130,24 +130,24 @@ theorem minimizeInterval_base_correct (e : Expr) (hsupp : ExprSupported e)
 
 /-- For single-variable expressions evaluated with (fun _ => I), derivative is correct.
     We use evalWithDeriv1 which directly uses varActive for all variables. -/
-theorem derivInterval_correct_evalWithDeriv1 (e : Expr) (hsupp : ExprSupported e)
+theorem derivInterval_correct_evalWithDeriv1 (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (x : ℝ) (hx : x ∈ I) :
     deriv (evalFunc1 e) x ∈ (evalWithDeriv1 e I).der := by
-  -- evalWithDeriv1 e I = evalDual e (fun _ => DualInterval.varActive I)
-  -- This matches exactly what evalDual_der_correct expects
+  -- evalWithDeriv1 e I = LeanCert.Internal.AD.evalUnchecked e (fun _ => DualInterval.varActive I)
+  -- This matches exactly what LeanCert.Engine.evalDualUnchecked_der_correct expects
   simp only [evalWithDeriv1]
-  exact evalDual_der_correct e hsupp I x hx
+  exact LeanCert.Engine.evalDualUnchecked_der_correct e hsupp I x hx
 
 /-- Derivative is in derivInterval for expressions that only use var 0.
     FULLY PROVED - no sorry. -/
-theorem derivInterval_correct_single (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem derivInterval_correct_single (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (x : ℝ) (hx : x ∈ I) :
     deriv (evalFunc1 e) x ∈ derivInterval e (fun _ => I) 0 := by
   rw [derivInterval_eq_evalWithDeriv1_of_UsesOnlyVar0 e hvar0]
   exact derivInterval_correct_evalWithDeriv1 e hsupp I x hx
 
 /-- If the derivative interval is strictly positive, derivative is positive everywhere -/
-theorem deriv_pos_on_interval (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem deriv_pos_on_interval (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (hpos : 0 < (derivInterval e (fun _ => I) 0).lo) :
     ∀ x ∈ I, 0 < deriv (evalFunc1 e) x := by
   intro x hx
@@ -158,7 +158,7 @@ theorem deriv_pos_on_interval (e : Expr) (hsupp : ExprSupported e) (hvar0 : Uses
     _ ≤ deriv (evalFunc1 e) x := hmem.1
 
 /-- If the derivative interval is strictly negative, derivative is negative everywhere -/
-theorem deriv_neg_on_interval (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem deriv_neg_on_interval (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (hneg : (derivInterval e (fun _ => I) 0).hi < 0) :
     ∀ x ∈ I, deriv (evalFunc1 e) x < 0 := by
   intro x hx
@@ -169,7 +169,7 @@ theorem deriv_neg_on_interval (e : Expr) (hsupp : ExprSupported e) (hvar0 : Uses
     _ < 0 := hhi_cast
 
 /-- Strictly positive derivative implies strict monotonicity -/
-theorem strictMonoOn_of_deriv_pos_interval (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem strictMonoOn_of_deriv_pos_interval (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (hpos : 0 < (derivInterval e (fun _ => I) 0).lo) :
     StrictMonoOn (evalFunc1 e) (Set.Icc (I.lo : ℝ) (I.hi : ℝ)) := by
   have hdiff := evalFunc1_differentiable e hsupp
@@ -185,7 +185,7 @@ theorem strictMonoOn_of_deriv_pos_interval (e : Expr) (hsupp : ExprSupported e) 
     exact hderiv_pos x hx_mem
 
 /-- Strictly negative derivative implies strict antitonicity -/
-theorem strictAntiOn_of_deriv_neg_interval (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem strictAntiOn_of_deriv_neg_interval (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (hneg : (derivInterval e (fun _ => I) 0).hi < 0) :
     StrictAntiOn (evalFunc1 e) (Set.Icc (I.lo : ℝ) (I.hi : ℝ)) := by
   have hdiff := evalFunc1_differentiable e hsupp
@@ -203,7 +203,7 @@ theorem strictAntiOn_of_deriv_neg_interval (e : Expr) (hsupp : ExprSupported e) 
 /-! ### Monotonicity-based bounds -/
 
 /-- For increasing functions, minimum is at the left endpoint -/
-theorem increasing_min_at_left (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem increasing_min_at_left (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (hpos : 0 < (derivInterval e (fun _ => I) 0).lo) :
     ∀ x ∈ I, evalFunc1 e I.lo ≤ evalFunc1 e x := by
   intro x hx
@@ -219,7 +219,7 @@ theorem increasing_min_at_left (e : Expr) (hsupp : ExprSupported e) (hvar0 : Use
     · exact lt_of_le_of_ne hx.1 heq
 
 /-- For decreasing functions, minimum is at the right endpoint -/
-theorem decreasing_min_at_right (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem decreasing_min_at_right (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (hneg : (derivInterval e (fun _ => I) 0).hi < 0) :
     ∀ x ∈ I, evalFunc1 e I.hi ≤ evalFunc1 e x := by
   intro x hx
@@ -234,30 +234,30 @@ theorem decreasing_min_at_right (e : Expr) (hsupp : ExprSupported e) (hvar0 : Us
     · exact lt_of_le_of_ne hx.2 heq
 
 /-- Interval at left endpoint gives valid lower bound for increasing functions -/
-theorem increasing_endpoint_bound (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem increasing_endpoint_bound (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (hpos : 0 < (derivInterval e (fun _ => I) 0).lo) :
-    ∀ x ∈ I, (evalInterval1 e (IntervalRat.singleton I.lo)).lo ≤ Expr.eval (fun _ => x) e := by
+    ∀ x ∈ I, (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.lo)).lo ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   have hlo_mem : (I.lo : ℝ) ∈ IntervalRat.singleton I.lo := IntervalRat.mem_singleton I.lo
   have heval := evalInterval1_correct e hsupp I.lo (IntervalRat.singleton I.lo) hlo_mem
   simp only [IntervalRat.mem_def] at heval
   have hmin := increasing_min_at_left e hsupp hvar0 I hpos x hx
   simp only [evalFunc1] at hmin
-  calc (evalInterval1 e (IntervalRat.singleton I.lo)).lo
+  calc (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.lo)).lo
       ≤ Expr.eval (fun _ => I.lo) e := by exact_mod_cast heval.1
     _ ≤ Expr.eval (fun _ => x) e := hmin
 
 /-- Interval at right endpoint gives valid lower bound for decreasing functions -/
-theorem decreasing_endpoint_bound (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem decreasing_endpoint_bound (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (hneg : (derivInterval e (fun _ => I) 0).hi < 0) :
-    ∀ x ∈ I, (evalInterval1 e (IntervalRat.singleton I.hi)).lo ≤ Expr.eval (fun _ => x) e := by
+    ∀ x ∈ I, (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.hi)).lo ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   have hhi_mem : (I.hi : ℝ) ∈ IntervalRat.singleton I.hi := IntervalRat.mem_singleton I.hi
   have heval := evalInterval1_correct e hsupp I.hi (IntervalRat.singleton I.hi) hhi_mem
   simp only [IntervalRat.mem_def] at heval
   have hmin := decreasing_min_at_right e hsupp hvar0 I hneg x hx
   simp only [evalFunc1] at hmin
-  calc (evalInterval1 e (IntervalRat.singleton I.hi)).lo
+  calc (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.hi)).lo
       ≤ Expr.eval (fun _ => I.hi) e := by exact_mod_cast heval.1
     _ ≤ Expr.eval (fun _ => x) e := hmin
 
@@ -265,7 +265,7 @@ theorem decreasing_endpoint_bound (e : Expr) (hsupp : ExprSupported e) (hvar0 : 
 
 /-- Helper lemma for go correctness.
     FULLY PROVED for varIdx = 0 and UsesOnlyVar0 expressions. -/
-theorem minimizeInterval_go_correct (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem minimizeInterval_go_correct (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (maxDepth : ℕ) (depth : ℕ) (J : IntervalRat) :
     ∀ x ∈ J, (minimizeInterval.go e 0 maxDepth J depth).valueBound.lo
              ≤ Expr.eval (fun _ => x) e := by
@@ -321,7 +321,7 @@ theorem minimizeInterval_go_correct (e : Expr) (hsupp : ExprSupported e) (hvar0 
 
 /-- Correctness: the minimum is in the computed interval.
     FULLY PROVED for varIdx = 0 and UsesOnlyVar0 expressions. -/
-theorem minimizeInterval_correct (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem minimizeInterval_correct (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (maxDepth : ℕ) :
     ∀ x ∈ I, (minimizeInterval e I 0 maxDepth).valueBound.lo ≤ Expr.eval (fun _ => x) e := by
@@ -340,7 +340,7 @@ noncomputable def maximizeInterval (e : Expr) (I : IntervalRat) (varIdx : Nat)
 
 /-- Correctness: the maximum is in the computed interval.
     FULLY PROVED for varIdx = 0 and UsesOnlyVar0 expressions. -/
-theorem maximizeInterval_correct (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem maximizeInterval_correct (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (maxDepth : ℕ) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ (maximizeInterval e I 0 maxDepth).valueBound.hi := by
@@ -351,7 +351,7 @@ theorem maximizeInterval_correct (e : Expr) (hsupp : ExprSupported e) (hvar0 : U
   -- We need: f(x) ≤ result.valueBound.hi
   --        = -(minimizeInterval (neg e) ...).valueBound.lo
   -- Equivalently: (minimizeInterval (neg e) ...).valueBound.lo ≤ -f(x)
-  have hneg_supp : ExprSupported (Expr.neg e) := ExprSupported.neg hsupp
+  have hneg_supp : ADSupported (Expr.neg e) := ADSupported.neg hsupp
   have hneg_var0 : UsesOnlyVar0 (Expr.neg e) := UsesOnlyVar0.neg e hvar0
   have hmin := minimizeInterval_correct (Expr.neg e) hneg_supp hneg_var0 I maxDepth x hx
   simp only [Expr.eval_neg] at hmin
@@ -404,7 +404,7 @@ by fixing all but one variable and optimizing along that coordinate.
 
 /-- If the derivative interval along `idx` is strictly positive, derivative is positive everywhere.
     Generalized version that works with any variable index and environment. -/
-theorem deriv_pos_on_interval_idx (e : Expr) (hsupp : ExprSupported e)
+theorem deriv_pos_on_interval_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i)
     (hpos : 0 < (derivInterval e ρ_int idx).lo) :
@@ -418,7 +418,7 @@ theorem deriv_pos_on_interval_idx (e : Expr) (hsupp : ExprSupported e)
 
 /-- If the derivative interval along `idx` is strictly negative, derivative is negative everywhere.
     Generalized version that works with any variable index and environment. -/
-theorem deriv_neg_on_interval_idx (e : Expr) (hsupp : ExprSupported e)
+theorem deriv_neg_on_interval_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i)
     (hneg : (derivInterval e ρ_int idx).hi < 0) :
@@ -432,7 +432,7 @@ theorem deriv_neg_on_interval_idx (e : Expr) (hsupp : ExprSupported e)
 
 /-- Strictly positive derivative along `idx` implies strict monotonicity.
     Generalized n-variable version. -/
-theorem strictMonoOn_of_deriv_pos_interval_idx (e : Expr) (hsupp : ExprSupported e)
+theorem strictMonoOn_of_deriv_pos_interval_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i)
     (hpos : 0 < (derivInterval e ρ_int idx).lo) :
@@ -451,7 +451,7 @@ theorem strictMonoOn_of_deriv_pos_interval_idx (e : Expr) (hsupp : ExprSupported
 
 /-- Strictly negative derivative along `idx` implies strict antitonicity.
     Generalized n-variable version. -/
-theorem strictAntiOn_of_deriv_neg_interval_idx (e : Expr) (hsupp : ExprSupported e)
+theorem strictAntiOn_of_deriv_neg_interval_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i)
     (hneg : (derivInterval e ρ_int idx).hi < 0) :
@@ -472,7 +472,7 @@ theorem strictAntiOn_of_deriv_neg_interval_idx (e : Expr) (hsupp : ExprSupported
 
 /-- For increasing functions along `idx`, minimum is at the left endpoint.
     Generalized n-variable version. -/
-theorem increasing_min_at_left_idx (e : Expr) (hsupp : ExprSupported e)
+theorem increasing_min_at_left_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i)
     (hpos : 0 < (derivInterval e ρ_int idx).lo) :
@@ -492,7 +492,7 @@ theorem increasing_min_at_left_idx (e : Expr) (hsupp : ExprSupported e)
 
 /-- For decreasing functions along `idx`, minimum is at the right endpoint.
     Generalized n-variable version. -/
-theorem decreasing_min_at_right_idx (e : Expr) (hsupp : ExprSupported e)
+theorem decreasing_min_at_right_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i)
     (hneg : (derivInterval e ρ_int idx).hi < 0) :
@@ -539,7 +539,7 @@ where
     let ρ' := updateIntervalEnv ρ idx J
     if depth = 0 then
       -- Base case: just use interval evaluation
-      { valueBound := evalInterval e ρ'
+      { valueBound := LeanCert.Internal.Rational.evalUnchecked e ρ'
         argBound := some J
         depth := maxDepth }
     else
@@ -547,13 +547,13 @@ where
       if derivStrictlyPositive_idx e ρ' idx then
         -- f is increasing along idx, minimum is at left endpoint
         let ρ_lo := updateIntervalEnv ρ idx (IntervalRat.singleton J.lo)
-        { valueBound := evalInterval e ρ_lo
+        { valueBound := LeanCert.Internal.Rational.evalUnchecked e ρ_lo
           argBound := some (IntervalRat.singleton J.lo)
           depth := maxDepth - depth }
       else if derivStrictlyNegative_idx e ρ' idx then
         -- f is decreasing along idx, minimum is at right endpoint
         let ρ_hi := updateIntervalEnv ρ idx (IntervalRat.singleton J.hi)
-        { valueBound := evalInterval e ρ_hi
+        { valueBound := LeanCert.Internal.Rational.evalUnchecked e ρ_hi
           argBound := some (IntervalRat.singleton J.hi)
           depth := maxDepth - depth }
       else
@@ -589,17 +589,17 @@ where
 
 /-- Base case correctness for n-variable optimization.
     Interval evaluation gives a valid lower bound. -/
-theorem minimizeIntervalIdx_base_correct (e : Expr) (hsupp : ExprSupported e)
+theorem minimizeIntervalIdx_base_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv) :
     ∀ ρ_real : Nat → ℝ, (∀ i, ρ_real i ∈ ρ_int i) →
-      (evalInterval e ρ_int).lo ≤ Expr.eval ρ_real e := by
+      (LeanCert.Internal.Rational.evalUnchecked e ρ_int).lo ≤ Expr.eval ρ_real e := by
   intro ρ_real hρ
   have h := evalInterval_correct e hsupp ρ_real ρ_int hρ
   simp only [IntervalRat.mem_def] at h
   exact h.1
 
 /-- Helper lemma for go correctness in n-variable setting -/
-theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
+theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv) (idx : Nat) (maxDepth depth : ℕ) (J : IntervalRat)
     (hJ_sub : ∀ t, t ∈ J → t ∈ ρ_int idx) :
     ∀ ρ_real : Nat → ℝ, (∀ i, ρ_real i ∈ ρ_int i) →
@@ -678,7 +678,7 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
         exact hmono' hx hy hxy
       simp only [IntervalRat.mem_def] at ht
       by_cases heq : (J.lo : ℝ) = t
-      · calc (evalInterval e (updateIntervalEnv ρ_int idx (IntervalRat.singleton J.lo))).lo
+      · calc (LeanCert.Internal.Rational.evalUnchecked e (updateIntervalEnv ρ_int idx (IntervalRat.singleton J.lo))).lo
             ≤ Expr.eval (Expr.updateVar ρ_real idx J.lo) e := heval.1
           _ = Expr.eval (Expr.updateVar ρ_real idx t) e := by rw [← heq]
       · have hlt : (J.lo : ℝ) < t := lt_of_le_of_ne ht.1 heq
@@ -692,7 +692,7 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
           exact ht
         have hmono_at := hmono hJlo_mem ht_mem hlt
         simp only [Expr.evalAlong] at hmono_at
-        calc (evalInterval e (updateIntervalEnv ρ_int idx (IntervalRat.singleton J.lo))).lo
+        calc (LeanCert.Internal.Rational.evalUnchecked e (updateIntervalEnv ρ_int idx (IntervalRat.singleton J.lo))).lo
             ≤ Expr.eval (Expr.updateVar ρ_real idx J.lo) e := heval.1
           _ ≤ Expr.eval (Expr.updateVar ρ_real idx t) e := le_of_lt hmono_at
     · -- Derivative strictly negative: decreasing function
@@ -737,7 +737,7 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
         exact hmono' hx hy hxy
       simp only [IntervalRat.mem_def] at ht
       by_cases heq : t = (J.hi : ℝ)
-      · calc (evalInterval e (updateIntervalEnv ρ_int idx (IntervalRat.singleton J.hi))).lo
+      · calc (LeanCert.Internal.Rational.evalUnchecked e (updateIntervalEnv ρ_int idx (IntervalRat.singleton J.hi))).lo
             ≤ Expr.eval (Expr.updateVar ρ_real idx J.hi) e := heval.1
           _ = Expr.eval (Expr.updateVar ρ_real idx t) e := by rw [← heq]
       · have hlt : t < (J.hi : ℝ) := lt_of_le_of_ne ht.2 heq
@@ -751,7 +751,7 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
           exact ⟨Rat.cast_le.mpr J.le, le_refl _⟩
         have hmono_at := hmono ht_mem hJhi_mem hlt
         simp only [Expr.evalAlong] at hmono_at
-        calc (evalInterval e (updateIntervalEnv ρ_int idx (IntervalRat.singleton J.hi))).lo
+        calc (LeanCert.Internal.Rational.evalUnchecked e (updateIntervalEnv ρ_int idx (IntervalRat.singleton J.hi))).lo
             ≤ Expr.eval (Expr.updateVar ρ_real idx J.hi) e := heval.1
           _ ≤ Expr.eval (Expr.updateVar ρ_real idx t) e := le_of_lt hmono_at
     · -- Bisection case, hle (r₁.lo ≤ r₂.lo)
@@ -794,7 +794,7 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ExprSupported e)
     the computed lower bound is valid.
 
     FULLY PROVED - no sorry, no axioms. -/
-theorem minimizeIntervalIdx_correct (e : Expr) (hsupp : ExprSupported e)
+theorem minimizeIntervalIdx_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv) (idx : Nat) (maxDepth : ℕ) :
     ∀ ρ_real : Nat → ℝ, (∀ i, ρ_real i ∈ ρ_int i) →
       ∀ t ∈ ρ_int idx,
@@ -814,14 +814,14 @@ noncomputable def maximizeIntervalIdx (e : Expr) (ρ : IntervalEnv) (idx : Nat)
     depth := negResult.depth }
 
 /-- Correctness theorem for n-variable maximization -/
-theorem maximizeIntervalIdx_correct (e : Expr) (hsupp : ExprSupported e)
+theorem maximizeIntervalIdx_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv) (idx : Nat) (maxDepth : ℕ) :
     ∀ ρ_real : Nat → ℝ, (∀ i, ρ_real i ∈ ρ_int i) →
       ∀ t ∈ ρ_int idx,
         Expr.eval (Expr.updateVar ρ_real idx t) e
           ≤ (maximizeIntervalIdx e ρ_int idx maxDepth).valueBound.hi := by
   intro ρ_real hρ t ht
-  have hneg_supp : ExprSupported (Expr.neg e) := ExprSupported.neg hsupp
+  have hneg_supp : ADSupported (Expr.neg e) := ADSupported.neg hsupp
   have hmin := minimizeIntervalIdx_correct (Expr.neg e) hneg_supp ρ_int idx maxDepth ρ_real hρ t ht
   simp only [Expr.eval_neg] at hmin
   simp only [maximizeIntervalIdx, IntervalRat.neg]
@@ -842,7 +842,7 @@ noncomputable def minimizeInterval' (e : Expr) (I : IntervalRat) (varIdx : Nat)
 
 /-- Correctness theorem for single-variable minimization via the idx API.
     This doesn't require `UsesOnlyVar0` - works for any expression. -/
-theorem minimizeInterval'_correct (e : Expr) (hsupp : ExprSupported e)
+theorem minimizeInterval'_correct (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (varIdx : Nat) (maxDepth : ℕ) :
     ∀ x ∈ I, (minimizeInterval' e I varIdx maxDepth).valueBound.lo
       ≤ Expr.eval (fun _ => x) e := by
@@ -862,7 +862,7 @@ noncomputable def maximizeInterval' (e : Expr) (I : IntervalRat) (varIdx : Nat)
   maximizeIntervalIdx e (fun _ => I) varIdx maxDepth
 
 /-- Correctness theorem for single-variable maximization via the idx API. -/
-theorem maximizeInterval'_correct (e : Expr) (hsupp : ExprSupported e)
+theorem maximizeInterval'_correct (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (varIdx : Nat) (maxDepth : ℕ) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e
       ≤ (maximizeInterval' e I varIdx maxDepth).valueBound.hi := by

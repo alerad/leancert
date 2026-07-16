@@ -61,7 +61,7 @@ def smallIntervalDyadic : IntervalDyadic := IntervalDyadic.ofIntervalRat smallIn
 /-! ### Benchmark Functions -/
 
 def evalDyadic (e : Expr) (I : IntervalDyadic) (cfg : DyadicConfig := {}) : IntervalDyadic :=
-  evalIntervalDyadic e (fun _ => I) cfg
+  LeanCert.Internal.Dyadic.evalUnchecked e (fun _ => I) cfg
 
 def countDigits (n : Nat) : Nat :=
   if n == 0 then 1 else n.repr.length
@@ -110,7 +110,7 @@ def main : IO Unit := do
 
   for depth in [2, 3] do
     let expr := mkNestedExp depth
-    let result := evalIntervalCore expr (fun _ => smallIntervalRat)
+    let result := LeanCert.Internal.Rational.evalTotalCore expr (fun _ => smallIntervalRat)
     IO.println s!"  nestedExp{depth} rational denominators:"
     IO.println s!"    lo.den: {countDigits result.lo.den} digits"
     IO.println s!"    hi.den: {countDigits result.hi.den} digits"
@@ -127,9 +127,9 @@ def main : IO Unit := do
 
   let testExpr := mkNestedExp 3
 
-  let fastResult := evalIntervalDyadic testExpr (fun _ => smallIntervalDyadic) DyadicConfig.fast
-  let stdResult := evalIntervalDyadic testExpr (fun _ => smallIntervalDyadic) {}
-  let highResult := evalIntervalDyadic testExpr (fun _ => smallIntervalDyadic) DyadicConfig.highPrecision
+  let fastResult := LeanCert.Internal.Dyadic.evalUnchecked testExpr (fun _ => smallIntervalDyadic) DyadicConfig.fast
+  let stdResult := LeanCert.Internal.Dyadic.evalUnchecked testExpr (fun _ => smallIntervalDyadic) {}
+  let highResult := LeanCert.Internal.Dyadic.evalUnchecked testExpr (fun _ => smallIntervalDyadic) DyadicConfig.highPrecision
 
   let fastWidth := fastResult.hi.toRat - fastResult.lo.toRat
   let stdWidth := stdResult.hi.toRat - stdResult.lo.toRat

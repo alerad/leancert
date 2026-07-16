@@ -20,14 +20,14 @@ export LeanCert.Engine
     verify_finsum_lower
     verify_finsum_upper_full
     verify_finsum_lower_full
-    verify_finsum_upper_withInv
-    verify_finsum_lower_withInv
-    verify_finsum_upper_full_withInv
-    verify_finsum_lower_full_withInv
+    verify_finsum_upper_checked
+    verify_finsum_lower_checked
+    verify_finsum_upper_full_checked
+    verify_finsum_lower_full_checked
     verify_finsum_upper_list_full
     verify_finsum_lower_list_full
-    verify_finsum_upper_list_full_withInv
-    verify_finsum_lower_list_full_withInv
+    verify_finsum_upper_list_full_checked
+    verify_finsum_lower_list_full_checked
     verify_witness_sum_upper
     verify_witness_sum_lower
     verify_witness_sum_upper_cached

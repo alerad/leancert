@@ -61,7 +61,7 @@ inductive ExprSupportedExt : Expr → Prop where
   | namedConst (c : MathConst) : ExprSupportedExt (Expr.namedConst c)
 
 /-- The base supported subset is a subset of the extended one -/
-theorem ExprSupported.toExt {e : Expr} (h : ExprSupported e) : ExprSupportedExt e := by
+theorem ADSupported.toExt {e : Expr} (h : ADSupported e) : ExprSupportedExt e := by
   induction h with
   | const q => exact ExprSupportedExt.const q
   | var idx => exact ExprSupportedExt.var idx

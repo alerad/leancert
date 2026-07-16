@@ -130,7 +130,7 @@ structure UniqueRootResult (e : Expr) (I : IntervalRat) : Type where
 
     Requires `UsesOnlyVar0 e` for the Newton contraction proof to work.
     Returns `none` if no unique root can be verified. -/
-noncomputable def findUniqueRoot (e : Expr) (hsupp : ExprSupported e)
+noncomputable def findUniqueRoot (e : Expr) (hsupp : ADSupported e)
     (hvar0 : UsesOnlyVar0 e) (I : IntervalRat) (cfg : RootSearchConfig := {}) :
     Option (UniqueRootResult e I) :=
   let evalCfg : EvalConfig := { taylorDepth := cfg.taylorDepth }
@@ -225,14 +225,14 @@ def OptSearchConfig.toGlobalOptConfig (cfg : OptSearchConfig) : GlobalOptConfig 
     This wraps `globalMinimizeCore` and bundles the result with
     correctness proofs derived from `globalMinimizeCore_lo_correct`.
 
-    Note: Uses ExprSupported (no log) for automatic domain validity. -/
-noncomputable def findGlobalMin (e : Expr) (hsupp : ExprSupported e)
+    Note: Uses ADSupported (no log) for automatic domain validity. -/
+noncomputable def findGlobalMin (e : Expr) (hsupp : ADSupported e)
     (B : Box) (cfg : OptSearchConfig := {}) :
     GlobalMinResult e B :=
   let optCfg := cfg.toGlobalOptConfig
   let result := globalMinimizeCore e B optCfg
   let hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := optCfg.taylorDepth } :=
-    fun B' _ => ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
+    fun B' _ => ADSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
   {
     minimizerBox := result.bound.bestBox
     minValue := { lo := result.bound.lo, hi := result.bound.hi,
@@ -247,14 +247,14 @@ noncomputable def findGlobalMin (e : Expr) (hsupp : ExprSupported e)
     This wraps `globalMaximizeCore` and bundles the result with
     correctness proofs.
 
-    Note: Uses ExprSupported (no log) for automatic domain validity. -/
-noncomputable def findGlobalMax (e : Expr) (hsupp : ExprSupported e)
+    Note: Uses ADSupported (no log) for automatic domain validity. -/
+noncomputable def findGlobalMax (e : Expr) (hsupp : ADSupported e)
     (B : Box) (cfg : OptSearchConfig := {}) :
     GlobalMaxResult e B :=
   let optCfg := cfg.toGlobalOptConfig
   let result := globalMaximizeCore e B optCfg
   let hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := optCfg.taylorDepth } :=
-    fun B' _ => ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
+    fun B' _ => ADSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
   {
     maximizerBox := result.bound.bestBox
     maxValue := { lo := result.bound.lo, hi := result.bound.hi,
@@ -288,7 +288,7 @@ structure GlobalMax1DResult (e : Expr) (I : IntervalRat) where
 
     Specialized version for single-variable functions.
     Requires `e.usesOnlyVar0 = true` to ensure eval equivalence. -/
-noncomputable def findGlobalMin1D (e : Expr) (hsupp : ExprSupported e)
+noncomputable def findGlobalMin1D (e : Expr) (hsupp : ADSupported e)
     (he1d : e.usesOnlyVar0 = true)
     (I : IntervalRat) (cfg : OptSearchConfig := {}) :
     GlobalMin1DResult e I :=
@@ -324,7 +324,7 @@ noncomputable def findGlobalMin1D (e : Expr) (hsupp : ExprSupported e)
 
     Specialized version for single-variable functions.
     Requires `e.usesOnlyVar0 = true` to ensure eval equivalence. -/
-noncomputable def findGlobalMax1D (e : Expr) (hsupp : ExprSupported e)
+noncomputable def findGlobalMax1D (e : Expr) (hsupp : ADSupported e)
     (he1d : e.usesOnlyVar0 = true)
     (I : IntervalRat) (cfg : OptSearchConfig := {}) :
     GlobalMax1DResult e I :=
@@ -420,18 +420,18 @@ def hasRootIn (e : Expr) (I : IntervalRat) (cfg : RootSearchConfig := {}) : Bool
 
 /-- Check if an expression is positive on an interval -/
 def isPositiveOn (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : Bool :=
-  0 < (evalIntervalCore1 e I cfg).lo
+  0 < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo
 
 /-- Check if an expression is negative on an interval -/
 def isNegativeOn (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : Bool :=
-  (evalIntervalCore1 e I cfg).hi < 0
+  (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi < 0
 
 /-- Get a lower bound on the minimum value -/
 def getLowerBound (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : ℚ :=
-  (evalIntervalCore1 e I cfg).lo
+  (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo
 
 /-- Get an upper bound on the maximum value -/
 def getUpperBound (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : ℚ :=
-  (evalIntervalCore1 e I cfg).hi
+  (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi
 
 end LeanCert.Engine.SearchAPI

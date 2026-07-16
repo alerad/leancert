@@ -50,13 +50,13 @@ def excludesZero (I : IntervalRat) : Bool :=
 
 /-- Check if function values have opposite signs at endpoints (IVT applicable) -/
 noncomputable def signChange (e : Expr) (I : IntervalRat) : Bool :=
-  let flo := evalInterval1 e (IntervalRat.singleton I.lo)
-  let fhi := evalInterval1 e (IntervalRat.singleton I.hi)
+  let flo := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.lo)
+  let fhi := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.hi)
   (flo.hi < 0 ∧ 0 < fhi.lo) ∨ (fhi.hi < 0 ∧ 0 < flo.lo)
 
 /-- Initial root status check -/
 noncomputable def checkRootStatus (e : Expr) (I : IntervalRat) : RootStatus :=
-  let fI := evalInterval1 e I
+  let fI := LeanCert.Internal.Rational.evalUnchecked1 e I
   if excludesZero fI then
     RootStatus.noRoot
   else if signChange e I then
@@ -68,8 +68,8 @@ noncomputable def checkRootStatus (e : Expr) (I : IntervalRat) : RootStatus :=
 
 /-- If interval evaluation excludes zero, then f(x) ≠ 0 for all x in I.
     This is the key lemma for proving noRoot correctness. -/
-theorem excludesZero_correct (e : Expr) (hsupp : ExprSupported e)
-    (I : IntervalRat) (hexcl : excludesZero (evalInterval1 e I) = true) :
+theorem excludesZero_correct (e : Expr) (hsupp : ADSupported e)
+    (I : IntervalRat) (hexcl : excludesZero (LeanCert.Internal.Rational.evalUnchecked1 e I) = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≠ 0 := by
   intro x hx hcontra
   -- From evalInterval1_correct: f(x) ∈ [lo, hi]
@@ -80,13 +80,13 @@ theorem excludesZero_correct (e : Expr) (hsupp : ExprSupported e)
   cases hexcl with
   | inl hhi_neg =>
     -- hi < 0, so f(x) ≤ hi < 0, contradicting f(x) = 0
-    have : (Expr.eval (fun _ => x) e : ℝ) ≤ (evalInterval1 e I).hi := hmem.2
-    have hcast : ((evalInterval1 e I).hi : ℝ) < 0 := by exact_mod_cast hhi_neg
+    have : (Expr.eval (fun _ => x) e : ℝ) ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).hi := hmem.2
+    have hcast : ((LeanCert.Internal.Rational.evalUnchecked1 e I).hi : ℝ) < 0 := by exact_mod_cast hhi_neg
     linarith [hcontra]
   | inr hlo_pos =>
     -- 0 < lo, so 0 < lo ≤ f(x), contradicting f(x) = 0
-    have : ((evalInterval1 e I).lo : ℝ) ≤ Expr.eval (fun _ => x) e := hmem.1
-    have hcast : (0 : ℝ) < (evalInterval1 e I).lo := by exact_mod_cast hlo_pos
+    have : ((LeanCert.Internal.Rational.evalUnchecked1 e I).lo : ℝ) ≤ Expr.eval (fun _ => x) e := hmem.1
+    have hcast : (0 : ℝ) < (LeanCert.Internal.Rational.evalUnchecked1 e I).lo := by exact_mod_cast hlo_pos
     linarith [hcontra]
 
 /-- If there is a sign change, then by IVT there exists a root.
@@ -96,7 +96,7 @@ theorem excludesZero_correct (e : Expr) (hsupp : ExprSupported e)
     1. signChange means f(lo) < 0 < f(hi) or f(hi) < 0 < f(lo)
     2. Use evalInterval1_correct on singletons to get actual values at endpoints
     3. Apply intermediate_value_Icc to conclude 0 is in the image -/
-theorem signChange_correct (e : Expr) (hsupp : ExprSupported e)
+theorem signChange_correct (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (hsign : signChange e I = true)
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi)) :
     ∃ x ∈ I, Expr.eval (fun _ => x) e = 0 := by
@@ -118,13 +118,13 @@ theorem signChange_correct (e : Expr) (hsupp : ExprSupported e)
   | inl hcase =>
     -- Case: f(lo).hi < 0 ∧ 0 < f(hi).lo, meaning f(lo) < 0 < f(hi)
     have hflo_neg : f I.lo < 0 := by
-      have hbound : f I.lo ≤ (evalInterval1 e (IntervalRat.singleton I.lo)).hi := hflo.2
-      have hcast : ((evalInterval1 e (IntervalRat.singleton I.lo)).hi : ℝ) < 0 := by
+      have hbound : f I.lo ≤ (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.lo)).hi := hflo.2
+      have hcast : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.lo)).hi : ℝ) < 0 := by
         exact_mod_cast hcase.1
       linarith
     have hfhi_pos : 0 < f I.hi := by
-      have hbound : (evalInterval1 e (IntervalRat.singleton I.hi)).lo ≤ f I.hi := hfhi.1
-      have hcast : (0 : ℝ) < (evalInterval1 e (IntervalRat.singleton I.hi)).lo := by
+      have hbound : (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.hi)).lo ≤ f I.hi := hfhi.1
+      have hcast : (0 : ℝ) < (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.hi)).lo := by
         exact_mod_cast hcase.2
       linarith
     -- Now apply IVT: since f(lo) < 0 < f(hi), 0 ∈ Icc (f lo) (f hi) ⊆ f '' Icc lo hi
@@ -138,13 +138,13 @@ theorem signChange_correct (e : Expr) (hsupp : ExprSupported e)
   | inr hcase =>
     -- Case: f(hi).hi < 0 ∧ 0 < f(lo).lo, meaning f(hi) < 0 < f(lo)
     have hfhi_neg : f I.hi < 0 := by
-      have hbound : f I.hi ≤ (evalInterval1 e (IntervalRat.singleton I.hi)).hi := hfhi.2
-      have hcast : ((evalInterval1 e (IntervalRat.singleton I.hi)).hi : ℝ) < 0 := by
+      have hbound : f I.hi ≤ (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.hi)).hi := hfhi.2
+      have hcast : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.hi)).hi : ℝ) < 0 := by
         exact_mod_cast hcase.1
       linarith
     have hflo_pos : 0 < f I.lo := by
-      have hbound : (evalInterval1 e (IntervalRat.singleton I.lo)).lo ≤ f I.lo := hflo.1
-      have hcast : (0 : ℝ) < (evalInterval1 e (IntervalRat.singleton I.lo)).lo := by
+      have hbound : (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.lo)).lo ≤ f I.lo := hflo.1
+      have hcast : (0 : ℝ) < (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.lo)).lo := by
         exact_mod_cast hcase.2
       linarith
     -- Apply IVT' variant: since f(hi) < 0 < f(lo), use intermediate_value_Icc'
@@ -172,7 +172,7 @@ keeping all other coordinates fixed according to `ρ`.
 /-- Check if interval evaluation along coordinate `idx` excludes zero.
     Note: `idx` is kept for API consistency though the full box is checked. -/
 noncomputable def excludesZero_idx (e : Expr) (ρ_int : IntervalEnv) (_idx : Nat) : Bool :=
-  let fI := evalInterval e ρ_int
+  let fI := LeanCert.Internal.Rational.evalUnchecked e ρ_int
   excludesZero fI
 
 /-- Check if function has opposite signs at endpoints along coordinate `idx` -/
@@ -181,13 +181,13 @@ noncomputable def signChange_idx (e : Expr) (ρ_int : IntervalEnv) (idx : Nat) :
   let ρ_lo := fun i => if i = idx then IntervalRat.singleton (ρ_int idx).lo else ρ_int i
   -- Evaluate at right endpoint of idx
   let ρ_hi := fun i => if i = idx then IntervalRat.singleton (ρ_int idx).hi else ρ_int i
-  let flo := evalInterval e ρ_lo
-  let fhi := evalInterval e ρ_hi
+  let flo := LeanCert.Internal.Rational.evalUnchecked e ρ_lo
+  let fhi := LeanCert.Internal.Rational.evalUnchecked e ρ_hi
   (flo.hi < 0 ∧ 0 < fhi.lo) ∨ (fhi.hi < 0 ∧ 0 < flo.lo)
 
 /-- Initial root status check along coordinate `idx` -/
 noncomputable def checkRootStatus_idx (e : Expr) (ρ_int : IntervalEnv) (idx : Nat) : RootStatus :=
-  let fI := evalInterval e ρ_int
+  let fI := LeanCert.Internal.Rational.evalUnchecked e ρ_int
   if excludesZero fI then
     RootStatus.noRoot
   else if signChange_idx e ρ_int idx then
@@ -199,9 +199,9 @@ noncomputable def checkRootStatus_idx (e : Expr) (ρ_int : IntervalEnv) (idx : N
 
 /-- If interval evaluation excludes zero, then f(x) ≠ 0 for all x in the box.
     N-variable version: the function has no zeros in the entire box. -/
-theorem excludesZero_correct_idx (e : Expr) (hsupp : ExprSupported e)
+theorem excludesZero_correct_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv)
-    (hexcl : excludesZero (evalInterval e ρ_int) = true) :
+    (hexcl : excludesZero (LeanCert.Internal.Rational.evalUnchecked e ρ_int) = true) :
     ∀ ρ_real : Nat → ℝ, (∀ i, ρ_real i ∈ ρ_int i) → Expr.eval ρ_real e ≠ 0 := by
   intro ρ_real hρ hcontra
   -- From evalInterval_correct: f(ρ) ∈ [lo, hi]
@@ -211,19 +211,19 @@ theorem excludesZero_correct_idx (e : Expr) (hsupp : ExprSupported e)
   simp only [excludesZero, decide_eq_true_eq] at hexcl
   cases hexcl with
   | inl hhi_neg =>
-    have : (Expr.eval ρ_real e : ℝ) ≤ (evalInterval e ρ_int).hi := hmem.2
-    have hcast : ((evalInterval e ρ_int).hi : ℝ) < 0 := by exact_mod_cast hhi_neg
+    have : (Expr.eval ρ_real e : ℝ) ≤ (LeanCert.Internal.Rational.evalUnchecked e ρ_int).hi := hmem.2
+    have hcast : ((LeanCert.Internal.Rational.evalUnchecked e ρ_int).hi : ℝ) < 0 := by exact_mod_cast hhi_neg
     linarith [hcontra]
   | inr hlo_pos =>
-    have : ((evalInterval e ρ_int).lo : ℝ) ≤ Expr.eval ρ_real e := hmem.1
-    have hcast : (0 : ℝ) < (evalInterval e ρ_int).lo := by exact_mod_cast hlo_pos
+    have : ((LeanCert.Internal.Rational.evalUnchecked e ρ_int).lo : ℝ) ≤ Expr.eval ρ_real e := hmem.1
+    have hcast : (0 : ℝ) < (LeanCert.Internal.Rational.evalUnchecked e ρ_int).lo := by exact_mod_cast hlo_pos
     linarith [hcontra]
 
 /-- If there is a sign change along coordinate `idx`, then by IVT there exists a root
     along that coordinate.
     N-variable version: for any fixed values of other coordinates satisfying `ρ_int`,
     there exists a value of coordinate `idx` where the function is zero. -/
-theorem signChange_correct_idx (e : Expr) (hsupp : ExprSupported e)
+theorem signChange_correct_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv) (idx : Nat)
     (ρ_real : Nat → ℝ) (hρ : ∀ i, i ≠ idx → ρ_real i ∈ ρ_int i)
     (hsign : signChange_idx e ρ_int idx = true)
@@ -271,12 +271,12 @@ theorem signChange_correct_idx (e : Expr) (hsupp : ExprSupported e)
     have hflo_neg : f (ρ_int idx).lo < 0 := by
       rw [hf_lo]
       have hbound := hflo.2
-      have hcast : ((evalInterval e ρ_lo).hi : ℝ) < 0 := by exact_mod_cast hcase.1
+      have hcast : ((LeanCert.Internal.Rational.evalUnchecked e ρ_lo).hi : ℝ) < 0 := by exact_mod_cast hcase.1
       linarith
     have hfhi_pos : 0 < f (ρ_int idx).hi := by
       rw [hf_hi]
       have hbound := hfhi.1
-      have hcast : (0 : ℝ) < (evalInterval e ρ_hi).lo := by exact_mod_cast hcase.2
+      have hcast : (0 : ℝ) < (LeanCert.Internal.Rational.evalUnchecked e ρ_hi).lo := by exact_mod_cast hcase.2
       linarith
     have h0_in_range : (0 : ℝ) ∈ Set.Icc (f (ρ_int idx).lo) (f (ρ_int idx).hi) :=
       ⟨le_of_lt hflo_neg, le_of_lt hfhi_pos⟩
@@ -291,12 +291,12 @@ theorem signChange_correct_idx (e : Expr) (hsupp : ExprSupported e)
     have hfhi_neg : f (ρ_int idx).hi < 0 := by
       rw [hf_hi]
       have hbound := hfhi.2
-      have hcast : ((evalInterval e ρ_hi).hi : ℝ) < 0 := by exact_mod_cast hcase.1
+      have hcast : ((LeanCert.Internal.Rational.evalUnchecked e ρ_hi).hi : ℝ) < 0 := by exact_mod_cast hcase.1
       linarith
     have hflo_pos : 0 < f (ρ_int idx).lo := by
       rw [hf_lo]
       have hbound := hflo.1
-      have hcast : (0 : ℝ) < (evalInterval e ρ_lo).lo := by exact_mod_cast hcase.2
+      have hcast : (0 : ℝ) < (LeanCert.Internal.Rational.evalUnchecked e ρ_lo).lo := by exact_mod_cast hcase.2
       linarith
     have h0_in_range : (0 : ℝ) ∈ Set.Icc (f (ρ_int idx).hi) (f (ρ_int idx).lo) :=
       ⟨le_of_lt hfhi_neg, le_of_lt hflo_pos⟩
@@ -339,7 +339,7 @@ where
   go (J : IntervalRat) (depth : ℕ) : BisectResult :=
     let ρ' := updateIntervalEnv' ρ idx J
     -- Check if we can exclude this interval
-    if excludesZero (evalInterval e ρ') then
+    if excludesZero (LeanCert.Internal.Rational.evalUnchecked e ρ') then
       BisectResult.noRoot
     -- Check for sign change
     else if signChange_idx e ρ' idx then
@@ -385,7 +385,7 @@ theorem bisectRootIdx_go_found_signChange (e : Expr) (ρ_int : IntervalEnv) (idx
   induction depth generalizing J I d with
   | zero =>
     unfold bisectRootIdx.go at hfound
-    by_cases hexcl : excludesZero (evalInterval e (updateIntervalEnv' ρ_int idx J)) = true
+    by_cases hexcl : excludesZero (LeanCert.Internal.Rational.evalUnchecked e (updateIntervalEnv' ρ_int idx J)) = true
     · simp only [hexcl, ↓reduceIte] at hfound; exact (BisectResult.noConfusion hfound)
     · simp only [hexcl, ↓reduceIte, Bool.false_eq_true] at hfound
       by_cases hsign : signChange_idx e (updateIntervalEnv' ρ_int idx J) idx = true
@@ -396,7 +396,7 @@ theorem bisectRootIdx_go_found_signChange (e : Expr) (ρ_int : IntervalEnv) (idx
   | succ n ih =>
     unfold bisectRootIdx.go at hfound
     simp only [Nat.succ_ne_zero, ↓reduceIte, Nat.add_sub_cancel] at hfound
-    by_cases hexcl : excludesZero (evalInterval e (updateIntervalEnv' ρ_int idx J)) = true
+    by_cases hexcl : excludesZero (LeanCert.Internal.Rational.evalUnchecked e (updateIntervalEnv' ρ_int idx J)) = true
     · simp only [hexcl, ↓reduceIte] at hfound; exact (BisectResult.noConfusion hfound)
     · simp only [hexcl, ↓reduceIte, Bool.false_eq_true] at hfound
       by_cases hsign : signChange_idx e (updateIntervalEnv' ρ_int idx J) idx = true
@@ -444,7 +444,7 @@ theorem bisectRootIdx_go_found_signChange (e : Expr) (ρ_int : IntervalEnv) (idx
 /-- Correctness theorem for bisectRootIdx when it finds a root.
     If bisectRootIdx returns `found I d`, then for any ρ_real satisfying ρ_int,
     there exists a root of `evalAlong e ρ_real idx` in the returned interval I. -/
-theorem bisectRootIdx_found_correct (e : Expr) (hsupp : ExprSupported e)
+theorem bisectRootIdx_found_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv) (idx : Nat) (maxDepth : ℕ)
     (I : IntervalRat) (d : ℕ)
     (hfound : bisectRootIdx e ρ_int idx maxDepth = BisectResult.found I d)
@@ -474,7 +474,7 @@ theorem bisectRootIdx_found_correct (e : Expr) (hsupp : ExprSupported e)
     The proof is complex due to the match structure in bisectRootIdx.go.
     The key insight is that noRoot can only be returned if excludesZero is true
     at some level of the recursion, and excludesZero implies the function is nonzero. -/
-theorem bisectRootIdx_go_noRoot_correct (e : Expr) (hsupp : ExprSupported e)
+theorem bisectRootIdx_go_noRoot_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv) (idx : Nat) (maxDepth depth : ℕ) (J : IntervalRat)
     (hJ_sub : ∀ t, t ∈ J → t ∈ ρ_int idx)
     (hnoRoot : bisectRootIdx.go e ρ_int idx maxDepth J depth = BisectResult.noRoot) :
@@ -483,7 +483,7 @@ theorem bisectRootIdx_go_noRoot_correct (e : Expr) (hsupp : ExprSupported e)
   induction depth generalizing J with
   | zero =>
     unfold bisectRootIdx.go at hnoRoot
-    by_cases hexcl : excludesZero (evalInterval e (updateIntervalEnv' ρ_int idx J)) = true
+    by_cases hexcl : excludesZero (LeanCert.Internal.Rational.evalUnchecked e (updateIntervalEnv' ρ_int idx J)) = true
     · -- excludesZero case: use excludesZero_correct_idx
       intro ρ_real hρ t ht
       simp only [Expr.evalAlong]
@@ -506,7 +506,7 @@ theorem bisectRootIdx_go_noRoot_correct (e : Expr) (hsupp : ExprSupported e)
   | succ n ih =>
     unfold bisectRootIdx.go at hnoRoot
     simp only [Nat.succ_ne_zero, ↓reduceIte, Nat.add_sub_cancel] at hnoRoot
-    by_cases hexcl : excludesZero (evalInterval e (updateIntervalEnv' ρ_int idx J)) = true
+    by_cases hexcl : excludesZero (LeanCert.Internal.Rational.evalUnchecked e (updateIntervalEnv' ρ_int idx J)) = true
     · -- excludesZero case
       intro ρ_real hρ t ht
       simp only [Expr.evalAlong]
@@ -574,7 +574,7 @@ theorem bisectRootIdx_go_noRoot_correct (e : Expr) (hsupp : ExprSupported e)
 /-- Correctness theorem for bisectRootIdx when it reports no root.
     If bisectRootIdx returns `noRoot`, then for any ρ_real satisfying ρ_int,
     the function `evalAlong e ρ_real idx` has no zeros in `ρ_int idx`. -/
-theorem bisectRootIdx_noRoot_correct (e : Expr) (hsupp : ExprSupported e)
+theorem bisectRootIdx_noRoot_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_int : IntervalEnv) (idx : Nat) (maxDepth : ℕ)
     (hnoRoot : bisectRootIdx e ρ_int idx maxDepth = BisectResult.noRoot) :
     ∀ ρ_real : Nat → ℝ, (∀ i, ρ_real i ∈ ρ_int i) →

@@ -116,11 +116,11 @@ def smallIntervalDyadic : IntervalDyadic :=
 
 /-- Evaluate using rational backend -/
 def evalRational (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
-  evalIntervalCore e (fun _ => I) cfg
+  LeanCert.Internal.Rational.evalTotalCore e (fun _ => I) cfg
 
 /-- Evaluate using dyadic backend -/
 def evalDyadic (e : Expr) (I : IntervalDyadic) (cfg : DyadicConfig := {}) : IntervalDyadic :=
-  evalIntervalDyadic e (fun _ => I) cfg
+  LeanCert.Internal.Dyadic.evalUnchecked e (fun _ => I) cfg
 
 /-! ### Concrete Benchmark Expressions -/
 

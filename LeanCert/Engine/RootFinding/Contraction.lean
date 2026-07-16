@@ -36,7 +36,7 @@ open LeanCert.Core
     The key insight is that contraction of the Newton operator implies that
     f must change sign within the interval (otherwise the operator wouldn't contract).
     This uses the structure of Newton's method, not just general contraction. -/
-theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem newton_contraction_has_root (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I N : IntervalRat)
     (hN : newtonStepTM e I 0 1 = some N ∨ newtonStepSimple e I 0 = some N)
     (hContract : N.lo > I.lo ∧ N.hi < I.hi)
@@ -136,16 +136,16 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
           exfalso
           have hquot_real := newton_positive_increasing_contradicts_contraction e hsupp hvar0 I
             hI_nonsingleton hdI_pos hCont hlo_pos
-          have hquot : (evalInterval1 e (IntervalRat.singleton I.midpoint)).hi /
+          have hquot : (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi /
               (derivInterval e (fun _ => I) 0).lo ≥ (I.hi - I.lo) / 2 := by
-            have h : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).hi : ℝ) /
+            have h : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi : ℝ) /
                 ((derivInterval e (fun _ => I) 0).lo : ℝ) ≥
                 (((I.hi - I.lo) / 2 : ℚ) : ℝ) := hquot_real
             have hdI_lo_pos_rat : (0 : ℚ) < (derivInterval e (fun _ => I) 0).lo := hdI_pos
             rw [ge_iff_le]
-            have hdiv_cast : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).hi : ℝ) /
+            have hdiv_cast : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi : ℝ) /
                 ((derivInterval e (fun _ => I) 0).lo : ℝ) =
-                (((evalInterval1 e (IntervalRat.singleton I.midpoint)).hi /
+                (((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi /
                 (derivInterval e (fun _ => I) 0).lo : ℚ) : ℝ) := by
               push_cast; ring
             rw [hdiv_cast] at h
@@ -171,26 +171,26 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
           exfalso
           have hquot_real := newton_negative_increasing_contradicts_contraction e hsupp hvar0 I
             hI_nonsingleton hdI_pos hCont hhi_neg
-          have hquot : (evalInterval1 e (IntervalRat.singleton I.midpoint)).lo /
+          have hquot : (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo /
               (derivInterval e (fun _ => I) 0).lo ≤ -((I.hi - I.lo) / 2) := by
-            have h : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
+            have h : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
                 ((derivInterval e (fun _ => I) 0).lo : ℝ) ≤
                 ((-(((I.hi - I.lo) / 2) : ℚ)) : ℝ) := hquot_real
             rw [le_iff_lt_or_eq]
             rw [le_iff_lt_or_eq] at h
             rcases h with hlt | heq
             · left
-              have hdiv_cast : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
+              have hdiv_cast : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
                   ((derivInterval e (fun _ => I) 0).lo : ℝ) =
-                  (((evalInterval1 e (IntervalRat.singleton I.midpoint)).lo /
+                  (((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo /
                   (derivInterval e (fun _ => I) 0).lo : ℚ) : ℝ) := by
                 push_cast; ring
               rw [hdiv_cast] at hlt
               exact_mod_cast hlt
             · right
-              have hdiv_cast : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
+              have hdiv_cast : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
                   ((derivInterval e (fun _ => I) 0).lo : ℝ) =
-                  (((evalInterval1 e (IntervalRat.singleton I.midpoint)).lo /
+                  (((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo /
                   (derivInterval e (fun _ => I) 0).lo : ℚ) : ℝ) := by
                 push_cast; ring
               rw [hdiv_cast] at heq
@@ -252,15 +252,15 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
           have hquot_real := newton_negative_decreasing_contradicts_contraction e hsupp hvar0 I
             hI_nonsingleton hdI_neg hCont hlo_neg
           -- MVT gives: fc.lo / dI.hi ≥ hw
-          have hquot : (evalInterval1 e (IntervalRat.singleton I.midpoint)).lo /
+          have hquot : (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo /
               (derivInterval e (fun _ => I) 0).hi ≥ (I.hi - I.lo) / 2 := by
-            have h : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
+            have h : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
                 ((derivInterval e (fun _ => I) 0).hi : ℝ) ≥
                 (((I.hi - I.lo) / 2 : ℚ) : ℝ) := hquot_real
             rw [ge_iff_le]
-            have hdiv_cast : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
+            have hdiv_cast : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo : ℝ) /
                 ((derivInterval e (fun _ => I) 0).hi : ℝ) =
-                (((evalInterval1 e (IntervalRat.singleton I.midpoint)).lo /
+                (((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo /
                 (derivInterval e (fun _ => I) 0).hi : ℚ) : ℝ) := by
               push_cast; ring
             rw [hdiv_cast] at h
@@ -276,7 +276,7 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
             -- But contraction implies Q.hi < hw, contradiction!
             obtain ⟨hdI_nonzero, hN_lo_eq, _hN_hi_eq⟩ := newtonStepSimple_extract e I N hSimple
             let c := I.midpoint
-            let fc := evalInterval1 e (IntervalRat.singleton c)
+            let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
             let dI := derivInterval e (fun _ => I) 0
             let dNonzero : IntervalRat.IntervalRatNonzero := ⟨dI, hdI_nonzero⟩
             let Q := IntervalRat.mul fc (IntervalRat.invNonzero dNonzero)
@@ -314,14 +314,14 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
           have hquot_real := newton_positive_decreasing_contradicts_contraction e hsupp hvar0 I
             hI_nonsingleton hdI_neg hCont hhi_pos
           -- MVT gives: fc.hi / dI.hi ≤ -hw
-          have hquot : (evalInterval1 e (IntervalRat.singleton I.midpoint)).hi /
+          have hquot : (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi /
               (derivInterval e (fun _ => I) 0).hi ≤ -((I.hi - I.lo) / 2) := by
-            have h : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).hi : ℝ) /
+            have h : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi : ℝ) /
                 ((derivInterval e (fun _ => I) 0).hi : ℝ) ≤
                 ((-(((I.hi - I.lo) / 2) : ℚ)) : ℝ) := hquot_real
-            have hdiv_cast : ((evalInterval1 e (IntervalRat.singleton I.midpoint)).hi : ℝ) /
+            have hdiv_cast : ((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi : ℝ) /
                 ((derivInterval e (fun _ => I) 0).hi : ℝ) =
-                (((evalInterval1 e (IntervalRat.singleton I.midpoint)).hi /
+                (((LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi /
                 (derivInterval e (fun _ => I) 0).hi : ℚ) : ℝ) := by
               push_cast; ring
             rw [hdiv_cast] at h
@@ -337,7 +337,7 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
             -- But contraction implies Q.lo > -hw, contradiction!
             obtain ⟨hdI_nonzero, _hN_lo_eq, hN_hi_eq⟩ := newtonStepSimple_extract e I N hSimple
             let c := I.midpoint
-            let fc := evalInterval1 e (IntervalRat.singleton c)
+            let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
             let dI := derivInterval e (fun _ => I) 0
             let dNonzero : IntervalRat.IntervalRatNonzero := ⟨dI, hdI_nonzero⟩
             let Q := IntervalRat.mul fc (IntervalRat.invNonzero dNonzero)
@@ -374,7 +374,7 @@ theorem newton_contraction_has_root (e : Expr) (hsupp : ExprSupported e) (hvar0 
 
 /-- If Newton iteration detects contraction, the root is unique in I.
     This is THE key uniqueness theorem for Newton's method. -/
-theorem newton_contraction_unique_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem newton_contraction_unique_root (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I N : IntervalRat)
     (hN : newtonStepTM e I 0 1 = some N ∨ newtonStepSimple e I 0 = some N)
     (hContract : N.lo > I.lo ∧ N.hi < I.hi)
@@ -405,7 +405,7 @@ theorem newton_contraction_unique_root (e : Expr) (hsupp : ExprSupported e) (hva
     Key lemma for proving noRoot correctness.
 
     Note: Uses newton_preserves_root which puts x in both J and N -/
-theorem newtonIntervalGo_preserves_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem newtonIntervalGo_preserves_root (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (J : IntervalRat) (iter : ℕ) (contracted : Bool)
     (x : ℝ) (hxJ : x ∈ J) (hroot : Expr.eval (fun _ => x) e = 0) :
     (newtonIntervalGo e 0 1 J iter contracted).2 ≠ RootStatus.noRoot := by

@@ -129,7 +129,7 @@ def floatEnvToRatEnvClamped (pt : Nat → Float) (B : Box) (width : ℚ := 1/100
     Returns an interval containing the true function value at (or near) the candidate. -/
 def certifyCandidate (e : Expr) (B : Box) (pt : Nat → Float) (cfg : GlobalOptConfig) : IntervalRat :=
   let env := floatEnvToRatEnvClamped pt B
-  evalIntervalCore e env { taylorDepth := cfg.taylorDepth }
+  LeanCert.Internal.Rational.evalTotalCore e env { taylorDepth := cfg.taylorDepth }
 
 /-- Certify with division support. Partial domains are reported explicitly. -/
 def certifyCandidateDiv (e : Expr) (B : Box) (pt : Nat → Float) (cfg : GlobalOptConfig) :

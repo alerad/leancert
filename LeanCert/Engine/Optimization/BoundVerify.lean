@@ -111,7 +111,7 @@ def evalAtPoint (e : Expr) (point : List ℚ) (cfg : EvalConfig := {}) : Interva
     match point[i]? with
     | some q => IntervalRat.singleton q
     | none => IntervalRat.singleton 0
-  evalIntervalCore e env cfg
+  LeanCert.Internal.Rational.evalTotalCore e env cfg
 
 /-! ### Computable bound verification functions -/
 
@@ -267,7 +267,7 @@ theorem Box.ofInterval_zero (I : IntervalRat) (x : ℝ) :
 Despite the historical name, this is not a Boolean soundness theorem for
 `verifyUpperBound`; its premise is the semantic bound produced by
 `globalMaximize`. -/
-theorem verifyUpperBound_correct (e : Expr) (hsupp : ExprSupported e)
+theorem verifyUpperBound_correct (e : Expr) (hsupp : ADSupported e)
     (B : Box) (bound : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMaximize e hsupp B cfg.toGlobalOptConfig).bound.hi ≤ bound) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
@@ -276,7 +276,7 @@ theorem verifyUpperBound_correct (e : Expr) (hsupp : ExprSupported e)
   -- globalMaximize returns -globalMinimize(-e), so hi = -lo of minimization
   -- We have: for all ρ, globalMinimize(-e).lo ≤ -eval ρ e
   -- Therefore: eval ρ e ≤ -globalMinimize(-e).lo = globalMaximize(e).hi
-  have hmax := globalMinimize_lo_correct (Expr.neg e) (ExprSupported.neg hsupp) B cfg.toGlobalOptConfig ρ hρ hzero
+  have hmax := globalMinimize_lo_correct (Expr.neg e) (ADSupported.neg hsupp) B cfg.toGlobalOptConfig ρ hρ hzero
   simp only [Expr.eval_neg] at hmax ⊢
   -- hmax : (globalMinimize (Expr.neg e) B cfg.toGlobalOptConfig).bound.lo ≤ -Expr.eval ρ e
   -- Goal : Expr.eval ρ e ≤ bound
@@ -299,7 +299,7 @@ theorem verifyUpperBound_correct (e : Expr) (hsupp : ExprSupported e)
 Despite the historical name, this is not a Boolean soundness theorem for
 `verifyLowerBound`; its premise is the semantic bound produced by
 `globalMinimize`. -/
-theorem verifyLowerBound_correct (e : Expr) (hsupp : ExprSupported e)
+theorem verifyLowerBound_correct (e : Expr) (hsupp : ADSupported e)
     (B : Box) (bound : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMinimize e hsupp B cfg.toGlobalOptConfig).bound.lo ≥ bound) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
@@ -315,7 +315,7 @@ theorem verifyLowerBound_correct (e : Expr) (hsupp : ExprSupported e)
 /-- Tactic-facing lemma: if adaptive verification succeeds, upper bound holds.
     This is the key lemma that tactics use to close goals.
     Requires that the expression uses only var 0. -/
-theorem adaptive_upper_bound (e : Expr) (hsupp : ExprSupported e)
+theorem adaptive_upper_bound (e : Expr) (hsupp : ADSupported e)
     (he : e.usesOnlyVar0 = true)
     (I : IntervalRat) (c : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMaximize e hsupp [I] cfg.toGlobalOptConfig).bound.hi ≤ c) :
@@ -347,7 +347,7 @@ theorem adaptive_upper_bound (e : Expr) (hsupp : ExprSupported e)
 
 /-- Tactic-facing lemma: if adaptive verification succeeds, lower bound holds.
     Requires that the expression uses only var 0. -/
-theorem adaptive_lower_bound (e : Expr) (hsupp : ExprSupported e)
+theorem adaptive_lower_bound (e : Expr) (hsupp : ADSupported e)
     (he : e.usesOnlyVar0 = true)
     (I : IntervalRat) (c : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMinimize e hsupp [I] cfg.toGlobalOptConfig).bound.lo ≥ c) :
@@ -376,7 +376,7 @@ theorem adaptive_lower_bound (e : Expr) (hsupp : ExprSupported e)
   exact h
 
 /-- Strict upper bound version -/
-theorem adaptive_upper_bound_strict (e : Expr) (hsupp : ExprSupported e)
+theorem adaptive_upper_bound_strict (e : Expr) (hsupp : ADSupported e)
     (he : e.usesOnlyVar0 = true)
     (I : IntervalRat) (c : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMaximize e hsupp [I] cfg.toGlobalOptConfig).bound.hi < c) :
@@ -396,7 +396,7 @@ theorem adaptive_upper_bound_strict (e : Expr) (hsupp : ExprSupported e)
     simp only [ρ']
     split_ifs with h; omega; rfl
   -- Use strict bound from verification
-  have hmax := globalMinimize_lo_correct (Expr.neg e) (ExprSupported.neg hsupp) [I] cfg.toGlobalOptConfig ρ' hρ'mem hρ'zero
+  have hmax := globalMinimize_lo_correct (Expr.neg e) (ADSupported.neg hsupp) [I] cfg.toGlobalOptConfig ρ' hρ'mem hρ'zero
   simp only [Expr.eval_neg] at hmax
   have hhi_eq : (globalMaximize e hsupp [I] cfg.toGlobalOptConfig).bound.hi =
       -(globalMinimize (Expr.neg e) (.neg hsupp) [I] cfg.toGlobalOptConfig).bound.lo := by
@@ -419,7 +419,7 @@ theorem adaptive_upper_bound_strict (e : Expr) (hsupp : ExprSupported e)
     _ < c := hhi_lt
 
 /-- Strict lower bound version -/
-theorem adaptive_lower_bound_strict (e : Expr) (hsupp : ExprSupported e)
+theorem adaptive_lower_bound_strict (e : Expr) (hsupp : ADSupported e)
     (he : e.usesOnlyVar0 = true)
     (I : IntervalRat) (c : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMinimize e hsupp [I] cfg.toGlobalOptConfig).bound.lo > c) :
@@ -450,7 +450,7 @@ theorem adaptive_lower_bound_strict (e : Expr) (hsupp : ExprSupported e)
 /-! ### Theorem versions for Set.Icc (for tactic compatibility) -/
 
 /-- Adaptive upper bound for Set.Icc membership -/
-theorem adaptive_upper_bound_Icc (e : Expr) (hsupp : ExprSupported e)
+theorem adaptive_upper_bound_Icc (e : Expr) (hsupp : ADSupported e)
     (he : e.usesOnlyVar0 = true)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMaximize e hsupp [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.hi ≤ c) :
@@ -462,7 +462,7 @@ theorem adaptive_upper_bound_Icc (e : Expr) (hsupp : ExprSupported e)
   exact adaptive_upper_bound e hsupp he ⟨lo, hi, hle⟩ c cfg hverify x hxI
 
 /-- Adaptive lower bound for Set.Icc membership -/
-theorem adaptive_lower_bound_Icc (e : Expr) (hsupp : ExprSupported e)
+theorem adaptive_lower_bound_Icc (e : Expr) (hsupp : ADSupported e)
     (he : e.usesOnlyVar0 = true)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMinimize e hsupp [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.lo ≥ c) :
@@ -474,7 +474,7 @@ theorem adaptive_lower_bound_Icc (e : Expr) (hsupp : ExprSupported e)
   exact adaptive_lower_bound e hsupp he ⟨lo, hi, hle⟩ c cfg hverify x hxI
 
 /-- Strict upper bound for Set.Icc -/
-theorem adaptive_upper_bound_Icc_strict (e : Expr) (hsupp : ExprSupported e)
+theorem adaptive_upper_bound_Icc_strict (e : Expr) (hsupp : ADSupported e)
     (he : e.usesOnlyVar0 = true)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMaximize e hsupp [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.hi < c) :
@@ -486,7 +486,7 @@ theorem adaptive_upper_bound_Icc_strict (e : Expr) (hsupp : ExprSupported e)
   exact adaptive_upper_bound_strict e hsupp he ⟨lo, hi, hle⟩ c cfg hverify x hxI
 
 /-- Strict lower bound for Set.Icc -/
-theorem adaptive_lower_bound_Icc_strict (e : Expr) (hsupp : ExprSupported e)
+theorem adaptive_lower_bound_Icc_strict (e : Expr) (hsupp : ADSupported e)
     (he : e.usesOnlyVar0 = true)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ) (cfg : BoundVerifyConfig)
     (hverify : (globalMinimize e hsupp [⟨lo, hi, hle⟩] cfg.toGlobalOptConfig).bound.lo > c) :

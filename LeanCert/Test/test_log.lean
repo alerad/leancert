@@ -76,7 +76,7 @@ open LeanCert.Core
 
 -- Test interval_bound tactic with log
 -- NOTE: Log bounds via interval_bound are not yet supported because
--- checkUpperBoundWithInv is noncomputable (uses real analysis).
+-- checkUpperBoundChecked is noncomputable (uses real analysis).
 -- The computational tests above (#eval) show log works for computation.
 -- Formal proofs of log bounds require manual proof or future work on
 -- computable interval evaluation for inverse functions.

@@ -58,9 +58,6 @@ open Real LeanCert.Core LeanCert.Engine
 index). -/
 def body : Expr := Expr.inv (Expr.var 0)
 
-theorem body_supported : ExprSupportedWithInv body :=
-  ExprSupportedWithInv.inv (ExprSupportedWithInv.var 0)
-
 /-- 80-bit dyadic precision. The summand is rational, so `taylorDepth` is
 inert. -/
 def cfg : DyadicConfig := { precision := -80 }
@@ -90,14 +87,14 @@ theorem harmonic_eq_finsum (n : ℕ) :
 theorem harmonic_N_ge :
     (((144401597529 / 10 ^ 10 : ℚ)) : ℝ) ≤ (harmonic N : ℝ) := by
   rw [harmonic_eq_finsum]
-  exact verify_finsum_lower_full_withInv body body_supported 1 N
+  exact verify_finsum_lower_full_checked body 1 N
     (144401597529 / 10 ^ 10) cfg (by norm_num [cfg]) (by native_decide)
 
 /-- Upper bound `harmonic (2^20) ≤ 14.4401597530` (margin `6.2e-11`). -/
 theorem harmonic_N_le :
     (harmonic N : ℝ) ≤ (((144401597530 / 10 ^ 10 : ℚ)) : ℝ) := by
   rw [harmonic_eq_finsum]
-  exact verify_finsum_upper_full_withInv body body_supported 1 N
+  exact verify_finsum_upper_full_checked body 1 N
     (144401597530 / 10 ^ 10) cfg (by norm_num [cfg]) (by native_decide)
 
 /-! ### Logarithm bounds at `N = 2^20` -/

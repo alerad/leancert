@@ -19,7 +19,7 @@ The bound checkers and Golden Theorems formerly defined in this file live in
 the `LeanCert.Validity.Bounds.*` modules:
 
 * `Bounds.Core`   - Boolean checkers + golden theorems for interval bounds
-* `Bounds.WithInv` - Checkers/theorems for `ExprSupportedWithInv` (inv/log)
+* `Bounds.Checked` - Checkers/theorems for arbitrary expressions with domain checks
 * `Bounds.Smart`  - Monotonicity-aware bounds using derivative information
 * `Bounds.Bridge` - `Set.Icc` bridge theorems and subdivision combinators
 * `Validity.Integration` - Certified integral bounds (uniform + adaptive)
@@ -84,19 +84,19 @@ def checkGlobalBounds (e : Expr) (B : Box) (lo hi : ℚ) (cfg : GlobalOptConfig)
     This converts the boolean certificate into a semantic proof about all points
     in the box.
 
-    Note: This uses ExprSupported (no log) which guarantees domain validity automatically.
+    Note: This uses ADSupported (no log) which guarantees domain validity automatically.
     For expressions with log, use the Core version with explicit domain validity proofs. -/
-theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupported e)
+theorem verify_global_lower_bound (e : Expr) (hsupp : ADSupported e)
     (B : Box) (c : ℚ) (cfg : GlobalOptConfig)
     (h_cert : checkGlobalLowerBound e B c cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       c ≤ Expr.eval ρ e := by
   simp only [checkGlobalLowerBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
   intro ρ hρ hzero
-  -- Domain validity is automatic for ExprSupported expressions
+  -- Domain validity is automatic for ADSupported expressions
   have hdom : ∀ (B' : Box), B'.length = B.length → evalDomainValid e B'.toEnv { taylorDepth := cfg.taylorDepth } := by
     intro B' _
-    exact ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := cfg.taylorDepth }
+    exact ADSupported.domainValid hsupp B'.toEnv { taylorDepth := cfg.taylorDepth }
   have hlo := globalMinimizeCore_lo_correct e hsupp.toCore B cfg hdom ρ hρ hzero
   calc (c : ℝ) ≤ (globalMinimizeCore e B cfg).bound.lo := by exact_mod_cast h_cert.2
     _ ≤ Expr.eval ρ e := hlo
@@ -107,21 +107,21 @@ theorem verify_global_lower_bound (e : Expr) (hsupp : ExprSupported e)
 
     The maximization problem is reduced to minimization of -e.
 
-    Note: This uses ExprSupported (no log) which guarantees domain validity automatically.
+    Note: This uses ADSupported (no log) which guarantees domain validity automatically.
     For expressions with log, use the Core version with explicit domain validity proofs. -/
-theorem verify_global_upper_bound (e : Expr) (hsupp : ExprSupported e)
+theorem verify_global_upper_bound (e : Expr) (hsupp : ADSupported e)
     (B : Box) (c : ℚ) (cfg : GlobalOptConfig)
     (h_cert : checkGlobalUpperBound e B c cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       Expr.eval ρ e ≤ c := by
   simp only [checkGlobalUpperBound, Bool.and_eq_true, decide_eq_true_eq] at h_cert
   intro ρ hρ hzero
-  -- Domain validity is automatic for ExprSupported expressions
+  -- Domain validity is automatic for ADSupported expressions
   have hneg_supp : ExprSupportedCore (Expr.neg e) := ExprSupportedCore.neg hsupp.toCore
   have hneg_dom : ∀ (B' : Box), B'.length = B.length → evalDomainValid (Expr.neg e) B'.toEnv { taylorDepth := cfg.taylorDepth } := by
     intro B' _
     simp only [evalDomainValid]
-    exact ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := cfg.taylorDepth }
+    exact ADSupported.domainValid hsupp B'.toEnv { taylorDepth := cfg.taylorDepth }
   have hlo_neg := globalMinimizeCore_lo_correct (Expr.neg e) hneg_supp B cfg hneg_dom ρ hρ hzero
   simp only [Expr.eval_neg] at hlo_neg
   have heval_bound : Expr.eval ρ e ≤ -((globalMinimizeCore (Expr.neg e) B cfg).bound.lo : ℝ) := by
@@ -137,7 +137,7 @@ theorem verify_global_upper_bound (e : Expr) (hsupp : ExprSupported e)
     _ ≤ c := by exact_mod_cast h_cert.2
 
 /-- Two-sided global bound verification -/
-theorem verify_global_bounds (e : Expr) (hsupp : ExprSupported e)
+theorem verify_global_bounds (e : Expr) (hsupp : ADSupported e)
     (B : Box) (lo hi : ℚ) (cfg : GlobalOptConfig)
     (h_cert : checkGlobalBounds e B lo hi cfg = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
@@ -187,19 +187,19 @@ def checkSignChange (e : Expr) (I : IntervalRat) (cfg : EvalConfig) : Bool :=
   checkDomainValid1 e (IntervalRat.singleton I.lo) cfg &&
   checkDomainValid1 e (IntervalRat.singleton I.hi) cfg &&
   -- Evaluate f at endpoints
-  let f_lo := evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg
-  let f_hi := evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg
+  let f_lo := LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg
+  let f_hi := LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg
   -- Opposite signs: f_lo.hi < 0 and f_hi.lo > 0, or f_lo.lo > 0 and f_hi.hi < 0
   ((f_lo.hi < 0 && 0 < f_hi.lo) || (f_hi.hi < 0 && 0 < f_lo.lo))
 
 /-- Check if interval definitely has no root (function has constant sign).
     Returns `true` if the function's interval evaluation doesn't contain 0. -/
 def checkNoRoot (e : Expr) (I : IntervalRat) (cfg : EvalConfig) : Bool :=
-  checkDomainValid1 e I cfg && (let fI := evalIntervalCore1 e I cfg; fI.hi < 0 || 0 < fI.lo)
+  checkDomainValid1 e I cfg && (let fI := LeanCert.Internal.Rational.evalTotalCore1 e I cfg; fI.hi < 0 || 0 < fI.lo)
 
 /-! ### Computable Newton Step for Unique Root Verification -/
 
-/-- Computable Newton step using `evalIntervalCore1` and `derivIntervalCore`.
+/-- Computable Newton step using `LeanCert.Internal.Rational.evalTotalCore1` and `derivIntervalCore`.
 
     This is the computable equivalent of `newtonStepSimple`. It performs one
     interval Newton iteration: N(I) = c - f(c)/f'(I) where c = midpoint(I).
@@ -209,7 +209,7 @@ def checkNoRoot (e : Expr) (I : IntervalRat) (cfg : EvalConfig) : Bool :=
 def newtonStepCore (e : Expr) (I : IntervalRat) (cfg : EvalConfig := default) : Option IntervalRat :=
   let c := I.midpoint
   -- Evaluate f(c) using singleton interval
-  let fc := evalIntervalCore1 e (IntervalRat.singleton c) cfg
+  let fc := LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton c) cfg
   -- Get derivative interval on I
   let dI := derivIntervalCore e I cfg
   -- If derivative interval contains zero, we can't safely divide
@@ -230,7 +230,7 @@ def newtonStepCore (e : Expr) (I : IntervalRat) (cfg : EvalConfig := default) : 
 lemma newtonStepCore_extract (e : Expr) (I N : IntervalRat) (cfg : EvalConfig)
     (hCore : newtonStepCore e I cfg = some N) :
     let c := I.midpoint
-    let fc := evalIntervalCore1 e (IntervalRat.singleton c) cfg
+    let fc := LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton c) cfg
     let dI := derivIntervalCore e I cfg
     ∃ (hdI_nonzero : ¬dI.containsZero),
       let dNonzero : IntervalRat.IntervalRatNonzero := ⟨dI, hdI_nonzero⟩
@@ -271,7 +271,7 @@ def checkNewtonContractsCore (e : Expr) (I : IntervalRat) (cfg : EvalConfig := d
 
     Note: This is noncomputable because newtonStepSimple uses derivInterval
     which uses evalInterval (noncomputable). For native_decide, we would need
-    a fully computable version using evalIntervalCore. -/
+    a fully computable version using LeanCert.Internal.Rational.evalTotalCore. -/
 noncomputable def checkNewtonContracts (e : Expr) (I : IntervalRat) (_cfg : NewtonConfig) : Bool :=
   match newtonStepSimple e I 0 with
   | none => false  -- Newton step failed (derivative interval contains 0)
@@ -296,13 +296,13 @@ theorem verify_no_root (e : Expr) (hsupp : ExprSupportedCore e)
   cases h_cert.2 with
   | inl hhi =>
     -- f's interval hi < 0, so f(x) ≤ hi < 0, contradiction with f(x) = 0
-    have hhi_real : ((evalIntervalCore1 e I cfg).hi : ℝ) < 0 := by exact_mod_cast hhi
+    have hhi_real : ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi : ℝ) < 0 := by exact_mod_cast hhi
     have hf_neg : Expr.eval (fun _ => x) e < 0 := lt_of_le_of_lt heval.2 hhi_real
     rw [hcontra] at hf_neg
     exact absurd hf_neg (lt_irrefl 0)
   | inr hlo =>
     -- 0 < f's interval lo, so 0 < lo ≤ f(x), contradiction with f(x) = 0
-    have hlo_real : (0 : ℝ) < (evalIntervalCore1 e I cfg).lo := by exact_mod_cast hlo
+    have hlo_real : (0 : ℝ) < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo := by exact_mod_cast hlo
     have hf_pos : 0 < Expr.eval (fun _ => x) e := lt_of_lt_of_le hlo_real heval.1
     rw [hcontra] at hf_pos
     exact absurd hf_pos (lt_irrefl 0)
@@ -315,7 +315,7 @@ theorem verify_no_root (e : Expr) (hsupp : ExprSupportedCore e)
     - The expression is supported
     - The expression uses only variable 0
     - The function is continuous on I -/
-theorem verify_unique_root_newton (e : Expr) (hsupp : ExprSupported e)
+theorem verify_unique_root_newton (e : Expr) (hsupp : ADSupported e)
     (hvar0 : UsesOnlyVar0 e) (I : IntervalRat) (cfg : NewtonConfig)
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
     (h_cert : checkNewtonContracts e I cfg = true) :
@@ -345,7 +345,7 @@ But Newton contraction requires specific quotient bounds that MVT proves are vio
 
 /-- MVT lower bound using derivIntervalCore: if f'(ξ) ∈ [dI.lo, dI.hi] for all ξ ∈ I,
     then f(y) - f(x) ≥ dI.lo * (y - x) for x ≤ y in I. -/
-lemma mvt_lower_bound_core (e : Expr) (hsupp : ExprSupported e)
+lemma mvt_lower_bound_core (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (hCont : ContinuousOn (evalFunc1 e) (Set.Icc I.lo I.hi)) :
     ∀ x y, x ∈ I → y ∈ I → x ≤ y →
@@ -369,7 +369,7 @@ lemma mvt_lower_bound_core (e : Expr) (hsupp : ExprSupported e)
 
 /-- MVT upper bound using derivIntervalCore: if f'(ξ) ∈ [dI.lo, dI.hi] for all ξ ∈ I,
     then f(y) - f(x) ≤ dI.hi * (y - x) for x ≤ y in I. -/
-lemma mvt_upper_bound_core (e : Expr) (hsupp : ExprSupported e)
+lemma mvt_upper_bound_core (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (hCont : ContinuousOn (evalFunc1 e) (Set.Icc I.lo I.hi)) :
     ∀ x y, x ∈ I → y ∈ I → x ≤ y →
@@ -405,7 +405,7 @@ lemma mvt_upper_bound_core (e : Expr) (hsupp : ExprSupported e)
     Note: The `h_cert_core` hypothesis is not used in the proof but is kept
     in the signature so the certificate format can include it for external
     tooling purposes. -/
-theorem verify_unique_root_core (e : Expr) (hsupp : ExprSupported e)
+theorem verify_unique_root_core (e : Expr) (hsupp : ADSupported e)
     (hvar0 : UsesOnlyVar0 e) (I : IntervalRat)
     (evalCfg : EvalConfig) (newtonCfg : NewtonConfig)
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
@@ -423,7 +423,7 @@ noncomputable functions like `Real.exp` or `Real.log`. -/
 
 /-- Newton step preserves roots when using Core evaluation functions.
     If x is a root in I and newtonStepCore produces N, then x ∈ N. -/
-theorem newton_preserves_root_core (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem newton_preserves_root_core (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I N : IntervalRat) (cfg : EvalConfig)
     (hStep : newtonStepCore e I cfg = some N)
     (x : ℝ) (hx : x ∈ I) (hroot : Expr.eval (fun _ => x) e = 0) :
@@ -433,7 +433,7 @@ theorem newton_preserves_root_core (e : Expr) (hsupp : ExprSupported e) (hvar0 :
 
   -- Define components matching abstract theorem
   let c := I.midpoint
-  let fc := evalIntervalCore1 e (IntervalRat.singleton c) cfg
+  let fc := LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton c) cfg
   let dI := derivIntervalCore e I cfg
 
   -- Verify premises for abstract theorem
@@ -475,7 +475,7 @@ theorem newton_preserves_root_core (e : Expr) (hsupp : ExprSupported e) (hvar0 :
 /-- If Newton step succeeds, there's at most one root in I (via Rolle's theorem).
     This uses the fact that if dI doesn't contain zero, the derivative is nonzero
     everywhere on I, so f is strictly monotonic. -/
-theorem newton_step_core_at_most_one_root (e : Expr) (hsupp : ExprSupported e) (_hvar0 : UsesOnlyVar0 e)
+theorem newton_step_core_at_most_one_root (e : Expr) (hsupp : ADSupported e) (_hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (cfg : EvalConfig)
     (hStep : ∃ N, newtonStepCore e I cfg = some N)
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
@@ -540,7 +540,7 @@ theorem newton_step_core_at_most_one_root (e : Expr) (hsupp : ExprSupported e) (
 /-- MVT bound using Core functions: If f' ≥ dI.lo > 0 (increasing) and f(I.lo) > 0,
     then f(c) > dI.lo * hw where c = midpoint and hw = half-width. -/
 lemma mvt_fc_lower_bound_pos_increasing_core
-    (e : Expr) (hsupp : ExprSupported e)
+    (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (_hI_nonsingleton : I.lo < I.hi)
     (_hdI_lo_pos : 0 < (derivIntervalCore e I cfg).lo)
@@ -577,7 +577,7 @@ lemma mvt_fc_lower_bound_pos_increasing_core
 /-- MVT bound using Core functions: If f' ≥ dI.lo > 0 (increasing) and f(I.hi) < 0,
     then f(c) < -dI.lo * hw where c = midpoint and hw = half-width. -/
 lemma mvt_fc_upper_bound_pos_increasing_core
-    (e : Expr) (hsupp : ExprSupported e)
+    (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (_hI_nonsingleton : I.lo < I.hi)
     (_hdI_lo_pos : 0 < (derivIntervalCore e I cfg).lo)
@@ -614,7 +614,7 @@ lemma mvt_fc_upper_bound_pos_increasing_core
 /-- MVT bound using Core functions: If f' ≤ dI.hi < 0 (decreasing) and f(I.lo) < 0,
     then f(c) < 0 and more specifically, fc.lo / dI.hi ≥ hw. -/
 lemma mvt_fc_upper_bound_neg_decreasing_core
-    (e : Expr) (hsupp : ExprSupported e)
+    (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (_hI_nonsingleton : I.lo < I.hi)
     (_hdI_hi_neg : (derivIntervalCore e I cfg).hi < 0)
@@ -651,7 +651,7 @@ lemma mvt_fc_upper_bound_neg_decreasing_core
 /-- MVT bound using Core functions: If f' ≤ dI.hi < 0 (decreasing) and f(I.hi) > 0,
     then f(c) > 0 and more specifically, fc.hi / dI.hi ≤ -hw. -/
 lemma mvt_fc_lower_bound_neg_decreasing_core
-    (e : Expr) (hsupp : ExprSupported e)
+    (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (_hI_nonsingleton : I.lo < I.hi)
     (_hdI_hi_neg : (derivIntervalCore e I cfg).hi < 0)
@@ -691,7 +691,7 @@ lemma mvt_fc_lower_bound_neg_decreasing_core
 
     This theorem uses ONLY computable functions (no Real.exp, Real.log, etc.),
     making it suitable for `native_decide` verification. -/
-theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
+theorem verify_unique_root_computable (e : Expr) (hsupp : ADSupported e)
     (hvar0 : UsesOnlyVar0 e) (I : IntervalRat) (cfg : EvalConfig)
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
     (h_cert : checkNewtonContractsCore e I cfg = true) :
@@ -706,7 +706,7 @@ theorem verify_unique_root_computable (e : Expr) (hsupp : ExprSupported e)
     -- Extract structure
     obtain ⟨hdI_nonzero, hN_lo, hN_hi⟩ := newtonStepCore_extract e I N cfg hN
     let c := I.midpoint
-    let fc := evalIntervalCore1 e (IntervalRat.singleton c) cfg
+    let fc := LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton c) cfg
     let dI := derivIntervalCore e I cfg
     let hw : ℚ := (I.hi - I.lo) / 2
 
@@ -935,13 +935,13 @@ theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
   | inl hcase =>
     -- Case: f(lo).hi < 0 ∧ 0 < f(hi).lo, meaning f(lo) < 0 < f(hi)
     have hflo_neg : f I.lo < 0 := by
-      have hbound : f I.lo ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).hi := hflo.2
-      have hcast : ((evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).hi : ℝ) < 0 := by
+      have hbound : f I.lo ≤ (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg).hi := hflo.2
+      have hcast : ((LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg).hi : ℝ) < 0 := by
         exact_mod_cast hcase.1
       linarith
     have hfhi_pos : 0 < f I.hi := by
-      have hbound : (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).lo ≤ f I.hi := hfhi.1
-      have hcast : (0 : ℝ) < (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).lo := by
+      have hbound : (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg).lo ≤ f I.hi := hfhi.1
+      have hcast : (0 : ℝ) < (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg).lo := by
         exact_mod_cast hcase.2
       linarith
     -- Apply IVT: since f(lo) < 0 < f(hi), 0 ∈ Icc (f lo) (f hi) ⊆ f '' Icc lo hi
@@ -955,13 +955,13 @@ theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
   | inr hcase =>
     -- Case: f(hi).hi < 0 ∧ 0 < f(lo).lo, meaning f(hi) < 0 < f(lo)
     have hfhi_neg : f I.hi < 0 := by
-      have hbound : f I.hi ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).hi := hfhi.2
-      have hcast : ((evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).hi : ℝ) < 0 := by
+      have hbound : f I.hi ≤ (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg).hi := hfhi.2
+      have hcast : ((LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg).hi : ℝ) < 0 := by
         exact_mod_cast hcase.1
       linarith
     have hflo_pos : 0 < f I.lo := by
-      have hbound : (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).lo ≤ f I.lo := hflo.1
-      have hcast : (0 : ℝ) < (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).lo := by
+      have hbound : (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg).lo ≤ f I.lo := hflo.1
+      have hcast : (0 : ℝ) < (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg).lo := by
         exact_mod_cast hcase.2
       linarith
     -- f '' [lo, hi] is an interval containing both f(lo) and f(hi)
@@ -986,7 +986,7 @@ theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
 /-- Check if bisection finds a root (returns hasRoot for some sub-interval).
     This runs the bisection algorithm and checks if any interval has hasRoot status.
 
-    Note: This is noncomputable because bisectRoot uses evalInterval1. -/
+    Note: This is noncomputable because bisectRoot uses LeanCert.Internal.Rational.evalUnchecked1. -/
 noncomputable def checkHasRoot (e : Expr) (I : IntervalRat) (cfg : RootConfig) : Bool :=
   let tol : ℚ := (1 : ℚ) / (2 ^ cfg.maxDepth)
   let htol : 0 < tol := by positivity
@@ -999,7 +999,7 @@ noncomputable def checkHasRoot (e : Expr) (I : IntervalRat) (cfg : RootConfig) :
 
     This uses bisectRoot_hasRoot_correct which proves that if bisection returns
     hasRoot for a sub-interval J ⊆ I, then there exists a root in J (hence in I). -/
-theorem verify_has_root (e : Expr) (hsupp : ExprSupported e)
+theorem verify_has_root (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : RootConfig)
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
     (h_cert : checkHasRoot e I cfg = true) :

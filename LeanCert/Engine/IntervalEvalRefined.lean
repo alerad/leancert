@@ -17,7 +17,7 @@ falling back to coarse bounds for larger intervals.
 
 * `sinIntervalRefined`, `cosIntervalRefined` - Refined bounds using Taylor models
 * `evalIntervalRefined` - Total refined evaluation for a supported expression
-* `evalDualRefined` - AD evaluation using refined bounds
+* `LeanCert.Internal.Refined.evalDualUnchecked` - AD evaluation using refined bounds
 
 ## Design
 
@@ -244,7 +244,7 @@ noncomputable def evalIntervalRefined1? (e : Expr) (I : IntervalRat) : Option In
   evalIntervalRefined? e (fun _ => I)
 
 /-- A supported expression always succeeds in the strict refined evaluator. -/
-theorem evalIntervalRefined?_isSome_of_supported (e : Expr) (hsupp : ExprSupported e)
+theorem evalIntervalRefined?_isSome_of_supported (e : Expr) (hsupp : ADSupported e)
     (ρ : IntervalEnv) : (evalIntervalRefined? e ρ).isSome = true := by
   induction hsupp with
   | const q => simp [evalIntervalRefined?]
@@ -271,19 +271,19 @@ theorem evalIntervalRefined?_isSome_of_supported (e : Expr) (hsupp : ExprSupport
       simp [evalIntervalRefined?, hI]
 
 /-- Refined evaluation with failure ruled out by the supported-expression proof. -/
-noncomputable def evalIntervalRefined (e : Expr) (hsupp : ExprSupported e)
+noncomputable def evalIntervalRefined (e : Expr) (hsupp : ADSupported e)
     (ρ : IntervalEnv) : IntervalRat :=
   Classical.choose
     (Option.isSome_iff_exists.mp (evalIntervalRefined?_isSome_of_supported e hsupp ρ))
 
-theorem evalIntervalRefined_eq_some (e : Expr) (hsupp : ExprSupported e)
+theorem evalIntervalRefined_eq_some (e : Expr) (hsupp : ADSupported e)
     (ρ : IntervalEnv) :
     evalIntervalRefined? e ρ = some (evalIntervalRefined e hsupp ρ) :=
   Classical.choose_spec
     (Option.isSome_iff_exists.mp (evalIntervalRefined?_isSome_of_supported e hsupp ρ))
 
 /-- Single-variable refined evaluation with an explicit support proof. -/
-noncomputable def evalIntervalRefined1 (e : Expr) (hsupp : ExprSupported e)
+noncomputable def evalIntervalRefined1 (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) : IntervalRat :=
   evalIntervalRefined e hsupp (fun _ => I)
 
@@ -448,14 +448,14 @@ theorem evalIntervalRefined1?_correct (e : Expr) (x : ℝ) (I J : IntervalRat)
   evalIntervalRefined?_correct e (fun _ => x) (fun _ => I) (fun _ => hx) hJ
 
 /-- Refined interval evaluation is correct for supported expressions -/
-theorem evalIntervalRefined_correct (e : Expr) (hsupp : ExprSupported e)
+theorem evalIntervalRefined_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (hρ : envMem ρ_real ρ_int) :
     Expr.eval ρ_real e ∈ evalIntervalRefined e hsupp ρ_int :=
   evalIntervalRefined?_correct e ρ_real ρ_int hρ
     (evalIntervalRefined_eq_some e hsupp ρ_int)
 
 /-- Single-variable refined evaluation is correct -/
-theorem evalIntervalRefined1_correct (e : Expr) (hsupp : ExprSupported e)
+theorem evalIntervalRefined1_correct (e : Expr) (hsupp : ADSupported e)
     (x : ℝ) (I : IntervalRat) (hx : x ∈ I) :
     Expr.eval (fun _ => x) e ∈ evalIntervalRefined1 e hsupp I :=
   evalIntervalRefined_correct e hsupp (fun _ => x) (fun _ => I) (fun _ => hx)
@@ -480,34 +480,46 @@ noncomputable def DualInterval.cosRefined (d : DualInterval) : DualInterval :=
   { val := cosIntervalRefined d.val
     der := IntervalRat.mul (IntervalRat.neg (sinIntervalRefined d.val)) d.der }
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Refined
+
+open LeanCert.Core LeanCert.Engine
+
 /-- Refined dual interval evaluation.
     For partial functions (inv, log), returns default. -/
-noncomputable def evalDualRefined (e : Expr) (ρ : DualEnv) : DualInterval :=
+noncomputable def evalDualUnchecked (e : Expr) (ρ : DualEnv) : DualInterval :=
   match e with
   | Expr.const q => DualInterval.const q
   | Expr.var i => ρ i
-  | Expr.add e₁ e₂ => DualInterval.add (evalDualRefined e₁ ρ) (evalDualRefined e₂ ρ)
-  | Expr.mul e₁ e₂ => DualInterval.mul (evalDualRefined e₁ ρ) (evalDualRefined e₂ ρ)
-  | Expr.neg e => DualInterval.neg (evalDualRefined e ρ)
+  | Expr.add e₁ e₂ => DualInterval.add (LeanCert.Internal.Refined.evalDualUnchecked e₁ ρ) (LeanCert.Internal.Refined.evalDualUnchecked e₂ ρ)
+  | Expr.mul e₁ e₂ => DualInterval.mul (LeanCert.Internal.Refined.evalDualUnchecked e₁ ρ) (LeanCert.Internal.Refined.evalDualUnchecked e₂ ρ)
+  | Expr.neg e => DualInterval.neg (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
   | Expr.inv _ => default  -- Not supported; safe default
-  | Expr.sin e => DualInterval.sinRefined (evalDualRefined e ρ)
-  | Expr.cos e => DualInterval.cosRefined (evalDualRefined e ρ)
-  | Expr.exp e => DualInterval.expRefined (evalDualRefined e ρ)
+  | Expr.sin e => DualInterval.sinRefined (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
+  | Expr.cos e => DualInterval.cosRefined (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
+  | Expr.exp e => DualInterval.expRefined (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
   | Expr.log _ => default  -- Not supported; use partial evaluation instead
-  | Expr.atan e => DualInterval.atan (evalDualRefined e ρ)
-  | Expr.arsinh e => DualInterval.arsinh (evalDualRefined e ρ)
+  | Expr.atan e => DualInterval.atan (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
+  | Expr.arsinh e => DualInterval.arsinh (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
   | Expr.atanh _ => default  -- Partial function; use partial evaluation instead
-  | Expr.sinc e => DualInterval.sinc (evalDualRefined e ρ)
-  | Expr.erf e => DualInterval.erf (evalDualRefined e ρ)
-  | Expr.sinh e => DualInterval.sinh (evalDualRefined e ρ)
-  | Expr.cosh e => DualInterval.cosh (evalDualRefined e ρ)
-  | Expr.tanh e => DualInterval.tanh (evalDualRefined e ρ)
-  | Expr.sqrt e => DualInterval.sqrt (evalDualRefined e ρ)
+  | Expr.sinc e => DualInterval.sinc (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
+  | Expr.erf e => DualInterval.erf (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
+  | Expr.sinh e => DualInterval.sinh (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
+  | Expr.cosh e => DualInterval.cosh (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
+  | Expr.tanh e => DualInterval.tanh (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
+  | Expr.sqrt e => DualInterval.sqrt (LeanCert.Internal.Refined.evalDualUnchecked e ρ)
   | Expr.namedConst c => DualInterval.ofMathConst c
 
 /-- Single-variable refined dual evaluation -/
-noncomputable def evalDualRefined1 (e : Expr) (I : IntervalRat) : DualInterval :=
-  evalDualRefined e (fun _ => DualInterval.varActive I)
+noncomputable def evalDualUnchecked1 (e : Expr) (I : IntervalRat) : DualInterval :=
+  LeanCert.Internal.Refined.evalDualUnchecked e (fun _ => DualInterval.varActive I)
+
+end LeanCert.Internal.Refined
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
 
 /-! ### Correctness of refined dual evaluation -/
 
@@ -542,39 +554,39 @@ theorem DualInterval.arsinh_val_mem {d : DualInterval} {x : ℝ} (hx : x ∈ d.v
   exact mem_arsinhInterval hx
 
 /-- Refined dual evaluation value is correct for supported expressions -/
-theorem evalDualRefined_val_correct (e : Expr) (hsupp : ExprSupported e)
+theorem evalDualRefined_val_correct (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_dual : DualEnv) (hρ : ∀ i, ρ_real i ∈ (ρ_dual i).val) :
-    Expr.eval ρ_real e ∈ (evalDualRefined e ρ_dual).val := by
+    Expr.eval ρ_real e ∈ (LeanCert.Internal.Refined.evalDualUnchecked e ρ_dual).val := by
   induction hsupp with
   | const q =>
-    simp only [evalDualRefined, Expr.eval_const, DualInterval.const]
+    simp only [LeanCert.Internal.Refined.evalDualUnchecked, Expr.eval_const, DualInterval.const]
     exact IntervalRat.mem_singleton q
   | var i =>
-    simp only [evalDualRefined, Expr.eval_var]
+    simp only [LeanCert.Internal.Refined.evalDualUnchecked, Expr.eval_var]
     exact hρ i
   | add h₁ h₂ ih₁ ih₂ =>
-    simp only [evalDualRefined, Expr.eval_add, DualInterval.add]
+    simp only [LeanCert.Internal.Refined.evalDualUnchecked, Expr.eval_add, DualInterval.add]
     exact IntervalRat.mem_add ih₁ ih₂
   | mul h₁ h₂ ih₁ ih₂ =>
-    simp only [evalDualRefined, Expr.eval_mul, DualInterval.mul]
+    simp only [LeanCert.Internal.Refined.evalDualUnchecked, Expr.eval_mul, DualInterval.mul]
     exact IntervalRat.mem_mul ih₁ ih₂
   | neg h ih =>
-    simp only [evalDualRefined, Expr.eval_neg, DualInterval.neg]
+    simp only [LeanCert.Internal.Refined.evalDualUnchecked, Expr.eval_neg, DualInterval.neg]
     exact IntervalRat.mem_neg ih
   | sin h ih =>
-    simp only [evalDualRefined, Expr.eval_sin]
+    simp only [LeanCert.Internal.Refined.evalDualUnchecked, Expr.eval_sin]
     exact DualInterval.sinRefined_val_mem ih
   | cos h ih =>
-    simp only [evalDualRefined, Expr.eval_cos]
+    simp only [LeanCert.Internal.Refined.evalDualUnchecked, Expr.eval_cos]
     exact DualInterval.cosRefined_val_mem ih
   | exp h ih =>
-    simp only [evalDualRefined, Expr.eval_exp]
+    simp only [LeanCert.Internal.Refined.evalDualUnchecked, Expr.eval_exp]
     exact DualInterval.expRefined_val_mem ih
 
 /-- Single-variable refined dual evaluation is correct for values -/
-theorem evalDualRefined1_val_correct (e : Expr) (hsupp : ExprSupported e)
+theorem evalDualRefined1_val_correct (e : Expr) (hsupp : ADSupported e)
     (x : ℝ) (I : IntervalRat) (hx : x ∈ I) :
-    Expr.eval (fun _ => x) e ∈ (evalDualRefined1 e I).val := by
+    Expr.eval (fun _ => x) e ∈ (LeanCert.Internal.Refined.evalDualUnchecked1 e I).val := by
   apply evalDualRefined_val_correct e hsupp (fun _ => x) (fun _ => DualInterval.varActive I)
   intro i
   simp only [DualInterval.varActive]

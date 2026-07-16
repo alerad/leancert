@@ -26,7 +26,7 @@ guaranteed to contain all possible values.
 
 * `IntervalEnv` - Variable assignment as intervals
 * `EvalConfig` - Configuration for evaluation parameters (Taylor depth)
-* `evalIntervalCore` - Computable interval evaluator for core expressions
+* `LeanCert.Internal.Rational.evalTotalCore` - Computable interval evaluator for core expressions
 * `evalIntervalCore_correct` - Correctness theorem for core evaluation
 
 ## Design notes
@@ -43,8 +43,10 @@ namespace LeanCert.Engine
 
 open LeanCert.Core
 
+open LeanCert.Core
+
 -- Re-export support predicates from Core for backward compatibility
-export LeanCert.Core (ExprSupportedCore ExprSupported ExprSupportedWithInv)
+export LeanCert.Core (ExprSupportedCore ADSupported)
 
 /-! ### Interval bounds for transcendental functions -/
 
@@ -704,7 +706,13 @@ structure EvalConfig where
 /-- Default evaluation configuration with 10 Taylor terms -/
 instance : Inhabited EvalConfig := ⟨{ taylorDepth := 10 }⟩
 
-/-- Computable interval evaluator for core expressions with configurable depth.
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Rational
+
+open LeanCert.Core LeanCert.Engine
+
+/-- Internal total evaluator for the theorem-restricted core expression fragment.
 
     For expressions in `ExprSupportedCore`, this computes correct interval
     bounds with a fully-verified proof (given domain validity conditions).
@@ -718,28 +726,34 @@ instance : Inhabited EvalConfig := ⟨{ taylorDepth := 10 }⟩
     This evaluator is COMPUTABLE, allowing use of `native_decide` for
     bound checking in tactics. The transcendental functions (exp, sin, cos, log)
     use Taylor series with configurable depth for precision control. -/
-def evalIntervalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : IntervalRat :=
+def evalTotalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : IntervalRat :=
   match e with
   | Expr.const q => IntervalRat.singleton q
   | Expr.var idx => ρ idx
-  | Expr.add e₁ e₂ => IntervalRat.add (evalIntervalCore e₁ ρ cfg) (evalIntervalCore e₂ ρ cfg)
-  | Expr.mul e₁ e₂ => IntervalRat.mul (evalIntervalCore e₁ ρ cfg) (evalIntervalCore e₂ ρ cfg)
-  | Expr.neg e => IntervalRat.neg (evalIntervalCore e ρ cfg)
-  | Expr.inv e => invInterval (evalIntervalCore e ρ cfg)
-  | Expr.exp e => IntervalRat.expComputable (evalIntervalCore e ρ cfg) cfg.taylorDepth
-  | Expr.sin e => IntervalRat.sinComputableReduced (evalIntervalCore e ρ cfg) cfg.taylorDepth
-  | Expr.cos e => IntervalRat.cosComputableReduced (evalIntervalCore e ρ cfg) cfg.taylorDepth
-  | Expr.log e => IntervalRat.logComputable (evalIntervalCore e ρ cfg) cfg.taylorDepth
-  | Expr.atan e => atanInterval (evalIntervalCore e ρ cfg)
-  | Expr.arsinh e => arsinhInterval (evalIntervalCore e ρ cfg)
+  | Expr.add e₁ e₂ => IntervalRat.add (LeanCert.Internal.Rational.evalTotalCore e₁ ρ cfg) (LeanCert.Internal.Rational.evalTotalCore e₂ ρ cfg)
+  | Expr.mul e₁ e₂ => IntervalRat.mul (LeanCert.Internal.Rational.evalTotalCore e₁ ρ cfg) (LeanCert.Internal.Rational.evalTotalCore e₂ ρ cfg)
+  | Expr.neg e => IntervalRat.neg (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
+  | Expr.inv e => invInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
+  | Expr.exp e => IntervalRat.expComputable (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.sin e => IntervalRat.sinComputableReduced (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.cos e => IntervalRat.cosComputableReduced (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.log e => IntervalRat.logComputable (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.atan e => atanInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
+  | Expr.arsinh e => arsinhInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
   | Expr.atanh _ => default  -- Not in ExprSupportedCore; use evalInterval? for atanh
   | Expr.sinc _ => ⟨-1, 1, by norm_num⟩  -- sinc is bounded by [-1, 1]
-  | Expr.erf e => erfInterval (evalIntervalCore e ρ cfg) cfg.taylorDepth
-  | Expr.sinh e => sinhInterval (evalIntervalCore e ρ cfg) cfg.taylorDepth
-  | Expr.cosh e => coshInterval (evalIntervalCore e ρ cfg) cfg.taylorDepth
-  | Expr.tanh e => tanhInterval (evalIntervalCore e ρ cfg)  -- Tight bounds: [-1, 1]
-  | Expr.sqrt e => IntervalRat.sqrtIntervalTightPrec (evalIntervalCore e ρ cfg)
+  | Expr.erf e => erfInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.sinh e => sinhInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.cosh e => coshInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.tanh e => tanhInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)  -- Tight bounds: [-1, 1]
+  | Expr.sqrt e => IntervalRat.sqrtIntervalTightPrec (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
   | Expr.namedConst c => c.interval
+
+end LeanCert.Internal.Rational
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
 
 /-- A real environment is contained in an interval environment -/
 def envMem (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) : Prop :=
@@ -762,7 +776,7 @@ def evalDomainValid (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : Pro
   | Expr.exp e => evalDomainValid e ρ cfg
   | Expr.sin e => evalDomainValid e ρ cfg
   | Expr.cos e => evalDomainValid e ρ cfg
-  | Expr.log e => evalDomainValid e ρ cfg ∧ (evalIntervalCore e ρ cfg).lo > 0
+  | Expr.log e => evalDomainValid e ρ cfg ∧ (LeanCert.Internal.Rational.evalTotalCore e ρ cfg).lo > 0
   | Expr.atan e => evalDomainValid e ρ cfg
   | Expr.arsinh e => evalDomainValid e ρ cfg
   | Expr.atanh e => evalDomainValid e ρ cfg
@@ -790,7 +804,7 @@ def checkDomainValid (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : Bo
   | Expr.exp e => checkDomainValid e ρ cfg
   | Expr.sin e => checkDomainValid e ρ cfg
   | Expr.cos e => checkDomainValid e ρ cfg
-  | Expr.log e => checkDomainValid e ρ cfg && decide ((evalIntervalCore e ρ cfg).lo > 0)
+  | Expr.log e => checkDomainValid e ρ cfg && decide ((LeanCert.Internal.Rational.evalTotalCore e ρ cfg).lo > 0)
   | Expr.atan e => checkDomainValid e ρ cfg
   | Expr.arsinh e => checkDomainValid e ρ cfg
   | Expr.atanh e => checkDomainValid e ρ cfg
@@ -978,9 +992,9 @@ instance decidableEvalDomainValid1 (e : Expr) (I : IntervalRat) (cfg : EvalConfi
     Decidable (evalDomainValid1 e I cfg) :=
   decidableEvalDomainValid e (fun _ => I) cfg
 
-/-- ExprSupported expressions (which don't include log) always have valid domains.
+/-- ADSupported expressions (which don't include log) always have valid domains.
     This is because only log has domain restrictions (positive argument). -/
-theorem ExprSupported.domainValid {e : Expr} (hsupp : ExprSupported e)
+theorem ADSupported.domainValid {e : Expr} (hsupp : ADSupported e)
     (ρ : IntervalEnv) (cfg : EvalConfig) : evalDomainValid e ρ cfg := by
   induction hsupp generalizing ρ cfg with
   | const _ => trivial
@@ -992,10 +1006,10 @@ theorem ExprSupported.domainValid {e : Expr} (hsupp : ExprSupported e)
   | cos _ ih => exact ih ρ cfg
   | exp _ ih => exact ih ρ cfg
 
-/-- Single-variable version of domainValid for ExprSupported -/
-theorem exprSupported_domainValid1 {e : Expr} (hsupp : ExprSupported e)
+/-- Single-variable version of domainValid for ADSupported -/
+theorem exprSupported_domainValid1 {e : Expr} (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig) : evalDomainValid1 e I cfg :=
-  ExprSupported.domainValid hsupp (fun _ => I) cfg
+  ADSupported.domainValid hsupp (fun _ => I) cfg
 
 /-- Fundamental correctness theorem for core evaluation.
 
@@ -1007,112 +1021,124 @@ theorem evalIntervalCore_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (hρ : envMem ρ_real ρ_int)
     (cfg : EvalConfig := {})
     (hdom : evalDomainValid e ρ_int cfg) :
-    Expr.eval ρ_real e ∈ evalIntervalCore e ρ_int cfg := by
+    Expr.eval ρ_real e ∈ LeanCert.Internal.Rational.evalTotalCore e ρ_int cfg := by
   induction hsupp with
   | const q =>
-    simp only [Expr.eval_const, evalIntervalCore]
+    simp only [Expr.eval_const, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_singleton q
   | var idx =>
-    simp only [Expr.eval_var, evalIntervalCore]
+    simp only [Expr.eval_var, LeanCert.Internal.Rational.evalTotalCore]
     exact hρ idx
   | add h₁ h₂ ih₁ ih₂ =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_add, evalIntervalCore]
+    simp only [Expr.eval_add, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_add (ih₁ hdom.1) (ih₂ hdom.2)
   | mul h₁ h₂ ih₁ ih₂ =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_mul, evalIntervalCore]
+    simp only [Expr.eval_mul, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_mul (ih₁ hdom.1) (ih₂ hdom.2)
   | neg _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_neg, evalIntervalCore]
+    simp only [Expr.eval_neg, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_neg (ih hdom)
   | sin _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_sin, evalIntervalCore]
+    simp only [Expr.eval_sin, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_sinComputableReduced (ih hdom) cfg.taylorDepth
   | cos _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_cos, evalIntervalCore]
+    simp only [Expr.eval_cos, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_cosComputableReduced (ih hdom) cfg.taylorDepth
   | exp _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_exp, evalIntervalCore]
+    simp only [Expr.eval_exp, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_expComputable (ih hdom) cfg.taylorDepth
   | log _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_log, evalIntervalCore]
+    simp only [Expr.eval_log, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_logComputable (ih hdom.1) hdom.2 cfg.taylorDepth
   | sqrt _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_sqrt, evalIntervalCore]
+    simp only [Expr.eval_sqrt, LeanCert.Internal.Rational.evalTotalCore]
     exact IntervalRat.mem_sqrtIntervalTightPrec' (ih hdom)
   | sinh _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_sinh, evalIntervalCore, sinhInterval]
+    simp only [Expr.eval_sinh, LeanCert.Internal.Rational.evalTotalCore, sinhInterval]
     exact IntervalRat.mem_sinhComputable (ih hdom) cfg.taylorDepth
   | cosh _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_cosh, evalIntervalCore, coshInterval]
+    simp only [Expr.eval_cosh, LeanCert.Internal.Rational.evalTotalCore, coshInterval]
     exact IntervalRat.mem_coshComputable (ih hdom) cfg.taylorDepth
   | tanh _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_tanh, evalIntervalCore, tanhInterval]
+    simp only [Expr.eval_tanh, LeanCert.Internal.Rational.evalTotalCore, tanhInterval]
     exact mem_tanhInterval (ih hdom)
   | erf _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_erf, evalIntervalCore]
+    simp only [Expr.eval_erf, LeanCert.Internal.Rational.evalTotalCore]
     exact mem_erfInterval (ih hdom) cfg.taylorDepth
   | namedConst c =>
-    simp only [Expr.eval_namedConst, evalIntervalCore]
+    simp only [Expr.eval_namedConst, LeanCert.Internal.Rational.evalTotalCore]
     exact c.mem_interval
 
 /-! ### Convenience functions -/
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Rational
+
+open LeanCert.Core LeanCert.Engine
+
 /-- Computable single-variable evaluation for core expressions -/
-def evalIntervalCore1 (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
-  evalIntervalCore e (fun _ => I) cfg
+def evalTotalCore1 (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
+  LeanCert.Internal.Rational.evalTotalCore e (fun _ => I) cfg
+
+end LeanCert.Internal.Rational
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
 
 /-- Correctness for single-variable core evaluation -/
 theorem evalIntervalCore1_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (x : ℝ) (I : IntervalRat) (hx : x ∈ I)
     (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg) :
-    Expr.eval (fun _ => x) e ∈ evalIntervalCore1 e I cfg :=
+    Expr.eval (fun _ => x) e ∈ LeanCert.Internal.Rational.evalTotalCore1 e I cfg :=
   evalIntervalCore_correct e hsupp _ _ (fun _ => hx) cfg hdom
 
 /-! ### Smart constructors for supported expressions -/
 
 /-- Build a constant expression (always supported) -/
-def mkConst (q : ℚ) : { e : Expr // ExprSupported e } :=
-  ⟨Expr.const q, ExprSupported.const q⟩
+def mkConst (q : ℚ) : { e : Expr // ADSupported e } :=
+  ⟨Expr.const q, ADSupported.const q⟩
 
 /-- Build a variable expression (always supported) -/
-def mkVar (idx : Nat) : { e : Expr // ExprSupported e } :=
-  ⟨Expr.var idx, ExprSupported.var idx⟩
+def mkVar (idx : Nat) : { e : Expr // ADSupported e } :=
+  ⟨Expr.var idx, ADSupported.var idx⟩
 
 /-- Build an addition (supported if both operands are supported) -/
-def mkAdd (e₁ e₂ : { e : Expr // ExprSupported e }) : { e : Expr // ExprSupported e } :=
-  ⟨Expr.add e₁.val e₂.val, ExprSupported.add e₁.property e₂.property⟩
+def mkAdd (e₁ e₂ : { e : Expr // ADSupported e }) : { e : Expr // ADSupported e } :=
+  ⟨Expr.add e₁.val e₂.val, ADSupported.add e₁.property e₂.property⟩
 
 /-- Build a multiplication (supported if both operands are supported) -/
-def mkMul (e₁ e₂ : { e : Expr // ExprSupported e }) : { e : Expr // ExprSupported e } :=
-  ⟨Expr.mul e₁.val e₂.val, ExprSupported.mul e₁.property e₂.property⟩
+def mkMul (e₁ e₂ : { e : Expr // ADSupported e }) : { e : Expr // ADSupported e } :=
+  ⟨Expr.mul e₁.val e₂.val, ADSupported.mul e₁.property e₂.property⟩
 
 /-- Build a negation (supported if operand is supported) -/
-def mkNeg (e : { e : Expr // ExprSupported e }) : { e : Expr // ExprSupported e } :=
-  ⟨Expr.neg e.val, ExprSupported.neg e.property⟩
+def mkNeg (e : { e : Expr // ADSupported e }) : { e : Expr // ADSupported e } :=
+  ⟨Expr.neg e.val, ADSupported.neg e.property⟩
 
 /-- Build a sin (supported if operand is supported) -/
-def mkSin (e : { e : Expr // ExprSupported e }) : { e : Expr // ExprSupported e } :=
-  ⟨Expr.sin e.val, ExprSupported.sin e.property⟩
+def mkSin (e : { e : Expr // ADSupported e }) : { e : Expr // ADSupported e } :=
+  ⟨Expr.sin e.val, ADSupported.sin e.property⟩
 
 /-- Build a cos (supported if operand is supported) -/
-def mkCos (e : { e : Expr // ExprSupported e }) : { e : Expr // ExprSupported e } :=
-  ⟨Expr.cos e.val, ExprSupported.cos e.property⟩
+def mkCos (e : { e : Expr // ADSupported e }) : { e : Expr // ADSupported e } :=
+  ⟨Expr.cos e.val, ADSupported.cos e.property⟩
 
 /-- Build an exp (supported if operand is supported) -/
-def mkExp (e : { e : Expr // ExprSupported e }) : { e : Expr // ExprSupported e } :=
-  ⟨Expr.exp e.val, ExprSupported.exp e.property⟩
+def mkExp (e : { e : Expr // ADSupported e }) : { e : Expr // ADSupported e } :=
+  ⟨Expr.exp e.val, ADSupported.exp e.property⟩
 
 end LeanCert.Engine

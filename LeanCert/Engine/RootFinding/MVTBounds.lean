@@ -32,7 +32,7 @@ open LeanCert.Core
 
 /-- MVT lower bound: if f' ≥ C on interval I, then f(y) - f(x) ≥ C * (y - x) for x ≤ y in I.
     This wraps Mathlib's Convex.mul_sub_le_image_sub_of_le_deriv for our use case. -/
-lemma mvt_lower_bound (e : Expr) (hsupp : ExprSupported e) (_hvar0 : UsesOnlyVar0 e)
+lemma mvt_lower_bound (e : Expr) (hsupp : ADSupported e) (_hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (C : ℝ)
     (hC : ∀ ξ ∈ I, C ≤ deriv (evalFunc1 e) ξ)
     (hCont : ContinuousOn (evalFunc1 e) (Set.Icc I.lo I.hi)) :
@@ -62,7 +62,7 @@ lemma mvt_lower_bound (e : Expr) (hsupp : ExprSupported e) (_hvar0 : UsesOnlyVar
 
 /-- MVT upper bound: if f' ≤ C on interval I, then f(y) - f(x) ≤ C * (y - x) for x ≤ y in I.
     This wraps Mathlib's Convex.image_sub_le_mul_sub_of_deriv_le for our use case. -/
-lemma mvt_upper_bound (e : Expr) (hsupp : ExprSupported e) (_hvar0 : UsesOnlyVar0 e)
+lemma mvt_upper_bound (e : Expr) (hsupp : ADSupported e) (_hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (C : ℝ)
     (hC : ∀ ξ ∈ I, deriv (evalFunc1 e) ξ ≤ C)
     (hCont : ContinuousOn (evalFunc1 e) (Set.Icc I.lo I.hi)) :
@@ -101,7 +101,7 @@ lemma mvt_upper_bound (e : Expr) (hsupp : ExprSupported e) (_hvar0 : UsesOnlyVar
     4. But contraction requires Q.hi < hw (from N.lo > I.lo)
     5. Contradiction -/
 lemma newton_positive_increasing_contradicts_contraction
-    (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+    (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (_hI_nonsingleton : I.lo < I.hi)
     (hdI_lo_pos : 0 < (derivInterval e (fun _ => I) 0).lo)
@@ -110,7 +110,7 @@ lemma newton_positive_increasing_contradicts_contraction
     let c : ℚ := I.midpoint
     let hw : ℚ := (I.hi - I.lo) / 2
     let dI := derivInterval e (fun _ => I) 0
-    let fc := evalInterval1 e (IntervalRat.singleton c)
+    let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
     -- The Newton quotient violates the contraction bound (in ℝ)
     (fc.hi : ℝ) / dI.lo ≥ hw := by
   intro c hw dI fc
@@ -176,7 +176,7 @@ lemma newton_positive_increasing_contradicts_contraction
     4. But contraction requires Q.lo > -hw (from N.hi < I.hi)
     5. Contradiction -/
 lemma newton_negative_increasing_contradicts_contraction
-    (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+    (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (_hI_nonsingleton : I.lo < I.hi)
     (hdI_lo_pos : 0 < (derivInterval e (fun _ => I) 0).lo)
@@ -185,7 +185,7 @@ lemma newton_negative_increasing_contradicts_contraction
     let c : ℚ := I.midpoint
     let hw : ℚ := (I.hi - I.lo) / 2
     let dI := derivInterval e (fun _ => I) 0
-    let fc := evalInterval1 e (IntervalRat.singleton c)
+    let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
     -- The Newton quotient violates the contraction bound (in ℝ)
     (fc.lo : ℝ) / dI.lo ≤ -hw := by
   intro c hw dI fc
@@ -334,7 +334,7 @@ lemma quotient_lo_le_neg {fc : IntervalRat} {dI : IntervalRat.IntervalRatNonzero
 
 These lemmas abstract the Newton step structure to work with any interval `fc`
 that contains `f(c)`. This allows them to be used with both `newtonStepSimple`
-(where `fc = evalInterval1 e (singleton c)`) and `newtonStepTM`
+(where `fc = LeanCert.Internal.Rational.evalUnchecked1 e (singleton c)`) and `newtonStepTM`
 (where `fc = TaylorModel.valueAtCenterInterval tm`). -/
 
 /-- Generic contradiction: if Q is computed from fc/dI with dI.lo > 0, contraction holds,
@@ -516,13 +516,13 @@ lemma newtonStepSimple_contraction_absurd_hi
     (hSimple : newtonStepSimple e I 0 = some N)
     (hContract : N.lo > I.lo ∧ N.hi < I.hi)
     (hdI_pos : 0 < (derivInterval e (fun _ => I) 0).lo)
-    (hMVT : (evalInterval1 e (IntervalRat.singleton I.midpoint)).hi / (derivInterval e (fun _ => I) 0).lo ≥
+    (hMVT : (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).hi / (derivInterval e (fun _ => I) 0).lo ≥
             (I.hi - I.lo) / 2) : False := by
   -- Extract the structure of newtonStepSimple
   obtain ⟨hdI_nonzero, hN_lo, hN_hi⟩ := newtonStepSimple_extract e I N hSimple
   -- Define the key quantities
   let c := I.midpoint
-  let fc := evalInterval1 e (IntervalRat.singleton c)
+  let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
   let dI := derivInterval e (fun _ => I) 0
   let dNonzero : IntervalRat.IntervalRatNonzero := ⟨dI, hdI_nonzero⟩
   let Q := IntervalRat.mul fc (IntervalRat.invNonzero dNonzero)
@@ -556,13 +556,13 @@ lemma newtonStepSimple_contraction_absurd_lo
     (hSimple : newtonStepSimple e I 0 = some N)
     (hContract : N.lo > I.lo ∧ N.hi < I.hi)
     (hdI_pos : 0 < (derivInterval e (fun _ => I) 0).lo)
-    (hMVT : (evalInterval1 e (IntervalRat.singleton I.midpoint)).lo / (derivInterval e (fun _ => I) 0).lo ≤
+    (hMVT : (LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton I.midpoint)).lo / (derivInterval e (fun _ => I) 0).lo ≤
             -((I.hi - I.lo) / 2)) : False := by
   -- Extract the structure of newtonStepSimple
   obtain ⟨hdI_nonzero, hN_lo, hN_hi⟩ := newtonStepSimple_extract e I N hSimple
   -- Define the key quantities
   let c := I.midpoint
-  let fc := evalInterval1 e (IntervalRat.singleton c)
+  let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
   let dI := derivInterval e (fun _ => I) 0
   let dNonzero : IntervalRat.IntervalRatNonzero := ⟨dI, hdI_nonzero⟩
   let Q := IntervalRat.mul fc (IntervalRat.invNonzero dNonzero)
@@ -595,7 +595,7 @@ lemma newtonStepSimple_contraction_absurd_lo
 /-- Contradiction lemma for decreasing function: If f > 0 at I.hi with f' ≤ dI.hi < 0 (decreasing),
     then the Newton quotient Q.lo = fc.hi/dI.hi ≤ -hw, contradicting strict contraction Q.lo > -hw. -/
 lemma newton_positive_decreasing_contradicts_contraction
-    (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+    (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (hI_nonsingleton : I.lo < I.hi)
     (hdI_hi_neg : (derivInterval e (fun _ => I) 0).hi < 0)
@@ -604,7 +604,7 @@ lemma newton_positive_decreasing_contradicts_contraction
     let c : ℚ := I.midpoint
     let hw : ℚ := (I.hi - I.lo) / 2
     let dI := derivInterval e (fun _ => I) 0
-    let fc := evalInterval1 e (IntervalRat.singleton c)
+    let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
     (fc.hi : ℝ) / dI.hi ≤ -hw := by
   intro c hw dI fc
   have hderiv := deriv_in_derivInterval e hsupp hvar0 I
@@ -658,7 +658,7 @@ lemma newton_positive_decreasing_contradicts_contraction
 /-- Contradiction lemma for decreasing function: If f < 0 at I.lo with f' ≤ dI.hi < 0 (decreasing),
     then the Newton quotient violates contraction bounds. -/
 lemma newton_negative_decreasing_contradicts_contraction
-    (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+    (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (hI_nonsingleton : I.lo < I.hi)
     (hdI_hi_neg : (derivInterval e (fun _ => I) 0).hi < 0)
@@ -667,7 +667,7 @@ lemma newton_negative_decreasing_contradicts_contraction
     let c : ℚ := I.midpoint
     let hw : ℚ := (I.hi - I.lo) / 2
     let dI := derivInterval e (fun _ => I) 0
-    let fc := evalInterval1 e (IntervalRat.singleton c)
+    let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
     (fc.lo : ℝ) / dI.hi ≥ hw := by
   intro c hw dI fc
   have hderiv := deriv_in_derivInterval e hsupp hvar0 I
@@ -725,13 +725,13 @@ lemma newton_negative_decreasing_contradicts_contraction
 
 These lemmas give bounds on `evalFunc1 e c` (the true function value at the midpoint)
 rather than on interval enclosures. This allows them to be used with any interval
-that contains f(c), whether from `evalInterval1` or `TaylorModel.valueAtCenterInterval`. -/
+that contains f(c), whether from `LeanCert.Internal.Rational.evalUnchecked1` or `TaylorModel.valueAtCenterInterval`. -/
 
 /-- Generic MVT bound: If f' ≥ dI.lo > 0 (increasing) and f(I.lo) > 0,
     then f(c) > dI.lo * hw where c = midpoint and hw = half-width.
     This is the core analytic fact used for Newton contraction contradictions. -/
 lemma mvt_fc_lower_bound_pos_increasing
-    (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+    (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (_hdI_lo_pos : 0 < (derivInterval e (fun _ => I) 0).lo)
     (hCont : ContinuousOn (evalFunc1 e) (Set.Icc I.lo I.hi))
@@ -771,7 +771,7 @@ lemma mvt_fc_lower_bound_pos_increasing
 /-- Generic MVT bound: If f' ≥ dI.lo > 0 (increasing) and f(I.hi) < 0,
     then f(c) < -dI.lo * hw where c = midpoint and hw = half-width. -/
 lemma mvt_fc_upper_bound_pos_increasing
-    (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+    (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (_hdI_lo_pos : 0 < (derivInterval e (fun _ => I) 0).lo)
     (hCont : ContinuousOn (evalFunc1 e) (Set.Icc I.lo I.hi))
@@ -812,7 +812,7 @@ lemma mvt_fc_upper_bound_pos_increasing
     then f(c) < dI.hi * hw where c = midpoint and hw = half-width.
     Since dI.hi < 0 and hw > 0, we have dI.hi * hw < 0, so f(c) < 0. -/
 lemma mvt_fc_upper_bound_neg_decreasing
-    (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+    (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (_hI_nonsingleton : I.lo < I.hi)
     (_hdI_hi_neg : (derivInterval e (fun _ => I) 0).hi < 0)
@@ -854,7 +854,7 @@ lemma mvt_fc_upper_bound_neg_decreasing
 /-- Generic MVT bound: If f' ≤ dI.hi < 0 (decreasing) and f(I.hi) > 0,
     then f(c) > -dI.hi * hw where c = midpoint and hw = half-width. -/
 lemma mvt_fc_lower_bound_neg_decreasing
-    (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+    (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (hI_nonsingleton : I.lo < I.hi)
     (hdI_hi_neg : (derivInterval e (fun _ => I) 0).hi < 0)

@@ -255,15 +255,6 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
 
     -- Try dyadic backend first for supported expressions (all inequality types)
     try
-      -- Try ExprSupported first, fall back to ExprSupportedWithInv
-      let mut dyadicSupportProof ← mkSupportedWithInvProof ast
-      let mut useDyadicWithInv := true
-      try
-        dyadicSupportProof ← mkSupportedProof ast
-        useDyadicWithInv := false
-      catch _ => pure ()
-      trace[interval_decide] "dyadic supportProof generated (withInv={useDyadicWithInv})"
-
       let prec : Int := -80
       let precExpr := toExpr prec
       let depthExpr := toExpr taylorDepth
@@ -274,15 +265,11 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       let leProof ← mkAppM ``le_refl #[toExpr zeroRat]
 
       let (dyadicTheoremName, dyadicCheckName) :=
-        match useDyadicWithInv, isStrict, isReversed with
-        | false, false, false => (``LeanCert.Validity.verify_upper_bound_dyadic', ``LeanCert.Validity.checkUpperBoundDyadic)
-        | false, false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic', ``LeanCert.Validity.checkLowerBoundDyadic)
-        | false, true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic', ``LeanCert.Validity.checkStrictUpperBoundDyadic)
-        | false, true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic', ``LeanCert.Validity.checkStrictLowerBoundDyadic)
-        | true,  false, false => (``LeanCert.Validity.verify_upper_bound_dyadic_withInv, ``LeanCert.Validity.checkUpperBoundDyadicWithInv)
-        | true,  false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic_withInv, ``LeanCert.Validity.checkLowerBoundDyadicWithInv)
-        | true,  true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic_withInv, ``LeanCert.Validity.checkStrictUpperBoundDyadicWithInv)
-        | true,  true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic_withInv, ``LeanCert.Validity.checkStrictLowerBoundDyadicWithInv)
+        match isStrict, isReversed with
+        | false, false => (``LeanCert.Validity.verify_upper_bound_dyadic_checked, ``LeanCert.Validity.checkUpperBoundDyadicChecked)
+        | false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic_checked, ``LeanCert.Validity.checkLowerBoundDyadicChecked)
+        | true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic_checked, ``LeanCert.Validity.checkStrictUpperBoundDyadicChecked)
+        | true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic_checked, ``LeanCert.Validity.checkStrictLowerBoundDyadicChecked)
 
       trace[interval_decide] "Building dyadic certificate check"
       let dyadicCheckExpr ← mkAppM dyadicCheckName
@@ -297,7 +284,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
         trace[interval_decide] "Dyadic certificate verified"
 
       let dyadicProof ← mkAppM dyadicTheoremName
-        #[ast, dyadicSupportProof, toExpr zeroRat, toExpr zeroRat, leProof, toExpr boundRat,
+        #[ast, toExpr zeroRat, toExpr zeroRat, leProof, toExpr boundRat,
           precExpr, depthExpr, precLeZeroProof, dyadicCertGoal]
 
       let zeroRatAsReal ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, toExpr (0 : ℚ)]
@@ -608,8 +595,8 @@ private def computeUpperBoundExpr (e : Lean.Expr) (taylorDepth : Nat) : MetaM Le
   let zeroRat : ℚ := 0
   let leProof ← mkAppM ``le_refl #[toExpr zeroRat]
   let intervalExpr ← mkAppM ``IntervalRat.mk #[toExpr zeroRat, toExpr zeroRat, leProof]
-  -- Build: (evalIntervalCore1 ast interval cfg).hi
-  let evalResult ← mkAppM ``evalIntervalCore1 #[ast, intervalExpr, cfgExpr]
+  -- Build: (LeanCert.Internal.Rational.evalTotalCore1 ast interval cfg).hi
+  let evalResult ← mkAppM ``LeanCert.Internal.Rational.evalTotalCore1 #[ast, intervalExpr, cfgExpr]
   let hiExpr ← mkAppM ``IntervalRat.hi #[evalResult]
   -- Reduce to a concrete rational value
   let hiReduced ← withTransparency TransparencyMode.all <| reduce hiExpr

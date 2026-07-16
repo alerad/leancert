@@ -89,13 +89,13 @@ def testExpr : Expr := Expr.exp (Expr.var 0)
 def testEnv : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I01' (-53)
 
 -- Standard precision (53 bits, like IEEE double)
-def result := evalIntervalDyadic testExpr testEnv {}
+def result := LeanCert.Internal.Dyadic.evalUnchecked testExpr testEnv {}
 
 -- Fast mode (30 bits, ~3x faster)
-def fast := evalIntervalDyadic testExpr testEnv DyadicConfig.fast
+def fast := LeanCert.Internal.Dyadic.evalUnchecked testExpr testEnv DyadicConfig.fast
 
 -- High precision (100 bits, tighter bounds)
-def precise := evalIntervalDyadic testExpr testEnv DyadicConfig.highPrecision
+def precise := LeanCert.Internal.Dyadic.evalUnchecked testExpr testEnv DyadicConfig.highPrecision
 
 #check result
 #check fast

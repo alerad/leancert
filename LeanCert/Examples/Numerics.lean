@@ -34,20 +34,20 @@ open MeasureTheory
 def constOne : Expr := Expr.const 1
 
 /-- Proof that constOne is in the supported subset -/
-def constOne_supported : ExprSupported constOne := ExprSupported.const 1
+def constOne_supported : ADSupported constOne := ADSupported.const 1
 
 /-- The identity function x -/
 def identity : Expr := Expr.var 0
 
 /-- Proof that identity is supported -/
-def identity_supported : ExprSupported identity := ExprSupported.var 0
+def identity_supported : ADSupported identity := ADSupported.var 0
 
 /-- The expression x² -/
 def xSquared : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 /-- Proof that xSquared is supported -/
-def xSquared_supported : ExprSupported xSquared :=
-  ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0)
+def xSquared_supported : ADSupported xSquared :=
+  ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)
 
 /-- Unit interval for integration -/
 def unitInterval : IntervalRat := ⟨0, 1, by norm_num⟩
@@ -104,8 +104,8 @@ For sin(x) over [0, 1], we get verified bounds using the global [-1,1] bound.
 def exprSin : Expr := Expr.sin (Expr.var 0)
 
 /-- Proof that sin(x) is supported -/
-def exprSin_supported : ExprSupported exprSin :=
-  ExprSupported.sin (ExprSupported.var 0)
+def exprSin_supported : ADSupported exprSin :=
+  ADSupported.sin (ADSupported.var 0)
 
 /-- The computed interval bound for ∫₀¹ sin(x) dx -/
 noncomputable def sin_integral_bound : IntervalRat :=
@@ -122,7 +122,7 @@ theorem sin_integral_verified
 /-! ### Optimization examples
 
 The optimization module (`LeanCert.Engine.Optimize`) is fully verified
-with theorems like `minimizeInterval_correct` for the `ExprSupported` subset.
+with theorems like `minimizeInterval_correct` for the `ADSupported` subset.
 -/
 
 /-- The expression x² - 2x + 1 = (x-1)² with minimum at x = 1 -/
@@ -144,11 +144,11 @@ def xSquaredMinus2 : Expr :=
 /-- Search interval for √2 -/
 def searchInterval : IntervalRat := ⟨1, 2, by norm_num⟩
 
-/-- ExprSupported proof for x² - 2 -/
-def xSquaredMinus2_supported : ExprSupported xSquaredMinus2 :=
-  ExprSupported.add
-    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-    (ExprSupported.neg (ExprSupported.const 2))
+/-- ADSupported proof for x² - 2 -/
+def xSquaredMinus2_supported : ADSupported xSquaredMinus2 :=
+  ADSupported.add
+    (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+    (ADSupported.neg (ADSupported.const 2))
 
 /-! ### Bisection root finding example
 
@@ -185,13 +185,13 @@ The quadratic (x-1)² = x² - 2x + 1 has minimum value 0 at x = 1.
 We demonstrate using minimizeInterval to get verified bounds.
 -/
 
-/-- ExprSupported proof for quadratic (x² - 2x + 1) -/
-def quadratic_supported : ExprSupported quadratic :=
-  ExprSupported.add
-    (ExprSupported.add
-      (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-      (ExprSupported.neg (ExprSupported.mul (ExprSupported.const 2) (ExprSupported.var 0))))
-    (ExprSupported.const 1)
+/-- ADSupported proof for quadratic (x² - 2x + 1) -/
+def quadratic_supported : ADSupported quadratic :=
+  ADSupported.add
+    (ADSupported.add
+      (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+      (ADSupported.neg (ADSupported.mul (ADSupported.const 2) (ADSupported.var 0))))
+    (ADSupported.const 1)
 
 /-- Interval [0, 2] for optimization -/
 def I02 : IntervalRat := ⟨0, 2, by norm_num⟩
@@ -227,10 +227,6 @@ when the divisor interval excludes zero. This example demonstrates its usage.
 /-- The expression 1/x (inverse of x) -/
 def invX : Expr := Expr.inv (Expr.var 0)
 
-/-- ExprSupportedWithInv proof for 1/x -/
-def invX_supported : ExprSupportedWithInv invX :=
-  ExprSupportedWithInv.inv (ExprSupportedWithInv.var 0)
-
 /-- Interval [1, 2] - excludes zero, so 1/x is safe to evaluate -/
 def I12 : IntervalRat := ⟨1, 2, by norm_num⟩
 
@@ -261,7 +257,7 @@ noncomputable def invX_bound : IntervalRat :=
 theorem invX_correct (x : ℝ) (hx : x ∈ I12) :
     Expr.eval (fun _ => x) invX ∈ invX_bound := by
   simp only [invX_bound]
-  exact evalInterval?1_correct invX invX_supported I12 _ invX_eval_some x hx
+  exact evalInterval?1_correct invX I12 _ invX_eval_some x hx
 
 /-! ### Refined evaluation example
 

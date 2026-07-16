@@ -2,8 +2,8 @@
 
 LeanCert exposes one authoritative checked evaluation façade:
 `LeanCert.evalInterval` with `LeanCert.EvalOptions`. Its implementation
-dispatches through `LeanCert.Engine.evalIntervalWith`; that engine function is
-not the recommended application entry point. JSON callers use the ordinary
+dispatches through an internal backend selector; there is no second public
+general evaluator to choose between. JSON callers use the ordinary
 `eval_interval`, `check_bound`, `global_min`, and `global_max` methods with a
 `backend` field.
 
@@ -27,8 +27,9 @@ explicit unsupported backend is rejected rather than silently changed.
 Every successful evaluation comes from a checked evaluator and records the
 concrete backend in its result. Reciprocal intervals containing zero,
 nonpositive logarithm domains, invalid `atanh` domains, and invalid Dyadic
-rounding precision return structured errors. Legacy total evaluators remain
-available internally for theorem statements and compatibility. The golden
+rounding precision return structured errors. Total evaluators whose unsupported
+branches use fallback values live under `LeanCert.Internal.*` and are
+implementation details. The golden
 theorem `LeanCert.evalInterval_correct` proves that every successful public
 result encloses the real expression value, independently of which backend was
 selected.
@@ -51,9 +52,19 @@ def preciseDyadic : EvalOptions := {
 ```
 
 The historical `eval_interval_dyadic` and `eval_interval_affine` JSON methods
-were removed; use `eval_interval` with the `backend` selector. Suffixed global
-optimization methods remain temporary compatibility aliases until the global
-configuration API is consolidated.
+were removed; use `eval_interval` with the `backend` selector. Global
+optimization uses `LeanCert.GlobalOptOptions`, which composes the same
+`EvalOptions` with independent `SearchOptions`:
+
+```lean
+def optimizationOptions : GlobalOptOptions := {
+  evaluation := { backend := .affine }
+  search := { maxIterations := 2000, tolerance := 1 / 10000,
+              useMonotonicity := true }
+}
+
+#eval globalMinimize (.mul (.var 0) (.var 0)) [unit] optimizationOptions
+```
 
 At the Lean API level, division-capable guided optimization and
 counterexample search now return `EvalResult`: `globalMinimizeGuidedDiv`,

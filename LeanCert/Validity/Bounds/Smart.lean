@@ -58,11 +58,11 @@ def checkLowerBoundSmart (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfi
       -- Strictly increasing: minimum is at lo
       -- Evaluate at singleton lo (with domain validity check)
       checkDomainValid1 e (IntervalRat.singleton I.lo) cfg &&
-        c ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).lo
+        c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg).lo
     else if dI.hi < 0 then
       -- Strictly decreasing: minimum is at hi (with domain validity check)
       checkDomainValid1 e (IntervalRat.singleton I.hi) cfg &&
-        c ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).lo
+        c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg).lo
     else
       false
 
@@ -78,18 +78,18 @@ def checkUpperBoundSmart (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfi
     if 0 < dI.lo then
       -- Increasing: max at hi (with domain validity check)
       checkDomainValid1 e (IntervalRat.singleton I.hi) cfg &&
-        (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).hi ≤ c
+        (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg).hi ≤ c
     else if dI.hi < 0 then
       -- Decreasing: max at lo (with domain validity check)
       checkDomainValid1 e (IntervalRat.singleton I.lo) cfg &&
-        (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).hi ≤ c
+        (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg).hi ≤ c
     else
       false
 
 /-! ### Monotonicity Helper Theorems -/
 
 /-- Helper: For increasing functions, the minimum is at the left endpoint -/
-theorem increasing_min_at_left_core (e : Expr) (hsupp : ExprSupported e)
+theorem increasing_min_at_left_core (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig) (hpos : 0 < (derivIntervalCore e I cfg).lo) :
     ∀ x ∈ I, Expr.eval (fun _ => I.lo) e ≤ Expr.eval (fun _ => x) e := by
   intro x hx
@@ -132,7 +132,7 @@ theorem increasing_min_at_left_core (e : Expr) (hsupp : ExprSupported e)
     linarith
 
 /-- Helper: For decreasing functions, the minimum is at the right endpoint -/
-theorem decreasing_min_at_right_core (e : Expr) (hsupp : ExprSupported e)
+theorem decreasing_min_at_right_core (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig) (hneg : (derivIntervalCore e I cfg).hi < 0) :
     ∀ x ∈ I, Expr.eval (fun _ => I.hi) e ≤ Expr.eval (fun _ => x) e := by
   intro x hx
@@ -168,7 +168,7 @@ theorem decreasing_min_at_right_core (e : Expr) (hsupp : ExprSupported e)
     linarith
 
 /-- Smart lower bound verification using monotonicity -/
-theorem verify_lower_bound_smart (e : Expr) (hsupp : ExprSupported e)
+theorem verify_lower_bound_smart (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig)
     (h_cert : checkLowerBoundSmart e I c cfg = true) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
@@ -193,7 +193,7 @@ theorem verify_lower_bound_smart (e : Expr) (hsupp : ExprSupported e)
       have heval := evalIntervalCore1_correct e hsupp.toCore I.lo (IntervalRat.singleton I.lo) hlo_mem cfg hdom
       simp only [IntervalRat.mem_def] at heval
       have hmono := increasing_min_at_left_core e hsupp I cfg h_pos x hx
-      calc (c : ℝ) ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).lo := by exact_mod_cast hbound
+      calc (c : ℝ) ≤ (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg).lo := by exact_mod_cast hbound
         _ ≤ Expr.eval (fun _ => I.lo) e := heval.1
         _ ≤ Expr.eval (fun _ => x) e := hmono
     · -- Not increasing, split on decreasing condition
@@ -210,14 +210,14 @@ theorem verify_lower_bound_smart (e : Expr) (hsupp : ExprSupported e)
         have heval := evalIntervalCore1_correct e hsupp.toCore I.hi (IntervalRat.singleton I.hi) hhi_mem cfg hdom
         simp only [IntervalRat.mem_def] at heval
         have hmono := decreasing_min_at_right_core e hsupp I cfg h_neg x hx
-        calc (c : ℝ) ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).lo := by exact_mod_cast hbound
+        calc (c : ℝ) ≤ (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg).lo := by exact_mod_cast hbound
           _ ≤ Expr.eval (fun _ => I.hi) e := heval.1
           _ ≤ Expr.eval (fun _ => x) e := hmono
       · -- Neither increasing nor decreasing => impossible since h_cert = true
         exact absurd h_cert Bool.false_ne_true
 
 /-- Helper: For increasing functions, the maximum is at the right endpoint -/
-theorem increasing_max_at_right_core (e : Expr) (hsupp : ExprSupported e)
+theorem increasing_max_at_right_core (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig) (hpos : 0 < (derivIntervalCore e I cfg).lo) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ Expr.eval (fun _ => I.hi) e := by
   intro x hx
@@ -253,7 +253,7 @@ theorem increasing_max_at_right_core (e : Expr) (hsupp : ExprSupported e)
     linarith
 
 /-- Helper: For decreasing functions, the maximum is at the left endpoint -/
-theorem decreasing_max_at_left_core (e : Expr) (hsupp : ExprSupported e)
+theorem decreasing_max_at_left_core (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig) (hneg : (derivIntervalCore e I cfg).hi < 0) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ Expr.eval (fun _ => I.lo) e := by
   intro x hx
@@ -289,7 +289,7 @@ theorem decreasing_max_at_left_core (e : Expr) (hsupp : ExprSupported e)
     linarith
 
 /-- Smart upper bound verification using monotonicity -/
-theorem verify_upper_bound_smart (e : Expr) (hsupp : ExprSupported e)
+theorem verify_upper_bound_smart (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig)
     (h_cert : checkUpperBoundSmart e I c cfg = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
@@ -315,7 +315,7 @@ theorem verify_upper_bound_smart (e : Expr) (hsupp : ExprSupported e)
       simp only [IntervalRat.mem_def] at heval
       have hmono := increasing_max_at_right_core e hsupp I cfg h_pos x hx
       calc Expr.eval (fun _ => x) e ≤ Expr.eval (fun _ => I.hi) e := hmono
-        _ ≤ (evalIntervalCore1 e (IntervalRat.singleton I.hi) cfg).hi := heval.2
+        _ ≤ (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.hi) cfg).hi := heval.2
         _ ≤ c := by exact_mod_cast hbound
     · -- Not increasing, split on decreasing condition
       rename_i h_pos_neg
@@ -332,7 +332,7 @@ theorem verify_upper_bound_smart (e : Expr) (hsupp : ExprSupported e)
         simp only [IntervalRat.mem_def] at heval
         have hmono := decreasing_max_at_left_core e hsupp I cfg h_neg x hx
         calc Expr.eval (fun _ => x) e ≤ Expr.eval (fun _ => I.lo) e := hmono
-          _ ≤ (evalIntervalCore1 e (IntervalRat.singleton I.lo) cfg).hi := heval.2
+          _ ≤ (LeanCert.Internal.Rational.evalTotalCore1 e (IntervalRat.singleton I.lo) cfg).hi := heval.2
           _ ≤ c := by exact_mod_cast hbound
       · -- Neither increasing nor decreasing => impossible since h_cert = true
         exact absurd h_cert Bool.false_ne_true
