@@ -69,6 +69,7 @@ jobs:
       - name: Build axiom audit imports
         run: |
           lake build LeanCert \
+            LeanCert.Bridge LeanCert.Test.BridgeTest LeanCert.Test.Hardening \
             LeanCert.Engine.Eval LeanCert.Engine.Pisano LeanCert.Engine.PentagonLucas \
             LeanCert.Engine.TaylorModel.Log1p LeanCert.Engine.TaylorModel.TrigReduced \
             LeanCert.Core.HermiteBounds LeanCert.Core.LogBounds \

@@ -160,6 +160,17 @@ def ofInterval (I : IntervalRat) (idx : Nat) (totalVars : Nat) : AffineForm :=
   let coeffs := List.ofFn (fun i : Fin totalVars => if i.val = idx then rad else 0)
   { c0 := mid, coeffs := coeffs, r := 0, r_nonneg := le_refl 0 }
 
+/-- Embed an interval as an affine form without introducing a noise symbol.
+
+This is the canonical sound fallback for nonlinear operations without a
+dedicated affine linearization. It intentionally loses correlation while
+preserving the full interval enclosure. -/
+def ofIntervalFallback (I : IntervalRat) : AffineForm :=
+  { c0 := (I.lo + I.hi) / 2
+    coeffs := []
+    r := |(I.hi - I.lo) / 2|
+    r_nonneg := abs_nonneg _ }
+
 def toInterval (af : AffineForm) : IntervalRat :=
   let width := af.deviationBound
   { lo := af.c0 - width
@@ -736,6 +747,11 @@ theorem mem_affine_of_interval {I : IntervalRat} {eps : NoiseAssignment} {x : �
         _ = ((I.hi : ℝ) - I.lo) / 2 := by ring
         _ = ((rad : ℚ) : ℝ) := by simp only [rad]; push_cast; ring
   · ring
+
+/-- `ofIntervalFallback` represents every point of its source interval. -/
+theorem mem_ofIntervalFallback {I : IntervalRat} {eps : NoiseAssignment} {x : ℝ}
+    (hx : x ∈ I) : mem_affine (ofIntervalFallback I) eps x := by
+  simpa [ofIntervalFallback] using (mem_affine_of_interval (eps := eps) hx)
 
 end AffineForm
 

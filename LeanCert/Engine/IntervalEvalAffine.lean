@@ -137,12 +137,18 @@ def evalIntervalAffine (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) : 
       let mid := (neg2 + pos2) / 2
       let rad := (pos2 - neg2) / 2
       { c0 := mid, coeffs := [], r := rad, r_nonneg := by norm_num }
-  | Expr.arsinh _ =>
-      -- TODO: implement
-      default
-  | Expr.atanh _ =>
-      -- TODO: implement
-      default
+  | Expr.arsinh e =>
+      AffineForm.ofIntervalFallback
+        (arsinhInterval (evalIntervalAffine e ρ cfg).toInterval)
+  | Expr.atanh e =>
+      let a := evalIntervalAffine e ρ cfg
+      let I := a.toInterval
+      if -1 < I.lo ∧ I.hi < 1 then
+        AffineForm.ofIntervalFallback (IntervalRat.atanhComputable I cfg.taylorDepth)
+      else
+        -- Legacy total API cannot express domain failure. Checked callers use
+        -- `evalIntervalAffineChecked`, which rejects this case.
+        default
   | Expr.sinc e =>
       -- sinc(x) = sin(x)/x, bounded in [-1, 1]
       { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
@@ -158,8 +164,9 @@ def evalIntervalAffine (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) : 
 /-- Strict affine evaluator.
 
 This variant returns `none` for operations that the legacy evaluator handles by
-returning `default` or a huge fallback interval. It is intended for new callers
-that want unsupported/domain-invalid expressions to fail explicitly.
+returning `default` or a huge fallback interval. All expression constructors are
+implemented here; `none` means that a partial operation's domain could not be
+proved for the supplied interval.
 -/
 def evalIntervalAffine? (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) : Option AffineForm :=
   match e with
@@ -181,7 +188,7 @@ def evalIntervalAffine? (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) :
       match evalIntervalAffine? e ρ cfg with
       | some a =>
           if a.toInterval.lo > 0 ∨ a.toInterval.hi < 0 then
-            some (AffineForm.inv a)
+            some (AffineForm.ofIntervalFallback (invInterval a.toInterval))
           else
             none
       | none => none
@@ -244,8 +251,21 @@ def evalIntervalAffine? (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) :
           let rad := (pos2 - neg2) / 2
           some { c0 := mid, coeffs := [], r := rad, r_nonneg := by norm_num }
       | none => none
-  | Expr.arsinh _ => none
-  | Expr.atanh _ => none
+  | Expr.arsinh e =>
+      match evalIntervalAffine? e ρ cfg with
+      | some a =>
+          some (AffineForm.ofIntervalFallback (arsinhInterval a.toInterval))
+      | none => none
+  | Expr.atanh e =>
+      match evalIntervalAffine? e ρ cfg with
+      | some a =>
+          let I := a.toInterval
+          if -1 < I.lo ∧ I.hi < 1 then
+            some (AffineForm.ofIntervalFallback
+              (IntervalRat.atanhComputable I cfg.taylorDepth))
+          else
+            none
+      | none => none
   | Expr.sinc _ => some { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
   | Expr.erf _ => some { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
   | Expr.namedConst c =>
@@ -253,6 +273,44 @@ def evalIntervalAffine? (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) :
       let mid := (I.lo + I.hi) / 2
       let rad := (I.hi - I.lo) / 2
       some { c0 := mid, coeffs := [], r := |rad|, r_nonneg := abs_nonneg _ }
+
+/-- Diagnose the first strict affine evaluation failure. -/
+def diagnoseEvalIntervalAffineFailure (e : Expr) (ρ : AffineEnv)
+    (cfg : AffineConfig := {}) : EvalError :=
+  match e with
+  | .add e₁ e₂ | .mul e₁ e₂ =>
+      if evalIntervalAffine? e₁ ρ cfg = none then
+        .nestedFailure "left operand" (diagnoseEvalIntervalAffineFailure e₁ ρ cfg)
+      else
+        .nestedFailure "right operand" (diagnoseEvalIntervalAffineFailure e₂ ρ cfg)
+  | .neg e | .exp e | .sin e | .cos e | .atan e | .arsinh e | .sinc e |
+      .erf e | .sinh e | .cosh e | .tanh e | .sqrt e =>
+      .nestedFailure "unary operand" (diagnoseEvalIntervalAffineFailure e ρ cfg)
+  | .inv e =>
+      match evalIntervalAffine? e ρ cfg with
+      | some a => .reciprocalContainsZero a.toInterval
+      | none => .nestedFailure "reciprocal operand"
+          (diagnoseEvalIntervalAffineFailure e ρ cfg)
+  | .log e =>
+      match evalIntervalAffine? e ρ cfg with
+      | some a => .logNonpositive a.toInterval
+      | none => .nestedFailure "logarithm operand"
+          (diagnoseEvalIntervalAffineFailure e ρ cfg)
+  | .atanh e =>
+      match evalIntervalAffine? e ρ cfg with
+      | some a => .atanhOutsideUnitBall a.toInterval
+      | none => .nestedFailure "atanh operand"
+          (diagnoseEvalIntervalAffineFailure e ρ cfg)
+  | .const _ | .var _ | .namedConst _ =>
+      .unsupportedBackend "internal: total affine expression unexpectedly failed"
+termination_by e
+
+/-- Checked affine evaluator with structured domain errors. -/
+def evalIntervalAffineChecked (e : Expr) (ρ : AffineEnv)
+    (cfg : AffineConfig := {}) : EvalResult AffineForm :=
+  match evalIntervalAffine? e ρ cfg with
+  | some a => .ok a
+  | none => .error (diagnoseEvalIntervalAffineFailure e ρ cfg)
 
 /-! ### Convenience Functions -/
 
@@ -282,6 +340,214 @@ def checkLowerBoundAffine (e : Expr) (ρ : AffineEnv) (bound : ℚ) (cfg : Affin
 /-- Environment membership: real value is represented by the affine form -/
 def envMemAffine (ρ_real : Nat → ℝ) (ρ_affine : AffineEnv) (eps : AffineForm.NoiseAssignment) : Prop :=
   ∀ i, AffineForm.mem_affine (ρ_affine i) eps (ρ_real i)
+
+/-- A successful strict affine evaluation represents the true value.
+
+Unlike the legacy total evaluator, success itself discharges every partial
+domain condition. Operations without a dedicated affine linearization use the
+proved interval fallback and therefore remain sound while losing correlation. -/
+theorem evalIntervalAffine?_correct (e : Expr)
+    (ρ_real : Nat → ℝ) (ρ_affine : AffineEnv) (eps : AffineForm.NoiseAssignment)
+    (hvalid : AffineForm.validNoise eps)
+    (hρ : envMemAffine ρ_real ρ_affine eps) (cfg : AffineConfig := {})
+    (result : AffineForm) (hsuccess : evalIntervalAffine? e ρ_affine cfg = some result) :
+    AffineForm.mem_affine result eps (Expr.eval ρ_real e) := by
+  induction e generalizing result with
+  | const q =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases hsuccess
+      exact AffineForm.mem_const q eps
+  | var idx =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases hsuccess
+      exact hρ idx
+  | add e₁ e₂ ih₁ ih₂ =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h₁ : evalIntervalAffine? e₁ ρ_affine cfg with
+      | none => simp only [h₁] at hsuccess; contradiction
+      | some a₁ =>
+        cases h₂ : evalIntervalAffine? e₂ ρ_affine cfg with
+        | none => simp only [h₁, h₂] at hsuccess; contradiction
+        | some a₂ =>
+          simp only [h₁, h₂] at hsuccess
+          cases hsuccess
+          exact AffineForm.mem_add (ih₁ a₁ h₁) (ih₂ a₂ h₂)
+  | mul e₁ e₂ ih₁ ih₂ =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h₁ : evalIntervalAffine? e₁ ρ_affine cfg with
+      | none => simp only [h₁] at hsuccess; contradiction
+      | some a₁ =>
+        cases h₂ : evalIntervalAffine? e₂ ρ_affine cfg with
+        | none => simp only [h₁, h₂] at hsuccess; contradiction
+        | some a₂ =>
+          simp only [h₁, h₂] at hsuccess
+          cases hsuccess
+          exact AffineForm.mem_mul hvalid (ih₁ a₁ h₁) (ih₂ a₂ h₂)
+  | neg e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        exact AffineForm.mem_neg (ih a h)
+  | inv e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        split at hsuccess
+        · rename_i hnonzero
+          cases hsuccess
+          have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+          exact AffineForm.mem_ofIntervalFallback
+            (mem_invInterval_nonzero hv hnonzero)
+        · contradiction
+  | exp e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        exact AffineForm.mem_exp hvalid (ih a h) cfg.taylorDepth
+  | sin e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+        exact AffineForm.mem_affine_of_interval
+          (IntervalRat.mem_sinComputable hv cfg.taylorDepth)
+  | cos e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+        exact AffineForm.mem_affine_of_interval
+          (IntervalRat.mem_cosComputable hv cfg.taylorDepth)
+  | log e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        split at hsuccess
+        · rename_i hpos
+          cases hsuccess
+          have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+          exact AffineForm.mem_affine_of_interval
+            (IntervalRat.mem_logComputable hv hpos cfg.taylorDepth)
+        · contradiction
+  | atan e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+        simpa [atanInterval] using
+          (AffineForm.mem_affine_of_interval (eps := eps) (mem_atanInterval hv))
+  | arsinh e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+        exact AffineForm.mem_ofIntervalFallback (mem_arsinhInterval hv)
+  | atanh e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        split at hsuccess
+        · rename_i hunit
+          cases hsuccess
+          have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+          exact AffineForm.mem_ofIntervalFallback
+            (IntervalRat.mem_atanhComputable hv hunit.1 hunit.2 cfg.taylorDepth)
+        · contradiction
+  | sinc e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases hsuccess
+      show AffineForm.mem_affine
+        { c0 := 0, coeffs := [], r := 1, r_nonneg := _ } eps _
+      unfold AffineForm.mem_affine AffineForm.evalLinear AffineForm.linearSum
+      simp only [List.zipWith_nil_left, List.sum_nil, Rat.cast_zero, zero_add, Rat.cast_one]
+      use Real.sinc (Expr.eval ρ_real e)
+      exact ⟨(by simpa [abs_le] using Real.sinc_mem_Icc (Expr.eval ρ_real e)), rfl⟩
+  | erf e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases hsuccess
+      show AffineForm.mem_affine
+        { c0 := 0, coeffs := [], r := 1, r_nonneg := _ } eps _
+      unfold AffineForm.mem_affine AffineForm.evalLinear AffineForm.linearSum
+      simp only [List.zipWith_nil_left, List.sum_nil, Rat.cast_zero, zero_add, Rat.cast_one]
+      use Real.erf (Expr.eval ρ_real e)
+      exact ⟨(by simpa [abs_le] using Real.erf_mem_Icc (Expr.eval ρ_real e)), rfl⟩
+  | sinh e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        exact AffineForm.mem_sinh hvalid (ih a h) cfg.taylorDepth
+  | cosh e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        exact AffineForm.mem_cosh hvalid (ih a h) cfg.taylorDepth
+  | tanh e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        exact AffineForm.mem_tanh hvalid (ih a h)
+  | sqrt e ih =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none => simp only [h] at hsuccess; contradiction
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        exact AffineForm.mem_sqrt' hvalid (ih a h)
+  | namedConst c =>
+      simp only [evalIntervalAffine?] at hsuccess
+      cases hsuccess
+      exact AffineForm.mem_affine_of_interval c.mem_interval
+
+/-- Successful checked affine evaluation is sound for every expression. -/
+theorem evalIntervalAffineChecked_correct (e : Expr)
+    (ρ_real : Nat → ℝ) (ρ_affine : AffineEnv) (eps : AffineForm.NoiseAssignment)
+    (hvalid : AffineForm.validNoise eps)
+    (hρ : envMemAffine ρ_real ρ_affine eps) (cfg : AffineConfig := {})
+    (result : AffineForm) (hsuccess : evalIntervalAffineChecked e ρ_affine cfg = .ok result) :
+    AffineForm.mem_affine result eps (Expr.eval ρ_real e) := by
+  cases heval : evalIntervalAffine? e ρ_affine cfg with
+  | none =>
+    rw [evalIntervalAffineChecked, heval] at hsuccess
+    contradiction
+  | some a =>
+    rw [evalIntervalAffineChecked, heval] at hsuccess
+    injection hsuccess with ha
+    subst result
+    exact evalIntervalAffine?_correct e ρ_real ρ_affine eps hvalid hρ cfg a heval
 
 /-- Domain validity for Affine evaluation.
     This is defined directly in terms of evalIntervalAffine to ensure compatibility.

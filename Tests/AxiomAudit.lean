@@ -18,6 +18,7 @@ import LeanCert.Core.HermiteBounds
 import LeanCert.Core.LogBounds
 import LeanCert.Examples.Li2Bounds
 import LeanCert.Examples.EulerMascheroniBounds
+import LeanCert.Bridge
 
 /-!
 Axiom/sorry guardrail for the certified interval evaluation path.
@@ -43,6 +44,9 @@ assert_no_sorry LeanCert.Core.IntervalRat.mem_logComputable
 assert_no_sorry LeanCert.Core.IntervalRat.mem_sinComputableReduced
 assert_no_sorry LeanCert.Core.IntervalRat.mem_cosComputableReduced
 assert_no_sorry LeanCert.Engine.mem_erfPointComputable
+assert_no_sorry LeanCert.Engine.evalIntervalChecked_correct
+assert_no_sorry LeanCert.Engine.evalIntervalAffineChecked_correct
+assert_no_sorry LeanCert.Engine.evalIntervalDyadicChecked_correct
 
 /-! ### Exact axiom pinning (catches `native_decide` / `ofReduceBool` creep) -/
 
@@ -51,6 +55,24 @@ info: 'LeanCert.Engine.evalIntervalCore_correct' depends on axioms: [propext, Cl
 -/
 #guard_msgs in
 #print axioms LeanCert.Engine.evalIntervalCore_correct
+
+/--
+info: 'LeanCert.Engine.evalIntervalChecked_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Engine.evalIntervalChecked_correct
+
+/--
+info: 'LeanCert.Engine.evalIntervalAffineChecked_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Engine.evalIntervalAffineChecked_correct
+
+/--
+info: 'LeanCert.Engine.evalIntervalDyadicChecked_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Engine.evalIntervalDyadicChecked_correct
 
 /--
 info: 'LeanCert.Core.MathConst.mem_interval' depends on axioms: [propext, Classical.choice, Quot.sound]

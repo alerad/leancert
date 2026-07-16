@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.Eval.Core
+import LeanCert.Engine.Eval.Result
 
 /-!
 # Extended (Noncomputable) Interval Evaluation
@@ -138,6 +139,9 @@ def evalIntervalLogDepth : ℕ := 60
 
 def evalIntervalExpDepth : ℕ := 30
 
+/-- Taylor depth used by the strict `atanh` evaluator. -/
+def evalIntervalAtanhDepth : ℕ := 30
+
 def evalInterval? (e : Expr) (ρ : IntervalEnv) : Option IntervalRat :=
   match e with
   | Expr.const q => some (IntervalRat.singleton q)
@@ -190,10 +194,14 @@ def evalInterval? (e : Expr) (ρ : IntervalEnv) : Option IntervalRat :=
       match evalInterval? e ρ with
       | some I => some (arsinhInterval I)
       | none => none
-  | Expr.atanh _ =>
-      -- atanh is partial (defined only for |x| < 1) and requires complex bounds
-      -- We return none to avoid the complexity of proving atanh bounds
-      none
+  | Expr.atanh e =>
+      match evalInterval? e ρ with
+      | none => none
+      | some J =>
+          if -1 < J.lo ∧ J.hi < 1 then
+            some (IntervalRat.atanhComputable J evalIntervalAtanhDepth)
+          else
+            none
   | Expr.sinc e =>
       match evalInterval? e ρ with
       | some _ => some ⟨-1, 1, by norm_num⟩  -- sinc is bounded by [-1, 1]
@@ -392,10 +400,19 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
       cases hsome
       simp only [Expr.eval_arsinh]
       exact mem_arsinhInterval (ih I' heq)
-  | @atanh _ _ _ =>
-    -- evalInterval? returns none for atanh, so hsome : none = some I is a contradiction
+  | @atanh e h ih =>
     simp only [evalInterval?] at hsome
-    contradiction
+    cases heq : evalInterval? e ρ_int with
+    | none => simp only [heq] at hsome; contradiction
+    | some J =>
+      simp only [heq] at hsome
+      split at hsome
+      · rename_i hunit
+        cases hsome
+        simp only [Expr.eval_atanh]
+        exact IntervalRat.mem_atanhComputable (ih J heq) hunit.1 hunit.2
+          evalIntervalAtanhDepth
+      · contradiction
   | @sinc e h ih =>
     simp only [evalInterval?] at hsome
     cases heq : evalInterval? e ρ_int with
@@ -434,6 +451,61 @@ theorem evalInterval?_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
     cases hsome
     simp only [Expr.eval_namedConst]
     exact c.mem_interval
+
+/-! ### Checked API with diagnostics -/
+
+/-- Diagnose the first partial-domain failure after `evalInterval?` returned
+`none`. This function is deliberately separate from the trusted computation:
+soundness depends only on successful `evalInterval?`, while diagnostics may be
+refined without changing the correctness theorem. -/
+def diagnoseEvalIntervalFailure (e : Expr) (ρ : IntervalEnv) : EvalError :=
+  match e with
+  | .add e₁ e₂ | .mul e₁ e₂ =>
+      if evalInterval? e₁ ρ = none then
+        .nestedFailure "left operand" (diagnoseEvalIntervalFailure e₁ ρ)
+      else
+        .nestedFailure "right operand" (diagnoseEvalIntervalFailure e₂ ρ)
+  | .neg e | .exp e | .sin e | .cos e | .atan e | .arsinh e | .sinc e |
+      .erf e | .sinh e | .cosh e | .tanh e | .sqrt e =>
+      .nestedFailure "unary operand" (diagnoseEvalIntervalFailure e ρ)
+  | .inv e =>
+      match evalInterval? e ρ with
+      | some I => .reciprocalContainsZero I
+      | none => .nestedFailure "reciprocal operand" (diagnoseEvalIntervalFailure e ρ)
+  | .log e =>
+      match evalInterval? e ρ with
+      | some I => .logNonpositive I
+      | none => .nestedFailure "logarithm operand" (diagnoseEvalIntervalFailure e ρ)
+  | .atanh e =>
+      match evalInterval? e ρ with
+      | some I => .atanhOutsideUnitBall I
+      | none => .nestedFailure "atanh operand" (diagnoseEvalIntervalFailure e ρ)
+  | .const _ | .var _ | .namedConst _ =>
+      .unsupportedBackend "internal: total expression unexpectedly failed"
+termination_by e
+
+/-- Checked rational evaluator. Every successful result is a certified finite
+enclosure; domain-invalid expressions return a structured error. -/
+def evalIntervalChecked (e : Expr) (ρ : IntervalEnv) : EvalResult IntervalRat :=
+  match evalInterval? e ρ with
+  | some I => .ok I
+  | none => .error (diagnoseEvalIntervalFailure e ρ)
+
+/-- Success of `evalIntervalChecked` is sufficient for enclosure correctness
+for every expression constructor. -/
+theorem evalIntervalChecked_correct (e : Expr) (ρ_int : IntervalEnv) (I : IntervalRat)
+    (hsuccess : evalIntervalChecked e ρ_int = .ok I)
+    (ρ_real : Nat → ℝ) (hρ : envMem ρ_real ρ_int) :
+    Expr.eval ρ_real e ∈ I := by
+  cases heval : evalInterval? e ρ_int with
+  | none =>
+    rw [evalIntervalChecked, heval] at hsuccess
+    contradiction
+  | some J =>
+    rw [evalIntervalChecked, heval] at hsuccess
+    injection hsuccess with hJI
+    subst I
+    exact evalInterval?_correct e (Expr.supportedWithInv e) ρ_int J heval ρ_real hρ
 
 /-- Single-variable version of evalInterval? -/
 def evalInterval?1 (e : Expr) (I : IntervalRat) : Option IntervalRat :=

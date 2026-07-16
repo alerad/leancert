@@ -109,6 +109,35 @@ def RawInterval.toInterval (r : RawInterval) : IntervalRat :=
 def toRawInterval (i : IntervalRat) : RawInterval :=
   { lo := toRawRat i.lo, hi := toRawRat i.hi }
 
+/-- Serialize checked-evaluation failures without disguising them as numeric
+intervals. -/
+def evalErrorToJson : EvalError → Json
+  | .reciprocalContainsZero I => Json.mkObj [
+      ("kind", "reciprocal_contains_zero"),
+      ("interval", toJson (toRawInterval I))]
+  | .logNonpositive I => Json.mkObj [
+      ("kind", "log_nonpositive"),
+      ("interval", toJson (toRawInterval I))]
+  | .atanhOutsideUnitBall I => Json.mkObj [
+      ("kind", "atanh_outside_unit_ball"),
+      ("interval", toJson (toRawInterval I))]
+  | .unsupportedBackend operation => Json.mkObj [
+      ("kind", "unsupported_backend"), ("operation", operation)]
+  | .nestedFailure operation cause => Json.mkObj [
+      ("kind", "nested_failure"), ("operation", operation),
+      ("cause", evalErrorToJson cause)]
+
+/-- Standard successful checked interval response. -/
+def certifiedIntervalJson (I : IntervalRat) : Json := Json.mkObj [
+  ("status", "certified"),
+  ("lo", toJson (toRawRat I.lo)),
+  ("hi", toJson (toRawRat I.hi))]
+
+/-- Standard failed checked-evaluation response. -/
+def evalFailureJson (err : EvalError) : Json := Json.mkObj [
+  ("status", "domain_error"),
+  ("error", evalErrorToJson err)]
+
 /-! ### Dyadic Serialization -/
 
 /-- Raw Dyadic for JSON IO. Uses mantissa and exponent. -/
@@ -585,15 +614,10 @@ def handleEvalInterval (req : EvalRequest) : Json :=
   let intervals := req.box.toList.map RawInterval.toInterval
   let env : IntervalEnv := fun i => intervals.getD i (IntervalRat.singleton 0)
 
-  -- Run computation using evaluator with division support
-  let cfg : EvalConfig := { taylorDepth := req.taylorDepth }
-  let result := evalIntervalCoreWithDiv req.expr env cfg
-
-  -- Serialize result
-  Json.mkObj [
-    ("lo", toJson (toRawRat result.lo)),
-    ("hi", toJson (toRawRat result.hi))
-  ]
+  -- The checked evaluator never substitutes finite sentinels for singularities.
+  match evalIntervalChecked req.expr env with
+  | .ok result => certifiedIntervalJson result
+  | .error err => evalFailureJson err
 
 /-- Handle high-performance Dyadic interval evaluation request.
 
@@ -613,21 +637,19 @@ def handleEvalIntervalDyadic (req : EvalDyadicRequest) : Json :=
     let irat := intervals.getD i (IntervalRat.singleton 0)
     Core.IntervalDyadic.ofIntervalRat irat cfg.precision
 
-  -- Run Dyadic evaluation
-  let result := evalIntervalDyadic req.expr dyadicEnv cfg
-
-  -- Convert result to rational for compatibility
-  let resultRat := result.toIntervalRat
-
-  -- Return both Dyadic and Rational representations
-  Json.mkObj [
-    ("lo", toJson (toRawRat resultRat.lo)),
-    ("hi", toJson (toRawRat resultRat.hi)),
-    ("dyadic", Json.mkObj [
-      ("lo", toJson (toRawDyadic result.lo)),
-      ("hi", toJson (toRawDyadic result.hi))
-    ])
-  ]
+  match evalIntervalDyadicChecked req.expr dyadicEnv cfg with
+  | .error err => evalFailureJson err
+  | .ok result =>
+    let resultRat := result.toIntervalRat
+    Json.mkObj [
+      ("status", "certified"),
+      ("lo", toJson (toRawRat resultRat.lo)),
+      ("hi", toJson (toRawRat resultRat.hi)),
+      ("dyadic", Json.mkObj [
+        ("lo", toJson (toRawDyadic result.lo)),
+        ("hi", toJson (toRawDyadic result.hi))
+      ])
+    ]
 
 /-- Handle Affine interval evaluation request.
 
@@ -646,20 +668,32 @@ def handleEvalIntervalAffine (req : EvalAffineRequest) : Json :=
   -- Create Affine environment from rational intervals
   let affineEnv := toAffineEnv intervals
 
-  -- Run Affine evaluation
-  let result := evalIntervalAffine req.expr affineEnv cfg
+  match evalIntervalAffineChecked req.expr affineEnv cfg with
+  | .error err => evalFailureJson err
+  | .ok result =>
+    let resultInterval := result.toInterval
+    Json.mkObj [
+      ("status", "certified"),
+      ("lo", toJson (toRawRat resultInterval.lo)),
+      ("hi", toJson (toRawRat resultInterval.hi)),
+      ("affine", Json.mkObj [
+        ("c0", toJson (toRawRat result.c0)),
+        ("radius", toJson (toRawRat result.deviationBound))
+      ])
+    ]
 
-  -- Convert result to interval
-  let resultInterval := result.toInterval
-
-  Json.mkObj [
-    ("lo", toJson (toRawRat resultInterval.lo)),
-    ("hi", toJson (toRawRat resultInterval.hi)),
-    ("affine", Json.mkObj [
-      ("c0", toJson (toRawRat result.c0)),
-      ("radius", toJson (toRawRat result.deviationBound))
-    ])
-  ]
+/-- Serialize a checked optimization result. -/
+def checkedGlobalResultJson : EvalResult GlobalResult → Json
+  | .error err => evalFailureJson err
+  | .ok result =>
+      let bestBoxJson := Json.arr
+        (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
+      Json.mkObj [
+        ("status", "certified"),
+        ("lo", toJson (toRawRat result.bound.lo)),
+        ("hi", toJson (toRawRat result.bound.hi)),
+        ("remainingBoxes", toJson result.remainingBoxes.length),
+        ("bestBox", bestBoxJson)]
 
 /-- Handle global minimization request -/
 def handleGlobalMin (req : OptimizeRequest) : Json :=
@@ -671,17 +705,7 @@ def handleGlobalMin (req : OptimizeRequest) : Json :=
     taylorDepth := req.taylorDepth
   }
 
-  let result := globalMinimizeCoreDiv req.expr box cfg
-
-  -- Include bestBox for counterexample concretization
-  let bestBoxJson := Json.arr (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
-
-  Json.mkObj [
-    ("lo", toJson (toRawRat result.bound.lo)),
-    ("hi", toJson (toRawRat result.bound.hi)),
-    ("remainingBoxes", toJson result.remainingBoxes.length),
-    ("bestBox", bestBoxJson)
-  ]
+  checkedGlobalResultJson (globalMinimizeRationalChecked req.expr box cfg)
 
 /-- Handle global maximization request -/
 def handleGlobalMax (req : OptimizeRequest) : Json :=
@@ -693,17 +717,7 @@ def handleGlobalMax (req : OptimizeRequest) : Json :=
     taylorDepth := req.taylorDepth
   }
 
-  let result := globalMaximizeCoreDiv req.expr box cfg
-
-  -- Include bestBox for counterexample concretization
-  let bestBoxJson := Json.arr (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
-
-  Json.mkObj [
-    ("lo", toJson (toRawRat result.bound.lo)),
-    ("hi", toJson (toRawRat result.bound.hi)),
-    ("remainingBoxes", toJson result.remainingBoxes.length),
-    ("bestBox", bestBoxJson)
-  ]
+  checkedGlobalResultJson (globalMaximizeRationalChecked req.expr box cfg)
 
 /-- Handle global minimization request with Dyadic backend -/
 def handleGlobalMinDyadic (req : OptimizeDyadicRequest) : Json :=
@@ -716,16 +730,7 @@ def handleGlobalMinDyadic (req : OptimizeDyadicRequest) : Json :=
     precision := req.precision
   }
 
-  let result := globalMinimizeDyadic req.expr box cfg
-
-  let bestBoxJson := Json.arr (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
-
-  Json.mkObj [
-    ("lo", toJson (toRawRat result.bound.lo)),
-    ("hi", toJson (toRawRat result.bound.hi)),
-    ("remainingBoxes", toJson result.remainingBoxes.length),
-    ("bestBox", bestBoxJson)
-  ]
+  checkedGlobalResultJson (globalMinimizeDyadicChecked req.expr box cfg)
 
 /-- Handle global maximization request with Dyadic backend -/
 def handleGlobalMaxDyadic (req : OptimizeDyadicRequest) : Json :=
@@ -738,16 +743,7 @@ def handleGlobalMaxDyadic (req : OptimizeDyadicRequest) : Json :=
     precision := req.precision
   }
 
-  let result := globalMaximizeDyadic req.expr box cfg
-
-  let bestBoxJson := Json.arr (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
-
-  Json.mkObj [
-    ("lo", toJson (toRawRat result.bound.lo)),
-    ("hi", toJson (toRawRat result.bound.hi)),
-    ("remainingBoxes", toJson result.remainingBoxes.length),
-    ("bestBox", bestBoxJson)
-  ]
+  checkedGlobalResultJson (globalMaximizeDyadicChecked req.expr box cfg)
 
 /-- Handle global minimization request with Affine backend -/
 def handleGlobalMinAffine (req : OptimizeAffineRequest) : Json :=
@@ -760,16 +756,7 @@ def handleGlobalMinAffine (req : OptimizeAffineRequest) : Json :=
     maxNoiseSymbols := req.maxNoiseSymbols
   }
 
-  let result := globalMinimizeAffine req.expr box cfg
-
-  let bestBoxJson := Json.arr (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
-
-  Json.mkObj [
-    ("lo", toJson (toRawRat result.bound.lo)),
-    ("hi", toJson (toRawRat result.bound.hi)),
-    ("remainingBoxes", toJson result.remainingBoxes.length),
-    ("bestBox", bestBoxJson)
-  ]
+  checkedGlobalResultJson (globalMinimizeAffineChecked req.expr box cfg)
 
 /-- Handle global maximization request with Affine backend -/
 def handleGlobalMaxAffine (req : OptimizeAffineRequest) : Json :=
@@ -782,45 +769,42 @@ def handleGlobalMaxAffine (req : OptimizeAffineRequest) : Json :=
     maxNoiseSymbols := req.maxNoiseSymbols
   }
 
-  let result := globalMaximizeAffine req.expr box cfg
-
-  let bestBoxJson := Json.arr (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
-
-  Json.mkObj [
-    ("lo", toJson (toRawRat result.bound.lo)),
-    ("hi", toJson (toRawRat result.bound.hi)),
-    ("remainingBoxes", toJson result.remainingBoxes.length),
-    ("bestBox", bestBoxJson)
-  ]
+  checkedGlobalResultJson (globalMaximizeAffineChecked req.expr box cfg)
 
 /-- Handle bound checking request -/
 def handleCheckBound (req : CheckBoundRequest) : Json :=
   let intervals := req.box.toList.map RawInterval.toInterval
   let env : IntervalEnv := fun i => intervals.getD i (IntervalRat.singleton 0)
-  let cfg : EvalConfig := { taylorDepth := req.taylorDepth }
-  let result := evalIntervalCoreWithDiv req.expr env cfg
   let bound := req.bound.toRat
+  match evalIntervalChecked req.expr env with
+  | .error err => Json.mkObj [
+      ("status", "domain_error"),
+      ("verified", false),
+      ("error", evalErrorToJson err)]
+  | .ok result =>
+    let verified := if req.isUpperBound then
+      decide (result.hi ≤ bound)
+    else
+      decide (bound ≤ result.lo)
+    Json.mkObj [
+      ("status", "certified"),
+      ("verified", toJson verified),
+      ("computed_lo", toJson (toRawRat result.lo)),
+      ("computed_hi", toJson (toRawRat result.hi))]
 
-  let verified := if req.isUpperBound then
-    decide (result.hi ≤ bound)  -- Upper bound: max value ≤ bound
-  else
-    decide (bound ≤ result.lo)  -- Lower bound: bound ≤ min value
+/-- Checked accumulation of interval-integral contributions. -/
+def integratePartsChecked (e : LExpr) : List IntervalRat → EvalResult IntervalRat
+  | [] => .ok (IntervalRat.singleton 0)
+  | J :: rest => do
+      let fBound ← evalIntervalChecked e (fun _ => J)
+      let tail ← integratePartsChecked e rest
+      let contribution := IntervalRat.mul (IntervalRat.singleton J.width) fBound
+      return IntervalRat.add contribution tail
 
-  Json.mkObj [
-    ("verified", toJson verified),
-    ("computed_lo", toJson (toRawRat result.lo)),
-    ("computed_hi", toJson (toRawRat result.hi))
-  ]
-
-/-- Computable single-interval integration.
-    Bounds the integral using interval arithmetic: width * f_bounds -/
-def integrateIntervalCore1 (e : LExpr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
-  let fBound := evalIntervalCoreWithDiv e (fun _ => I) cfg
-  IntervalRat.mul (IntervalRat.singleton I.width) fBound
-
-/-- Computable uniform partition integration -/
-def integrateIntervalCore (e : LExpr) (I : IntervalRat) (n : Nat) (cfg : EvalConfig := {}) : IntervalRat :=
-  if n = 0 then IntervalRat.singleton 0
+/-- Checked uniform-partition integration. A singular integrand produces a
+domain error instead of a finite pseudo-bound. -/
+def integrateIntervalChecked (e : LExpr) (I : IntervalRat) (n : Nat) : EvalResult IntervalRat :=
+  if n = 0 then .ok (IntervalRat.singleton 0)
   else
     let width := (I.hi - I.lo) / n
     let parts := List.range n |>.map fun i =>
@@ -828,23 +812,15 @@ def integrateIntervalCore (e : LExpr) (I : IntervalRat) (n : Nat) (cfg : EvalCon
       let hi := I.lo + width * (i + 1)
       if h : lo ≤ hi then { lo := lo, hi := hi, le := h }
       else IntervalRat.singleton lo
-    parts.foldl (fun acc J =>
-      let fBound := evalIntervalCoreWithDiv e (fun _ => J) cfg
-      let contribution := IntervalRat.mul (IntervalRat.singleton J.width) fBound
-      IntervalRat.add acc contribution
-    ) (IntervalRat.singleton 0)
+    integratePartsChecked e parts
 
 /-- Handle integration request -/
 def handleIntegrate (req : IntegrateRequest) : Json :=
   let I := req.interval.toInterval
   let n := max 1 req.partitions
-  let cfg : EvalConfig := { taylorDepth := req.taylorDepth }
-  let result := integrateIntervalCore req.expr I n cfg
-
-  Json.mkObj [
-    ("lo", toJson (toRawRat result.lo)),
-    ("hi", toJson (toRawRat result.hi))
-  ]
+  match integrateIntervalChecked req.expr I n with
+  | .ok result => certifiedIntervalJson result
+  | .error err => evalFailureJson err
 
 /-! ## Root Finding (Computable) -/
 
@@ -865,84 +841,78 @@ instance : ToJson RootStatusCore where
 def excludesZeroCore (I : IntervalRat) : Bool :=
   I.hi < 0 || 0 < I.lo
 
-/-- Check if function has opposite signs at endpoints (computable) -/
-def signChangeCore (e : LExpr) (I : IntervalRat) (cfg : EvalConfig) : Bool :=
-  let flo := evalIntervalCoreWithDiv e (fun _ => IntervalRat.singleton I.lo) cfg
-  let fhi := evalIntervalCoreWithDiv e (fun _ => IntervalRat.singleton I.hi) cfg
-  (flo.hi < 0 && 0 < fhi.lo) || (fhi.hi < 0 && 0 < flo.lo)
+/-- Checked endpoint sign-change test. -/
+def signChangeChecked (e : LExpr) (I : IntervalRat) : EvalResult Bool := do
+  let flo ← evalIntervalChecked e (fun _ => IntervalRat.singleton I.lo)
+  let fhi ← evalIntervalChecked e (fun _ => IntervalRat.singleton I.hi)
+  return (flo.hi < 0 && 0 < fhi.lo) || (fhi.hi < 0 && 0 < flo.lo)
 
-/-- Determine root status (computable) -/
-def checkRootStatusCore (e : LExpr) (I : IntervalRat) (cfg : EvalConfig) : RootStatusCore :=
-  let fI := evalIntervalCoreWithDiv e (fun _ => I) cfg
+/-- Checked root status. -/
+def checkRootStatusChecked (e : LExpr) (I : IntervalRat) : EvalResult RootStatusCore := do
+  let fI ← evalIntervalChecked e (fun _ => I)
   if excludesZeroCore fI then
-    RootStatusCore.noRoot
-  else if signChangeCore e I cfg then
-    RootStatusCore.hasRoot
-  else
-    RootStatusCore.unknown
+    return .noRoot
+  if ← signChangeChecked e I then
+    return .hasRoot
+  return .unknown
 
 /-- Result of computable bisection root finding -/
 structure BisectionResultCore where
   intervals : List (IntervalRat × RootStatusCore)
   iterations : Nat
 
-/-- Computable bisection root finding worker -/
-def bisectRootGoCore (e : LExpr) (tol : ℚ) (maxIter : Nat)
+/-- Checked bisection worker. Every interval classification comes from the
+strict evaluator. -/
+def bisectRootGoChecked (e : LExpr) (tol : ℚ) (maxIter : Nat)
     (work : List (IntervalRat × RootStatusCore)) (iter : Nat)
-    (done : List (IntervalRat × RootStatusCore)) (cfg : EvalConfig) : BisectionResultCore :=
+    (done : List (IntervalRat × RootStatusCore)) : EvalResult BisectionResultCore :=
   match iter, work with
-  | 0, _ =>
-    { intervals := done ++ work
-      iterations := maxIter }
-  | _, [] =>
-    { intervals := done
-      iterations := maxIter - iter }
-  | n + 1, (J, _) :: rest =>
-    let status := checkRootStatusCore e J cfg
-    match status with
-    | RootStatusCore.noRoot =>
-      -- Discard this interval
-      bisectRootGoCore e tol maxIter rest n done cfg
-    | RootStatusCore.hasRoot =>
-      if J.width ≤ tol then
-        bisectRootGoCore e tol maxIter rest n ((J, RootStatusCore.hasRoot) :: done) cfg
-      else
-        let (J₁, J₂) := J.bisect
-        bisectRootGoCore e tol maxIter ((J₁, .unknown) :: (J₂, .unknown) :: rest) n done cfg
-    | RootStatusCore.unknown =>
-      if J.width ≤ tol then
-        bisectRootGoCore e tol maxIter rest n ((J, RootStatusCore.unknown) :: done) cfg
-      else
-        let (J₁, J₂) := J.bisect
-        bisectRootGoCore e tol maxIter ((J₁, .unknown) :: (J₂, .unknown) :: rest) n done cfg
+  | 0, _ => .ok { intervals := done ++ work, iterations := maxIter }
+  | _, [] => .ok { intervals := done, iterations := maxIter - iter }
+  | n + 1, (J, _) :: rest => do
+      let status ← checkRootStatusChecked e J
+      match status with
+      | .noRoot => bisectRootGoChecked e tol maxIter rest n done
+      | .hasRoot =>
+          if J.width ≤ tol then
+            bisectRootGoChecked e tol maxIter rest n ((J, .hasRoot) :: done)
+          else
+            let (J₁, J₂) := J.bisect
+            bisectRootGoChecked e tol maxIter
+              ((J₁, .unknown) :: (J₂, .unknown) :: rest) n done
+      | .unknown =>
+          if J.width ≤ tol then
+            bisectRootGoChecked e tol maxIter rest n ((J, .unknown) :: done)
+          else
+            let (J₁, J₂) := J.bisect
+            bisectRootGoChecked e tol maxIter
+              ((J₁, .unknown) :: (J₂, .unknown) :: rest) n done
 
-/-- Computable bisection root finding -/
-def bisectRootCore (e : LExpr) (I : IntervalRat) (maxIter : Nat) (tol : ℚ) (cfg : EvalConfig) : BisectionResultCore :=
-  bisectRootGoCore e tol maxIter [(I, RootStatusCore.unknown)] maxIter [] cfg
+def bisectRootChecked (e : LExpr) (I : IntervalRat) (maxIter : Nat) (tol : ℚ) :
+    EvalResult BisectionResultCore :=
+  bisectRootGoChecked e tol maxIter [(I, .unknown)] maxIter []
 
 /-- Handle root finding request -/
 def handleFindRoots (req : FindRootsRequest) : Json :=
   let I := req.interval.toInterval
-  let cfg : EvalConfig := { taylorDepth := req.taylorDepth }
-  let result := bisectRootCore req.expr I req.maxIter req.tolerance.toRat cfg
-
-  let roots := result.intervals.map fun (J, status) =>
+  match bisectRootChecked req.expr I req.maxIter req.tolerance.toRat with
+  | .error err => evalFailureJson err
+  | .ok result =>
+    let roots := result.intervals.map fun (J, status) =>
+      Json.mkObj [
+        ("lo", toJson (toRawRat J.lo)),
+        ("hi", toJson (toRawRat J.hi)),
+        ("status", toJson status)]
     Json.mkObj [
-      ("lo", toJson (toRawRat J.lo)),
-      ("hi", toJson (toRawRat J.hi)),
-      ("status", toJson status)
-    ]
-
-  Json.mkObj [
-    ("roots", Json.arr roots.toArray),
-    ("iterations", toJson result.iterations)
-  ]
+      ("status", "certified"),
+      ("roots", Json.arr roots.toArray),
+      ("iterations", toJson result.iterations)]
 
 /-- Handle unique root finding request via Newton contraction.
 
     Checks if Newton contraction holds, indicating a unique root exists.
     This is a stronger result than bisection (which only proves existence). -/
-def handleFindUniqueRoot (req : FindUniqueRootRequest) : Json :=
+private def handleFindUniqueRootSupported (req : FindUniqueRootRequest) : Json :=
   let I := req.interval.toInterval
   let cfg : EvalConfig := { taylorDepth := req.taylorDepth }
 
@@ -986,6 +956,21 @@ def handleFindUniqueRoot (req : FindUniqueRootRequest) : Json :=
         ])
       ]
 
+/-- Handle unique-root requests only through the subset supported by the
+Newton/AD correctness theorem, and reject any partial-domain failure first. -/
+def handleFindUniqueRoot (req : FindUniqueRootRequest) : Json :=
+  let I := req.interval.toInterval
+  if !req.expr.usesOnlyVar0 then
+    evalFailureJson (.unsupportedBackend
+      "unique-root Newton backend requires an expression using only variable 0")
+  else if !req.expr.checkSupported then
+    evalFailureJson (.unsupportedBackend
+      "unique-root Newton backend supports only const/var/add/mul/neg/exp/sin/cos")
+  else
+    match evalIntervalChecked req.expr (fun _ => I) with
+    | .error err => evalFailureJson err
+    | .ok _ => handleFindUniqueRootSupported req
+
 /-- Handle adaptive verification request using optimization -/
 def handleVerifyAdaptive (req : VerifyAdaptiveRequest) : Json :=
   let box : Box := req.box.toList.map RawInterval.toInterval
@@ -1004,14 +989,18 @@ def handleVerifyAdaptive (req : VerifyAdaptiveRequest) : Json :=
   else
     Expr.add req.expr (Expr.neg (Expr.const bound))  -- f - c
 
-  let result := globalMinimizeCore testExpr box cfg
-  let verified := decide (result.bound.lo ≥ 0)
-
-  Json.mkObj [
-    ("verified", toJson verified),
-    ("minValue", toJson (toRawRat result.bound.lo)),
-    ("remainingBoxes", toJson result.remainingBoxes.length)
-  ]
+  match globalMinimizeRationalChecked testExpr box cfg with
+  | .error err => Json.mkObj [
+      ("status", "domain_error"),
+      ("verified", false),
+      ("error", evalErrorToJson err)]
+  | .ok result =>
+    let verified := decide (result.bound.lo ≥ 0)
+    Json.mkObj [
+      ("status", "certified"),
+      ("verified", toJson verified),
+      ("minValue", toJson (toRawRat result.bound.lo)),
+      ("remainingBoxes", toJson result.remainingBoxes.length)]
 
 /-- Handle neural network forward interval propagation request.
 
