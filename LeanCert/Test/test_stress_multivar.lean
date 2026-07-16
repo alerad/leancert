@@ -17,9 +17,9 @@ theorem stress_opt_2d_sum_sq :
                            (Expr.mul (Expr.var 1) (Expr.var 1))) ≤ (2 : ℚ) :=
   verify_global_upper_bound
     (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.mul (Expr.var 1) (Expr.var 1)))
-    (ExprSupported.add
-      (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-      (ExprSupported.mul (ExprSupported.var 1) (ExprSupported.var 1)))
+    (ADSupported.add
+      (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+      (ADSupported.mul (ADSupported.var 1) (ADSupported.var 1)))
     B01_2D 2 ⟨1500, 1/1000, false, 10⟩
     (by native_decide)
 
@@ -28,7 +28,7 @@ theorem stress_opt_2d_xy_nonneg :
       (0 : ℚ) ≤ Expr.eval ρ (Expr.mul (Expr.var 0) (Expr.var 1)) :=
   verify_global_lower_bound
     (Expr.mul (Expr.var 0) (Expr.var 1))
-    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 1))
+    (ADSupported.mul (ADSupported.var 0) (ADSupported.var 1))
     B01_2D 0 ⟨1500, 1/1000, false, 10⟩
     (by native_decide)
 
@@ -41,10 +41,10 @@ theorem stress_opt_3d_sum_sq :
   verify_global_upper_bound
     (Expr.add (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.mul (Expr.var 1) (Expr.var 1)))
               (Expr.mul (Expr.var 2) (Expr.var 2)))
-    (ExprSupported.add
-      (ExprSupported.add
-        (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-        (ExprSupported.mul (ExprSupported.var 1) (ExprSupported.var 1)))
-      (ExprSupported.mul (ExprSupported.var 2) (ExprSupported.var 2)))
+    (ADSupported.add
+      (ADSupported.add
+        (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+        (ADSupported.mul (ADSupported.var 1) (ADSupported.var 1)))
+      (ADSupported.mul (ADSupported.var 2) (ADSupported.var 2)))
     B01_3D 3 ⟨2000, 1/1000, false, 10⟩
     (by native_decide)

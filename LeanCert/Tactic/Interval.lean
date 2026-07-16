@@ -20,13 +20,13 @@ interval arithmetic.
 
 We provide two sets of lemmas:
 
-### Core (computable) - uses `evalIntervalCore1`
+### Core (computable) - uses `LeanCert.Internal.Rational.evalTotalCore1`
 For expressions in `ExprSupportedCore` (arithmetic, trig/exp/log/sqrt,
 hyperbolic functions, erf, and named constants), bound checking is computable
 when the required domain-validity conditions hold.
 
-### Extended (noncomputable) - uses `evalInterval1`
-For expressions in `ExprSupported` (core + exp), the bound checking requires
+### Extended (noncomputable) - uses `LeanCert.Internal.Rational.evalUnchecked1`
+For expressions in `ADSupported` (core + exp), the bound checking requires
 noncomputable evaluation due to `Real.exp`. These cannot use `native_decide`.
 
 The tactics use the core evaluator to enable `native_decide`.
@@ -41,22 +41,22 @@ open LeanCert.Engine
 
 /-- Decidable version of hi ≤ c for core rational bounds -/
 theorem intervalCore_hi_le_decide (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) :
-    (evalIntervalCore1 e I cfg).hi ≤ c ↔ decide ((evalIntervalCore1 e I cfg).hi ≤ c) = true := by
+    (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi ≤ c ↔ decide ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi ≤ c) = true := by
   simp only [decide_eq_true_eq]
 
 /-- Decidable version of c ≤ lo for core rational bounds -/
 theorem intervalCore_lo_ge_decide (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) :
-    c ≤ (evalIntervalCore1 e I cfg).lo ↔ decide (c ≤ (evalIntervalCore1 e I cfg).lo) = true := by
+    c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo ↔ decide (c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo) = true := by
   simp only [decide_eq_true_eq]
 
 /-- Decidable version of hi < c for core rational bounds -/
 theorem intervalCore_hi_lt_decide (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) :
-    (evalIntervalCore1 e I cfg).hi < c ↔ decide ((evalIntervalCore1 e I cfg).hi < c) = true := by
+    (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi < c ↔ decide ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi < c) = true := by
   simp only [decide_eq_true_eq]
 
 /-- Decidable version of c < lo for core rational bounds -/
 theorem intervalCore_lo_gt_decide (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) :
-    c < (evalIntervalCore1 e I cfg).lo ↔ decide (c < (evalIntervalCore1 e I cfg).lo) = true := by
+    c < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo ↔ decide (c < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo) = true := by
   simp only [decide_eq_true_eq]
 
 /-! ### Combined lemmas for tactic use (core, computable) -/
@@ -67,7 +67,7 @@ theorem intervalCore_lo_gt_decide (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : 
 theorem proveCore_le_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) (x : ℝ) (hx : x ∈ I)
     (hdom : evalDomainValid1 e I cfg)
-    (hdec : decide ((evalIntervalCore1 e I cfg).hi ≤ c) = true) :
+    (hdec : decide ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi ≤ c) = true) :
     Expr.eval (fun _ => x) e ≤ c := by
   have hhi := (intervalCore_hi_le_decide e I c cfg).mpr hdec
   exact exprCore_le_of_interval_hi e hsupp I c cfg hdom hhi x hx
@@ -77,7 +77,7 @@ theorem proveCore_le_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
 theorem proveCore_ge_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) (x : ℝ) (hx : x ∈ I)
     (hdom : evalDomainValid1 e I cfg)
-    (hdec : decide (c ≤ (evalIntervalCore1 e I cfg).lo) = true) :
+    (hdec : decide (c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo) = true) :
     c ≤ Expr.eval (fun _ => x) e := by
   have hlo := (intervalCore_lo_ge_decide e I c cfg).mpr hdec
   exact exprCore_ge_of_interval_lo e hsupp I c cfg hdom hlo x hx
@@ -87,7 +87,7 @@ theorem proveCore_ge_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
 theorem proveCore_lt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) (x : ℝ) (hx : x ∈ I)
     (hdom : evalDomainValid1 e I cfg)
-    (hdec : decide ((evalIntervalCore1 e I cfg).hi < c) = true) :
+    (hdec : decide ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi < c) = true) :
     Expr.eval (fun _ => x) e < c := by
   have hhi := (intervalCore_hi_lt_decide e I c cfg).mpr hdec
   exact exprCore_lt_of_interval_hi_lt e hsupp I c cfg hdom hhi x hx
@@ -97,7 +97,7 @@ theorem proveCore_lt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
 theorem proveCore_gt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {}) (x : ℝ) (hx : x ∈ I)
     (hdom : evalDomainValid1 e I cfg)
-    (hdec : decide (c < (evalIntervalCore1 e I cfg).lo) = true) :
+    (hdec : decide (c < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo) = true) :
     c < Expr.eval (fun _ => x) e := by
   have hlo := (intervalCore_lo_gt_decide e I c cfg).mpr hdec
   exact exprCore_gt_of_interval_lo_gt e hsupp I c cfg hdom hlo x hx
@@ -110,7 +110,7 @@ theorem proveCore_gt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
 theorem proveCore_forall_le_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg)
-    (hdec : decide ((evalIntervalCore1 e I cfg).hi ≤ c) = true) :
+    (hdec : decide ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi ≤ c) = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
   exact proveCore_le_by_interval e hsupp I c cfg x hx hdom hdec
@@ -120,7 +120,7 @@ theorem proveCore_forall_le_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
 theorem proveCore_forall_ge_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg)
-    (hdec : decide (c ≤ (evalIntervalCore1 e I cfg).lo) = true) :
+    (hdec : decide (c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo) = true) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   exact proveCore_ge_by_interval e hsupp I c cfg x hx hdom hdec
@@ -130,7 +130,7 @@ theorem proveCore_forall_ge_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
 theorem proveCore_forall_lt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg)
-    (hdec : decide ((evalIntervalCore1 e I cfg).hi < c) = true) :
+    (hdec : decide ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi < c) = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
   intro x hx
   exact proveCore_lt_by_interval e hsupp I c cfg x hx hdom hdec
@@ -140,7 +140,7 @@ theorem proveCore_forall_lt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
 theorem proveCore_forall_gt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg)
-    (hdec : decide (c < (evalIntervalCore1 e I cfg).lo) = true) :
+    (hdec : decide (c < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo) = true) :
     ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
   intro x hx
   exact proveCore_gt_by_interval e hsupp I c cfg x hx hdom hdec
@@ -149,16 +149,16 @@ theorem proveCore_forall_gt_by_interval (e : Expr) (hsupp : ExprSupportedCore e)
 
 /-- Prove f(x) ≤ c by extended interval arithmetic.
     NOTE: Cannot use native_decide due to noncomputability of exp. -/
-theorem prove_le_by_interval (e : Expr) (hsupp : ExprSupported e)
+theorem prove_le_by_interval (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c : ℚ) (x : ℝ) (hx : x ∈ I)
-    (hhi : (evalInterval1 e I).hi ≤ c) :
+    (hhi : (LeanCert.Internal.Rational.evalUnchecked1 e I).hi ≤ c) :
     Expr.eval (fun _ => x) e ≤ c :=
   expr_le_of_mem_interval e hsupp I c x hx hhi
 
 /-- Prove c ≤ f(x) by extended interval arithmetic. -/
-theorem prove_ge_by_interval (e : Expr) (hsupp : ExprSupported e)
+theorem prove_ge_by_interval (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c : ℚ) (x : ℝ) (hx : x ∈ I)
-    (hlo : c ≤ (evalInterval1 e I).lo) :
+    (hlo : c ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).lo) :
     c ≤ Expr.eval (fun _ => x) e :=
   expr_ge_of_mem_interval e hsupp I c x hx hlo
 
@@ -211,14 +211,14 @@ macro "interval_ge_pt" e:term "," supp:term "," I:term "," c:term "," x:term ","
 
 /-! ### Extended interval tactics (noncomputable, for exp-containing expressions)
 
-These tactics work with `ExprSupported` (which includes exp) but cannot use
+These tactics work with `ADSupported` (which includes exp) but cannot use
 `native_decide`. They reduce the goal to an interval inequality that must be
 proved by other means (linarith, norm_num, or manual computation).
 
 ## Usage
 
 ```lean
--- Reduces to goal: (evalInterval1 exprExp I01).hi ≤ 3
+-- Reduces to goal: (LeanCert.Internal.Rational.evalUnchecked1 exprExp I01).hi ≤ 3
 theorem exp_le_three_on_01 :
     ∀ x ∈ I01, Expr.eval (fun _ => x) exprExp ≤ (3 : ℚ) := by
   interval_ext_le exprExp, exprExp_supp, I01, 3
@@ -227,37 +227,37 @@ theorem exp_le_three_on_01 :
 -/
 
 /-- Extended interval tactic for ≤ (supports exp).
-    Reduces `∀ x ∈ I, f(x) ≤ c` to `(evalInterval1 e I).hi ≤ c`.
+    Reduces `∀ x ∈ I, f(x) ≤ c` to `(LeanCert.Internal.Rational.evalUnchecked1 e I).hi ≤ c`.
     Usage: `interval_ext_le e, supp, I, c` -/
 macro "interval_ext_le" e:term "," supp:term "," I:term "," c:term : tactic =>
   `(tactic| apply expr_le_of_interval_hi $e $supp $I $c)
 
 /-- Extended interval tactic for ≥ (supports exp).
-    Reduces `∀ x ∈ I, c ≤ f(x)` to `c ≤ (evalInterval1 e I).lo`.
+    Reduces `∀ x ∈ I, c ≤ f(x)` to `c ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).lo`.
     Usage: `interval_ext_ge e, supp, I, c` -/
 macro "interval_ext_ge" e:term "," supp:term "," I:term "," c:term : tactic =>
   `(tactic| apply expr_ge_of_interval_lo $e $supp $I $c)
 
 /-- Extended interval tactic for < (supports exp).
-    Reduces `∀ x ∈ I, f(x) < c` to `(evalInterval1 e I).hi < c`.
+    Reduces `∀ x ∈ I, f(x) < c` to `(LeanCert.Internal.Rational.evalUnchecked1 e I).hi < c`.
     Usage: `interval_ext_lt e, supp, I, c` -/
 macro "interval_ext_lt" e:term "," supp:term "," I:term "," c:term : tactic =>
   `(tactic| apply expr_lt_of_interval_hi_lt $e $supp $I $c)
 
 /-- Extended interval tactic for > (supports exp).
-    Reduces `∀ x ∈ I, c < f(x)` to `c < (evalInterval1 e I).lo`.
+    Reduces `∀ x ∈ I, c < f(x)` to `c < (LeanCert.Internal.Rational.evalUnchecked1 e I).lo`.
     Usage: `interval_ext_gt e, supp, I, c` -/
 macro "interval_ext_gt" e:term "," supp:term "," I:term "," c:term : tactic =>
   `(tactic| apply expr_gt_of_interval_lo_gt $e $supp $I $c)
 
 /-- Extended pointwise tactic for ≤ (supports exp).
-    Reduces `f(x) ≤ c` (given x ∈ I) to `(evalInterval1 e I).hi ≤ c`.
+    Reduces `f(x) ≤ c` (given x ∈ I) to `(LeanCert.Internal.Rational.evalUnchecked1 e I).hi ≤ c`.
     Usage: `interval_ext_le_pt e, supp, I, c, x, hx` -/
 macro "interval_ext_le_pt" e:term "," supp:term "," I:term "," c:term "," x:term "," hx:term : tactic =>
   `(tactic| apply expr_le_of_mem_interval $e $supp $I $c $x $hx)
 
 /-- Extended pointwise tactic for ≥ (supports exp).
-    Reduces `c ≤ f(x)` (given x ∈ I) to `c ≤ (evalInterval1 e I).lo`.
+    Reduces `c ≤ f(x)` (given x ∈ I) to `c ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).lo`.
     Usage: `interval_ext_ge_pt e, supp, I, c, x, hx` -/
 macro "interval_ext_ge_pt" e:term "," supp:term "," I:term "," c:term "," x:term "," hx:term : tactic =>
   `(tactic| apply expr_ge_of_mem_interval $e $supp $I $c $x $hx)

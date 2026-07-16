@@ -147,7 +147,7 @@ theorem mem_cosIntervalReduced {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (degre
 
 These are fully computable wrappers that combine range reduction with the
 simpler Core Taylor series evaluation. These are what should be used in
-`evalIntervalCore`.
+`LeanCert.Internal.Rational.evalTotalCore`.
 -/
 
 /-- Computable sin evaluation with range reduction.

@@ -20,7 +20,6 @@ Given a reified AST `e : LeanCert.Core.Expr`, we can construct a proof that
 ## Main definitions
 
 * `LeanCert.Meta.mkSupportedCoreProof` - Generate `ExprSupportedCore` proofs
-* `LeanCert.Meta.mkSupportedWithInvProof` - Generate `ExprSupportedWithInv` proofs
 * `#check_supported` - Debug command to test proof generation
 
 ## Usage
@@ -226,16 +225,16 @@ partial def mkUsesOnlyVar0Proof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     throwError "Cannot generate UsesOnlyVar0 proof for: {e_ast}\n\
                 UsesOnlyVar0 supports all Expr constructors, but every variable must be var 0."
 
-/-! ## ExprSupported Proof Generation
+/-! ## ADSupported Proof Generation
 
-Generate proof terms of type `ExprSupported e` by recursively matching
+Generate proof terms of type `ADSupported e` by recursively matching
 on the structure of `e : LeanCert.Core.Expr`.
 
-Note: ExprSupported is a strict subset of ExprSupportedCore.
-ExprSupported only supports: const, var, add, mul, neg, sin, cos, exp
+Note: ADSupported is a strict subset of ExprSupportedCore.
+ADSupported only supports: const, var, add, mul, neg, sin, cos, exp
 -/
 
-/-- Generate a proof of `ExprSupported e_ast` by matching on the AST structure.
+/-- Generate a proof of `ADSupported e_ast` by matching on the AST structure.
 
     This function inspects the head constant of the AST expression and
     recursively builds the appropriate proof constructor.
@@ -248,25 +247,25 @@ partial def mkSupportedProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
 
   if fn.isConstOf ``LeanCert.Core.Expr.const then
     let q := args[0]!
-    mkAppM ``LeanCert.Core.ExprSupported.const #[q]
+    mkAppM ``LeanCert.Core.ADSupported.const #[q]
 
   else if fn.isConstOf ``LeanCert.Core.Expr.var then
     let idx := args[0]!
-    mkAppM ``LeanCert.Core.ExprSupported.var #[idx]
+    mkAppM ``LeanCert.Core.ADSupported.var #[idx]
 
   else
     if let some h ← tryBinarySupportProof mkSupportedProof fn args
-        [ ⟨``LeanCert.Core.Expr.add, ``LeanCert.Core.ExprSupported.add⟩
-        , ⟨``LeanCert.Core.Expr.mul, ``LeanCert.Core.ExprSupported.mul⟩ ] then
+        [ ⟨``LeanCert.Core.Expr.add, ``LeanCert.Core.ADSupported.add⟩
+        , ⟨``LeanCert.Core.Expr.mul, ``LeanCert.Core.ADSupported.mul⟩ ] then
       return h
     if let some h ← tryUnarySupportProof mkSupportedProof fn args
-        [ ⟨``LeanCert.Core.Expr.neg, ``LeanCert.Core.ExprSupported.neg⟩
-        , ⟨``LeanCert.Core.Expr.sin, ``LeanCert.Core.ExprSupported.sin⟩
-        , ⟨``LeanCert.Core.Expr.cos, ``LeanCert.Core.ExprSupported.cos⟩
-        , ⟨``LeanCert.Core.Expr.exp, ``LeanCert.Core.ExprSupported.exp⟩ ] then
+        [ ⟨``LeanCert.Core.Expr.neg, ``LeanCert.Core.ADSupported.neg⟩
+        , ⟨``LeanCert.Core.Expr.sin, ``LeanCert.Core.ADSupported.sin⟩
+        , ⟨``LeanCert.Core.Expr.cos, ``LeanCert.Core.ADSupported.cos⟩
+        , ⟨``LeanCert.Core.Expr.exp, ``LeanCert.Core.ADSupported.exp⟩ ] then
       return h
-    throwError "Cannot generate ExprSupported proof for: {e_ast}\n\
-                ExprSupported only covers: const, var, add, mul, neg, sin, cos, exp.\n\
+    throwError "Cannot generate ADSupported proof for: {e_ast}\n\
+                ADSupported only covers: const, var, add, mul, neg, sin, cos, exp.\n\
                 This expression uses unsupported operations (log, sqrt, sinh, cosh, tanh, pi, inv, etc.).\n\
                 For unique root finding, the function must be in this restricted set."
 
@@ -322,60 +321,8 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
         , ⟨``LeanCert.Core.Expr.erf, ``LeanCert.Core.ExprSupportedCore.erf⟩ ] then
       return h
     throwError "Cannot generate ExprSupportedCore proof for: {e_ast}\n\
-                This expression contains unsupported operations (inv, atan, arsinh, or atanh).\n\
-                Use mkSupportedWithInvProof for expressions with inv."
-
-/-! ## ExprSupportedWithInv Proof Generation
-
-Generate proof terms of type `ExprSupportedWithInv e` by recursively matching
-on the structure of `e : LeanCert.Core.Expr`. This supports the full expression language.
--/
-
-/-- Generate a proof of `ExprSupportedWithInv e_ast` by matching on the AST structure.
-
-    This function supports all expression constructors including inv, log, atan, arsinh, and atanh. -/
-partial def mkSupportedWithInvProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
-  -- Get the head constant and arguments
-  let fn := e_ast.getAppFn
-  let args := e_ast.getAppArgs
-
-  -- Match on AST constructors
-  if fn.isConstOf ``LeanCert.Core.Expr.const then
-    let q := args[0]!
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.const #[q]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.var then
-    let idx := args[0]!
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.var #[idx]
-
-  else if fn.isConstOf ``LeanCert.Core.Expr.namedConst then
-    let c := args[0]!
-    mkAppM ``LeanCert.Core.ExprSupportedWithInv.namedConst #[c]
-
-  else
-    if let some h ← tryBinarySupportProof mkSupportedWithInvProof fn args
-        [ ⟨``LeanCert.Core.Expr.add, ``LeanCert.Core.ExprSupportedWithInv.add⟩
-        , ⟨``LeanCert.Core.Expr.mul, ``LeanCert.Core.ExprSupportedWithInv.mul⟩ ] then
-      return h
-    if let some h ← tryUnarySupportProof mkSupportedWithInvProof fn args
-        [ ⟨``LeanCert.Core.Expr.neg, ``LeanCert.Core.ExprSupportedWithInv.neg⟩
-        , ⟨``LeanCert.Core.Expr.inv, ``LeanCert.Core.ExprSupportedWithInv.inv⟩
-        , ⟨``LeanCert.Core.Expr.sin, ``LeanCert.Core.ExprSupportedWithInv.sin⟩
-        , ⟨``LeanCert.Core.Expr.cos, ``LeanCert.Core.ExprSupportedWithInv.cos⟩
-        , ⟨``LeanCert.Core.Expr.exp, ``LeanCert.Core.ExprSupportedWithInv.exp⟩
-        , ⟨``LeanCert.Core.Expr.log, ``LeanCert.Core.ExprSupportedWithInv.log⟩
-        , ⟨``LeanCert.Core.Expr.sinh, ``LeanCert.Core.ExprSupportedWithInv.sinh⟩
-        , ⟨``LeanCert.Core.Expr.cosh, ``LeanCert.Core.ExprSupportedWithInv.cosh⟩
-        , ⟨``LeanCert.Core.Expr.tanh, ``LeanCert.Core.ExprSupportedWithInv.tanh⟩
-        , ⟨``LeanCert.Core.Expr.atan, ``LeanCert.Core.ExprSupportedWithInv.atan⟩
-        , ⟨``LeanCert.Core.Expr.arsinh, ``LeanCert.Core.ExprSupportedWithInv.arsinh⟩
-        , ⟨``LeanCert.Core.Expr.atanh, ``LeanCert.Core.ExprSupportedWithInv.atanh⟩
-        , ⟨``LeanCert.Core.Expr.sinc, ``LeanCert.Core.ExprSupportedWithInv.sinc⟩
-        , ⟨``LeanCert.Core.Expr.erf, ``LeanCert.Core.ExprSupportedWithInv.erf⟩
-        , ⟨``LeanCert.Core.Expr.sqrt, ``LeanCert.Core.ExprSupportedWithInv.sqrt⟩ ] then
-      return h
-    throwError "Cannot generate ExprSupportedWithInv proof for: {e_ast}\n\
-                Unrecognized expression structure."
+                This expression contains operations outside the total core evaluator.\n\
+                Checked evaluators accept arbitrary expressions without a support proof."
 
 /-! ## Testing Infrastructure -/
 
@@ -395,19 +342,6 @@ elab "#check_supported " t:term : command => do
   logInfo m!"Generated proof: {proof}"
   logInfo m!"Proof type: {proofType}"
 
-/-- Similar to #check_supported but for ExprSupportedWithInv. -/
-elab "#check_supported_inv " t:term : command => do
-  let (ast, proof, proofType) ← liftTermElabM do
-    let t ← elabTerm t none
-    let t ← instantiateMVars t
-    let ast ← reify t
-    let proof ← mkSupportedWithInvProof ast
-    let proofType ← inferType proof
-    return (ast, proof, proofType)
-  logInfo m!"AST: {ast}"
-  logInfo m!"Generated proof: {proof}"
-  logInfo m!"Proof type: {proofType}"
-
 /-! ## Combined Reification and Support Proof
 
 Convenience functions that combine reification and support proof generation.
@@ -417,12 +351,6 @@ Convenience functions that combine reification and support proof generation.
 def reifyWithSupportCore (e : Lean.Expr) : MetaM (Lean.Expr × Lean.Expr) := do
   let ast ← reify e
   let proof ← mkSupportedCoreProof ast
-  return (ast, proof)
-
-/-- Reify a Lean expression and generate both the AST and its ExprSupportedWithInv proof. -/
-def reifyWithSupportInv (e : Lean.Expr) : MetaM (Lean.Expr × Lean.Expr) := do
-  let ast ← reify e
-  let proof ← mkSupportedWithInvProof ast
   return (ast, proof)
 
 end LeanCert.Meta

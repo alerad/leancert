@@ -20,12 +20,6 @@ def lhsX : Expr := Expr.var 0
 
 def rhsEleven : Expr := Expr.const 11
 
-def lhsLeRhsSupport : ExprSupportedWithInv (Expr.sub lhsX rhsEleven) := by
-  unfold lhsX rhsEleven Expr.sub
-  exact ExprSupportedWithInv.add
-    (ExprSupportedWithInv.var 0)
-    (ExprSupportedWithInv.neg (ExprSupportedWithInv.const 11))
-
 example :
     checkExprLeOnIntervalDyadic lhsX rhsEleven slab010 (-53) 10 = true := by
   native_decide
@@ -35,7 +29,7 @@ example :
       Expr.eval (fun _ => x) lhsX ≤ Expr.eval (fun _ => x) rhsEleven := by
   simpa [slab010] using
     verify_expr_le_on_interval_dyadic lhsX rhsEleven slab010 (-53) 10
-      lhsLeRhsSupport (by norm_num) (by native_decide)
+      (by norm_num) (by native_decide)
 
 example :
     checkExprLeOnSlabsDyadic lhsX rhsEleven [slab010] (-53) 10 = true := by
@@ -43,7 +37,6 @@ example :
 
 def lhsLeRhsIntervalCert :
     ExprLeOnIntervalDyadicCert lhsX rhsEleven slab010 (-53) 10 where
-  supported := lhsLeRhsSupport
   prec_ok := by norm_num
   checked := by native_decide
 
@@ -57,12 +50,6 @@ def slab05 : IntervalRat := ⟨0, 5, by norm_num⟩
 def lhsZero : Expr := Expr.const 0
 
 def rhsOne : Expr := Expr.const 1
-
-def zeroLeOneSupport : ExprSupportedWithInv (Expr.sub lhsZero rhsOne) := by
-  unfold lhsZero rhsOne Expr.sub
-  exact ExprSupportedWithInv.add
-    (ExprSupportedWithInv.const 0)
-    (ExprSupportedWithInv.neg (ExprSupportedWithInv.const 1))
 
 def slabTailZeroLeOne : SlabTailCert lhsZero rhsOne where
   cutoff := 0
@@ -80,14 +67,13 @@ def slabTailZeroLeOne : SlabTailCert lhsZero rhsOne where
 
 def zeroLeOneSlabsCert :
     ExprLeOnSlabsDyadicCert lhsZero rhsOne slabTailZeroLeOne.slabs (-53) 10 where
-  supported := zeroLeOneSupport
   prec_ok := by norm_num
   checked := by native_decide
 
 example (N : Nat) :
     evalAtNat lhsZero N ≤ evalAtNat rhsOne N := by
   exact verify_expr_le_with_slab_tail_dyadic lhsZero rhsOne slabTailZeroLeOne
-    (-53) 10 zeroLeOneSlabsCert.supported zeroLeOneSlabsCert.prec_ok
+    (-53) 10 zeroLeOneSlabsCert.prec_ok
     zeroLeOneSlabsCert.checked N (Nat.zero_le N)
 
 example (N : Nat) :

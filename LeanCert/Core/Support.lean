@@ -16,16 +16,16 @@ different interval evaluation strategies.
 * `ExprSupportedCore` - Predicate for expressions in the computable subset
   (const, var, add, mul, neg, sin, cos, exp, log, sqrt, sinh, cosh, tanh, erf, pi)
 
-* `ExprSupported` - Predicate for the noncomputable AD subset
+* `ADSupported` - Predicate for the noncomputable AD subset
   (const, var, add, mul, neg, sin, cos, exp)
-
-* `ExprSupportedWithInv` - Syntactic support predicate for expressions with inv and log
 
 ## Design notes
 
-The predicates are ordered by generality:
-- `ExprSupported` ⊆ `ExprSupportedCore` (via `ExprSupported.toCore`)
-- `ExprSupported` ⊆ `ExprSupportedWithInv` (via `ExprSupported.toWithInv`)
+`ADSupported` is the differentiable fragment used by automatic
+differentiation. It is contained in `ExprSupportedCore` via
+`ADSupported.toCore`. Checked evaluators accept arbitrary expressions and
+encode domain failure in their result type, so they need no syntactic support
+predicate.
 
 The core subset is kept computable so that tactics can use `native_decide`
 for interval bound checking. The extended subset uses `Real.exp` with
@@ -71,19 +71,19 @@ inductive ExprSupportedCore : Expr → Prop where
     - sqrt (not differentiable at 0 - use ExprSupportedCore for interval evaluation only)
     - inv (requires nonzero interval checks)
     - log (requires positive interval checks)
-    - atan/arsinh/atanh (derivative proofs incomplete - use ExprSupportedWithInv + evalInterval?) -/
-inductive ExprSupported : Expr → Prop where
-  | const (q : ℚ) : ExprSupported (Expr.const q)
-  | var (idx : Nat) : ExprSupported (Expr.var idx)
-  | add {e₁ e₂ : Expr} : ExprSupported e₁ → ExprSupported e₂ → ExprSupported (Expr.add e₁ e₂)
-  | mul {e₁ e₂ : Expr} : ExprSupported e₁ → ExprSupported e₂ → ExprSupported (Expr.mul e₁ e₂)
-  | neg {e : Expr} : ExprSupported e → ExprSupported (Expr.neg e)
-  | sin {e : Expr} : ExprSupported e → ExprSupported (Expr.sin e)
-  | cos {e : Expr} : ExprSupported e → ExprSupported (Expr.cos e)
-  | exp {e : Expr} : ExprSupported e → ExprSupported (Expr.exp e)
+    - atan/arsinh/atanh (derivative proofs incomplete in the total AD evaluator) -/
+inductive ADSupported : Expr → Prop where
+  | const (q : ℚ) : ADSupported (Expr.const q)
+  | var (idx : Nat) : ADSupported (Expr.var idx)
+  | add {e₁ e₂ : Expr} : ADSupported e₁ → ADSupported e₂ → ADSupported (Expr.add e₁ e₂)
+  | mul {e₁ e₂ : Expr} : ADSupported e₁ → ADSupported e₂ → ADSupported (Expr.mul e₁ e₂)
+  | neg {e : Expr} : ADSupported e → ADSupported (Expr.neg e)
+  | sin {e : Expr} : ADSupported e → ADSupported (Expr.sin e)
+  | cos {e : Expr} : ADSupported e → ADSupported (Expr.cos e)
+  | exp {e : Expr} : ADSupported e → ADSupported (Expr.exp e)
 
-/-- ExprSupported expressions are also in ExprSupportedCore -/
-theorem ExprSupported.toCore {e : Expr} (h : ExprSupported e) : ExprSupportedCore e := by
+/-- ADSupported expressions are also in ExprSupportedCore -/
+theorem ADSupported.toCore {e : Expr} (h : ADSupported e) : ExprSupportedCore e := by
   induction h with
   | const q => exact ExprSupportedCore.const q
   | var idx => exact ExprSupportedCore.var idx
@@ -94,93 +94,23 @@ theorem ExprSupported.toCore {e : Expr} (h : ExprSupported e) : ExprSupportedCor
   | cos _ ih => exact ExprSupportedCore.cos ih
   | exp _ ih => exact ExprSupportedCore.exp ih
 
-/-! ### Syntactic support predicate with inv and log -/
-
-/-- Syntactic support predicate for expressions with inv and log (no semantic conditions).
-    This is the most general support predicate, allowing all expression constructors.
-    Semantic correctness is handled by evalInterval? returning None when conditions fail. -/
-inductive ExprSupportedWithInv : Expr → Prop where
-  | const (q : ℚ) : ExprSupportedWithInv (Expr.const q)
-  | var (idx : Nat) : ExprSupportedWithInv (Expr.var idx)
-  | add {e₁ e₂ : Expr} : ExprSupportedWithInv e₁ → ExprSupportedWithInv e₂ →
-      ExprSupportedWithInv (Expr.add e₁ e₂)
-  | mul {e₁ e₂ : Expr} : ExprSupportedWithInv e₁ → ExprSupportedWithInv e₂ →
-      ExprSupportedWithInv (Expr.mul e₁ e₂)
-  | neg {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.neg e)
-  | inv {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.inv e)
-  | exp {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.exp e)
-  | sin {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.sin e)
-  | cos {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.cos e)
-  | log {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.log e)
-  | sinh {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.sinh e)
-  | cosh {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.cosh e)
-  | tanh {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.tanh e)
-  | atan {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.atan e)
-  | arsinh {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.arsinh e)
-  | atanh {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.atanh e)
-  | sinc {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.sinc e)
-  | erf {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.erf e)
-  | sqrt {e : Expr} : ExprSupportedWithInv e → ExprSupportedWithInv (Expr.sqrt e)
-  | namedConst (c : MathConst) : ExprSupportedWithInv (Expr.namedConst c)
-
-/-- ExprSupported implies ExprSupportedWithInv -/
-theorem ExprSupported.toWithInv {e : Expr} (h : ExprSupported e) : ExprSupportedWithInv e := by
-  induction h with
-  | const q => exact ExprSupportedWithInv.const q
-  | var idx => exact ExprSupportedWithInv.var idx
-  | add _ _ ih₁ ih₂ => exact ExprSupportedWithInv.add ih₁ ih₂
-  | mul _ _ ih₁ ih₂ => exact ExprSupportedWithInv.mul ih₁ ih₂
-  | neg _ ih => exact ExprSupportedWithInv.neg ih
-  | sin _ ih => exact ExprSupportedWithInv.sin ih
-  | cos _ ih => exact ExprSupportedWithInv.cos ih
-  | exp _ ih => exact ExprSupportedWithInv.exp ih
-
-/-- Every expression constructor is covered by `ExprSupportedWithInv`.
-
-The predicate is retained for compatibility with existing theorem statements,
-but strict evaluators can use this theorem to expose a success-implies-
-enclosure result for arbitrary expressions. Domain restrictions remain a
-property of successful evaluation, not of this syntactic predicate. -/
-theorem Expr.supportedWithInv (e : Expr) : ExprSupportedWithInv e := by
-  induction e with
-  | const q => exact .const q
-  | var idx => exact .var idx
-  | add _ _ ih₁ ih₂ => exact .add ih₁ ih₂
-  | mul _ _ ih₁ ih₂ => exact .mul ih₁ ih₂
-  | neg _ ih => exact .neg ih
-  | inv _ ih => exact .inv ih
-  | exp _ ih => exact .exp ih
-  | sin _ ih => exact .sin ih
-  | cos _ ih => exact .cos ih
-  | log _ ih => exact .log ih
-  | atan _ ih => exact .atan ih
-  | arsinh _ ih => exact .arsinh ih
-  | atanh _ ih => exact .atanh ih
-  | sinc _ ih => exact .sinc ih
-  | erf _ ih => exact .erf ih
-  | sinh _ ih => exact .sinh ih
-  | cosh _ ih => exact .cosh ih
-  | tanh _ ih => exact .tanh ih
-  | sqrt _ ih => exact .sqrt ih
-  | namedConst c => exact .namedConst c
-
-/-- Computable recognition of the differentiable `ExprSupported` subset used
+/-- Computable recognition of the differentiable `ADSupported` subset used
 by Newton/AD backends. -/
-def Expr.checkSupported : Expr → Bool
+def Expr.checkADSupported : Expr → Bool
   | .const _ | .var _ => true
-  | .add e₁ e₂ | .mul e₁ e₂ => e₁.checkSupported && e₂.checkSupported
-  | .neg e | .exp e | .sin e | .cos e => e.checkSupported
+  | .add e₁ e₂ | .mul e₁ e₂ => e₁.checkADSupported && e₂.checkADSupported
+  | .neg e | .exp e | .sin e | .cos e => e.checkADSupported
   | _ => false
 
 /-- The executable support check recognizes exactly the differentiable
-`ExprSupported` fragment used by the checked AD/monotonicity backend. -/
-theorem Expr.checkSupported_eq_true_iff (e : Expr) :
-    e.checkSupported = true ↔ ExprSupported e := by
+`ADSupported` fragment used by the checked AD/monotonicity backend. -/
+theorem Expr.checkADSupported_eq_true_iff (e : Expr) :
+    e.checkADSupported = true ↔ ADSupported e := by
   induction e with
-  | const q => simp [Expr.checkSupported, ExprSupported.const]
-  | var i => simp [Expr.checkSupported, ExprSupported.var]
+  | const q => simp [Expr.checkADSupported, ADSupported.const]
+  | var i => simp [Expr.checkADSupported, ADSupported.var]
   | add e₁ e₂ ih₁ ih₂ =>
-      simp only [Expr.checkSupported, Bool.and_eq_true, ih₁, ih₂]
+      simp only [Expr.checkADSupported, Bool.and_eq_true, ih₁, ih₂]
       constructor
       · rintro ⟨h₁, h₂⟩
         exact .add h₁ h₂
@@ -188,7 +118,7 @@ theorem Expr.checkSupported_eq_true_iff (e : Expr) :
         cases h
         exact ⟨by assumption, by assumption⟩
   | mul e₁ e₂ ih₁ ih₂ =>
-      simp only [Expr.checkSupported, Bool.and_eq_true, ih₁, ih₂]
+      simp only [Expr.checkADSupported, Bool.and_eq_true, ih₁, ih₂]
       constructor
       · rintro ⟨h₁, h₂⟩
         exact .mul h₁ h₂
@@ -196,27 +126,27 @@ theorem Expr.checkSupported_eq_true_iff (e : Expr) :
         cases h
         exact ⟨by assumption, by assumption⟩
   | neg e ih | exp e ih | sin e ih | cos e ih =>
-      simp only [Expr.checkSupported, ih]
+      simp only [Expr.checkADSupported, ih]
       constructor
       · intro h
         first | exact .neg h | exact .exp h | exact .sin h | exact .cos h
       · intro h
         cases h
         assumption
-  | inv e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | log e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | atan e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | arsinh e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | atanh e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | sinc e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | erf e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | sinh e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | cosh e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | tanh e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
-  | sqrt e ih => exact ⟨by simp [Expr.checkSupported], fun h => by cases h⟩
+  | inv e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | log e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | atan e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | arsinh e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | atanh e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | sinc e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | erf e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | sinh e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | cosh e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | tanh e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
+  | sqrt e ih => exact ⟨by simp [Expr.checkADSupported], fun h => by cases h⟩
   | namedConst c =>
       constructor
-      · simp [Expr.checkSupported]
+      · simp [Expr.checkADSupported]
       · intro h
         cases h
 

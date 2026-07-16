@@ -136,13 +136,6 @@ example (N : Nat) (hN : 1 ≤ N) :
     deltaOneOverNAbelCert oneErr deltaOneAbelErrorLeOneDomination
     (Nat.le_refl 1) N hN
 
-def zeroErrLeOneSupport :
-    ExprSupportedWithInv (Expr.sub deltaOneOverNCert.toStieltjesCert.errorTerm oneErr) := by
-  unfold oneErr Expr.sub
-  exact ExprSupportedWithInv.add
-    (ExprSupportedWithInv.const 0)
-    (ExprSupportedWithInv.neg (ExprSupportedWithInv.const 1))
-
 def slab15 : IntervalRat := ⟨1, 5, by norm_num⟩
 
 def deltaOneErrorSlabTail :
@@ -166,7 +159,7 @@ example (N : Nat) (hN : 1 ≤ N) :
     evalAtNat deltaOneOverNCert.toStieltjesCert.errorTerm N ≤ evalAtNat oneErr N := by
   exact verify_stieltjes_error_le_target_with_slab_tail_dyadic
     deltaOneOverNCert.toStieltjesCert oneErr deltaOneErrorSlabTail (-53) 10
-    zeroErrLeOneSupport (by norm_num)
+    (by norm_num)
     (by
       change checkExprLeOnSlabsDyadic (Expr.const 0) oneErr [slab15] (-53) 10 = true
       native_decide)
@@ -177,7 +170,7 @@ noncomputable def deltaOneOverNWeakEnv : AsympEnv :=
     intro N hN
     exact verify_stieltjes_error_le_target_with_slab_tail_dyadic
       deltaOneOverNCert.toStieltjesCert oneErr deltaOneErrorSlabTail (-53) 10
-      zeroErrLeOneSupport (by norm_num)
+      (by norm_num)
       (by
         change checkExprLeOnSlabsDyadic (Expr.const 0) oneErr [slab15] (-53) 10 = true
         native_decide)

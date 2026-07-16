@@ -128,7 +128,7 @@ def inputInterval : IntervalDyadic :=
 def testEnv : IntervalDyadicEnv := fun _ => inputInterval
 
 -- Evaluate sqrt(x) on [1, 4]
-def sqrtEvalResult := evalIntervalDyadic sqrtVarExpr testEnv
+def sqrtEvalResult := LeanCert.Internal.Dyadic.evalUnchecked sqrtVarExpr testEnv
 
 -- The result should be a valid interval (lo ≤ hi)
 #guard sqrtEvalResult.lo.toRat ≤ sqrtEvalResult.hi.toRat
@@ -147,7 +147,7 @@ def inputInterval2 : IntervalDyadic :=
   ⟨⟨0, 0⟩, ⟨3, 0⟩, by native_decide⟩
 def testEnv2 : IntervalDyadicEnv := fun _ => inputInterval2
 
-def composedResult := evalIntervalDyadic sqrtPlusOne testEnv2
+def composedResult := LeanCert.Internal.Dyadic.evalUnchecked sqrtPlusOne testEnv2
 
 -- Result should be a valid interval
 #guard composedResult.lo.toRat ≤ composedResult.hi.toRat
@@ -162,7 +162,7 @@ def positiveInterval : IntervalDyadic :=
   ⟨⟨1, 0⟩, ⟨10, 0⟩, by native_decide⟩
 def testEnv3 : IntervalDyadicEnv := fun _ => positiveInterval
 
-def logEvalResult := evalIntervalDyadic logExpr testEnv3
+def logEvalResult := LeanCert.Internal.Dyadic.evalUnchecked logExpr testEnv3
 
 -- Result should be a valid interval with conservative bounds [-100, 100]
 #guard logEvalResult.lo.toRat ≤ logEvalResult.hi.toRat
@@ -171,7 +171,7 @@ def logEvalResult := evalIntervalDyadic logExpr testEnv3
 
 -- f(x) = sqrt(x) * sin(x) on [1, 4]
 def mixedExpr : Expr := Expr.mul (Expr.sqrt (Expr.var 0)) (Expr.sin (Expr.var 0))
-def mixedResult := evalIntervalDyadic mixedExpr testEnv
+def mixedResult := LeanCert.Internal.Dyadic.evalUnchecked mixedExpr testEnv
 
 -- Result should be valid
 #guard mixedResult.lo.toRat ≤ mixedResult.hi.toRat

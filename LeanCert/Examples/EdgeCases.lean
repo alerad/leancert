@@ -50,7 +50,7 @@ def exprSqrt_core : ExprSupportedCore exprSqrt :=
 
 -- The interval for sqrt on negative domain should be [0, something]
 theorem sqrt_neg_contains_zero :
-    let result := evalIntervalCore1 exprSqrt I_negative {}
+    let result := LeanCert.Internal.Rational.evalTotalCore1 exprSqrt I_negative {}
     result.lo = 0 := by
   native_decide
 
@@ -58,7 +58,7 @@ theorem sqrt_neg_contains_zero :
 def I_mixed : IntervalRat := ⟨-1, 4, by norm_num⟩
 
 theorem sqrt_mixed_contains_two :
-    let result := evalIntervalCore1 exprSqrt I_mixed {}
+    let result := LeanCert.Internal.Rational.evalTotalCore1 exprSqrt I_mixed {}
     result.lo = 0 ∧ result.hi ≥ 2 := by
   native_decide
 
@@ -97,7 +97,7 @@ def exprX3_core : ExprSupportedCore exprX3 :=
 
 -- x³ can be positive or negative on [-1, 1]
 theorem x_cube_spans_zero :
-    let result := evalIntervalCore1 exprX3 I_cross_zero {}
+    let result := LeanCert.Internal.Rational.evalTotalCore1 exprX3 I_cross_zero {}
     result.lo < 0 ∧ 0 < result.hi := by
   native_decide
 
@@ -107,7 +107,7 @@ sin(x)/x has a removable singularity at 0.
 Checked evaluation rejects `Expr.div (sin x) x` on a box containing 0;
 `Expr.sinc x` represents the removable extension and is safe there.
 
-NOTE: sinc is not in ExprSupportedCore, so we test using ExprSupportedWithInv
+NOTE: sinc is not in ExprSupportedCore, so we test using checked evaluation
 or direct evaluation.
 -/
 
@@ -217,7 +217,7 @@ theorem const_eval_correct :
 def I_any : IntervalRat := ⟨0, 1, by norm_num⟩
 
 theorem const_interval_correct :
-    let result := evalIntervalCore1 exprConst5 I_any {}
+    let result := LeanCert.Internal.Rational.evalTotalCore1 exprConst5 I_any {}
     result.lo = 5 ∧ result.hi = 5 := by
   native_decide
 
@@ -232,7 +232,7 @@ def I_unit_dyadic : IntervalDyadic :=
 
 -- Evaluate using dyadic arithmetic (faster for deep expressions)
 theorem dyadic_x2_bounded :
-    let result := evalIntervalDyadic exprX2 (fun _ => I_unit_dyadic) {}
+    let result := LeanCert.Internal.Dyadic.evalUnchecked exprX2 (fun _ => I_unit_dyadic) {}
     result.lo.toRat ≥ 0 := by
   native_decide
 

@@ -72,10 +72,10 @@ def smallIntervalDyadic : IntervalDyadic := IntervalDyadic.ofIntervalRat smallIn
 /-! ### Evaluation Functions -/
 
 def evalRational (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
-  evalIntervalCore e (fun _ => I) cfg
+  LeanCert.Internal.Rational.evalTotalCore e (fun _ => I) cfg
 
 def evalDyadic (e : Expr) (I : IntervalDyadic) (cfg : DyadicConfig := {}) : IntervalDyadic :=
-  evalIntervalDyadic e (fun _ => I) cfg
+  LeanCert.Internal.Dyadic.evalUnchecked e (fun _ => I) cfg
 
 /-! ### Timing Infrastructure -/
 
@@ -181,9 +181,9 @@ def main : IO Unit := do
   IO.println "└─────────────────────────────────────────────────────────────────┘"
   let testExpr := mkNestedSin 5
 
-  let fastResult := evalIntervalDyadic testExpr (fun _ => testIntervalDyadic) DyadicConfig.fast
-  let stdResult := evalIntervalDyadic testExpr (fun _ => testIntervalDyadic) {}
-  let highResult := evalIntervalDyadic testExpr (fun _ => testIntervalDyadic) DyadicConfig.highPrecision
+  let fastResult := LeanCert.Internal.Dyadic.evalUnchecked testExpr (fun _ => testIntervalDyadic) DyadicConfig.fast
+  let stdResult := LeanCert.Internal.Dyadic.evalUnchecked testExpr (fun _ => testIntervalDyadic) {}
+  let highResult := LeanCert.Internal.Dyadic.evalUnchecked testExpr (fun _ => testIntervalDyadic) DyadicConfig.highPrecision
 
   IO.println s!"  nestedSin5 interval widths:"
   IO.println s!"    fast (-30 bits):  {(fastResult.hi.toRat - fastResult.lo.toRat)}"

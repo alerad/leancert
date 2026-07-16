@@ -67,7 +67,7 @@ def checkStrictlyDecreasing (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}
 
     This uses the Mean Value Theorem: if f'(x) > 0 for all x in the interior of I,
     then f is strictly monotone on I. -/
-theorem verify_strictly_increasing (e : Expr) (hsupp : ExprSupported e)
+theorem verify_strictly_increasing (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h_check : checkStrictlyIncreasing e I cfg = true) :
     StrictMonoOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc (I.lo : ℝ) I.hi) := by
@@ -79,7 +79,7 @@ theorem verify_strictly_increasing (e : Expr) (hsupp : ExprSupported e)
 
     If `checkStrictlyDecreasing e I cfg = true`, then the function defined by `e`
     is strictly decreasing on `I`. -/
-theorem verify_strictly_decreasing (e : Expr) (hsupp : ExprSupported e)
+theorem verify_strictly_decreasing (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h_check : checkStrictlyDecreasing e I cfg = true) :
     StrictAntiOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc (I.lo : ℝ) I.hi) := by
@@ -93,7 +93,7 @@ These theorems provide the monotonicity result in the form
 `∀ x y ∈ I, x < y → f(x) < f(y)`, which may be more convenient for some applications. -/
 
 /-- Strictly increasing: x < y implies f(x) < f(y) -/
-theorem verify_strictly_increasing_lt (e : Expr) (hsupp : ExprSupported e)
+theorem verify_strictly_increasing_lt (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h_check : checkStrictlyIncreasing e I cfg = true) :
     ∀ x ∈ Set.Icc (I.lo : ℝ) I.hi, ∀ y ∈ Set.Icc (I.lo : ℝ) I.hi,
@@ -103,7 +103,7 @@ theorem verify_strictly_increasing_lt (e : Expr) (hsupp : ExprSupported e)
   exact hmono hx hy hxy
 
 /-- Strictly decreasing: x < y implies f(x) > f(y) -/
-theorem verify_strictly_decreasing_lt (e : Expr) (hsupp : ExprSupported e)
+theorem verify_strictly_decreasing_lt (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h_check : checkStrictlyDecreasing e I cfg = true) :
     ∀ x ∈ Set.Icc (I.lo : ℝ) I.hi, ∀ y ∈ Set.Icc (I.lo : ℝ) I.hi,
@@ -118,7 +118,7 @@ For completeness, we provide theorems that derive weak monotonicity (≤) from
 the strict monotonicity checks. -/
 
 /-- Monotone (weak): x ≤ y implies f(x) ≤ f(y) -/
-theorem verify_monotone (e : Expr) (hsupp : ExprSupported e)
+theorem verify_monotone (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h_check : checkStrictlyIncreasing e I cfg = true) :
     MonotoneOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc (I.lo : ℝ) I.hi) := by
@@ -126,7 +126,7 @@ theorem verify_monotone (e : Expr) (hsupp : ExprSupported e)
   exact hstrict.monotoneOn
 
 /-- Antitone (weak): x ≤ y implies f(x) ≥ f(y) -/
-theorem verify_antitone (e : Expr) (hsupp : ExprSupported e)
+theorem verify_antitone (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h_check : checkStrictlyDecreasing e I cfg = true) :
     AntitoneOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc (I.lo : ℝ) I.hi) := by
@@ -139,14 +139,14 @@ These versions take rational endpoints directly, avoiding the need to construct
 an IntervalRat explicitly. -/
 
 /-- Convenience version with explicit rational endpoints -/
-theorem verify_strictly_increasing_rat (e : Expr) (hsupp : ExprSupported e)
+theorem verify_strictly_increasing_rat (e : Expr) (hsupp : ADSupported e)
     (lo hi : ℚ) (hle : lo ≤ hi) (cfg : EvalConfig)
     (h_check : checkStrictlyIncreasing e ⟨lo, hi, hle⟩ cfg = true) :
     StrictMonoOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc (lo : ℝ) hi) :=
   verify_strictly_increasing e hsupp ⟨lo, hi, hle⟩ cfg h_check
 
 /-- Convenience version with explicit rational endpoints -/
-theorem verify_strictly_decreasing_rat (e : Expr) (hsupp : ExprSupported e)
+theorem verify_strictly_decreasing_rat (e : Expr) (hsupp : ADSupported e)
     (lo hi : ℚ) (hle : lo ≤ hi) (cfg : EvalConfig)
     (h_check : checkStrictlyDecreasing e ⟨lo, hi, hle⟩ cfg = true) :
     StrictAntiOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc (lo : ℝ) hi) :=

@@ -66,7 +66,7 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
 
       -- Evaluate with high precision
       let diagCfg : EvalConfig := { taylorDepth := 30 }
-      let result := evalIntervalCore1 ast I diagCfg
+      let result := LeanCert.Internal.Rational.evalTotalCore1 ast I diagCfg
 
       -- Extract bound as rational
       let limitOpt ← extractRatFromReal bound
@@ -126,28 +126,17 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
 
 /-- Try to prove a forall-bound goal using the Dyadic backend.
     Returns `true` if the goal was closed, `false` otherwise.
-    Tries ExprSupported first, falls back to ExprSupportedWithInv for inv/log. -/
+    Uses the checked Dyadic evaluator for arbitrary expressions. -/
 private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
     (intervalInfo : IntervalInfo) (taylorDepth : Nat)
     (isStrict isLower : Bool) : TacticM Bool := do
   try
-    -- Try ExprSupported first, fall back to ExprSupportedWithInv
-    let mut dyadicSupportProof ← mkSupportedWithInvProof ast
-    let mut useWithInv := true
-    try
-      dyadicSupportProof ← mkSupportedProof ast
-      useWithInv := false
-    catch _ => pure ()
     let (theoremName, checkName) :=
-      match useWithInv, isStrict, isLower with
-      | false, false, false => (``LeanCert.Validity.verify_upper_bound_dyadic', ``LeanCert.Validity.checkUpperBoundDyadic)
-      | false, false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic', ``LeanCert.Validity.checkLowerBoundDyadic)
-      | false, true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic', ``LeanCert.Validity.checkStrictUpperBoundDyadic)
-      | false, true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic', ``LeanCert.Validity.checkStrictLowerBoundDyadic)
-      | true,  false, false => (``LeanCert.Validity.verify_upper_bound_dyadic_withInv, ``LeanCert.Validity.checkUpperBoundDyadicWithInv)
-      | true,  false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic_withInv, ``LeanCert.Validity.checkLowerBoundDyadicWithInv)
-      | true,  true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic_withInv, ``LeanCert.Validity.checkStrictUpperBoundDyadicWithInv)
-      | true,  true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic_withInv, ``LeanCert.Validity.checkStrictLowerBoundDyadicWithInv)
+      match isStrict, isLower with
+      | false, false => (``LeanCert.Validity.verify_upper_bound_dyadic_checked, ``LeanCert.Validity.checkUpperBoundDyadicChecked)
+      | false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic_checked, ``LeanCert.Validity.checkLowerBoundDyadicChecked)
+      | true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic_checked, ``LeanCert.Validity.checkStrictUpperBoundDyadicChecked)
+      | true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic_checked, ``LeanCert.Validity.checkStrictLowerBoundDyadicChecked)
     let prec : Int := -80
     let precExpr := toExpr prec
     let depthExpr := toExpr taylorDepth
@@ -155,7 +144,7 @@ private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
     match intervalInfo.fromSetIcc with
     | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
       let proof ← mkAppM theoremName
-        #[ast, dyadicSupportProof, loRatExpr, hiRatExpr, leProof, boundRat,
+        #[ast, loRatExpr, hiRatExpr, leProof, boundRat,
           precExpr, depthExpr, precLeZeroProof]
       let checkExpr ← mkAppM checkName
         #[ast, loRatExpr, hiRatExpr, leProof, boundRat, precExpr, depthExpr]
@@ -267,8 +256,8 @@ where
         return
       restoreState savedState
 
-      -- 3. Generate support proof (tries Core first, falls back to WithInv for log/inv)
-      let (supportProof, useWithInv) ← getSupportProof ast
+      -- 3. Generate support proof (tries Core first, falls back to Checked for log/inv)
+      let (supportProof, useChecked) ← getSupportProof ast
 
       -- 4. Build config expression
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -277,9 +266,9 @@ where
       match intervalInfo.fromSetIcc with
         | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
           -- Choose theorem and arguments based on support type
-          -- Note: WithInv theorems don't take a cfg parameter
-          let proof ← if useWithInv then
-            mkAppM ``verify_upper_bound_Icc_withInv #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat]
+          -- Note: Checked theorems don't take a cfg parameter
+          let proof ← if useChecked then
+            mkAppM ``verify_upper_bound_Icc_checked #[ast, loRatExpr, hiRatExpr, leProof, boundRat]
           else
             mkAppM ``verify_upper_bound_Icc_core #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
 
@@ -309,10 +298,10 @@ where
             setGoals [goal]
 
             -- Build the certificate expression (using appropriate check function)
-            -- Note: WithInv check functions don't take a cfg parameter
+            -- Note: Checked check functions don't take a cfg parameter
             let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-            let checkExpr ← if useWithInv then
-              mkAppM ``LeanCert.Validity.checkUpperBoundWithInv #[ast, intervalRat, boundRat]
+            let checkExpr ← if useChecked then
+              mkAppM ``LeanCert.Validity.checkUpperBoundChecked #[ast, intervalRat, boundRat]
             else
               mkAppM ``LeanCert.Validity.checkUpperBound #[ast, intervalRat, boundRat, cfgExpr]
 
@@ -379,8 +368,8 @@ where
 
         | none =>
           -- Direct IntervalRat goal - use appropriate verify_upper_bound theorem
-          let proof ← if useWithInv then
-            mkAppM ``verify_upper_bound_withInv #[ast, supportProof, intervalInfo.intervalRat, boundRat]
+          let proof ← if useChecked then
+            mkAppM ``verify_upper_bound_checked #[ast, intervalInfo.intervalRat, boundRat]
           else
             mkAppM ``verify_upper_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
           -- Try direct apply first
@@ -394,8 +383,8 @@ where
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
-            let checkExpr ← if useWithInv then
-              mkAppM ``LeanCert.Validity.checkUpperBoundWithInv #[ast, intervalInfo.intervalRat, boundRat]
+            let checkExpr ← if useChecked then
+              mkAppM ``LeanCert.Validity.checkUpperBoundChecked #[ast, intervalInfo.intervalRat, boundRat]
             else
               mkAppM ``LeanCert.Validity.checkUpperBound #[ast, intervalInfo.intervalRat, boundRat, cfgExpr]
             let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
@@ -445,16 +434,16 @@ where
         return
       restoreState savedState
 
-      let (supportProof, useWithInv) ← getSupportProof ast
+      let (supportProof, useChecked) ← getSupportProof ast
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
       -- Handle based on interval source
       match intervalInfo.fromSetIcc with
         | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
           -- Choose theorem and arguments based on support type
-          -- Note: WithInv theorems don't take a cfg parameter
-          let proof ← if useWithInv then
-            mkAppM ``verify_lower_bound_Icc_withInv #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat]
+          -- Note: Checked theorems don't take a cfg parameter
+          let proof ← if useChecked then
+            mkAppM ``verify_lower_bound_Icc_checked #[ast, loRatExpr, hiRatExpr, leProof, boundRat]
           else
             mkAppM ``verify_lower_bound_Icc_core #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
 
@@ -483,8 +472,8 @@ where
             -- Apply failed, use convert
             setGoals [goal]
             let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-            let checkExpr ← if useWithInv then
-              mkAppM ``LeanCert.Validity.checkLowerBoundWithInv #[ast, intervalRat, boundRat]
+            let checkExpr ← if useChecked then
+              mkAppM ``LeanCert.Validity.checkLowerBoundChecked #[ast, intervalRat, boundRat]
             else
               mkAppM ``LeanCert.Validity.checkLowerBound #[ast, intervalRat, boundRat, cfgExpr]
 
@@ -544,8 +533,8 @@ where
 
         | none =>
           -- Direct IntervalRat goal - use appropriate verify_lower_bound theorem
-          let proof ← if useWithInv then
-            mkAppM ``verify_lower_bound_withInv #[ast, supportProof, intervalInfo.intervalRat, boundRat]
+          let proof ← if useChecked then
+            mkAppM ``verify_lower_bound_checked #[ast, intervalInfo.intervalRat, boundRat]
           else
             mkAppM ``verify_lower_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
           -- Try direct apply first
@@ -559,8 +548,8 @@ where
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
-            let checkExpr ← if useWithInv then
-              mkAppM ``LeanCert.Validity.checkLowerBoundWithInv #[ast, intervalInfo.intervalRat, boundRat]
+            let checkExpr ← if useChecked then
+              mkAppM ``LeanCert.Validity.checkLowerBoundChecked #[ast, intervalInfo.intervalRat, boundRat]
             else
               mkAppM ``LeanCert.Validity.checkLowerBound #[ast, intervalInfo.intervalRat, boundRat, cfgExpr]
             let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
@@ -610,16 +599,16 @@ where
         return
       restoreState savedState
 
-      let (supportProof, useWithInv) ← getSupportProof ast
+      let (supportProof, useChecked) ← getSupportProof ast
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
       -- Handle based on interval source
       match intervalInfo.fromSetIcc with
         | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
           -- Choose theorem and arguments based on support type
-          -- Note: WithInv theorems don't take a cfg parameter
-          let proof ← if useWithInv then
-            mkAppM ``verify_strict_upper_bound_Icc_withInv #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat]
+          -- Note: Checked theorems don't take a cfg parameter
+          let proof ← if useChecked then
+            mkAppM ``verify_strict_upper_bound_Icc_checked #[ast, loRatExpr, hiRatExpr, leProof, boundRat]
           else
             mkAppM ``verify_strict_upper_bound_Icc_core #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
 
@@ -648,8 +637,8 @@ where
             -- Apply failed, use convert
             setGoals [goal]
             let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-            let checkExpr ← if useWithInv then
-              mkAppM ``LeanCert.Validity.checkStrictUpperBoundWithInv #[ast, intervalRat, boundRat]
+            let checkExpr ← if useChecked then
+              mkAppM ``LeanCert.Validity.checkStrictUpperBoundChecked #[ast, intervalRat, boundRat]
             else
               mkAppM ``LeanCert.Validity.checkStrictUpperBound #[ast, intervalRat, boundRat, cfgExpr]
 
@@ -708,8 +697,8 @@ where
 
         | none =>
           -- Direct IntervalRat goal - use appropriate theorem
-          let proof ← if useWithInv then
-            mkAppM ``verify_strict_upper_bound_withInv #[ast, supportProof, intervalInfo.intervalRat, boundRat]
+          let proof ← if useChecked then
+            mkAppM ``verify_strict_upper_bound_checked #[ast, intervalInfo.intervalRat, boundRat]
           else
             mkAppM ``verify_strict_upper_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
           let newGoals ← goal.apply proof
@@ -739,16 +728,16 @@ where
         return
       restoreState savedState
 
-      let (supportProof, useWithInv) ← getSupportProof ast
+      let (supportProof, useChecked) ← getSupportProof ast
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
       -- Handle based on interval source
       match intervalInfo.fromSetIcc with
         | some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _origLo, _origHi) =>
           -- Choose theorem and arguments based on support type
-          -- Note: WithInv theorems don't take a cfg parameter
-          let proof ← if useWithInv then
-            mkAppM ``verify_strict_lower_bound_Icc_withInv #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat]
+          -- Note: Checked theorems don't take a cfg parameter
+          let proof ← if useChecked then
+            mkAppM ``verify_strict_lower_bound_Icc_checked #[ast, loRatExpr, hiRatExpr, leProof, boundRat]
           else
             mkAppM ``verify_strict_lower_bound_Icc_core #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr]
 
@@ -777,8 +766,8 @@ where
             -- Apply failed, use convert
             setGoals [goal]
             let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-            let checkExpr ← if useWithInv then
-              mkAppM ``LeanCert.Validity.checkStrictLowerBoundWithInv #[ast, intervalRat, boundRat]
+            let checkExpr ← if useChecked then
+              mkAppM ``LeanCert.Validity.checkStrictLowerBoundChecked #[ast, intervalRat, boundRat]
             else
               mkAppM ``LeanCert.Validity.checkStrictLowerBound #[ast, intervalRat, boundRat, cfgExpr]
 
@@ -837,8 +826,8 @@ where
 
         | none =>
           -- Direct IntervalRat goal - use appropriate theorem
-          let proof ← if useWithInv then
-            mkAppM ``verify_strict_lower_bound_withInv #[ast, supportProof, intervalInfo.intervalRat, boundRat]
+          let proof ← if useChecked then
+            mkAppM ``verify_strict_lower_bound_checked #[ast, intervalInfo.intervalRat, boundRat]
           else
             mkAppM ``verify_strict_lower_bound #[ast, supportProof, intervalInfo.intervalRat, boundRat, cfgExpr]
           let newGoals ← goal.apply proof

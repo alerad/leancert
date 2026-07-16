@@ -27,7 +27,7 @@ the Dyadic evaluator as a first-class citizen for certificate-driven verificatio
 * `verify_upper_bound_dyadic` - Converts boolean check to semantic proof for upper bounds
 * `verify_lower_bound_dyadic` - Converts boolean check to semantic proof for lower bounds
 
-For `ExprSupported` expressions (no log), convenience versions are provided that
+For `ADSupported` expressions (no log), convenience versions are provided that
 don't require explicit domain validity proofs.
 
 ## Design
@@ -69,28 +69,28 @@ def checkUpperBoundDyadic (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) : Bool :=
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
-  (evalIntervalDyadic e ρ { precision := prec, taylorDepth := depth }).upperBoundedBy c
+  (LeanCert.Internal.Dyadic.evalUnchecked e ρ { precision := prec, taylorDepth := depth }).upperBoundedBy c
 
 /-- Check if an expression's computed lower bound is ≥ c using Dyadic arithmetic. -/
 def checkLowerBoundDyadic (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) : Bool :=
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
-  (evalIntervalDyadic e ρ { precision := prec, taylorDepth := depth }).lowerBoundedBy c
+  (LeanCert.Internal.Dyadic.evalUnchecked e ρ { precision := prec, taylorDepth := depth }).lowerBoundedBy c
 
 /-- Check if an expression's computed upper bound is strictly < c using Dyadic arithmetic. -/
 def checkStrictUpperBoundDyadic (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) : Bool :=
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
-  decide ((evalIntervalDyadic e ρ { precision := prec, taylorDepth := depth }).hi.toRat < c)
+  decide ((LeanCert.Internal.Dyadic.evalUnchecked e ρ { precision := prec, taylorDepth := depth }).hi.toRat < c)
 
 /-- Check if an expression's computed lower bound is strictly > c using Dyadic arithmetic. -/
 def checkStrictLowerBoundDyadic (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) : Bool :=
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
-  decide (c < (evalIntervalDyadic e ρ { precision := prec, taylorDepth := depth }).lo.toRat)
+  decide (c < (LeanCert.Internal.Dyadic.evalUnchecked e ρ { precision := prec, taylorDepth := depth }).lo.toRat)
 
 /-! ### Golden Theorems
 
@@ -113,7 +113,7 @@ about Real numbers.
     - `prec`: Precision (must be ≤ 0)
     - `depth`: Taylor series depth
     - `h_prec`: Proof that prec ≤ 0
-    - `hdom`: Proof of domain validity (automatic for ExprSupported)
+    - `hdom`: Proof of domain validity (automatic for ADSupported)
     - `h_check`: The boolean check result -/
 theorem verify_upper_bound_dyadic (e : Expr) (hsupp : ExprSupportedCore e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
@@ -139,7 +139,7 @@ theorem verify_upper_bound_dyadic (e : Expr) (hsupp : ExprSupportedCore e)
   simp only [checkUpperBoundDyadic, IntervalDyadic.upperBoundedBy, decide_eq_true_eq] at h_check
   -- Conclude: eval ≤ hi.toRat ≤ c
   calc Expr.eval (fun _ => x) e
-      ≤ ((evalIntervalDyadic e ρ_dyad { precision := prec, taylorDepth := depth }).hi.toRat : ℝ) := h_eval.2
+      ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad { precision := prec, taylorDepth := depth }).hi.toRat : ℝ) := h_eval.2
     _ ≤ c := by exact_mod_cast h_check
 
 /-- **Golden Theorem for Dyadic Lower Bounds**
@@ -165,17 +165,17 @@ theorem verify_lower_bound_dyadic (e : Expr) (hsupp : ExprSupportedCore e)
     { precision := prec, taylorDepth := depth } h_prec hdom
   simp only [checkLowerBoundDyadic, IntervalDyadic.lowerBoundedBy, decide_eq_true_eq] at h_check
   calc (c : ℝ)
-      ≤ ((evalIntervalDyadic e ρ_dyad { precision := prec, taylorDepth := depth }).lo.toRat : ℝ) := by exact_mod_cast h_check
+      ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad { precision := prec, taylorDepth := depth }).lo.toRat : ℝ) := by exact_mod_cast h_check
     _ ≤ Expr.eval (fun _ => x) e := h_eval.1
 
-/-! ### Convenience Theorems for ExprSupported
+/-! ### Convenience Theorems for ADSupported
 
 For expressions that don't use `log`, domain validity is automatic.
 These versions don't require the `hdom` hypothesis. -/
 
-/-- Convenience theorem for ExprSupported expressions (no log).
+/-- Convenience theorem for ADSupported expressions (no log).
     Domain validity is automatic, so only the bound check is needed. -/
-theorem verify_upper_bound_dyadic' (e : Expr) (hsupp : ExprSupported e)
+theorem verify_upper_bound_dyadic' (e : Expr) (hsupp : ADSupported e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
     (h_check : checkUpperBoundDyadic e lo hi hle c prec depth = true) :
@@ -186,9 +186,9 @@ theorem verify_upper_bound_dyadic' (e : Expr) (hsupp : ExprSupported e)
     evalDomainValidDyadic_of_ExprSupported hsupp _ _
   exact verify_upper_bound_dyadic e hsupp.toCore lo hi hle c prec depth h_prec hdom h_check
 
-/-- Convenience theorem for ExprSupported expressions (no log).
+/-- Convenience theorem for ADSupported expressions (no log).
     Domain validity is automatic, so only the bound check is needed. -/
-theorem verify_lower_bound_dyadic' (e : Expr) (hsupp : ExprSupported e)
+theorem verify_lower_bound_dyadic' (e : Expr) (hsupp : ADSupported e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
     (h_check : checkLowerBoundDyadic e lo hi hle c prec depth = true) :
@@ -224,7 +224,7 @@ theorem verify_strict_upper_bound_dyadic (e : Expr) (hsupp : ExprSupportedCore e
     { precision := prec, taylorDepth := depth } h_prec hdom
   simp only [checkStrictUpperBoundDyadic, decide_eq_true_eq] at h_check
   calc Expr.eval (fun _ => x) e
-      ≤ ((evalIntervalDyadic e ρ_dyad { precision := prec, taylorDepth := depth }).hi.toRat : ℝ) := h_eval.2
+      ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad { precision := prec, taylorDepth := depth }).hi.toRat : ℝ) := h_eval.2
     _ < c := by exact_mod_cast h_check
 
 /-- **Golden Theorem for Strict Dyadic Lower Bounds**
@@ -250,13 +250,13 @@ theorem verify_strict_lower_bound_dyadic (e : Expr) (hsupp : ExprSupportedCore e
     { precision := prec, taylorDepth := depth } h_prec hdom
   simp only [checkStrictLowerBoundDyadic, decide_eq_true_eq] at h_check
   calc (c : ℝ)
-      < ((evalIntervalDyadic e ρ_dyad { precision := prec, taylorDepth := depth }).lo.toRat : ℝ) := by exact_mod_cast h_check
+      < ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad { precision := prec, taylorDepth := depth }).lo.toRat : ℝ) := by exact_mod_cast h_check
     _ ≤ Expr.eval (fun _ => x) e := h_eval.1
 
-/-! ### Convenience Theorems for Strict Inequalities (ExprSupported) -/
+/-! ### Convenience Theorems for Strict Inequalities (ADSupported) -/
 
-/-- Convenience theorem for strict upper bounds with ExprSupported expressions. -/
-theorem verify_strict_upper_bound_dyadic' (e : Expr) (hsupp : ExprSupported e)
+/-- Convenience theorem for strict upper bounds with ADSupported expressions. -/
+theorem verify_strict_upper_bound_dyadic' (e : Expr) (hsupp : ADSupported e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
     (h_check : checkStrictUpperBoundDyadic e lo hi hle c prec depth = true) :
@@ -267,8 +267,8 @@ theorem verify_strict_upper_bound_dyadic' (e : Expr) (hsupp : ExprSupported e)
     evalDomainValidDyadic_of_ExprSupported hsupp _ _
   exact verify_strict_upper_bound_dyadic e hsupp.toCore lo hi hle c prec depth h_prec hdom h_check
 
-/-- Convenience theorem for strict lower bounds with ExprSupported expressions. -/
-theorem verify_strict_lower_bound_dyadic' (e : Expr) (hsupp : ExprSupported e)
+/-- Convenience theorem for strict lower bounds with ADSupported expressions. -/
+theorem verify_strict_lower_bound_dyadic' (e : Expr) (hsupp : ADSupported e)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
     (h_check : checkStrictLowerBoundDyadic e lo hi hle c prec depth = true) :
@@ -279,142 +279,142 @@ theorem verify_strict_lower_bound_dyadic' (e : Expr) (hsupp : ExprSupported e)
     evalDomainValidDyadic_of_ExprSupported hsupp _ _
   exact verify_strict_lower_bound_dyadic e hsupp.toCore lo hi hle c prec depth h_prec hdom h_check
 
-/-! ### WithInv Check Functions
+/-! ### Checked Check Functions
 
 These bundle domain validity + bound check for expressions containing inv/log.
 A single `native_decide` call proves both domain validity and the bound. -/
 
-/-- Check upper bound for WithInv expressions (inv/log). Includes domain validity check. -/
-def checkUpperBoundDyadicWithInv (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+/-- Check upper bound for Checked expressions (inv/log). Includes domain validity check. -/
+def checkUpperBoundDyadicChecked (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) : Bool :=
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
   let cfg : DyadicConfig := { precision := prec, taylorDepth := depth }
   checkDomainValidDyadic e ρ cfg &&
-    (evalIntervalDyadic e ρ cfg).upperBoundedBy c
+    (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).upperBoundedBy c
 
-/-- Check lower bound for WithInv expressions (inv/log). Includes domain validity check. -/
-def checkLowerBoundDyadicWithInv (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+/-- Check lower bound for Checked expressions (inv/log). Includes domain validity check. -/
+def checkLowerBoundDyadicChecked (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) : Bool :=
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
   let cfg : DyadicConfig := { precision := prec, taylorDepth := depth }
   checkDomainValidDyadic e ρ cfg &&
-    (evalIntervalDyadic e ρ cfg).lowerBoundedBy c
+    (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).lowerBoundedBy c
 
-/-- Check strict upper bound for WithInv expressions. Includes domain validity check. -/
-def checkStrictUpperBoundDyadicWithInv (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+/-- Check strict upper bound for Checked expressions. Includes domain validity check. -/
+def checkStrictUpperBoundDyadicChecked (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) : Bool :=
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
   let cfg : DyadicConfig := { precision := prec, taylorDepth := depth }
   checkDomainValidDyadic e ρ cfg &&
-    decide ((evalIntervalDyadic e ρ cfg).hi.toRat < c)
+    decide ((LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).hi.toRat < c)
 
-/-- Check strict lower bound for WithInv expressions. Includes domain validity check. -/
-def checkStrictLowerBoundDyadicWithInv (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
+/-- Check strict lower bound for Checked expressions. Includes domain validity check. -/
+def checkStrictLowerBoundDyadicChecked (e : Expr) (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) : Bool :=
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
   let cfg : DyadicConfig := { precision := prec, taylorDepth := depth }
   checkDomainValidDyadic e ρ cfg &&
-    decide (c < (evalIntervalDyadic e ρ cfg).lo.toRat)
+    decide (c < (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).lo.toRat)
 
-/-! ### WithInv Golden Theorems
+/-! ### Checked Golden Theorems
 
-For `ExprSupportedWithInv` expressions (with inv/log). Domain validity is extracted
+For arbitrary expressions (with inv/log). Domain validity is extracted
 from the combined check function, so no separate `hdom` argument is needed. -/
 
 /-- Golden Theorem for Dyadic upper bounds with inv/log expressions. -/
-theorem verify_upper_bound_dyadic_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem verify_upper_bound_dyadic_checked (e : Expr)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
-    (h_check : checkUpperBoundDyadicWithInv e lo hi hle c prec depth = true) :
+    (h_check : checkUpperBoundDyadicChecked e lo hi hle c prec depth = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ_dyad : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
   let cfg : DyadicConfig := { precision := prec, taylorDepth := depth }
-  simp only [checkUpperBoundDyadicWithInv, Bool.and_eq_true] at h_check
+  simp only [checkUpperBoundDyadicChecked, Bool.and_eq_true] at h_check
   obtain ⟨h_dom_bool, h_bound⟩ := h_check
   have hdom := checkDomainValidDyadic_correct e ρ_dyad cfg h_dom_bool
   have h_env : envMemDyadic (fun _ => x) ρ_dyad := by
     intro i
     apply IntervalDyadic.mem_ofIntervalRat _ prec h_prec
     rwa [IntervalRat.mem_iff_mem_Icc]
-  have h_eval := evalIntervalDyadic_correct_withInv e hsupp (fun _ => x) ρ_dyad h_env cfg h_prec hdom
+  have h_eval := evalIntervalDyadic_correct_of_domain e (fun _ => x) ρ_dyad h_env cfg h_prec hdom
   simp only [IntervalDyadic.upperBoundedBy, decide_eq_true_eq] at h_bound
   calc Expr.eval (fun _ => x) e
-      ≤ ((evalIntervalDyadic e ρ_dyad cfg).hi.toRat : ℝ) := h_eval.2
+      ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad cfg).hi.toRat : ℝ) := h_eval.2
     _ ≤ c := by exact_mod_cast h_bound
 
 /-- Golden Theorem for Dyadic lower bounds with inv/log expressions. -/
-theorem verify_lower_bound_dyadic_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem verify_lower_bound_dyadic_checked (e : Expr)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
-    (h_check : checkLowerBoundDyadicWithInv e lo hi hle c prec depth = true) :
+    (h_check : checkLowerBoundDyadicChecked e lo hi hle c prec depth = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ_dyad : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
   let cfg : DyadicConfig := { precision := prec, taylorDepth := depth }
-  simp only [checkLowerBoundDyadicWithInv, Bool.and_eq_true] at h_check
+  simp only [checkLowerBoundDyadicChecked, Bool.and_eq_true] at h_check
   obtain ⟨h_dom_bool, h_bound⟩ := h_check
   have hdom := checkDomainValidDyadic_correct e ρ_dyad cfg h_dom_bool
   have h_env : envMemDyadic (fun _ => x) ρ_dyad := by
     intro i
     apply IntervalDyadic.mem_ofIntervalRat _ prec h_prec
     rwa [IntervalRat.mem_iff_mem_Icc]
-  have h_eval := evalIntervalDyadic_correct_withInv e hsupp (fun _ => x) ρ_dyad h_env cfg h_prec hdom
+  have h_eval := evalIntervalDyadic_correct_of_domain e (fun _ => x) ρ_dyad h_env cfg h_prec hdom
   simp only [IntervalDyadic.lowerBoundedBy, decide_eq_true_eq] at h_bound
   calc (c : ℝ)
-      ≤ ((evalIntervalDyadic e ρ_dyad cfg).lo.toRat : ℝ) := by exact_mod_cast h_bound
+      ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad cfg).lo.toRat : ℝ) := by exact_mod_cast h_bound
     _ ≤ Expr.eval (fun _ => x) e := h_eval.1
 
 /-- Golden Theorem for strict Dyadic upper bounds with inv/log expressions. -/
-theorem verify_strict_upper_bound_dyadic_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem verify_strict_upper_bound_dyadic_checked (e : Expr)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
-    (h_check : checkStrictUpperBoundDyadicWithInv e lo hi hle c prec depth = true) :
+    (h_check : checkStrictUpperBoundDyadicChecked e lo hi hle c prec depth = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, Expr.eval (fun _ => x) e < c := by
   intro x hx
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ_dyad : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
   let cfg : DyadicConfig := { precision := prec, taylorDepth := depth }
-  simp only [checkStrictUpperBoundDyadicWithInv, Bool.and_eq_true] at h_check
+  simp only [checkStrictUpperBoundDyadicChecked, Bool.and_eq_true] at h_check
   obtain ⟨h_dom_bool, h_bound⟩ := h_check
   have hdom := checkDomainValidDyadic_correct e ρ_dyad cfg h_dom_bool
   have h_env : envMemDyadic (fun _ => x) ρ_dyad := by
     intro i
     apply IntervalDyadic.mem_ofIntervalRat _ prec h_prec
     rwa [IntervalRat.mem_iff_mem_Icc]
-  have h_eval := evalIntervalDyadic_correct_withInv e hsupp (fun _ => x) ρ_dyad h_env cfg h_prec hdom
+  have h_eval := evalIntervalDyadic_correct_of_domain e (fun _ => x) ρ_dyad h_env cfg h_prec hdom
   simp only [decide_eq_true_eq] at h_bound
   calc Expr.eval (fun _ => x) e
-      ≤ ((evalIntervalDyadic e ρ_dyad cfg).hi.toRat : ℝ) := h_eval.2
+      ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad cfg).hi.toRat : ℝ) := h_eval.2
     _ < c := by exact_mod_cast h_bound
 
 /-- Golden Theorem for strict Dyadic lower bounds with inv/log expressions. -/
-theorem verify_strict_lower_bound_dyadic_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem verify_strict_lower_bound_dyadic_checked (e : Expr)
     (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
-    (h_check : checkStrictLowerBoundDyadicWithInv e lo hi hle c prec depth = true) :
+    (h_check : checkStrictLowerBoundDyadicChecked e lo hi hle c prec depth = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, c < Expr.eval (fun _ => x) e := by
   intro x hx
   let I_rat : IntervalRat := ⟨lo, hi, hle⟩
   let ρ_dyad : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I_rat prec
   let cfg : DyadicConfig := { precision := prec, taylorDepth := depth }
-  simp only [checkStrictLowerBoundDyadicWithInv, Bool.and_eq_true] at h_check
+  simp only [checkStrictLowerBoundDyadicChecked, Bool.and_eq_true] at h_check
   obtain ⟨h_dom_bool, h_bound⟩ := h_check
   have hdom := checkDomainValidDyadic_correct e ρ_dyad cfg h_dom_bool
   have h_env : envMemDyadic (fun _ => x) ρ_dyad := by
     intro i
     apply IntervalDyadic.mem_ofIntervalRat _ prec h_prec
     rwa [IntervalRat.mem_iff_mem_Icc]
-  have h_eval := evalIntervalDyadic_correct_withInv e hsupp (fun _ => x) ρ_dyad h_env cfg h_prec hdom
+  have h_eval := evalIntervalDyadic_correct_of_domain e (fun _ => x) ρ_dyad h_env cfg h_prec hdom
   simp only [decide_eq_true_eq] at h_bound
   calc (c : ℝ)
-      < ((evalIntervalDyadic e ρ_dyad cfg).lo.toRat : ℝ) := by exact_mod_cast h_bound
+      < ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad cfg).lo.toRat : ℝ) := by exact_mod_cast h_bound
     _ ≤ Expr.eval (fun _ => x) e := h_eval.1
 
 end LeanCert.Validity

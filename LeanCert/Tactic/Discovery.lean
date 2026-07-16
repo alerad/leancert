@@ -597,7 +597,7 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
   -- We use the lower bound of interval evaluation at the point as our transitivity constant
   let evalCfg : EvalConfig := { taylorDepth := taylorDepth }
   let pointInterval : IntervalRat := ⟨xOpt, xOpt, le_refl xOpt⟩
-  let fAtXOpt := evalIntervalCore1 astVal pointInterval evalCfg
+  let fAtXOpt := LeanCert.Internal.Rational.evalTotalCore1 astVal pointInterval evalCfg
   let cBound := fAtXOpt.lo  -- c such that c ≤ f(xOpt)
 
   trace[LeanCert.discovery] "f(xOpt) ∈ [{fAtXOpt.lo}, {fAtXOpt.hi}]"
@@ -799,7 +799,7 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
   -- We use the upper bound of interval evaluation at the point as our transitivity constant
   let evalCfg : EvalConfig := { taylorDepth := taylorDepth }
   let pointInterval : IntervalRat := ⟨xOpt, xOpt, le_refl xOpt⟩
-  let fAtXOpt := evalIntervalCore1 astVal pointInterval evalCfg
+  let fAtXOpt := LeanCert.Internal.Rational.evalTotalCore1 astVal pointInterval evalCfg
   let cBound := fAtXOpt.hi  -- c such that f(xOpt) ≤ c
 
   trace[LeanCert.discovery] "f(xOpt) ∈ [{fAtXOpt.lo}, {fAtXOpt.hi}]"
@@ -1484,7 +1484,7 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
   -- Extract AST
   let ast ← getAstFromFunc func
 
-  -- Generate ExprSupported proof (required by verify_unique_root_computable)
+  -- Generate ADSupported proof (required by verify_unique_root_computable)
   let supportProof ← mkSupportedProof ast
 
   -- Generate UsesOnlyVar0 proof
@@ -1605,7 +1605,7 @@ unsafe def intervalIntegrateCore (_taylorDepth : Nat) : TacticM Unit := do
     let rflProof ← mkAppM ``Eq.refl #[mkConst ``Bool.true]
     mkAppM' domValidDecide #[rflProof]
   catch _ =>
-    -- If native_decide fails, try generating ExprSupported proof and use domainValid theorem
+    -- If native_decide fails, try generating ADSupported proof and use domainValid theorem
     try
       let suppProof ← mkSupportedProof ast
       mkAppM ``LeanCert.Engine.exprSupported_domainValid1 #[suppProof, interval, cfg]
@@ -1626,8 +1626,8 @@ unsafe def intervalIntegrateCore (_taylorDepth : Nat) : TacticM Unit := do
   let setIccExpr ← mkAppM ``Set.Icc #[loRealExpr, hiRealExpr]
   let contDomValidType ← mkAppM ``LeanCert.Meta.exprContinuousDomainValid #[ast, setIccExpr]
 
-  -- Try to generate continuity domain validity proof using ExprSupported.
-  -- ExprSupported expressions (no log) have trivial domain validity.  If this
+  -- Try to generate continuity domain validity proof using ADSupported.
+  -- ADSupported expressions (no log) have trivial domain validity.  If this
   -- proof cannot be generated, fail with a diagnostic rather than inserting
   -- a synthetic proof hole.
   let contDomValidProof ← try

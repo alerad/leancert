@@ -118,15 +118,15 @@ def exprSinSqPlusCosSq : Expr :=
 
 /-- Evaluate with Rational backend -/
 def evalRat (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
-  evalIntervalCore e (mkRatEnv I) cfg
+  LeanCert.Internal.Rational.evalTotalCore e (mkRatEnv I) cfg
 
 /-- Evaluate with Dyadic backend -/
 def evalDyad (e : Expr) (I : IntervalRat) (cfg : DyadicConfig := {}) : IntervalRat :=
-  (evalIntervalDyadic e (mkDyadEnv I) cfg).toIntervalRat
+  (LeanCert.Internal.Dyadic.evalUnchecked e (mkDyadEnv I) cfg).toIntervalRat
 
 /-- Evaluate with Affine backend -/
 def evalAffine (e : Expr) (I : IntervalRat) (cfg : AffineConfig := {}) : IntervalRat :=
-  (evalIntervalAffine e (mkAffineEnv I) cfg).toInterval
+  (LeanCert.Internal.Affine.evalUnchecked e (mkAffineEnv I) cfg).toInterval
 
 /-! ### Benchmark Result Structure -/
 
@@ -240,14 +240,14 @@ def exprXPlusYMinusX : Expr :=
   Expr.add (Expr.add (Expr.var 0) (Expr.var 1)) (Expr.neg (Expr.var 0))
 
 def evalAffine2 (e : Expr) (I1 I2 : IntervalRat) : IntervalRat :=
-  (evalIntervalAffine e (mkAffineEnv2 I1 I2) {}).toInterval
+  (LeanCert.Internal.Affine.evalUnchecked e (mkAffineEnv2 I1 I2) {}).toInterval
 
 -- x + y - x on x ∈ [-1,1], y ∈ [0,2] should give y's range [0, 2]
 #eval evalAffine2 exprXPlusYMinusX testInterval ⟨0, 2, by norm_num⟩
 -- Expected: [0, 2] (exact range of y)
 
 -- Compare with rational which loses the x correlation
-#eval evalIntervalCore exprXPlusYMinusX
+#eval LeanCert.Internal.Rational.evalTotalCore exprXPlusYMinusX
   (fun i => if i == 0 then testInterval else ⟨0, 2, by norm_num⟩) {}
 -- Expected: Wider than [0, 2]
 

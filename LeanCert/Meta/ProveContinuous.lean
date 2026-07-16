@@ -219,9 +219,9 @@ def exprContinuousDomainValid (e : LExpr) (s : Set ℝ) : Prop :=
   | LeanCert.Core.Expr.sqrt e => exprContinuousDomainValid e s
   | LeanCert.Core.Expr.namedConst _ => True
 
-/-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
+/-- Domain validity is trivially true for ADSupported expressions (which exclude log). -/
 theorem exprContinuousDomainValid_of_ExprSupported {e : LExpr}
-    (hsupp : LeanCert.Engine.ExprSupported e) {s : Set ℝ} : exprContinuousDomainValid e s := by
+    (hsupp : LeanCert.Engine.ADSupported e) {s : Set ℝ} : exprContinuousDomainValid e s := by
   induction hsupp with
   | const _ => trivial
   | var _ => trivial

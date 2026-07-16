@@ -32,7 +32,7 @@ set_option profiler true in
 -- Test: Rational integration with small partition count (for comparison)
 set_option profiler true in
 #eval do
-  match integratePartitionWithInv g_alt_expr testInterval 100 with
+  match integratePartitionChecked g_alt_expr testInterval 100 with
   | some result => IO.println s!"Rational (100 parts): [{result.lo}, {result.hi}]"
   | none => IO.println "Rational: failed"
 

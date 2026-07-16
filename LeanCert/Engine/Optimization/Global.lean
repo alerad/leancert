@@ -117,13 +117,13 @@ def popBest (queue : List (ℚ × Box)) : Option ((ℚ × Box) × List (ℚ × B
 /-! ### Core algorithm -/
 
 /-- Evaluate expression on a box and get interval bounds -/
-noncomputable def evalOnBox (e : Expr) (hsupp : ExprSupported e)
+noncomputable def evalOnBox (e : Expr) (hsupp : ADSupported e)
     (B : Box) (_cfg : GlobalOptConfig) : IntervalRat :=
   evalIntervalRefined e hsupp (Box.toEnv B)
 
 /-- One step of branch-and-bound for minimization with explicit global-safe lower bound tracking.
     When `cfg.useMonotonicity` is true, applies gradient-based pruning before evaluation. -/
-noncomputable def minimizeStep (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+noncomputable def minimizeStep (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) :
     Option (List (ℚ × Box) × ℚ × ℚ × Box) :=
   match popBest queue with
@@ -166,7 +166,7 @@ noncomputable def minimizeStep (e : Expr) (hsupp : ExprSupported e) (cfg : Globa
 
 /-- Run branch-and-bound for a fixed number of iterations with explicit global-safe
 lower bound tracking. -/
-noncomputable def minimizeLoop (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+noncomputable def minimizeLoop (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) (iters : Nat) :
     GlobalResult :=
   match iters with
@@ -182,7 +182,7 @@ noncomputable def minimizeLoop (e : Expr) (hsupp : ExprSupported e) (cfg : Globa
       minimizeLoop e hsupp cfg queue' bestLB' bestUB' bestBox' n
 
 /-- Global minimization over a box -/
-noncomputable def globalMinimize (e : Expr) (hsupp : ExprSupported e)
+noncomputable def globalMinimize (e : Expr) (hsupp : ADSupported e)
     (B : Box) (cfg : GlobalOptConfig := {}) : GlobalResult :=
   let I := evalOnBox e hsupp B cfg
   let initialQueue : List (ℚ × Box) := [(I.lo, B)]
@@ -192,7 +192,7 @@ noncomputable def globalMinimize (e : Expr) (hsupp : ExprSupported e)
   minimizeLoop e hsupp cfg initialQueue initialBestLB initialBestUB initialBestBox cfg.maxIterations
 
 /-- Global maximization over a box (minimize -e) -/
-noncomputable def globalMaximize (e : Expr) (hsupp : ExprSupported e)
+noncomputable def globalMaximize (e : Expr) (hsupp : ADSupported e)
     (B : Box) (cfg : GlobalOptConfig := {}) : GlobalResult :=
   let result := globalMinimize (Expr.neg e) (.neg hsupp) B cfg
   { bound := { lo := -result.bound.hi
@@ -205,7 +205,7 @@ noncomputable def globalMaximize (e : Expr) (hsupp : ExprSupported e)
 
 /-- Evaluate expression on a box (computable version for ExprSupportedCore) -/
 def evalOnBoxCore (e : Expr) (B : Box) (cfg : GlobalOptConfig) : IntervalRat :=
-  evalIntervalCore e (Box.toEnv B) { taylorDepth := cfg.taylorDepth }
+  LeanCert.Internal.Rational.evalTotalCore e (Box.toEnv B) { taylorDepth := cfg.taylorDepth }
 
 
 /-- One step of branch-and-bound (computable version) with explicit bestLB tracking.
@@ -284,7 +284,7 @@ def globalMaximizeCore (e : Expr) (B : Box) (cfg : GlobalOptConfig := {}) : Glob
 /-! ### Correctness theorems -/
 
 /-- The lower bound from interval evaluation is correct. -/
-theorem evalOnBox_lo_correct (e : Expr) (hsupp : ExprSupported e)
+theorem evalOnBox_lo_correct (e : Expr) (hsupp : ADSupported e)
     (B : Box) (cfg : GlobalOptConfig) (ρ : Nat → ℝ) (hρ : Box.envMem ρ B)
     (hzero : ∀ i, i ≥ B.length → ρ i = 0) :
     (evalOnBox e hsupp B cfg).lo ≤ Expr.eval ρ e := by
@@ -294,7 +294,7 @@ theorem evalOnBox_lo_correct (e : Expr) (hsupp : ExprSupported e)
   exact hmem.1
 
 /-- The upper bound from interval evaluation is correct (∃ point achieving it). -/
-theorem evalOnBox_hi_correct (e : Expr) (hsupp : ExprSupported e)
+theorem evalOnBox_hi_correct (e : Expr) (hsupp : ADSupported e)
     (B : Box) (cfg : GlobalOptConfig) (ρ : Nat → ℝ) (hρ : Box.envMem ρ B)
     (hzero : ∀ i, i ≥ B.length → ρ i = 0) :
     Expr.eval ρ e ≤ (evalOnBox e hsupp B cfg).hi := by
@@ -357,14 +357,14 @@ theorem mem_insertByBound (queue : List (ℚ × Box)) (lb : ℚ) (B : Box) (lb' 
     all_goals tauto
 
 /-- minimizeStep always returns some for non-empty queue -/
-theorem minimizeStep_nonempty (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeStep_nonempty (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) :
     ∃ result, minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some result := by
   simp only [minimizeStep, popBest]
   split_ifs <;> exact ⟨_, rfl⟩
 
 /-- Helper: bestUB only decreases during minimizeStep -/
-theorem minimizeStep_bestUB_le (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeStep_bestUB_le (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
     (hStep : minimizeStep e hsupp cfg queue bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
@@ -379,7 +379,7 @@ theorem minimizeStep_bestUB_le (e : Expr) (hsupp : ExprSupported e) (cfg : Globa
     all_goals exact le_of_lt ‹_›
 
 /-- Helper: bestLB only decreases during minimizeStep -/
-theorem minimizeStep_bestLB_le (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeStep_bestLB_le (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
     (hStep : minimizeStep e hsupp cfg queue bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
@@ -394,7 +394,7 @@ theorem minimizeStep_bestLB_le (e : Expr) (hsupp : ExprSupported e) (cfg : Globa
     all_goals exact min_le_left _ _
 
 /-- Helper: new queue entries either come from original tail or have lb ≤ newBestUB -/
-theorem minimizeStep_queue_entries (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeStep_queue_entries (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
     (hStep : minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
@@ -421,7 +421,7 @@ theorem minimizeStep_queue_entries (e : Expr) (hsupp : ExprSupported e) (cfg : G
 
 /-- Helper: bestBox' is either bestBox or a subset of hd.2 (the pruned box B_curr).
     When monotonicity pruning is enabled, bestBox' may be the pruned version of hd.2. -/
-theorem minimizeStep_bestBox_cases (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeStep_bestBox_cases (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
     (hStep : minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox')) :
@@ -435,7 +435,7 @@ theorem minimizeStep_bestBox_cases (e : Expr) (hsupp : ExprSupported e) (cfg : G
   all_goals first | left; rfl | right; simp_all
 
 /-- Helper: queue entries in result are either from tl or splits of B_curr (the possibly pruned hd.2) -/
-theorem minimizeStep_queue_boxes (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeStep_queue_boxes (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
     (hStep : minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
@@ -476,7 +476,7 @@ theorem minimizeStep_queue_boxes (e : Expr) (hsupp : ExprSupported e) (cfg : Glo
             · left; exact hmem))
 
 /-- Helper: bestUB' is achievable if bestUB is achievable -/
-theorem minimizeStep_bestUB_achievable (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeStep_bestUB_achievable (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (hd : ℚ × Box) (tl : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
     (hStep : minimizeStep e hsupp cfg (hd :: tl) bestLB bestUB bestBox = some (queue', bestLB', bestUB', bestBox'))
@@ -567,7 +567,7 @@ theorem pruneBoxForMin_sub_aux (B : Box) (grad : List IntervalRat) (ρ : Nat →
 
 /-- minimizeStep preserves the lower bound invariant.
     If bestLB ≤ f(ρ) for all ρ in origB before the step, then bestLB' ≤ f(ρ) for all ρ after. -/
-theorem minimizeStep_preserves_LB (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeStep_preserves_LB (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (origB : Box)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box)
     (queue' : List (ℚ × Box)) (bestLB' bestUB' : ℚ) (bestBox' : Box)
@@ -728,7 +728,7 @@ theorem minimizeStep_preserves_LB (e : Expr) (hsupp : ExprSupported e) (cfg : Gl
                       exact hQueueSub lb B' h ρ' hρ'))
 
 /-- The main loop correctness theorem with explicit bestLB tracking -/
-theorem minimizeLoop_correct (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalOptConfig)
+theorem minimizeLoop_correct (e : Expr) (hsupp : ADSupported e) (cfg : GlobalOptConfig)
     (origB : Box)
     (queue : List (ℚ × Box)) (bestLB bestUB : ℚ) (bestBox : Box) (iters : Nat)
     (hLB : ∀ ρ, Box.envMem ρ origB → (∀ i, i ≥ origB.length → ρ i = 0) → bestLB ≤ Expr.eval ρ e)
@@ -761,7 +761,7 @@ theorem minimizeLoop_correct (e : Expr) (hsupp : ExprSupported e) (cfg : GlobalO
 
 /-- The key correctness theorem: globalMinimize returns a lower bound that is
     ≤ the minimum of f over any point in the original box. -/
-theorem globalMinimize_lo_correct (e : Expr) (hsupp : ExprSupported e)
+theorem globalMinimize_lo_correct (e : Expr) (hsupp : ADSupported e)
     (B : Box) (cfg : GlobalOptConfig) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
       (globalMinimize e hsupp B cfg).bound.lo ≤ Expr.eval ρ e := by
@@ -791,7 +791,7 @@ theorem globalMinimize_lo_correct (e : Expr) (hsupp : ExprSupported e)
   exact hResult.1 ρ hρ hzero
 
 /-- There exists a point achieving (approximately) the upper bound. -/
-theorem globalMinimize_hi_achievable (e : Expr) (hsupp : ExprSupported e)
+theorem globalMinimize_hi_achievable (e : Expr) (hsupp : ADSupported e)
     (B : Box) (cfg : GlobalOptConfig) :
     ∃ (ρ : Nat → ℝ), Box.envMem ρ B ∧ (∀ i, i ≥ B.length → ρ i = 0) ∧
       Expr.eval ρ e ≤ (globalMinimize e hsupp B cfg).bound.hi := by
@@ -1042,7 +1042,7 @@ theorem minimizeLoopCore_correct (e : Expr) (hsupp : ExprSupportedCore e) (cfg :
     that is ≤ the minimum of f over any point in the original box.
 
     This theorem requires a domain validity hypothesis for ExprSupportedCore expressions.
-    For ExprSupported expressions, use globalMinimizeCore_lo_correct_supported which
+    For ADSupported expressions, use globalMinimizeCore_lo_correct_supported which
     derives domain validity automatically. -/
 theorem globalMinimizeCore_lo_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (B : Box) (cfg : GlobalOptConfig)
@@ -1203,7 +1203,7 @@ def evalOnBoxDyadic (e : Expr) (B : Box) (cfg : GlobalOptConfigDyadic) : Interva
     precision := cfg.precision,
     taylorDepth := cfg.taylorDepth,
   }
-  let result := evalIntervalDyadic e dyadicEnv dyadicCfg
+  let result := LeanCert.Internal.Dyadic.evalUnchecked e dyadicEnv dyadicCfg
   result.toIntervalRat
 
 /-- One step of branch-and-bound using Dyadic arithmetic -/
@@ -1332,7 +1332,7 @@ def evalOnBoxAffine (e : Expr) (B : Box) (cfg : GlobalOptConfigAffine) : Interva
     taylorDepth := cfg.taylorDepth,
     maxNoiseSymbols := cfg.maxNoiseSymbols
   }
-  let result := evalIntervalAffine e affineEnv affineCfg
+  let result := LeanCert.Internal.Affine.evalUnchecked e affineEnv affineCfg
   result.toInterval
 
 /-- One step of branch-and-bound using Affine arithmetic -/
@@ -1882,7 +1882,7 @@ theorem minimizeLoopCheckedWith_lower_correct
 /-- Checked minimization parameterized by a sound finite-enclosure backend. -/
 def checkedMonotonicityPruner (e : Expr) (enabled : Bool) (cfg : EvalConfig) :
     Box → Box := fun B =>
-  if enabled && e.checkSupported then
+  if enabled && e.checkADSupported then
     (pruneBoxForMin B (gradientIntervalCore e B cfg)).1
   else B
 
@@ -1895,9 +1895,9 @@ theorem checkedMonotonicityPruner_correct (e : Expr) (enabled : Bool)
         Expr.eval rho' e ≤ Expr.eval rho e := by
   intro rho hrho hzero
   by_cases henabled : enabled = true
-  · by_cases hsupport : e.checkSupported = true
-    · have hsupp : ExprSupported e :=
-        (Expr.checkSupported_eq_true_iff e).mp hsupport
+  · by_cases hsupport : e.checkADSupported = true
+    · have hsupp : ADSupported e :=
+        (Expr.checkADSupported_eq_true_iff e).mp hsupport
       obtain ⟨rho', hmem, hzero', hvalue⟩ :=
         pruneBoxForMin_correct e hsupp B (cfg := cfg) rho hrho hzero
       have hlen := pruneBoxForMin_length B (gradientIntervalCore e B cfg)

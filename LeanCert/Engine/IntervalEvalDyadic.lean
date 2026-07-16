@@ -16,7 +16,7 @@ It is designed for complex expressions where the standard evaluator becomes slow
 ## Main definitions
 
 * `DyadicConfig` - Configuration for precision and Taylor depth
-* `evalIntervalDyadic` - Dyadic interval evaluator for expressions
+* `LeanCert.Internal.Dyadic.evalUnchecked` - Dyadic interval evaluator for expressions
 * `evalIntervalDyadic_correct` - Correctness theorem
 
 ## Performance
@@ -240,6 +240,12 @@ theorem mem_rpowIntervalDyadic {x : ℝ} {base : IntervalDyadic} (hx : x ∈ bas
 
 /-! ### Main Evaluator -/
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Dyadic
+
+open LeanCert.Core LeanCert.Engine
+
 /-- High-performance Dyadic interval evaluator.
 
 This is the core function for v1.1. It evaluates expressions using Dyadic
@@ -249,38 +255,44 @@ rational Taylor series for transcendentals.
 Returns an interval guaranteed to contain all possible values of the expression
 when `ExprSupportedCore` holds. For other expressions, it computes conservative
 fallbacks (e.g., inv/log), but the core correctness theorem does not apply. -/
-def evalIntervalDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig := {}) : IntervalDyadic :=
+def evalUnchecked (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig := {}) : IntervalDyadic :=
   match e with
   | Expr.const q =>
       -- Convert rational constant to Dyadic interval with outward rounding
       IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision
   | Expr.var idx => ρ idx
   | Expr.add e₁ e₂ =>
-      let I₁ := evalIntervalDyadic e₁ ρ cfg
-      let I₂ := evalIntervalDyadic e₂ ρ cfg
+      let I₁ := LeanCert.Internal.Dyadic.evalUnchecked e₁ ρ cfg
+      let I₂ := LeanCert.Internal.Dyadic.evalUnchecked e₂ ρ cfg
       (IntervalDyadic.add I₁ I₂).roundOut cfg.precision
   | Expr.mul e₁ e₂ =>
-      let I₁ := evalIntervalDyadic e₁ ρ cfg
-      let I₂ := evalIntervalDyadic e₂ ρ cfg
+      let I₁ := LeanCert.Internal.Dyadic.evalUnchecked e₁ ρ cfg
+      let I₂ := LeanCert.Internal.Dyadic.evalUnchecked e₂ ρ cfg
       (IntervalDyadic.mul I₁ I₂).roundOut cfg.precision
   | Expr.neg e =>
-      let I := evalIntervalDyadic e ρ cfg
+      let I := LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg
       IntervalDyadic.neg I  -- Negation doesn't increase precision
-  | Expr.inv e => invIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.exp e => expIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.sin e => sinIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.cos e => cosIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.log e => logIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.atan e => atanIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.arsinh e => arsinhIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.atanh e => atanhIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.sinc e => sincIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.erf e => erfIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.sinh e => sinhIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.cosh e => coshIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.tanh e => tanhIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
-  | Expr.sqrt e => sqrtIntervalDyadic (evalIntervalDyadic e ρ cfg) cfg
+  | Expr.inv e => invIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.exp e => expIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.sin e => sinIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.cos e => cosIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.log e => logIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.atan e => atanIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.arsinh e => arsinhIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.atanh e => atanhIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.sinc e => sincIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.erf e => erfIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.sinh e => sinhIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.cosh e => coshIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.tanh e => tanhIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
+  | Expr.sqrt e => sqrtIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg) cfg
   | Expr.namedConst c => IntervalDyadic.ofIntervalRat c.interval cfg.precision
+
+end LeanCert.Internal.Dyadic
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
 
 /-! ### Correctness -/
 
@@ -289,7 +301,7 @@ def envMemDyadic (ρ_real : Nat → ℝ) (ρ_dyad : IntervalDyadicEnv) : Prop :=
   ∀ i, ρ_real i ∈ ρ_dyad i
 
 /-- Domain validity for Dyadic evaluation.
-    This is defined directly in terms of evalIntervalDyadic to ensure compatibility.
+    This is defined directly in terms of LeanCert.Internal.Dyadic.evalUnchecked to ensure compatibility.
     For log, we require the argument interval (converted to Rat) to have positive lower bound. -/
 def evalDomainValidDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfig := {}) : Prop :=
   match e with
@@ -299,17 +311,17 @@ def evalDomainValidDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConfi
   | Expr.mul e₁ e₂ => evalDomainValidDyadic e₁ ρ cfg ∧ evalDomainValidDyadic e₂ ρ cfg
   | Expr.neg e => evalDomainValidDyadic e ρ cfg
   | Expr.inv e => evalDomainValidDyadic e ρ cfg ∧
-      ((evalIntervalDyadic e ρ cfg).toIntervalRat.lo > 0 ∨
-       (evalIntervalDyadic e ρ cfg).toIntervalRat.hi < 0)
+      ((LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.lo > 0 ∨
+       (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.hi < 0)
   | Expr.exp e => evalDomainValidDyadic e ρ cfg
   | Expr.sin e => evalDomainValidDyadic e ρ cfg
   | Expr.cos e => evalDomainValidDyadic e ρ cfg
-  | Expr.log e => evalDomainValidDyadic e ρ cfg ∧ (evalIntervalDyadic e ρ cfg).toIntervalRat.lo > 0
+  | Expr.log e => evalDomainValidDyadic e ρ cfg ∧ (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.lo > 0
   | Expr.atan e => evalDomainValidDyadic e ρ cfg
   | Expr.arsinh e => evalDomainValidDyadic e ρ cfg
   | Expr.atanh e => evalDomainValidDyadic e ρ cfg ∧
-      (evalIntervalDyadic e ρ cfg).toIntervalRat.lo > -1 ∧
-      (evalIntervalDyadic e ρ cfg).toIntervalRat.hi < 1
+      (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.lo > -1 ∧
+      (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.hi < 1
   | Expr.sinc e => evalDomainValidDyadic e ρ cfg
   | Expr.erf e => evalDomainValidDyadic e ρ cfg
   | Expr.sinh e => evalDomainValidDyadic e ρ cfg
@@ -327,18 +339,18 @@ def checkDomainValidDyadic (e : Expr) (ρ : IntervalDyadicEnv) (cfg : DyadicConf
   | Expr.mul e₁ e₂ => checkDomainValidDyadic e₁ ρ cfg && checkDomainValidDyadic e₂ ρ cfg
   | Expr.neg e => checkDomainValidDyadic e ρ cfg
   | Expr.inv e => checkDomainValidDyadic e ρ cfg &&
-      (decide ((evalIntervalDyadic e ρ cfg).toIntervalRat.lo > 0) ||
-       decide ((evalIntervalDyadic e ρ cfg).toIntervalRat.hi < 0))
+      (decide ((LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.lo > 0) ||
+       decide ((LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.hi < 0))
   | Expr.exp e => checkDomainValidDyadic e ρ cfg
   | Expr.sin e => checkDomainValidDyadic e ρ cfg
   | Expr.cos e => checkDomainValidDyadic e ρ cfg
   | Expr.log e => checkDomainValidDyadic e ρ cfg &&
-      decide ((evalIntervalDyadic e ρ cfg).toIntervalRat.lo > 0)
+      decide ((LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.lo > 0)
   | Expr.atan e => checkDomainValidDyadic e ρ cfg
   | Expr.arsinh e => checkDomainValidDyadic e ρ cfg
   | Expr.atanh e => checkDomainValidDyadic e ρ cfg &&
-      decide ((evalIntervalDyadic e ρ cfg).toIntervalRat.lo > -1) &&
-      decide ((evalIntervalDyadic e ρ cfg).toIntervalRat.hi < 1)
+      decide ((LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.lo > -1) &&
+      decide ((LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat.hi < 1)
   | Expr.sinc e => checkDomainValidDyadic e ρ cfg
   | Expr.erf e => checkDomainValidDyadic e ρ cfg
   | Expr.sinh e => checkDomainValidDyadic e ρ cfg
@@ -383,83 +395,95 @@ theorem checkDomainValidDyadic_correct (e : Expr) (ρ : IntervalDyadicEnv) (cfg 
   | sqrt e ih => simp only [checkDomainValidDyadic, evalDomainValidDyadic]; exact ih
   | namedConst _ => intro; trivial
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Dyadic
+
+open LeanCert.Core LeanCert.Engine
+
 /-- Evaluate an expression and its domain-validity bit in one traversal.
-The value component is exactly `evalIntervalDyadic`; the validity component is
+The value component is exactly `LeanCert.Internal.Dyadic.evalUnchecked`; the validity component is
 exactly `checkDomainValidDyadic`. -/
-def evalIntervalDyadicCached (e : Expr) (ρ : IntervalDyadicEnv)
+def evalCached (e : Expr) (ρ : IntervalDyadicEnv)
     (cfg : DyadicConfig := {}) : IntervalDyadic × Bool :=
   match e with
   | .const q =>
       (IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision, true)
   | .var idx => (ρ idx, true)
   | .add e₁ e₂ =>
-      let r₁ := evalIntervalDyadicCached e₁ ρ cfg
-      let r₂ := evalIntervalDyadicCached e₂ ρ cfg
+      let r₁ := LeanCert.Internal.Dyadic.evalCached e₁ ρ cfg
+      let r₂ := LeanCert.Internal.Dyadic.evalCached e₂ ρ cfg
       ((IntervalDyadic.add r₁.1 r₂.1).roundOut cfg.precision, r₁.2 && r₂.2)
   | .mul e₁ e₂ =>
-      let r₁ := evalIntervalDyadicCached e₁ ρ cfg
-      let r₂ := evalIntervalDyadicCached e₂ ρ cfg
+      let r₁ := LeanCert.Internal.Dyadic.evalCached e₁ ρ cfg
+      let r₂ := LeanCert.Internal.Dyadic.evalCached e₂ ρ cfg
       ((IntervalDyadic.mul r₁.1 r₂.1).roundOut cfg.precision, r₁.2 && r₂.2)
   | .neg e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (IntervalDyadic.neg r.1, r.2)
   | .inv e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       let I := r.1.toIntervalRat
       (invIntervalDyadic r.1 cfg, r.2 && (decide (I.lo > 0) || decide (I.hi < 0)))
   | .exp e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (expIntervalDyadic r.1 cfg, r.2)
   | .sin e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (sinIntervalDyadic r.1 cfg, r.2)
   | .cos e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (cosIntervalDyadic r.1 cfg, r.2)
   | .log e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (logIntervalDyadic r.1 cfg, r.2 && decide (r.1.toIntervalRat.lo > 0))
   | .atan e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (atanIntervalDyadic r.1 cfg, r.2)
   | .arsinh e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (arsinhIntervalDyadic r.1 cfg, r.2)
   | .atanh e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       let I := r.1.toIntervalRat
       (atanhIntervalDyadic r.1 cfg,
         r.2 && decide (I.lo > -1) && decide (I.hi < 1))
   | .sinc e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (sincIntervalDyadic r.1 cfg, r.2)
   | .erf e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (erfIntervalDyadic r.1 cfg, r.2)
   | .sinh e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (sinhIntervalDyadic r.1 cfg, r.2)
   | .cosh e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (coshIntervalDyadic r.1 cfg, r.2)
   | .tanh e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (tanhIntervalDyadic r.1 cfg, r.2)
   | .sqrt e =>
-      let r := evalIntervalDyadicCached e ρ cfg
+      let r := LeanCert.Internal.Dyadic.evalCached e ρ cfg
       (sqrtIntervalDyadic r.1 cfg, r.2)
   | .namedConst c => (IntervalDyadic.ofIntervalRat c.interval cfg.precision, true)
 
+end LeanCert.Internal.Dyadic
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
+
 theorem evalIntervalDyadicCached_fst (e : Expr) (ρ : IntervalDyadicEnv)
     (cfg : DyadicConfig := {}) :
-    (evalIntervalDyadicCached e ρ cfg).1 = evalIntervalDyadic e ρ cfg := by
-  induction e <;> simp [evalIntervalDyadicCached, evalIntervalDyadic, *]
+    (LeanCert.Internal.Dyadic.evalCached e ρ cfg).1 = LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg := by
+  induction e <;> simp [LeanCert.Internal.Dyadic.evalCached, LeanCert.Internal.Dyadic.evalUnchecked, *]
 
 theorem evalIntervalDyadicCached_snd (e : Expr) (ρ : IntervalDyadicEnv)
     (cfg : DyadicConfig := {}) :
-    (evalIntervalDyadicCached e ρ cfg).2 = checkDomainValidDyadic e ρ cfg := by
+    (LeanCert.Internal.Dyadic.evalCached e ρ cfg).2 = checkDomainValidDyadic e ρ cfg := by
   induction e <;>
-    simp [evalIntervalDyadicCached, checkDomainValidDyadic,
+    simp [LeanCert.Internal.Dyadic.evalCached, checkDomainValidDyadic,
       evalIntervalDyadicCached_fst, *]
 
 /-- Diagnose the first failed Dyadic domain check. -/
@@ -476,17 +500,17 @@ def diagnoseEvalIntervalDyadicFailure (e : Expr) (ρ : IntervalDyadicEnv)
       .nestedFailure "unary operand" (diagnoseEvalIntervalDyadicFailure e ρ cfg)
   | .inv e =>
       if checkDomainValidDyadic e ρ cfg then
-        .reciprocalContainsZero (evalIntervalDyadic e ρ cfg).toIntervalRat
+        .reciprocalContainsZero (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat
       else
         .nestedFailure "reciprocal operand" (diagnoseEvalIntervalDyadicFailure e ρ cfg)
   | .log e =>
       if checkDomainValidDyadic e ρ cfg then
-        .logNonpositive (evalIntervalDyadic e ρ cfg).toIntervalRat
+        .logNonpositive (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat
       else
         .nestedFailure "logarithm operand" (diagnoseEvalIntervalDyadicFailure e ρ cfg)
   | .atanh e =>
       if checkDomainValidDyadic e ρ cfg then
-        .atanhOutsideUnitBall (evalIntervalDyadic e ρ cfg).toIntervalRat
+        .atanhOutsideUnitBall (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).toIntervalRat
       else
         .nestedFailure "atanh operand" (diagnoseEvalIntervalDyadicFailure e ρ cfg)
   | .const _ | .var _ | .namedConst _ =>
@@ -497,14 +521,14 @@ termination_by e
 evaluator are never exposed after a failed domain check. -/
 def evalIntervalDyadicChecked (e : Expr) (ρ : IntervalDyadicEnv)
     (cfg : DyadicConfig := {}) : EvalResult IntervalDyadic :=
-  let cached := evalIntervalDyadicCached e ρ cfg
+  let cached := LeanCert.Internal.Dyadic.evalCached e ρ cfg
   if cached.2 then
     .ok cached.1
   else
     .error (diagnoseEvalIntervalDyadicFailure e ρ cfg)
 
-/-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
-theorem evalDomainValidDyadic_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
+/-- Domain validity is trivially true for ADSupported expressions (which exclude log). -/
+theorem evalDomainValidDyadic_of_ExprSupported {e : Expr} (hsupp : ADSupported e)
     (ρ : IntervalDyadicEnv) (cfg : DyadicConfig := {}) : evalDomainValidDyadic e ρ cfg := by
   induction hsupp with
   | const _ => trivial
@@ -532,67 +556,67 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (hρ : envMemDyadic ρ_real ρ_dyad) (cfg : DyadicConfig := {})
     (hprec : cfg.precision ≤ 0 := by norm_num)
     (hdom : evalDomainValidDyadic e ρ_dyad cfg) :
-    Expr.eval ρ_real e ∈ evalIntervalDyadic e ρ_dyad cfg := by
+    Expr.eval ρ_real e ∈ LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad cfg := by
   induction hsupp with
   | const q =>
-    simp only [Expr.eval_const, evalIntervalDyadic]
+    simp only [Expr.eval_const, LeanCert.Internal.Dyadic.evalUnchecked]
     apply IntervalDyadic.mem_ofIntervalRat
     · exact IntervalRat.mem_singleton q
     · exact hprec
   | var idx =>
-    simp only [Expr.eval_var, evalIntervalDyadic]
+    simp only [Expr.eval_var, LeanCert.Internal.Dyadic.evalUnchecked]
     exact hρ idx
   | add _ _ ih₁ ih₂ =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_add, evalIntervalDyadic]
+    simp only [Expr.eval_add, LeanCert.Internal.Dyadic.evalUnchecked]
     have h := IntervalDyadic.mem_add (ih₁ hdom.1) (ih₂ hdom.2)
     exact IntervalDyadic.roundOut_contains h cfg.precision
   | mul _ _ ih₁ ih₂ =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_mul, evalIntervalDyadic]
+    simp only [Expr.eval_mul, LeanCert.Internal.Dyadic.evalUnchecked]
     have h := IntervalDyadic.mem_mul (ih₁ hdom.1) (ih₂ hdom.2)
     exact IntervalDyadic.roundOut_contains h cfg.precision
   | neg _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_neg, evalIntervalDyadic]
+    simp only [Expr.eval_neg, LeanCert.Internal.Dyadic.evalUnchecked]
     exact IntervalDyadic.mem_neg (ih hdom)
   | sin _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_sin, evalIntervalDyadic, sinIntervalDyadic]
+    simp only [Expr.eval_sin, LeanCert.Internal.Dyadic.evalUnchecked, sinIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hsin := IntervalRat.mem_sinComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hsin cfg.precision hprec
   | cos _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_cos, evalIntervalDyadic, cosIntervalDyadic]
+    simp only [Expr.eval_cos, LeanCert.Internal.Dyadic.evalUnchecked, cosIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hcos := IntervalRat.mem_cosComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hcos cfg.precision hprec
   | exp _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_exp, evalIntervalDyadic, expIntervalDyadic]
+    simp only [Expr.eval_exp, LeanCert.Internal.Dyadic.evalUnchecked, expIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hexp := IntervalRat.mem_expComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hexp cfg.precision hprec
   | sqrt _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_sqrt, evalIntervalDyadic, sqrtIntervalDyadic]
+    simp only [Expr.eval_sqrt, LeanCert.Internal.Dyadic.evalUnchecked, sqrtIntervalDyadic]
     exact IntervalDyadic.mem_sqrt' (ih hdom) cfg.precision
   | sinh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_sinh, evalIntervalDyadic, sinhIntervalDyadic]
+    simp only [Expr.eval_sinh, LeanCert.Internal.Dyadic.evalUnchecked, sinhIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hsinh := IntervalRat.mem_sinhComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hsinh cfg.precision hprec
   | cosh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_cosh, evalIntervalDyadic, coshIntervalDyadic]
+    simp only [Expr.eval_cosh, LeanCert.Internal.Dyadic.evalUnchecked, coshIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hcosh := IntervalRat.mem_coshComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hcosh cfg.precision hprec
   | @tanh e' _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_tanh, evalIntervalDyadic, tanhIntervalDyadic]
+    simp only [Expr.eval_tanh, LeanCert.Internal.Dyadic.evalUnchecked, tanhIntervalDyadic]
     -- tanh x ∈ [-1, 1] for all x
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
@@ -614,107 +638,104 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
       linarith
   | @erf e' _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_erf, evalIntervalDyadic, erfIntervalDyadic]
+    simp only [Expr.eval_erf, LeanCert.Internal.Dyadic.evalUnchecked, erfIntervalDyadic]
     -- erf x ∈ [-1, 1] for all x
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
     exact Real.erf_mem_Icc _
   | log _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_log, evalIntervalDyadic, logIntervalDyadic]
+    simp only [Expr.eval_log, LeanCert.Internal.Dyadic.evalUnchecked, logIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom.1)
     -- hdom.2 gives us the positivity condition: IRat.lo > 0
     -- This makes the if-condition true, so we take the positive branch
-    have hpos : (evalIntervalDyadic _ ρ_dyad cfg).toIntervalRat.lo > 0 := hdom.2
+    have hpos : (LeanCert.Internal.Dyadic.evalUnchecked _ ρ_dyad cfg).toIntervalRat.lo > 0 := hdom.2
     simp only [hpos, ↓reduceIte]
     have hlog := IntervalRat.mem_logComputable hrat hpos cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hlog cfg.precision hprec
   | namedConst c =>
-    simp only [Expr.eval_namedConst, evalIntervalDyadic]
+    simp only [Expr.eval_namedConst, LeanCert.Internal.Dyadic.evalUnchecked]
     exact IntervalDyadic.mem_ofIntervalRat c.mem_interval cfg.precision hprec
 
-/-- Correctness theorem for Dyadic evaluation with ExprSupportedWithInv.
-
-Extends `evalIntervalDyadic_correct` to handle `inv` (and delegates to it for
-all ExprSupportedCore cases). Requires the `inv` argument interval to be bounded
-away from zero. -/
-theorem evalIntervalDyadic_correct_withInv (e : Expr) (hsupp : ExprSupportedWithInv e)
+/-- Correctness of Dyadic evaluation for every expression whose recursively
+checked domain conditions hold. -/
+theorem evalIntervalDyadic_correct_of_domain (e : Expr)
     (ρ_real : Nat → ℝ) (ρ_dyad : IntervalDyadicEnv)
     (hρ : envMemDyadic ρ_real ρ_dyad) (cfg : DyadicConfig := {})
     (hprec : cfg.precision ≤ 0 := by norm_num)
     (hdom : evalDomainValidDyadic e ρ_dyad cfg) :
-    Expr.eval ρ_real e ∈ evalIntervalDyadic e ρ_dyad cfg := by
-  induction hsupp with
+    Expr.eval ρ_real e ∈ LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad cfg := by
+  induction e with
   | const q =>
-    simp only [Expr.eval_const, evalIntervalDyadic]
+    simp only [Expr.eval_const, LeanCert.Internal.Dyadic.evalUnchecked]
     apply IntervalDyadic.mem_ofIntervalRat
     · exact IntervalRat.mem_singleton q
     · exact hprec
   | var idx =>
-    simp only [Expr.eval_var, evalIntervalDyadic]
+    simp only [Expr.eval_var, LeanCert.Internal.Dyadic.evalUnchecked]
     exact hρ idx
   | add _ _ ih₁ ih₂ =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_add, evalIntervalDyadic]
+    simp only [Expr.eval_add, LeanCert.Internal.Dyadic.evalUnchecked]
     have h := IntervalDyadic.mem_add (ih₁ hdom.1) (ih₂ hdom.2)
     exact IntervalDyadic.roundOut_contains h cfg.precision
   | mul _ _ ih₁ ih₂ =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_mul, evalIntervalDyadic]
+    simp only [Expr.eval_mul, LeanCert.Internal.Dyadic.evalUnchecked]
     have h := IntervalDyadic.mem_mul (ih₁ hdom.1) (ih₂ hdom.2)
     exact IntervalDyadic.roundOut_contains h cfg.precision
   | neg _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_neg, evalIntervalDyadic]
+    simp only [Expr.eval_neg, LeanCert.Internal.Dyadic.evalUnchecked]
     exact IntervalDyadic.mem_neg (ih hdom)
   | inv _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_inv, evalIntervalDyadic, invIntervalDyadic]
+    simp only [Expr.eval_inv, LeanCert.Internal.Dyadic.evalUnchecked, invIntervalDyadic]
     have hinner := ih hdom.1
     have hrat := IntervalDyadic.mem_toIntervalRat.mp hinner
     have hinv := mem_invInterval_nonzero hrat hdom.2
     exact IntervalDyadic.mem_ofIntervalRat hinv cfg.precision hprec
   | exp _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_exp, evalIntervalDyadic, expIntervalDyadic]
+    simp only [Expr.eval_exp, LeanCert.Internal.Dyadic.evalUnchecked, expIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hexp := IntervalRat.mem_expComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hexp cfg.precision hprec
   | sin _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_sin, evalIntervalDyadic, sinIntervalDyadic]
+    simp only [Expr.eval_sin, LeanCert.Internal.Dyadic.evalUnchecked, sinIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hsin := IntervalRat.mem_sinComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hsin cfg.precision hprec
   | cos _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_cos, evalIntervalDyadic, cosIntervalDyadic]
+    simp only [Expr.eval_cos, LeanCert.Internal.Dyadic.evalUnchecked, cosIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hcos := IntervalRat.mem_cosComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hcos cfg.precision hprec
   | log _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_log, evalIntervalDyadic, logIntervalDyadic]
+    simp only [Expr.eval_log, LeanCert.Internal.Dyadic.evalUnchecked, logIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom.1)
-    have hpos : (evalIntervalDyadic _ ρ_dyad cfg).toIntervalRat.lo > 0 := hdom.2
+    have hpos : (LeanCert.Internal.Dyadic.evalUnchecked _ ρ_dyad cfg).toIntervalRat.lo > 0 := hdom.2
     simp only [hpos, ↓reduceIte]
     have hlog := IntervalRat.mem_logComputable hrat hpos cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hlog cfg.precision hprec
   | sinh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_sinh, evalIntervalDyadic, sinhIntervalDyadic]
+    simp only [Expr.eval_sinh, LeanCert.Internal.Dyadic.evalUnchecked, sinhIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hsinh := IntervalRat.mem_sinhComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hsinh cfg.precision hprec
   | cosh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_cosh, evalIntervalDyadic, coshIntervalDyadic]
+    simp only [Expr.eval_cosh, LeanCert.Internal.Dyadic.evalUnchecked, coshIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hcosh := IntervalRat.mem_coshComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hcosh cfg.precision hprec
-  | @tanh e' _ ih =>
+  | tanh e' ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_tanh, evalIntervalDyadic, tanhIntervalDyadic]
+    simp only [Expr.eval_tanh, LeanCert.Internal.Dyadic.evalUnchecked, tanhIntervalDyadic]
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
     set x := Expr.eval ρ_real e' with hx
@@ -731,9 +752,9 @@ theorem evalIntervalDyadic_correct_withInv (e : Expr) (hsupp : ExprSupportedWith
       rw [Real.sinh_eq, Real.cosh_eq]
       have h2 : Real.exp (-x) > 0 := Real.exp_pos (-x)
       linarith
-  | @atan e' _ ih =>
+  | atan e' ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_atan, evalIntervalDyadic, atanIntervalDyadic]
+    simp only [Expr.eval_atan, LeanCert.Internal.Dyadic.evalUnchecked, atanIntervalDyadic]
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_ofNat, Rat.cast_neg, Rat.cast_ofNat]
     set x := Expr.eval ρ_real e' with hx
@@ -742,35 +763,35 @@ theorem evalIntervalDyadic_correct_withInv (e : Expr) (hsupp : ExprSupportedWith
     · linarith [Real.arctan_lt_pi_div_two x, Real.pi_lt_four]
   | sinc _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_sinc, evalIntervalDyadic, sincIntervalDyadic]
+    simp only [Expr.eval_sinc, LeanCert.Internal.Dyadic.evalUnchecked, sincIntervalDyadic]
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
     exact Real.sinc_mem_Icc _
   | arsinh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_arsinh, evalIntervalDyadic, arsinhIntervalDyadic]
+    simp only [Expr.eval_arsinh, LeanCert.Internal.Dyadic.evalUnchecked, arsinhIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have harsinh := mem_arsinhInterval hrat
     exact IntervalDyadic.mem_ofIntervalRat harsinh cfg.precision hprec
   | atanh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     obtain ⟨hdom_sub, hlo_gt, hhi_lt⟩ := hdom
-    simp only [Expr.eval_atanh, evalIntervalDyadic, atanhIntervalDyadic]
+    simp only [Expr.eval_atanh, LeanCert.Internal.Dyadic.evalUnchecked, atanhIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom_sub)
     have hatanh := IntervalRat.mem_atanhComputable hrat hlo_gt hhi_lt cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hatanh cfg.precision hprec
   | erf _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_erf, evalIntervalDyadic, erfIntervalDyadic]
+    simp only [Expr.eval_erf, LeanCert.Internal.Dyadic.evalUnchecked, erfIntervalDyadic]
     rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
     simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
     exact Real.erf_mem_Icc _
   | sqrt _ ih =>
     simp only [evalDomainValidDyadic] at hdom
-    simp only [Expr.eval_sqrt, evalIntervalDyadic, sqrtIntervalDyadic]
+    simp only [Expr.eval_sqrt, LeanCert.Internal.Dyadic.evalUnchecked, sqrtIntervalDyadic]
     exact IntervalDyadic.mem_sqrt' (ih hdom) cfg.precision
   | namedConst c =>
-    simp only [Expr.eval_namedConst, evalIntervalDyadic]
+    simp only [Expr.eval_namedConst, LeanCert.Internal.Dyadic.evalUnchecked]
     exact IntervalDyadic.mem_ofIntervalRat c.mem_interval cfg.precision hprec
 
 /-- Successful checked Dyadic evaluation encloses the true value for every
@@ -783,7 +804,7 @@ theorem evalIntervalDyadicChecked_correct (e : Expr)
     (hsuccess : evalIntervalDyadicChecked e ρ_dyad cfg = .ok result) :
     Expr.eval ρ_real e ∈ result := by
   unfold evalIntervalDyadicChecked at hsuccess
-  let cached := evalIntervalDyadicCached e ρ_dyad cfg
+  let cached := LeanCert.Internal.Dyadic.evalCached e ρ_dyad cfg
   cases hvalid : cached.2 with
   | false =>
     have : Except.error (diagnoseEvalIntervalDyadicFailure e ρ_dyad cfg) =
@@ -798,46 +819,32 @@ theorem evalIntervalDyadicChecked_correct (e : Expr)
     have hcheck : checkDomainValidDyadic e ρ_dyad cfg = true := by
       calc
         checkDomainValidDyadic e ρ_dyad cfg =
-            (evalIntervalDyadicCached e ρ_dyad cfg).2 :=
+            (LeanCert.Internal.Dyadic.evalCached e ρ_dyad cfg).2 :=
           (evalIntervalDyadicCached_snd e ρ_dyad cfg).symm
         _ = cached.2 := rfl
         _ = true := hvalid
-    have hsound := evalIntervalDyadic_correct_withInv e (Expr.supportedWithInv e)
+    have hsound := evalIntervalDyadic_correct_of_domain e
       ρ_real ρ_dyad hρ cfg hprec (checkDomainValidDyadic_correct e ρ_dyad cfg hcheck)
-    change Expr.eval ρ_real e ∈ (evalIntervalDyadicCached e ρ_dyad cfg).1
+    change Expr.eval ρ_real e ∈ (LeanCert.Internal.Dyadic.evalCached e ρ_dyad cfg).1
     rw [evalIntervalDyadicCached_fst e ρ_dyad cfg]
     exact hsound
-
-/-! ### Convenience Functions -/
-
-/-- Evaluate with standard (double-like) precision -/
-def evalDyadic (e : Expr) (ρ : IntervalDyadicEnv) : IntervalDyadic :=
-  evalIntervalDyadic e ρ
-
-/-- Evaluate with high precision -/
-def evalDyadicHighPrec (e : Expr) (ρ : IntervalDyadicEnv) : IntervalDyadic :=
-  evalIntervalDyadic e ρ DyadicConfig.highPrecision
-
-/-- Evaluate with fast settings (lower precision) -/
-def evalDyadicFast (e : Expr) (ρ : IntervalDyadicEnv) : IntervalDyadic :=
-  evalIntervalDyadic e ρ DyadicConfig.fast
 
 /-! ### Verification Checkers -/
 
 /-- Check if expression is bounded above by q -/
 def checkUpperBoundDyadic (e : Expr) (ρ : IntervalDyadicEnv) (q : ℚ)
     (cfg : DyadicConfig := {}) : Bool :=
-  (evalIntervalDyadic e ρ cfg).upperBoundedBy q
+  (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).upperBoundedBy q
 
 /-- Check if expression is bounded below by q -/
 def checkLowerBoundDyadic (e : Expr) (ρ : IntervalDyadicEnv) (q : ℚ)
     (cfg : DyadicConfig := {}) : Bool :=
-  (evalIntervalDyadic e ρ cfg).lowerBoundedBy q
+  (LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg).lowerBoundedBy q
 
 /-- Check if expression is bounded in interval [lo, hi] -/
 def checkBoundsDyadic (e : Expr) (ρ : IntervalDyadicEnv) (lo hi : ℚ)
     (cfg : DyadicConfig := {}) : Bool :=
-  let result := evalIntervalDyadic e ρ cfg
+  let result := LeanCert.Internal.Dyadic.evalUnchecked e ρ cfg
   result.lowerBoundedBy lo && result.upperBoundedBy hi
 
 end LeanCert.Engine

@@ -48,13 +48,13 @@ open LeanCert.Core
 theorem exprCore_le_of_interval_hi (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg)
-    (hhi : (evalIntervalCore1 e I cfg).hi ≤ c) :
+    (hhi : (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi ≤ c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
   have hmem := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at hmem
-  have heval_le_hi : Expr.eval (fun _ => x) e ≤ (evalIntervalCore1 e I cfg).hi := hmem.2
-  have hhi_le_c : ((evalIntervalCore1 e I cfg).hi : ℝ) ≤ c := by exact_mod_cast hhi
+  have heval_le_hi : Expr.eval (fun _ => x) e ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi := hmem.2
+  have hhi_le_c : ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi : ℝ) ≤ c := by exact_mod_cast hhi
   exact le_trans heval_le_hi hhi_le_c
 
 /-- Lower bound lemma for core expressions (computable).
@@ -63,13 +63,13 @@ theorem exprCore_le_of_interval_hi (e : Expr) (hsupp : ExprSupportedCore e)
 theorem exprCore_ge_of_interval_lo (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg)
-    (hlo : c ≤ (evalIntervalCore1 e I cfg).lo) :
+    (hlo : c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   have hmem := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at hmem
-  have hlo_le_eval : (evalIntervalCore1 e I cfg).lo ≤ Expr.eval (fun _ => x) e := hmem.1
-  have hc_le_lo : (c : ℝ) ≤ (evalIntervalCore1 e I cfg).lo := by exact_mod_cast hlo
+  have hlo_le_eval : (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo ≤ Expr.eval (fun _ => x) e := hmem.1
+  have hc_le_lo : (c : ℝ) ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo := by exact_mod_cast hlo
   exact le_trans hc_le_lo hlo_le_eval
 
 /-- Strict upper bound for core expressions (computable).
@@ -78,13 +78,13 @@ theorem exprCore_ge_of_interval_lo (e : Expr) (hsupp : ExprSupportedCore e)
 theorem exprCore_lt_of_interval_hi_lt (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg)
-    (hhi : (evalIntervalCore1 e I cfg).hi < c) :
+    (hhi : (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi < c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
   intro x hx
   have hmem := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at hmem
-  have heval_le_hi : Expr.eval (fun _ => x) e ≤ (evalIntervalCore1 e I cfg).hi := hmem.2
-  have hhi_lt_c : ((evalIntervalCore1 e I cfg).hi : ℝ) < c := by exact_mod_cast hhi
+  have heval_le_hi : Expr.eval (fun _ => x) e ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi := hmem.2
+  have hhi_lt_c : ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi : ℝ) < c := by exact_mod_cast hhi
   exact lt_of_le_of_lt heval_le_hi hhi_lt_c
 
 /-- Strict lower bound for core expressions (computable).
@@ -93,76 +93,76 @@ theorem exprCore_lt_of_interval_hi_lt (e : Expr) (hsupp : ExprSupportedCore e)
 theorem exprCore_gt_of_interval_lo_gt (e : Expr) (hsupp : ExprSupportedCore e)
     (I : IntervalRat) (c : ℚ) (cfg : EvalConfig := {})
     (hdom : evalDomainValid1 e I cfg)
-    (hlo : c < (evalIntervalCore1 e I cfg).lo) :
+    (hlo : c < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo) :
     ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
   intro x hx
   have hmem := evalIntervalCore1_correct e hsupp x I hx cfg hdom
   simp only [IntervalRat.mem_def] at hmem
-  have hlo_le_eval : (evalIntervalCore1 e I cfg).lo ≤ Expr.eval (fun _ => x) e := hmem.1
-  have hc_lt_lo : (c : ℝ) < (evalIntervalCore1 e I cfg).lo := by exact_mod_cast hlo
+  have hlo_le_eval : (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo ≤ Expr.eval (fun _ => x) e := hmem.1
+  have hc_lt_lo : (c : ℝ) < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo := by exact_mod_cast hlo
   exact lt_of_lt_of_le hc_lt_lo hlo_le_eval
 
 /-! ### Tactic-facing lemmas for interval bounds (extended, noncomputable) -/
 
 /-- Upper bound lemma for extended expressions.
     FULLY PROVED - no sorry, no axioms. -/
-theorem expr_le_of_interval_hi (e : Expr) (hsupp : ExprSupported e)
-    (I : IntervalRat) (c : ℚ) (hhi : (evalInterval1 e I).hi ≤ c) :
+theorem expr_le_of_interval_hi (e : Expr) (hsupp : ADSupported e)
+    (I : IntervalRat) (c : ℚ) (hhi : (LeanCert.Internal.Rational.evalUnchecked1 e I).hi ≤ c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
   intro x hx
   have hmem := evalInterval1_correct e hsupp x I hx
   simp only [IntervalRat.mem_def] at hmem
-  have heval_le_hi : Expr.eval (fun _ => x) e ≤ (evalInterval1 e I).hi := hmem.2
-  have hhi_le_c : ((evalInterval1 e I).hi : ℝ) ≤ c := by exact_mod_cast hhi
+  have heval_le_hi : Expr.eval (fun _ => x) e ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).hi := hmem.2
+  have hhi_le_c : ((LeanCert.Internal.Rational.evalUnchecked1 e I).hi : ℝ) ≤ c := by exact_mod_cast hhi
   exact le_trans heval_le_hi hhi_le_c
 
 /-- Lower bound lemma for extended expressions.
     FULLY PROVED - no sorry, no axioms. -/
-theorem expr_ge_of_interval_lo (e : Expr) (hsupp : ExprSupported e)
-    (I : IntervalRat) (c : ℚ) (hlo : c ≤ (evalInterval1 e I).lo) :
+theorem expr_ge_of_interval_lo (e : Expr) (hsupp : ADSupported e)
+    (I : IntervalRat) (c : ℚ) (hlo : c ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).lo) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by
   intro x hx
   have hmem := evalInterval1_correct e hsupp x I hx
   simp only [IntervalRat.mem_def] at hmem
-  have hlo_le_eval : (evalInterval1 e I).lo ≤ Expr.eval (fun _ => x) e := hmem.1
-  have hc_le_lo : (c : ℝ) ≤ (evalInterval1 e I).lo := by exact_mod_cast hlo
+  have hlo_le_eval : (LeanCert.Internal.Rational.evalUnchecked1 e I).lo ≤ Expr.eval (fun _ => x) e := hmem.1
+  have hc_le_lo : (c : ℝ) ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).lo := by exact_mod_cast hlo
   exact le_trans hc_le_lo hlo_le_eval
 
 /-- Strict upper bound for extended expressions.
     FULLY PROVED - no sorry, no axioms. -/
-theorem expr_lt_of_interval_hi_lt (e : Expr) (hsupp : ExprSupported e)
-    (I : IntervalRat) (c : ℚ) (hhi : (evalInterval1 e I).hi < c) :
+theorem expr_lt_of_interval_hi_lt (e : Expr) (hsupp : ADSupported e)
+    (I : IntervalRat) (c : ℚ) (hhi : (LeanCert.Internal.Rational.evalUnchecked1 e I).hi < c) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e < c := by
   intro x hx
   have hmem := evalInterval1_correct e hsupp x I hx
   simp only [IntervalRat.mem_def] at hmem
-  have heval_le_hi : Expr.eval (fun _ => x) e ≤ (evalInterval1 e I).hi := hmem.2
-  have hhi_lt_c : ((evalInterval1 e I).hi : ℝ) < c := by exact_mod_cast hhi
+  have heval_le_hi : Expr.eval (fun _ => x) e ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).hi := hmem.2
+  have hhi_lt_c : ((LeanCert.Internal.Rational.evalUnchecked1 e I).hi : ℝ) < c := by exact_mod_cast hhi
   exact lt_of_le_of_lt heval_le_hi hhi_lt_c
 
 /-- Strict lower bound for extended expressions.
     FULLY PROVED - no sorry, no axioms. -/
-theorem expr_gt_of_interval_lo_gt (e : Expr) (hsupp : ExprSupported e)
-    (I : IntervalRat) (c : ℚ) (hlo : c < (evalInterval1 e I).lo) :
+theorem expr_gt_of_interval_lo_gt (e : Expr) (hsupp : ADSupported e)
+    (I : IntervalRat) (c : ℚ) (hlo : c < (LeanCert.Internal.Rational.evalUnchecked1 e I).lo) :
     ∀ x ∈ I, c < Expr.eval (fun _ => x) e := by
   intro x hx
   have hmem := evalInterval1_correct e hsupp x I hx
   simp only [IntervalRat.mem_def] at hmem
-  have hlo_le_eval : (evalInterval1 e I).lo ≤ Expr.eval (fun _ => x) e := hmem.1
-  have hc_lt_lo : (c : ℝ) < (evalInterval1 e I).lo := by exact_mod_cast hlo
+  have hlo_le_eval : (LeanCert.Internal.Rational.evalUnchecked1 e I).lo ≤ Expr.eval (fun _ => x) e := hmem.1
+  have hc_lt_lo : (c : ℝ) < (LeanCert.Internal.Rational.evalUnchecked1 e I).lo := by exact_mod_cast hlo
   exact lt_of_lt_of_le hc_lt_lo hlo_le_eval
 
 /-- Variant for single point (extended). -/
-theorem expr_le_of_mem_interval (e : Expr) (hsupp : ExprSupported e)
+theorem expr_le_of_mem_interval (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c : ℚ) (x : ℝ) (hx : x ∈ I)
-    (hhi : (evalInterval1 e I).hi ≤ c) :
+    (hhi : (LeanCert.Internal.Rational.evalUnchecked1 e I).hi ≤ c) :
     Expr.eval (fun _ => x) e ≤ c :=
   expr_le_of_interval_hi e hsupp I c hhi x hx
 
 /-- Variant for single point (extended). -/
-theorem expr_ge_of_mem_interval (e : Expr) (hsupp : ExprSupported e)
+theorem expr_ge_of_mem_interval (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c : ℚ) (x : ℝ) (hx : x ∈ I)
-    (hlo : c ≤ (evalInterval1 e I).lo) :
+    (hlo : c ≤ (LeanCert.Internal.Rational.evalUnchecked1 e I).lo) :
     c ≤ Expr.eval (fun _ => x) e :=
   expr_ge_of_interval_lo e hsupp I c hlo x hx
 

@@ -23,7 +23,7 @@ hardcoded for one specific function (BKLNW's `x^(1/k - 1/3)`).
 
 This module generalizes the pattern: any function expressible as a `Core.Expr`
 (with `var 0` as the summation index) can be bounded via the same accumulator
-loop, using `evalIntervalDyadic` per term.
+loop, using `LeanCert.Internal.Dyadic.evalUnchecked` per term.
 
 ## Main definitions
 
@@ -44,7 +44,7 @@ example : checkFinSumUpperBound (Expr.inv (Expr.mul (Expr.var 0) (Expr.var 0)))
 ## Architecture
 
 ```
-evalIntervalDyadic (per-term, from IntervalEvalDyadic.lean)
+LeanCert.Internal.Dyadic.evalUnchecked (per-term, from IntervalEvalDyadic.lean)
   ↓
 finSumAux (accumulator loop)
   ↓
@@ -107,7 +107,7 @@ theorem sumBodyEnvSimple_correct (k : Nat) (prec : Int) (hprec : prec ≤ 0) :
 
 /-- Evaluate a single term of the sum: body evaluated at index k. -/
 def evalSumTermDyadic (body : Expr) (k : Nat) (cfg : DyadicConfig) : IntervalDyadic :=
-  evalIntervalDyadic body (sumBodyEnvSimple k cfg.precision) cfg
+  LeanCert.Internal.Dyadic.evalUnchecked body (sumBodyEnvSimple k cfg.precision) cfg
 
 /-! ### Accumulator Loop -/
 
@@ -331,19 +331,19 @@ theorem verify_finsum_lower_full (body : Expr) (hsupp : ExprSupportedCore body)
   exact verify_finsum_lower body hsupp a b target cfg hprec
     (checkDomainValidAll_correct body a b cfg h_check.1) h_check.2
 
-/-! ### WithInv Correctness Chain -/
+/-! ### Checked Correctness Chain -/
 
-/-- Per-term correctness for ExprSupportedWithInv bodies. -/
-theorem mem_evalSumTermDyadic_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Per-term correctness for arbitrary expression bodies. -/
+theorem mem_evalSumTermDyadic_checked (body : Expr)
     (k : Nat) (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0 := by norm_num)
     (hdom : evalDomainValidDyadic body (sumBodyEnvSimple k cfg.precision) cfg) :
     Expr.eval (sumBodyRealEnv k) body ∈ evalSumTermDyadic body k cfg :=
-  evalIntervalDyadic_correct_withInv body hsupp (sumBodyRealEnv k)
+  evalIntervalDyadic_correct_of_domain body (sumBodyRealEnv k)
     (sumBodyEnvSimple k cfg.precision) (sumBodyEnvSimple_correct k cfg.precision hprec)
     cfg hprec hdom
 
-/-- Accumulator correctness for ExprSupportedWithInv bodies. -/
-theorem mem_finSumAux_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Accumulator correctness for arbitrary expression bodies. -/
+theorem mem_finSumAux_checked (body : Expr)
     (current limit : Nat) (acc : IntervalDyadic) (partialSum : ℝ)
     (hacc : partialSum ∈ acc)
     (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0 := by norm_num)
@@ -362,7 +362,7 @@ theorem mem_finSumAux_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
       rw [Finset.sum_Icc_eq_add_sum_Ioc' _ current limit hcur_le]
       rw [Finset.Ioc_eq_Icc_succ']
       rw [← add_assoc]
-      have hterm := mem_evalSumTermDyadic_withInv body hsupp current cfg hprec
+      have hterm := mem_evalSumTermDyadic_checked body current cfg hprec
         (hdom current (Nat.le_refl current) hcur_le)
       have hnewAcc : partialSum + Expr.eval (sumBodyRealEnv current) body ∈
           (IntervalDyadic.add acc (evalSumTermDyadic body current cfg)).roundOut cfg.precision := by
@@ -374,65 +374,65 @@ theorem mem_finSumAux_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
         fun k hk1 hk2 => hdom k (by omega) hk2
       exact ih (limit + 1 - (current + 1)) hm' (current + 1) _ _ hnewAcc hdom' rfl
 
-/-- Golden theorem for ExprSupportedWithInv bodies. -/
-theorem mem_finSumDyadic_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Golden theorem for arbitrary expression bodies. -/
+theorem mem_finSumDyadic_checked (body : Expr)
     (a b : Nat) (cfg : DyadicConfig := {}) (hprec : cfg.precision ≤ 0 := by norm_num)
     (hdom : ∀ k, a ≤ k → k ≤ b →
         evalDomainValidDyadic body (sumBodyEnvSimple k cfg.precision) cfg) :
     (∑ k ∈ Finset.Icc a b, Expr.eval (sumBodyRealEnv k) body) ∈ finSumDyadic body a b cfg := by
   unfold finSumDyadic
-  have h := mem_finSumAux_withInv body hsupp a b finSumZero 0 mem_finSumZero cfg hprec hdom
+  have h := mem_finSumAux_checked body a b finSumZero 0 mem_finSumZero cfg hprec hdom
   simp only [zero_add] at h
   exact h
 
-/-- Bridge theorem: upper bound for ExprSupportedWithInv. -/
-theorem verify_finsum_upper_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Bridge theorem: upper bound for arbitrary expressions. -/
+theorem verify_finsum_upper_checked (body : Expr)
     (a b : Nat) (target : ℚ) (cfg : DyadicConfig := {})
     (hprec : cfg.precision ≤ 0 := by norm_num)
     (hdom : ∀ k, a ≤ k → k ≤ b →
         evalDomainValidDyadic body (sumBodyEnvSimple k cfg.precision) cfg)
     (h_check : checkFinSumUpperBound body a b target cfg = true) :
     ∑ k ∈ Finset.Icc a b, Expr.eval (sumBodyRealEnv k) body ≤ target := by
-  have hmem := mem_finSumDyadic_withInv body hsupp a b cfg hprec hdom
+  have hmem := mem_finSumDyadic_checked body a b cfg hprec hdom
   have hhi : ∑ k ∈ Finset.Icc a b, Expr.eval (sumBodyRealEnv k) body ≤
       ((finSumDyadic body a b cfg).hi.toRat : ℝ) := hmem.2
   simp only [checkFinSumUpperBound, IntervalDyadic.upperBoundedBy, decide_eq_true_eq] at h_check
   exact le_trans hhi (by exact_mod_cast h_check)
 
-/-- Bridge theorem: lower bound for ExprSupportedWithInv. -/
-theorem verify_finsum_lower_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Bridge theorem: lower bound for arbitrary expressions. -/
+theorem verify_finsum_lower_checked (body : Expr)
     (a b : Nat) (target : ℚ) (cfg : DyadicConfig := {})
     (hprec : cfg.precision ≤ 0 := by norm_num)
     (hdom : ∀ k, a ≤ k → k ≤ b →
         evalDomainValidDyadic body (sumBodyEnvSimple k cfg.precision) cfg)
     (h_check : checkFinSumLowerBound body a b target cfg = true) :
     target ≤ ∑ k ∈ Finset.Icc a b, Expr.eval (sumBodyRealEnv k) body := by
-  have hmem := mem_finSumDyadic_withInv body hsupp a b cfg hprec hdom
+  have hmem := mem_finSumDyadic_checked body a b cfg hprec hdom
   have hlo : ((finSumDyadic body a b cfg).lo.toRat : ℝ) ≤
       ∑ k ∈ Finset.Icc a b, Expr.eval (sumBodyRealEnv k) body := hmem.1
   simp only [checkFinSumLowerBound, IntervalDyadic.lowerBoundedBy, decide_eq_true_eq] at h_check
   exact le_trans (by exact_mod_cast h_check) hlo
 
-/-! ### Combined Bridge Theorems (ExprSupportedWithInv) -/
+/-! ### Combined Bridge Theorems (arbitrary expressions) -/
 
-/-- Combined upper bound check for ExprSupportedWithInv bodies. -/
-theorem verify_finsum_upper_full_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Combined upper bound check for arbitrary expression bodies. -/
+theorem verify_finsum_upper_full_checked (body : Expr)
     (a b : Nat) (target : ℚ) (cfg : DyadicConfig := {})
     (hprec : cfg.precision ≤ 0 := by norm_num)
     (h_check : checkFinSumUpperBoundFull body a b target cfg = true) :
     ∑ k ∈ Finset.Icc a b, Expr.eval (sumBodyRealEnv k) body ≤ target := by
   simp only [checkFinSumUpperBoundFull, Bool.and_eq_true] at h_check
-  exact verify_finsum_upper_withInv body hsupp a b target cfg hprec
+  exact verify_finsum_upper_checked body a b target cfg hprec
     (checkDomainValidAll_correct body a b cfg h_check.1) h_check.2
 
-/-- Combined lower bound check for ExprSupportedWithInv bodies. -/
-theorem verify_finsum_lower_full_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Combined lower bound check for arbitrary expression bodies. -/
+theorem verify_finsum_lower_full_checked (body : Expr)
     (a b : Nat) (target : ℚ) (cfg : DyadicConfig := {})
     (hprec : cfg.precision ≤ 0 := by norm_num)
     (h_check : checkFinSumLowerBoundFull body a b target cfg = true) :
     target ≤ ∑ k ∈ Finset.Icc a b, Expr.eval (sumBodyRealEnv k) body := by
   simp only [checkFinSumLowerBoundFull, Bool.and_eq_true] at h_check
-  exact verify_finsum_lower_withInv body hsupp a b target cfg hprec
+  exact verify_finsum_lower_checked body a b target cfg hprec
     (checkDomainValidAll_correct body a b cfg h_check.1) h_check.2
 
 /-! ## List-Based Accumulator for Arbitrary Finite Sets
@@ -582,10 +582,10 @@ theorem verify_finsum_lower_list_full (body : Expr) (hsupp : ExprSupportedCore b
       decide_eq_true_eq] at hbound
     exact_mod_cast hbound) hmem.1
 
-/-! ### List Correctness Theorems (ExprSupportedWithInv) -/
+/-! ### List Correctness Theorems (arbitrary expressions) -/
 
-/-- Accumulator correctness for ExprSupportedWithInv bodies over a list. -/
-theorem mem_finSumAuxList_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Accumulator correctness for arbitrary expression bodies over a list. -/
+theorem mem_finSumAuxList_checked (body : Expr)
     (indices : List Nat) (acc : IntervalDyadic) (partialSum : ℝ)
     (hacc : partialSum ∈ acc)
     (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0 := by norm_num)
@@ -600,7 +600,7 @@ theorem mem_finSumAuxList_withInv (body : Expr) (hsupp : ExprSupportedWithInv bo
   | cons k rest ih =>
     simp only [finSumAuxList, List.map_cons, List.sum_cons]
     rw [← add_assoc]
-    have hterm := mem_evalSumTermDyadic_withInv body hsupp k cfg hprec
+    have hterm := mem_evalSumTermDyadic_checked body k cfg hprec
       (hdom k (.head rest))
     have hnewAcc : partialSum + Expr.eval (sumBodyRealEnv k) body ∈
         (IntervalDyadic.add acc (evalSumTermDyadic body k cfg)).roundOut cfg.precision := by
@@ -608,8 +608,8 @@ theorem mem_finSumAuxList_withInv (body : Expr) (hsupp : ExprSupportedWithInv bo
       exact IntervalDyadic.mem_add hacc hterm
     exact ih _ _ hnewAcc (fun j hj => hdom j (.tail k hj))
 
-/-- Golden theorem for ExprSupportedWithInv over a list. -/
-theorem mem_finSumDyadicList_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Golden theorem for arbitrary expressions over a list. -/
+theorem mem_finSumDyadicList_checked (body : Expr)
     (indices : List Nat) (hnodup : indices.Nodup)
     (cfg : DyadicConfig := {}) (hprec : cfg.precision ≤ 0 := by norm_num)
     (hdom : ∀ k, k ∈ indices →
@@ -618,14 +618,14 @@ theorem mem_finSumDyadicList_withInv (body : Expr) (hsupp : ExprSupportedWithInv
       ∈ finSumDyadicList body indices cfg := by
   unfold finSumDyadicList
   rw [List.sum_toFinset _ hnodup]
-  have h := mem_finSumAuxList_withInv body hsupp indices finSumZero 0 mem_finSumZero cfg hprec hdom
+  have h := mem_finSumAuxList_checked body indices finSumZero 0 mem_finSumZero cfg hprec hdom
   simp only [zero_add] at h
   exact h
 
-/-! ### List Bridge Theorems (ExprSupportedWithInv) -/
+/-! ### List Bridge Theorems (arbitrary expressions) -/
 
-/-- Combined upper bound for ExprSupportedWithInv over a list. -/
-theorem verify_finsum_upper_list_full_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Combined upper bound for arbitrary expressions over a list. -/
+theorem verify_finsum_upper_list_full_checked (body : Expr)
     (S : Finset Nat) (indices : List Nat) (target : ℚ)
     (cfg : DyadicConfig := {}) (hprec : cfg.precision ≤ 0 := by norm_num)
     (h_check : checkFinSumUpperBoundListFull body S indices target cfg = true) :
@@ -634,14 +634,14 @@ theorem verify_finsum_upper_list_full_withInv (body : Expr) (hsupp : ExprSupport
   obtain ⟨⟨⟨heq, hnodup⟩, hdomAll⟩, hbound⟩ := h_check
   rw [heq]
   have hdom := checkDomainValidAllList_correct body indices cfg hdomAll
-  have hmem := mem_finSumDyadicList_withInv body hsupp indices hnodup cfg hprec hdom
+  have hmem := mem_finSumDyadicList_checked body indices hnodup cfg hprec hdom
   exact le_trans hmem.2 (by
     simp only [checkFinSumUpperBoundList, IntervalDyadic.upperBoundedBy,
       decide_eq_true_eq] at hbound
     exact_mod_cast hbound)
 
-/-- Combined lower bound for ExprSupportedWithInv over a list. -/
-theorem verify_finsum_lower_list_full_withInv (body : Expr) (hsupp : ExprSupportedWithInv body)
+/-- Combined lower bound for arbitrary expressions over a list. -/
+theorem verify_finsum_lower_list_full_checked (body : Expr)
     (S : Finset Nat) (indices : List Nat) (target : ℚ)
     (cfg : DyadicConfig := {}) (hprec : cfg.precision ≤ 0 := by norm_num)
     (h_check : checkFinSumLowerBoundListFull body S indices target cfg = true) :
@@ -650,7 +650,7 @@ theorem verify_finsum_lower_list_full_withInv (body : Expr) (hsupp : ExprSupport
   obtain ⟨⟨⟨heq, hnodup⟩, hdomAll⟩, hbound⟩ := h_check
   rw [heq]
   have hdom := checkDomainValidAllList_correct body indices cfg hdomAll
-  have hmem := mem_finSumDyadicList_withInv body hsupp indices hnodup cfg hprec hdom
+  have hmem := mem_finSumDyadicList_checked body indices hnodup cfg hprec hdom
   exact le_trans (by
     simp only [checkFinSumLowerBoundList, IntervalDyadic.lowerBoundedBy,
       decide_eq_true_eq] at hbound

@@ -81,7 +81,7 @@ backend requests are honored and invalid domains or configurations return a
 structured `EvalError`; they never return a fallback interval. -/
 def evalInterval (e : Expr) (box : List IntervalRat)
     (options : EvalOptions := {}) : EvalResult IntervalOutcome :=
-  Engine.evalIntervalWith options.toBackendOptions e box
+  Internal.Eval.dispatch options.toBackendOptions e box
 
 /-- A successful public interval evaluation encloses the expression value.
 
@@ -92,7 +92,7 @@ theorem evalInterval_correct {e : Expr} {box : List IntervalRat}
     (hsuccess : evalInterval e box options = .ok outcome)
     {rho : Nat → ℝ} (hrho : BoxEnvMem rho box) :
     Expr.eval rho e ∈ outcome.interval := by
-  apply Engine.evalIntervalWith_correct options.toBackendOptions e box outcome hsuccess rho
+  apply Internal.Eval.dispatch_correct options.toBackendOptions e box outcome hsuccess rho
   intro i
   exact hrho i
 

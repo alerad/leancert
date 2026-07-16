@@ -88,12 +88,20 @@ def resolveBackend (choice : BackendChoice) (operation : BackendOperation) :
 def intervalEnvOfList (box : List IntervalRat) : IntervalEnv :=
   fun i => box.getD i (IntervalRat.singleton 0)
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Eval
+
+open LeanCert.Core
+open LeanCert.Engine
+open LeanCert.Engine.Affine
+
 /-- Checked engine dispatcher for evaluating an expression on a box.
 
 All branches call checked evaluators. In particular, this function cannot
 expose legacy finite sentinels for reciprocal, logarithm, or `atanh` failures.
 -/
-def evalIntervalWith (options : BackendOptions) (e : Expr)
+def dispatch (options : BackendOptions) (e : Expr)
     (box : List IntervalRat) : EvalResult IntervalOutcome :=
   match resolveBackend options.backend .intervalEvaluation with
   | .error err => .error err
@@ -126,41 +134,41 @@ def evalIntervalWith (options : BackendOptions) (e : Expr)
           evalIntervalAffineChecked e (toAffineEnv box) cfg
 
 /-- `auto` is definitionally the checked Dyadic path for interval evaluation. -/
-theorem evalIntervalWith_auto_eq_dyadic (options : BackendOptions)
+theorem dispatch_auto_eq_dyadic (options : BackendOptions)
     (e : Expr) (box : List IntervalRat) :
-    evalIntervalWith { options with backend := .auto } e box =
-      evalIntervalWith { options with backend := .dyadic } e box := by
+    dispatch { options with backend := .auto } e box =
+      dispatch { options with backend := .dyadic } e box := by
   rfl
 
 /-- The Rational dispatcher branch preserves the checked evaluator theorem. -/
-theorem evalIntervalWith_rational_correct (options : BackendOptions) (e : Expr)
+theorem dispatch_rational_correct (options : BackendOptions) (e : Expr)
     (box : List IntervalRat) (outcome : IntervalOutcome)
-    (hsuccess : evalIntervalWith { options with backend := .rational } e box = .ok outcome)
+    (hsuccess : dispatch { options with backend := .rational } e box = .ok outcome)
     (ρ : Nat → ℝ) (hρ : envMem ρ (intervalEnvOfList box)) :
     Expr.eval ρ e ∈ outcome.interval := by
   have hdepth : options.taylorDepth = 10 := by
     by_contra h
-    simp [evalIntervalWith, resolveBackend, backendSupports, h] at hsuccess
+    simp [dispatch, resolveBackend, backendSupports, h] at hsuccess
   cases heval : evalIntervalChecked e (intervalEnvOfList box) with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [evalIntervalWith, resolveBackend, backendSupports, hdepth, heval] using hsuccess
+        simpa [dispatch, resolveBackend, backendSupports, hdepth, heval] using hsuccess
       contradiction
   | ok I =>
       have hsound := evalIntervalChecked_correct e (intervalEnvOfList box) I heval ρ hρ
       have hout : outcome = { interval := I, backend := .rational } := by
         have h : (Except.ok { interval := I, backend := ConcreteBackend.rational } :
             EvalResult IntervalOutcome) = Except.ok outcome := by
-          simpa [evalIntervalWith, resolveBackend, backendSupports, hdepth, heval] using hsuccess
+          simpa [dispatch, resolveBackend, backendSupports, hdepth, heval] using hsuccess
         injection h with h'
         exact h'.symm
       subst outcome
       exact hsound
 
 /-- The Dyadic dispatcher branch preserves the checked evaluator theorem. -/
-theorem evalIntervalWith_dyadic_correct (options : BackendOptions) (e : Expr)
+theorem dispatch_dyadic_correct (options : BackendOptions) (e : Expr)
     (box : List IntervalRat) (outcome : IntervalOutcome)
-    (hsuccess : evalIntervalWith { options with backend := .dyadic } e box = .ok outcome)
+    (hsuccess : dispatch { options with backend := .dyadic } e box = .ok outcome)
     (ρ : Nat → ℝ) (hρ : envMem ρ (intervalEnvOfList box)) :
     Expr.eval ρ e ∈ outcome.interval := by
   have hprec : options.dyadicPrecision ≤ 0 := by
@@ -169,7 +177,7 @@ theorem evalIntervalWith_dyadic_correct (options : BackendOptions) (e : Expr)
     have : Except.error (EvalError.invalidConfiguration
         "dyadicPrecision must be nonpositive for certified outward rounding") =
         Except.ok outcome := by
-      simpa [evalIntervalWith, resolveBackend, backendSupports, hpos] using hsuccess
+      simpa [dispatch, resolveBackend, backendSupports, hpos] using hsuccess
     contradiction
   let cfg : DyadicConfig := {
     precision := options.dyadicPrecision
@@ -182,7 +190,7 @@ theorem evalIntervalWith_dyadic_correct (options : BackendOptions) (e : Expr)
   cases heval : evalIntervalDyadicChecked e ρd cfg with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [evalIntervalWith, resolveBackend, backendSupports, cfg, ρd,
+        simpa [dispatch, resolveBackend, backendSupports, cfg, ρd,
           show ¬options.dyadicPrecision > 0 from not_lt.mpr hprec, heval] using hsuccess
       contradiction
   | ok I =>
@@ -193,7 +201,7 @@ theorem evalIntervalWith_dyadic_correct (options : BackendOptions) (e : Expr)
         have h : (Except.ok {
             interval := I.toIntervalRat, backend := ConcreteBackend.dyadic } :
             EvalResult IntervalOutcome) = Except.ok outcome := by
-          simpa [evalIntervalWith, resolveBackend, backendSupports, cfg, ρd,
+          simpa [dispatch, resolveBackend, backendSupports, cfg, ρd,
             show ¬options.dyadicPrecision > 0 from not_lt.mpr hprec, heval] using hsuccess
         injection h with h'
         exact h'.symm
@@ -203,9 +211,9 @@ theorem evalIntervalWith_dyadic_correct (options : BackendOptions) (e : Expr)
 /-- The Affine dispatcher branch preserves the checked evaluator theorem.
 The noise assignment hypotheses are the standard semantic interpretation of
 the affine box environment. -/
-theorem evalIntervalWith_affine_correct_of_noise (options : BackendOptions) (e : Expr)
+theorem dispatch_affine_correct_of_noise (options : BackendOptions) (e : Expr)
     (box : List IntervalRat) (outcome : IntervalOutcome)
-    (hsuccess : evalIntervalWith { options with backend := .affine } e box = .ok outcome)
+    (hsuccess : dispatch { options with backend := .affine } e box = .ok outcome)
     (ρ : Nat → ℝ) (eps : AffineForm.NoiseAssignment)
     (hvalid : AffineForm.validNoise eps)
     (hρ : envMemAffine ρ (toAffineEnv box) eps) :
@@ -217,7 +225,7 @@ theorem evalIntervalWith_affine_correct_of_noise (options : BackendOptions) (e :
   cases heval : evalIntervalAffineChecked e (toAffineEnv box) cfg with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [evalIntervalWith, resolveBackend, backendSupports, cfg, heval] using hsuccess
+        simpa [dispatch, resolveBackend, backendSupports, cfg, heval] using hsuccess
       contradiction
   | ok a =>
       have hsound := evalIntervalAffineChecked_correct e ρ (toAffineEnv box) eps
@@ -228,7 +236,7 @@ theorem evalIntervalWith_affine_correct_of_noise (options : BackendOptions) (e :
         have h : (Except.ok {
             interval := a.toInterval, backend := ConcreteBackend.affine } :
             EvalResult IntervalOutcome) = Except.ok outcome := by
-          simpa [evalIntervalWith, resolveBackend, backendSupports, cfg, heval] using hsuccess
+          simpa [dispatch, resolveBackend, backendSupports, cfg, heval] using hsuccess
         injection h with h'
         exact h'.symm
       subst outcome
@@ -237,9 +245,9 @@ theorem evalIntervalWith_affine_correct_of_noise (options : BackendOptions) (e :
 /-- The Affine dispatcher has the same box-membership contract as the Rational
 and Dyadic branches. The standard correlated noise assignment is constructed
 inside the affine evaluation layer. -/
-theorem evalIntervalWith_affine_correct (options : BackendOptions) (e : Expr)
+theorem dispatch_affine_correct (options : BackendOptions) (e : Expr)
     (box : List IntervalRat) (outcome : IntervalOutcome)
-    (hsuccess : evalIntervalWith { options with backend := .affine } e box = .ok outcome)
+    (hsuccess : dispatch { options with backend := .affine } e box = .ok outcome)
     (rho : Nat → ℝ) (hrho : envMem rho (intervalEnvOfList box)) :
     Expr.eval rho e ∈ outcome.interval := by
   have hbox : ∀ i (hi : i < box.length), rho i ∈ box[i]'hi := by
@@ -255,32 +263,32 @@ theorem evalIntervalWith_affine_correct (options : BackendOptions) (e : Expr)
     norm_num [IntervalRat.singleton] at hb
     linarith
   obtain ⟨eps, hvalid, henv⟩ := exists_noise_toAffineEnv box rho hbox hzero
-  exact evalIntervalWith_affine_correct_of_noise options e box outcome hsuccess
+  exact dispatch_affine_correct_of_noise options e box outcome hsuccess
     rho eps hvalid henv
 
 /-- A successful dispatch through any backend encloses the expression value. -/
-theorem evalIntervalWith_correct (options : BackendOptions) (e : Expr)
+theorem dispatch_correct (options : BackendOptions) (e : Expr)
     (box : List IntervalRat) (outcome : IntervalOutcome)
-    (hsuccess : evalIntervalWith options e box = .ok outcome)
+    (hsuccess : dispatch options e box = .ok outcome)
     (rho : Nat → ℝ) (hrho : envMem rho (intervalEnvOfList box)) :
     Expr.eval rho e ∈ outcome.interval := by
   rcases options with ⟨backend, taylorDepth, dyadicPrecision, maxNoiseSymbols⟩
   cases backend with
   | auto =>
-      exact evalIntervalWith_dyadic_correct
+      exact dispatch_dyadic_correct
         { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
         e box outcome hsuccess rho hrho
   | rational =>
-      exact evalIntervalWith_rational_correct
+      exact dispatch_rational_correct
         { backend := .rational, taylorDepth, dyadicPrecision, maxNoiseSymbols }
         e box outcome hsuccess rho hrho
   | dyadic =>
-      exact evalIntervalWith_dyadic_correct
+      exact dispatch_dyadic_correct
         { backend := .dyadic, taylorDepth, dyadicPrecision, maxNoiseSymbols }
         e box outcome hsuccess rho hrho
   | affine =>
-      exact evalIntervalWith_affine_correct
+      exact dispatch_affine_correct
         { backend := .affine, taylorDepth, dyadicPrecision, maxNoiseSymbols }
         e box outcome hsuccess rho hrho
 
-end LeanCert.Engine
+end LeanCert.Internal.Eval

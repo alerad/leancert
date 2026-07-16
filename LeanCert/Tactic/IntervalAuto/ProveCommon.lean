@@ -367,16 +367,15 @@ def getAst (func : Lean.Expr) : TacticM Lean.Expr := do
     else
       reify func
 
-/-- Get support proof for an AST, returning (proof, useWithInv) -/
+/-- Get a core support proof when available. Checked evaluators need no support
+proof; their branch receives an unused placeholder. -/
 def getSupportProof (ast : Lean.Expr) : TacticM (Lean.Expr × Bool) := do
   -- First try ExprSupportedCore (simpler, works for most cases)
   try
     let proof ← mkSupportedCoreProof ast
     return (proof, false)
   catch _ =>
-    -- Fall back to ExprSupportedWithInv (handles log/inv)
-    let proof ← mkSupportedWithInvProof ast
-    return (proof, true)
+    return (mkConst ``True.intro, true)
 
 /-- Build a Box expression (List IntervalRat) from an array of VarIntervalInfo -/
 def mkBoxExpr (infos : Array VarIntervalInfo) : MetaM Lean.Expr := do

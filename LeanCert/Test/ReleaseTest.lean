@@ -236,7 +236,7 @@ theorem test_opt_verify_upper : ∀ ρ, Box.envMem ρ B01 → (∀ i, i ≥ B01.
     Expr.eval ρ (Expr.mul (Expr.var 0) (Expr.var 0)) ≤ (1 : ℚ) :=
   verify_global_upper_bound
     (Expr.mul (Expr.var 0) (Expr.var 0))
-    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
+    (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
     B01 1 ⟨1000, 1/1000, false, 10⟩
     (by native_decide)
 
@@ -245,7 +245,7 @@ theorem test_opt_verify_lower : ∀ ρ, Box.envMem ρ B01 → (∀ i, i ≥ B01.
     (0 : ℚ) ≤ Expr.eval ρ (Expr.mul (Expr.var 0) (Expr.var 0)) :=
   verify_global_lower_bound
     (Expr.mul (Expr.var 0) (Expr.var 0))
-    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
+    (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
     B01 0 ⟨1000, 1/1000, false, 10⟩
     (by native_decide)
 
@@ -255,9 +255,9 @@ theorem test_opt_verify_2d : ∀ ρ, Box.envMem ρ B01_2D → (∀ i, i ≥ B01_
                           (Expr.mul (Expr.var 1) (Expr.var 1))) ≤ (2 : ℚ) :=
   verify_global_upper_bound
     (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.mul (Expr.var 1) (Expr.var 1)))
-    (ExprSupported.add
-      (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
-      (ExprSupported.mul (ExprSupported.var 1) (ExprSupported.var 1)))
+    (ADSupported.add
+      (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
+      (ADSupported.mul (ADSupported.var 1) (ADSupported.var 1)))
     B01_2D 2 ⟨1000, 1/1000, false, 10⟩
     (by native_decide)
 

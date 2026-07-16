@@ -337,7 +337,7 @@ unsafe def elabEvalInterval : CommandElab := fun stx => do
       let evalCfg : EvalConfig := { taylorDepth := taylorDepth }
       let env : IntervalEnv := fun i => box.getD i (IntervalRat.singleton 0)
       let astVal ← Meta.evalExpr LExpr (mkConst ``LeanCert.Core.Expr) ast
-      let result := evalIntervalCore astVal env evalCfg
+      let result := LeanCert.Internal.Rational.evalTotalCore astVal env evalCfg
 
       logInfo m!"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #eval_interval Results

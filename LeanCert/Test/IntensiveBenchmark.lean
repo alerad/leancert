@@ -70,10 +70,10 @@ def smallIntervalDyadic : IntervalDyadic := IntervalDyadic.ofIntervalRat smallIn
 /-! ### Evaluation Functions -/
 
 def evalRational (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
-  evalIntervalCore e (fun _ => I) cfg
+  LeanCert.Internal.Rational.evalTotalCore e (fun _ => I) cfg
 
 def evalDyadic (e : Expr) (I : IntervalDyadic) (cfg : DyadicConfig := {}) : IntervalDyadic :=
-  evalIntervalDyadic e (fun _ => I) cfg
+  LeanCert.Internal.Dyadic.evalUnchecked e (fun _ => I) cfg
 
 /-! ### Timing Infrastructure -/
 

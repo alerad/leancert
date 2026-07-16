@@ -329,7 +329,7 @@ private def proveForallLeSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
   goal.withContext do
     let ast ← getAst func
     let boundRat ← extractRatBound bound
-    let (supportProof, _useWithInv) ← getSupportProof ast
+    let (supportProof, _useChecked) ← getSupportProof ast
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
     let some bounds ← getSubdivBounds intervalInfo
@@ -373,7 +373,7 @@ private def proveForallGeSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
   goal.withContext do
     let ast ← getAst func
     let boundRat ← extractRatBound bound
-    let (supportProof, _useWithInv) ← getSupportProof ast
+    let (supportProof, _useChecked) ← getSupportProof ast
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
     let some bounds ← getSubdivBounds intervalInfo
@@ -417,7 +417,7 @@ private def proveForallLtSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
   goal.withContext do
     let ast ← getAst func
     let boundRat ← extractRatBound bound
-    let (supportProof, _useWithInv) ← getSupportProof ast
+    let (supportProof, _useChecked) ← getSupportProof ast
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
     let some bounds ← getSubdivBounds intervalInfo
@@ -463,7 +463,7 @@ private def proveForallGtSubdiv (goal : MVarId) (intervalInfo : IntervalInfo)
   goal.withContext do
     let ast ← getAst func
     let boundRat ← extractRatBound bound
-    let (supportProof, _useWithInv) ← getSupportProof ast
+    let (supportProof, _useChecked) ← getSupportProof ast
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
     let some bounds ← getSubdivBounds intervalInfo

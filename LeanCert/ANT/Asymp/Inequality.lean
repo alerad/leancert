@@ -29,7 +29,6 @@ structure SlabInequalityCert where
   slabs : List IntervalRat
   prec : Int
   depth : Nat
-  supported : ExprSupportedWithInv (Expr.sub lhs rhs)
   prec_ok : prec ≤ 0
   checked : checkExprLeOnSlabsDyadic lhs rhs slabs prec depth = true
 
@@ -40,7 +39,7 @@ theorem verify (C : SlabInequalityCert) :
     ∀ I ∈ C.slabs, ∀ x ∈ Set.Icc (I.lo : ℝ) I.hi,
       Expr.eval (fun _ => x) C.lhs ≤ Expr.eval (fun _ => x) C.rhs :=
   verify_expr_le_on_slabs_dyadic C.lhs C.rhs C.slabs C.prec C.depth
-    C.supported C.prec_ok C.checked
+    C.prec_ok C.checked
 
 end SlabInequalityCert
 
@@ -48,7 +47,7 @@ end SlabInequalityCert
 One generated table row for a closed interval inequality.
 
 Rows are intentionally proof-free data.  The table certificate below carries
-the support and precision hypotheses needed to use the dyadic checker.
+the precision hypotheses needed to use the dyadic checker.
 -/
 structure InequalityTableRow where
   lhs : Expr
@@ -71,9 +70,6 @@ once over table membership.
 -/
 structure InequalityTableCert where
   table : TableCert InequalityTableRow
-  supported :
-    ∀ row, row ∈ table.rows.toList →
-      ExprSupportedWithInv (Expr.sub row.lhs row.rhs)
   prec_ok :
     ∀ row, row ∈ table.rows.toList → row.prec ≤ 0
   checked : table.checkAll checkInequalityTableRow = true
@@ -90,7 +86,7 @@ theorem verify (C : InequalityTableCert) :
       checkInequalityTableRow row = true :=
     TableCert.row_checked_of_list_all C.checked hrow
   exact verify_expr_le_on_interval_dyadic row.lhs row.rhs row.interval row.prec row.depth
-    (C.supported row hrow) (C.prec_ok row hrow) hchecked x hx
+    (C.prec_ok row hrow) hchecked x hx
 
 /-- Diagnostic list of failing row indices for a generated inequality table. -/
 def failingIndices (C : InequalityTableCert) : List Nat :=

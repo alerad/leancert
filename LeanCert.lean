@@ -23,6 +23,7 @@ import LeanCert.Engine.IntervalEval
 import LeanCert.Engine.Eval.Backend
 import LeanCert.API.Eval
 import LeanCert.API.Backend
+import LeanCert.API.Optimization
 import LeanCert.Engine.IntervalEvalReal
 import LeanCert.Engine.AD
 import LeanCert.Engine.Integrate
@@ -192,29 +193,19 @@ export LeanCert.Core (Dyadic IntervalDyadic)
 
 -- Re-export evaluation and interval operations
 export LeanCert.Engine (
-  ExprSupported
+  ADSupported
   ExprSupportedCore
   EvalConfig
-  -- Legacy evaluator names remain available during the façade migration.
-  -- The unsafe `Engine.evalInterval` name is intentionally not re-exported.
-  evalIntervalCore
-  evalIntervalCore1
   evalIntervalCore_correct
   evalIntervalCore1_correct
   evalIntervalRefined?
   evalIntervalRefined1?
   evalIntervalRefined?_correct
   evalIntervalRefined1?_correct
-  evalIntervalRefined
-  evalIntervalRefined1
   evalIntervalRefined_correct
   evalIntervalRefined1_correct
   DualInterval
-  evalDual
   derivInterval
-  -- Refined AD evaluation
-  evalDualRefined
-  evalDualRefined1
   evalDualRefined_val_correct
   DyadicConfig
   evalIntervalDyadicChecked

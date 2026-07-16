@@ -58,7 +58,7 @@ Rigorous bounds via Taylor series with verified remainder terms:
 
 Standard interval arithmetic fails when dividing by an interval containing zero. LeanCert's **Extended Arithmetic** returns a union of intervals, preserving soundness even across singularities.
 
-- **Theorem**: `evalExtended_correct_core`
+- **Theorem**: `evalExtendedUnchecked_correct_core`
 - **Behavior**: 1 / [-1, 1] → (-∞, -1] ∪ [1, ∞)
 - **Status**: Verified for core expressions
 
@@ -122,8 +122,10 @@ Branch-and-bound with formal guarantees:
 
 The high-performance dyadic interval evaluator is fully verified:
 
-- `evalIntervalDyadic_correct`: Dyadic evaluation produces sound intervals for `ExprSupportedCore`
-- `evalIntervalDyadic_correct_withInv`: Extended correctness for `ExprSupportedWithInv` (includes `inv`, `log`, `atan`, `arsinh`, `atanh`, `sinc`, `erf`)
+- `evalIntervalDyadic_correct`: Core-fragment correctness for `ExprSupportedCore`
+- `evalIntervalDyadic_correct_of_domain`: Correctness for arbitrary expressions
+  under explicit semantic domain validity
+- `evalIntervalDyadicChecked_correct`: Every successful checked result is an enclosure
 - `IntervalDyadic.mem_add`, `mem_mul`, `mem_neg`: FTIA for dyadic operations
 - `IntervalDyadic.roundOut_contains`: Outward rounding preserves containment
 - `atanhComputable` / `mem_atanhComputable`: Computable atanh interval via Taylor series endpoint evaluation
@@ -145,7 +147,11 @@ High-performance integration using the dyadic backend, enabling verified integra
 - `integratePartitionDyadic_correct`: Partition-based dyadic integration with uniform partitioning
 - `integratePartitionDyadic_bound_correct`: Upper/lower bound extraction from partition results
 
-The dyadic integration module (`Validity/IntegrationDyadic.lean`) is a drop-in replacement for rational `integratePartitionWithInv` that uses `evalIntervalDyadic` instead of `evalInterval?`. Since `evalIntervalDyadic` is total (returns wide bounds on domain violations rather than `none`), the integration functions are also total — domain violations manifest as wide bounds that cause the checker to return `false`, which is safe for the `native_decide` workflow.
+The dyadic integration module (`Validity/IntegrationDyadic.lean`) uses an
+internal total evaluator together with executable domain checks. Public
+checked integration returns `none` on invalid domains; boolean certificate
+checkers return `false`. Correctness theorems require either a successful
+checked result or the corresponding domain-validity hypothesis.
 
 ### Bernstein Polynomial Enclosure
 
@@ -175,7 +181,7 @@ Rational, Dyadic, and Affine backends through one structured `EvalResult` API.
 
 The following strict primitives remain useful to backend implementers. Real-
 endpoint evaluation exposes only strict `Option` results. Refined evaluation
-also provides a total wrapper, but that wrapper requires an `ExprSupported`
+also provides a total wrapper, but that wrapper requires an `ADSupported`
 proof and obtains its value from the strict evaluator; it has no fallback
 branches:
 
@@ -192,8 +198,8 @@ branches:
 
 These return `none` for unsupported partial operations such as `inv`, `log`, and
 `atanh`, so callers cannot accidentally treat a fallback interval as a
-certificate. The affine backend still has a legacy total interface; new code
-should use its strict variants.
+certificate. Total fallback evaluators are confined to `LeanCert.Internal.*`;
+new code should use checked or strict variants.
 
 ### Neural Network Verification
 

@@ -26,13 +26,13 @@ the fact that the result is bounded away from zero.
 
 * `ExtendedInterval` - A union of disjoint rational intervals
 * `invExtended` - Extended inversion that splits at zero crossings
-* `evalExtended` - Recursive evaluator returning extended intervals
+* `LeanCert.Internal.Extended.evalUnchecked` - Recursive evaluator returning extended intervals
 * `ExtendedInterval.hull` - Collapse to a single interval (convex hull)
 
 ## Main theorems
 
 * `mem_invExtended` - Soundness of extended inversion
-* `evalExtended_correct_core` - Soundness of the extended evaluator
+* `evalExtendedUnchecked_correct_core` - Soundness of the internal extended evaluator
 
 ## Design notes
 
@@ -418,6 +418,12 @@ abbrev ExtendedEnv := Nat → ExtendedInterval
 def extendEnv (ρ : IntervalEnv) : ExtendedEnv :=
   fun i => ExtendedInterval.singleton (ρ i)
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.Extended
+
+open LeanCert.Core LeanCert.Engine
+
 /-- Extended interval evaluator.
 
     This evaluator handles singularities by splitting intervals at discontinuities.
@@ -427,33 +433,33 @@ def extendEnv (ρ : IntervalEnv) : ExtendedEnv :=
 
     For other operations, we lift the standard interval operations to work on
     all pairs of interval parts. -/
-def evalExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : ExtendedInterval :=
+def evalUnchecked (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : ExtendedInterval :=
   match e with
   | Expr.const q => ExtendedInterval.singleton (IntervalRat.singleton q)
   | Expr.var idx => ρ idx
   | Expr.add e₁ e₂ =>
-      liftBinary IntervalRat.add (evalExtended e₁ ρ cfg) (evalExtended e₂ ρ cfg)
+      liftBinary IntervalRat.add (LeanCert.Internal.Extended.evalUnchecked e₁ ρ cfg) (LeanCert.Internal.Extended.evalUnchecked e₂ ρ cfg)
   | Expr.mul e₁ e₂ =>
-      liftBinary IntervalRat.mul (evalExtended e₁ ρ cfg) (evalExtended e₂ ρ cfg)
+      liftBinary IntervalRat.mul (LeanCert.Internal.Extended.evalUnchecked e₁ ρ cfg) (LeanCert.Internal.Extended.evalUnchecked e₂ ρ cfg)
   | Expr.neg e =>
-      liftUnary IntervalRat.neg (evalExtended e ρ cfg)
+      liftUnary IntervalRat.neg (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.inv e =>
       -- Key case: use extended inversion to split at zero
-      let inner := evalExtended e ρ cfg
+      let inner := LeanCert.Internal.Extended.evalUnchecked e ρ cfg
       -- Apply invExtended to each part and flatten
       ⟨inner.parts.flatMap (fun I => (invExtended I cfg.largeBound).parts)⟩
   | Expr.exp e =>
       liftUnary (fun I => IntervalRat.expComputable I cfg.taylorDepth)
-        (evalExtended e ρ cfg)
+        (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.sin e =>
       liftUnary (fun I => IntervalRat.sinComputable I cfg.taylorDepth)
-        (evalExtended e ρ cfg)
+        (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.cos e =>
       liftUnary (fun I => IntervalRat.cosComputable I cfg.taylorDepth)
-        (evalExtended e ρ cfg)
+        (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.log e =>
       -- For log, filter to positive intervals and apply logComputable
-      let inner := evalExtended e ρ cfg
+      let inner := LeanCert.Internal.Extended.evalUnchecked e ρ cfg
       let filtered := inner.parts.filter (fun I => decide (0 < I.lo))
       if filtered.isEmpty then
         -- Fallback: return a very wide interval to ensure soundness
@@ -461,9 +467,9 @@ def evalExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : Ex
       else
         ⟨filtered.map (fun I => IntervalRat.logComputable I cfg.taylorDepth)⟩
   | Expr.atan e =>
-      liftUnary atanInterval (evalExtended e ρ cfg)
+      liftUnary atanInterval (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.arsinh e =>
-      liftUnary arsinhInterval (evalExtended e ρ cfg)
+      liftUnary arsinhInterval (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.atanh _ =>
       -- atanh requires |x| < 1; use conservative bounds
       ExtendedInterval.singleton ⟨-100, 100, by norm_num⟩
@@ -474,23 +480,29 @@ def evalExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : Ex
       -- erf is bounded by [-1, 1]
       ExtendedInterval.singleton ⟨-1, 1, by norm_num⟩
   | Expr.sinh e =>
-      liftUnary (fun I => sinhInterval I cfg.taylorDepth) (evalExtended e ρ cfg)
+      liftUnary (fun I => sinhInterval I cfg.taylorDepth) (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.cosh e =>
-      liftUnary (fun I => coshInterval I cfg.taylorDepth) (evalExtended e ρ cfg)
+      liftUnary (fun I => coshInterval I cfg.taylorDepth) (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.tanh e =>
-      liftUnary tanhInterval (evalExtended e ρ cfg)
+      liftUnary tanhInterval (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.sqrt e =>
-      liftUnary IntervalRat.sqrtInterval (evalExtended e ρ cfg)
+      liftUnary IntervalRat.sqrtInterval (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.namedConst c =>
       ExtendedInterval.singleton c.interval
 
 /-- Convenience function for single-variable extended evaluation -/
-def evalExtended1 (e : Expr) (I : IntervalRat) (cfg : ExtendedConfig := {}) : ExtendedInterval :=
-  evalExtended e (fun _ => ExtendedInterval.singleton I) cfg
+def evalUnchecked1 (e : Expr) (I : IntervalRat) (cfg : ExtendedConfig := {}) : ExtendedInterval :=
+  LeanCert.Internal.Extended.evalUnchecked e (fun _ => ExtendedInterval.singleton I) cfg
 
 /-- Collapse extended evaluation to standard evaluation via hull -/
-def evalExtendedHull (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : IntervalRat :=
-  (evalExtended e ρ cfg).hull
+def hullUnchecked (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : IntervalRat :=
+  (LeanCert.Internal.Extended.evalUnchecked e ρ cfg).hull
+
+end LeanCert.Internal.Extended
+
+namespace LeanCert.Engine
+
+open LeanCert.Core
 
 /-! ## Soundness Theorem -/
 
@@ -512,7 +524,7 @@ def evalDomainValidExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig 
   | Expr.exp e => evalDomainValidExtended e ρ cfg
   | Expr.sin e => evalDomainValidExtended e ρ cfg
   | Expr.cos e => evalDomainValidExtended e ρ cfg
-  | Expr.log e => evalDomainValidExtended e ρ cfg ∧ (evalExtended e ρ cfg).hull.lo > 0
+  | Expr.log e => evalDomainValidExtended e ρ cfg ∧ (LeanCert.Internal.Extended.evalUnchecked e ρ cfg).hull.lo > 0
   | Expr.atan e => evalDomainValidExtended e ρ cfg
   | Expr.arsinh e => evalDomainValidExtended e ρ cfg
   | Expr.atanh e => evalDomainValidExtended e ρ cfg
@@ -524,8 +536,8 @@ def evalDomainValidExtended (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig 
   | Expr.sqrt e => evalDomainValidExtended e ρ cfg
   | Expr.namedConst _ => True
 
-/-- Domain validity is trivially true for ExprSupported expressions (which exclude log). -/
-theorem evalDomainValidExtended_of_ExprSupported {e : Expr} (hsupp : ExprSupported e)
+/-- Domain validity is trivially true for ADSupported expressions (which exclude log). -/
+theorem evalDomainValidExtended_of_ExprSupported {e : Expr} (hsupp : ADSupported e)
     (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : evalDomainValidExtended e ρ cfg := by
   induction hsupp with
   | const _ => trivial
@@ -542,84 +554,84 @@ theorem evalDomainValidExtended_of_ExprSupported {e : Expr} (hsupp : ExprSupport
     If all variables are in their respective extended intervals, and the expression
     is in the supported core subset (no partial functions), then the result is
     in the extended interval. -/
-theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
+theorem evalExtendedUnchecked_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
     (ρ_real : Nat → ℝ) (ρ_ext : ExtendedEnv) (hρ : extendedEnvMem ρ_real ρ_ext)
     (cfg : ExtendedConfig := {})
     (hdom : evalDomainValidExtended e ρ_ext cfg) :
-    Expr.eval ρ_real e ∈ evalExtended e ρ_ext cfg := by
+    Expr.eval ρ_real e ∈ LeanCert.Internal.Extended.evalUnchecked e ρ_ext cfg := by
   induction hsupp with
   | const q =>
-    simp only [Expr.eval_const, evalExtended]
+    simp only [Expr.eval_const, LeanCert.Internal.Extended.evalUnchecked]
     rw [ExtendedInterval.mem_singleton]
     exact IntervalRat.mem_singleton q
   | var idx =>
-    simp only [Expr.eval_var, evalExtended]
+    simp only [Expr.eval_var, LeanCert.Internal.Extended.evalUnchecked]
     exact hρ idx
   | add _ _ ih₁ ih₂ =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_add, evalExtended]
+    simp only [Expr.eval_add, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftBinary (fun x y I J hx hy => IntervalRat.mem_add hx hy) (ih₁ hdom.1) (ih₂ hdom.2)
   | mul _ _ ih₁ ih₂ =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_mul, evalExtended]
+    simp only [Expr.eval_mul, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftBinary (fun x y I J hx hy => IntervalRat.mem_mul hx hy) (ih₁ hdom.1) (ih₂ hdom.2)
   | neg _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_neg, evalExtended]
+    simp only [Expr.eval_neg, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_neg hx) (ih hdom)
   | sin _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_sin, evalExtended]
+    simp only [Expr.eval_sin, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_sinComputable hx cfg.taylorDepth) (ih hdom)
   | cos _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_cos, evalExtended]
+    simp only [Expr.eval_cos, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_cosComputable hx cfg.taylorDepth) (ih hdom)
   | exp _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_exp, evalExtended]
+    simp only [Expr.eval_exp, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_expComputable hx cfg.taylorDepth) (ih hdom)
   | sqrt _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_sqrt, evalExtended]
+    simp only [Expr.eval_sqrt, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_sqrtInterval' hx) (ih hdom)
   | sinh _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_sinh, evalExtended]
+    simp only [Expr.eval_sinh, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_sinhComputable hx cfg.taylorDepth) (ih hdom)
   | cosh _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_cosh, evalExtended]
+    simp only [Expr.eval_cosh, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftUnary (fun x I hx => IntervalRat.mem_coshComputable hx cfg.taylorDepth) (ih hdom)
   | tanh _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_tanh, evalExtended]
+    simp only [Expr.eval_tanh, LeanCert.Internal.Extended.evalUnchecked]
     exact mem_liftUnary (fun x I hx => mem_tanhInterval hx) (ih hdom)
   | erf _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_erf, evalExtended]
+    simp only [Expr.eval_erf, LeanCert.Internal.Extended.evalUnchecked]
     -- erf returns singleton [-1, 1], need to show Real.erf x ∈ [-1, 1]
     simp only [ExtendedInterval.mem_singleton, IntervalRat.mem_def]
     simp only [Rat.cast_neg, Rat.cast_one]
     exact Real.erf_mem_Icc _
   | @log arg _ ih =>
     simp only [evalDomainValidExtended] at hdom
-    simp only [Expr.eval_log, evalExtended]
-    -- ih gives membership in evalExtended arg
+    simp only [Expr.eval_log, LeanCert.Internal.Extended.evalUnchecked]
+    -- ih gives membership in LeanCert.Internal.Extended.evalUnchecked arg
     have hmem := ih hdom.1
-    -- hdom.2 gives (evalExtended arg ρ_ext cfg).hull.lo > 0
+    -- hdom.2 gives (LeanCert.Internal.Extended.evalUnchecked arg ρ_ext cfg).hull.lo > 0
     have hpos := hdom.2
     -- Since hull.lo > 0, all parts have lo > 0, so filter keeps everything
     -- and the filtered list is non-empty
     obtain ⟨I, hI_mem, hx_in_I⟩ := hmem
-    -- I is in the parts of evalExtended arg
+    -- I is in the parts of LeanCert.Internal.Extended.evalUnchecked arg
     -- Since hull.lo > 0 and hull.lo = min of all lo's, we have I.lo > 0
     have hI_lo_pos : 0 < I.lo := by
-      have hparts_ne : (evalExtended arg ρ_ext cfg).parts ≠ [] := by
+      have hparts_ne : (LeanCert.Internal.Extended.evalUnchecked arg ρ_ext cfg).parts ≠ [] := by
         intro h
         simp [h] at hI_mem
       -- hull?.lo is the min of all lo's, so hull.lo ≤ I.lo
-      cases hparts_eq : (evalExtended arg ρ_ext cfg).parts with
+      cases hparts_eq : (LeanCert.Internal.Extended.evalUnchecked arg ρ_ext cfg).parts with
       | nil => exact absurd hparts_eq hparts_ne
       | cons hd tl =>
         have hI_in : I ∈ hd :: tl := hparts_eq ▸ hI_mem
@@ -640,11 +652,11 @@ theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
           calc 0 < (tl.foldl _ hd).lo := hpos
                _ ≤ I.lo := htail.1
     -- So I passes the filter
-    have hI_filter : I ∈ (evalExtended arg ρ_ext cfg).parts.filter (fun J => decide (0 < J.lo)) := by
+    have hI_filter : I ∈ (LeanCert.Internal.Extended.evalUnchecked arg ρ_ext cfg).parts.filter (fun J => decide (0 < J.lo)) := by
       simp only [List.mem_filter, decide_eq_true_eq]
       exact ⟨hI_mem, hI_lo_pos⟩
     -- filtered is not empty
-    have hfilter_ne : ¬((evalExtended arg ρ_ext cfg).parts.filter (fun J => decide (0 < J.lo))).isEmpty := by
+    have hfilter_ne : ¬((LeanCert.Internal.Extended.evalUnchecked arg ρ_ext cfg).parts.filter (fun J => decide (0 < J.lo))).isEmpty := by
       simp only [List.isEmpty_iff]
       intro h
       simp [h] at hI_filter
@@ -657,18 +669,18 @@ theorem evalExtended_correct_core (e : Expr) (hsupp : ExprSupportedCore e)
       exact ⟨I, hI_filter, rfl⟩
     · exact IntervalRat.mem_logComputable hx_in_I hI_lo_pos cfg.taylorDepth
   | namedConst c =>
-    simp only [Expr.eval_namedConst, evalExtended]
+    simp only [Expr.eval_namedConst, LeanCert.Internal.Extended.evalUnchecked]
     rw [ExtendedInterval.mem_singleton]
     exact c.mem_interval
 
 /-! ## Utility: Hull Soundness -/
 
 /-- If x is in the extended interval, it's in the hull -/
-theorem mem_evalExtendedHull_of_mem_evalExtended (e : Expr)
+theorem mem_hullUnchecked_of_mem_evalUnchecked (e : Expr)
     (ρ_real : Nat → ℝ) (ρ_ext : ExtendedEnv)
-    (heval : Expr.eval ρ_real e ∈ evalExtended e ρ_ext)
-    (hne : (evalExtended e ρ_ext).parts ≠ []) :
-    Expr.eval ρ_real e ∈ evalExtendedHull e ρ_ext := by
+    (heval : Expr.eval ρ_real e ∈ LeanCert.Internal.Extended.evalUnchecked e ρ_ext)
+    (hne : (LeanCert.Internal.Extended.evalUnchecked e ρ_ext).parts ≠ []) :
+    Expr.eval ρ_real e ∈ LeanCert.Internal.Extended.hullUnchecked e ρ_ext := by
   exact ExtendedInterval.mem_hull heval hne
 
 end LeanCert.Engine

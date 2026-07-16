@@ -62,7 +62,7 @@ def result := findGlobalMin expr support domain cfg
 -- result.is_lower_bound is the proof
 ```
 -/
-def findGlobalMin (expr : Expr) (hsupp : ExprSupported expr)
+def findGlobalMin (expr : Expr) (hsupp : ADSupported expr)
     (domain : Box) (cfg : DiscoveryConfig := {}) : VerifiedGlobalMin expr domain :=
   -- Run the optimization algorithm
   let optCfg := cfg.toGlobalOptConfig
@@ -74,7 +74,7 @@ def findGlobalMin (expr : Expr) (hsupp : ExprSupported expr)
   let iters := result.bound.iterations
   -- Build the proof using the correctness theorem (with automatic domain validity)
   let hdom : ∀ (B' : Box), B'.length = domain.length → evalDomainValid expr B'.toEnv { taylorDepth := optCfg.taylorDepth } :=
-    fun B' _ => ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
+    fun B' _ => ADSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
   let proof : ∀ (ρ : Nat → ℝ), Box.envMem ρ domain →
               (∀ i, i ≥ domain.length → ρ i = 0) →
               (lo : ℝ) ≤ Expr.eval ρ expr :=
@@ -90,7 +90,7 @@ def findGlobalMin (expr : Expr) (hsupp : ExprSupported expr)
 
 Symmetric to `findGlobalMin`, using maximization instead.
 -/
-def findGlobalMax (expr : Expr) (hsupp : ExprSupported expr)
+def findGlobalMax (expr : Expr) (hsupp : ADSupported expr)
     (domain : Box) (cfg : DiscoveryConfig := {}) : VerifiedGlobalMax expr domain :=
   -- Run the optimization algorithm
   let optCfg := cfg.toGlobalOptConfig
@@ -103,7 +103,7 @@ def findGlobalMax (expr : Expr) (hsupp : ExprSupported expr)
   -- Build the proof using the negation trick with domain validity
   let hsupp_neg : ExprSupportedCore (Expr.neg expr) := ExprSupportedCore.neg hsupp.toCore
   let hdom_neg : ∀ (B' : Box), B'.length = domain.length → evalDomainValid (Expr.neg expr) B'.toEnv { taylorDepth := optCfg.taylorDepth } :=
-    fun B' _ => by simp only [evalDomainValid]; exact ExprSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
+    fun B' _ => by simp only [evalDomainValid]; exact ADSupported.domainValid hsupp B'.toEnv { taylorDepth := optCfg.taylorDepth }
   -- Direct proof: globalMaximizeCore negates and flips, so hi = -min(-e).lo
   let proof : ∀ (ρ : Nat → ℝ), Box.envMem ρ domain →
               (∀ i, i ≥ domain.length → ρ i = 0) →
@@ -130,7 +130,7 @@ def findGlobalMax (expr : Expr) (hsupp : ExprSupported expr)
 
 Returns `some proof` if the bound is verified, `none` otherwise.
 -/
-def verifyUpperBound (expr : Expr) (hsupp : ExprSupported expr)
+def verifyUpperBound (expr : Expr) (hsupp : ADSupported expr)
     (domain : IntervalRat) (bound : ℚ) (cfg : DiscoveryConfig := {}) :
     Option (VerifiedUpperBound expr domain) :=
   let evalCfg := cfg.toEvalConfig
@@ -146,7 +146,7 @@ def verifyUpperBound (expr : Expr) (hsupp : ExprSupported expr)
 
 Returns `some proof` if the bound is verified, `none` otherwise.
 -/
-def verifyLowerBound (expr : Expr) (hsupp : ExprSupported expr)
+def verifyLowerBound (expr : Expr) (hsupp : ADSupported expr)
     (domain : IntervalRat) (bound : ℚ) (cfg : DiscoveryConfig := {}) :
     Option (VerifiedLowerBound expr domain) :=
   let evalCfg := cfg.toEvalConfig
@@ -200,11 +200,11 @@ noncomputable def searchRoots (expr : Expr) (domain : IntervalRat)
 /-- Quick bounds check: returns `(lo, hi)` interval containing all values of expr on domain -/
 def quickBounds (expr : Expr) (domain : IntervalRat)
     (cfg : DiscoveryConfig := {}) : ℚ × ℚ :=
-  let result := evalIntervalCore1 expr domain cfg.toEvalConfig
+  let result := LeanCert.Internal.Rational.evalTotalCore1 expr domain cfg.toEvalConfig
   (result.lo, result.hi)
 
 /-- Quick global bounds: returns `(min, max)` bounds using optimization -/
-def quickGlobalBounds (expr : Expr) (hsupp : ExprSupported expr)
+def quickGlobalBounds (expr : Expr) (hsupp : ADSupported expr)
     (domain : Box) (cfg : DiscoveryConfig := {}) : ℚ × ℚ :=
   let minResult := findGlobalMin expr hsupp domain cfg
   let maxResult := findGlobalMax expr hsupp domain cfg
@@ -217,7 +217,7 @@ These functions automatically increase precision until verification succeeds.
 
 /-- Try to verify an upper bound with increasing Taylor depths.
 Returns `some` with the verified bound if successful, `none` otherwise. -/
-def tryVerifyUpperBound (expr : Expr) (hsupp : ExprSupported expr)
+def tryVerifyUpperBound (expr : Expr) (hsupp : ADSupported expr)
     (domain : IntervalRat) (bound : ℚ) (maxDepth : Nat := 40) :
     Option (VerifiedUpperBound expr domain) :=
   let depths := [10, 15, 20, 30, 40].filter (· ≤ maxDepth)
@@ -227,7 +227,7 @@ def tryVerifyUpperBound (expr : Expr) (hsupp : ExprSupported expr)
 
 /-- Try to verify a lower bound with increasing Taylor depths.
 Returns `some` with the verified bound if successful, `none` otherwise. -/
-def tryVerifyLowerBound (expr : Expr) (hsupp : ExprSupported expr)
+def tryVerifyLowerBound (expr : Expr) (hsupp : ADSupported expr)
     (domain : IntervalRat) (bound : ℚ) (maxDepth : Nat := 40) :
     Option (VerifiedLowerBound expr domain) :=
   let depths := [10, 15, 20, 30, 40].filter (· ≤ maxDepth)

@@ -14,7 +14,7 @@ bounds using LeanCert.
 
 ## Verified AD Examples
 
-The `evalDual_val_correct` theorem is **FULLY PROVED** for the supported
+The `LeanCert.Engine.evalDualUnchecked_val_correct` theorem is **FULLY PROVED** for the supported
 expression subset {const, var, add, mul, neg, sin, cos}. This demonstrates
 verified forward-mode automatic differentiation with interval bounds.
 -/
@@ -30,26 +30,26 @@ open LeanCert.Engine
 def exprXSquared : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 /-- Proof that x² is in the supported subset -/
-def exprXSquared_supported : ExprSupported exprXSquared :=
-  ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0)
+def exprXSquared_supported : ADSupported exprXSquared :=
+  ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)
 
 /-- The expression x³ = x * x * x -/
 def exprXCubed : Expr :=
   Expr.mul (Expr.var 0) (Expr.mul (Expr.var 0) (Expr.var 0))
 
 /-- Proof that x³ is supported -/
-def exprXCubed_supported : ExprSupported exprXCubed :=
-  ExprSupported.mul (ExprSupported.var 0)
-    (ExprSupported.mul (ExprSupported.var 0) (ExprSupported.var 0))
+def exprXCubed_supported : ADSupported exprXCubed :=
+  ADSupported.mul (ADSupported.var 0)
+    (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
 
 /-- The expression sin(x) * cos(x) -/
 def exprSinCos : Expr := Expr.mul (Expr.sin (Expr.var 0)) (Expr.cos (Expr.var 0))
 
 /-- Proof that sin(x)*cos(x) is supported -/
-def exprSinCos_supported : ExprSupported exprSinCos :=
-  ExprSupported.mul
-    (ExprSupported.sin (ExprSupported.var 0))
-    (ExprSupported.cos (ExprSupported.var 0))
+def exprSinCos_supported : ADSupported exprSinCos :=
+  ADSupported.mul
+    (ADSupported.sin (ADSupported.var 0))
+    (ADSupported.cos (ADSupported.var 0))
 
 /-! ### Interval environments for AD -/
 
@@ -65,8 +65,8 @@ def dualEnv01 : DualEnv := mkDualEnv (fun _ => I01) 0
     For any x ∈ [0,1], the value of x² lies in the computed interval.
     This theorem has NO SORRY. -/
 theorem xSquared_dual_val_correct (x : ℝ) (hx : x ∈ I01) :
-    Expr.eval (fun _ => x) exprXSquared ∈ (evalDual exprXSquared dualEnv01).val := by
-  apply evalDual_val_correct exprXSquared exprXSquared_supported
+    Expr.eval (fun _ => x) exprXSquared ∈ (LeanCert.Internal.AD.evalUnchecked exprXSquared dualEnv01).val := by
+  apply LeanCert.Engine.evalDualUnchecked_val_correct exprXSquared exprXSquared_supported
   intro i
   simp only [dualEnv01, mkDualEnv]
   split_ifs
@@ -75,8 +75,8 @@ theorem xSquared_dual_val_correct (x : ℝ) (hx : x ∈ I01) :
 
 /-- Verified: the value component for x³ is correct -/
 theorem xCubed_dual_val_correct (x : ℝ) (hx : x ∈ I01) :
-    Expr.eval (fun _ => x) exprXCubed ∈ (evalDual exprXCubed dualEnv01).val := by
-  apply evalDual_val_correct exprXCubed exprXCubed_supported
+    Expr.eval (fun _ => x) exprXCubed ∈ (LeanCert.Internal.AD.evalUnchecked exprXCubed dualEnv01).val := by
+  apply LeanCert.Engine.evalDualUnchecked_val_correct exprXCubed exprXCubed_supported
   intro i
   simp only [dualEnv01, mkDualEnv]
   split_ifs
@@ -85,8 +85,8 @@ theorem xCubed_dual_val_correct (x : ℝ) (hx : x ∈ I01) :
 
 /-- Verified: the value component for sin(x)*cos(x) is correct -/
 theorem sinCos_dual_val_correct (x : ℝ) (hx : x ∈ I01) :
-    Expr.eval (fun _ => x) exprSinCos ∈ (evalDual exprSinCos dualEnv01).val := by
-  apply evalDual_val_correct exprSinCos exprSinCos_supported
+    Expr.eval (fun _ => x) exprSinCos ∈ (LeanCert.Internal.AD.evalUnchecked exprSinCos dualEnv01).val := by
+  apply LeanCert.Engine.evalDualUnchecked_val_correct exprSinCos exprSinCos_supported
   intro i
   simp only [dualEnv01, mkDualEnv]
   split_ifs
@@ -107,7 +107,7 @@ noncomputable def evalXSquaredAt (q : ℚ) : DualInterval :=
 example : Expr.eval (fun _ => (3 : ℝ)) exprXSquared ∈ (evalXSquaredAt 3).val := by
   -- Use the general theorem: if 3 ∈ singleton(3), then eval at 3 ∈ val
   have h3 : (3 : ℝ) ∈ IntervalRat.singleton (3 : ℚ) := IntervalRat.mem_singleton 3
-  apply evalDual_val_correct exprXSquared exprXSquared_supported
+  apply LeanCert.Engine.evalDualUnchecked_val_correct exprXSquared exprXSquared_supported
   intro i
   simp only [mkDualEnv]
   split_ifs

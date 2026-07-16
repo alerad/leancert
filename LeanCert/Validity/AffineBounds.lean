@@ -35,7 +35,7 @@ variable flows through multiple paths.
 * `verify_upper_bound_affine1_strict` - Upper bound verification from the strict checker
 * `verify_lower_bound_affine1_strict` - Lower bound verification from the strict checker
 
-For `ExprSupported` expressions (no log), convenience versions are provided.
+For `ADSupported` expressions (no log), convenience versions are provided.
 
 ## Design
 
@@ -71,12 +71,12 @@ def toAffineEnvConst (I : IntervalRat) : AffineEnv :=
     This uses a single-variable setup where all variables map to the same interval. -/
 def checkUpperBoundAffine1 (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : AffineConfig := {}) : Bool :=
   let ρ := toAffineEnvConst I
-  (evalIntervalAffine e ρ cfg).toInterval.hi ≤ c
+  (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval.hi ≤ c
 
 /-- Check if an expression's computed lower bound is ≥ c using Affine arithmetic. -/
 def checkLowerBoundAffine1 (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : AffineConfig := {}) : Bool :=
   let ρ := toAffineEnvConst I
-  c ≤ (evalIntervalAffine e ρ cfg).toInterval.lo
+  c ≤ (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval.lo
 
 /-- Boolean affine domain-validity checker.
 
@@ -95,7 +95,7 @@ def checkDomainValidAffine (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}
   | Expr.cos e => checkDomainValidAffine e ρ cfg
   | Expr.log e =>
       checkDomainValidAffine e ρ cfg &&
-        decide (0 < (evalIntervalAffine e ρ cfg).toInterval.lo)
+        decide (0 < (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval.lo)
   | Expr.atan e => checkDomainValidAffine e ρ cfg
   | Expr.arsinh e => checkDomainValidAffine e ρ cfg
   | Expr.atanh e => checkDomainValidAffine e ρ cfg
@@ -120,7 +120,7 @@ def checkUpperBoundAffine1Strict
   | none => false
   | some _ =>
       if checkDomainValidAffine e ρ cfg then
-        (evalIntervalAffine e ρ cfg).toInterval.hi ≤ c
+        (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval.hi ≤ c
       else
         false
 
@@ -132,7 +132,7 @@ def checkLowerBoundAffine1Strict
   | none => false
   | some _ =>
       if checkDomainValidAffine e ρ cfg then
-        c ≤ (evalIntervalAffine e ρ cfg).toInterval.lo
+        c ≤ (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval.lo
       else
         false
 
@@ -292,7 +292,7 @@ theorem verify_upper_bound_affine1 (e : Expr) (hsupp : ExprSupportedCore e)
   -- Combine membership and bound check
   have hhi := hmem.2
   calc Expr.eval (fun _ => x) e
-      ≤ ((evalIntervalAffine e ρ_affine cfg).toInterval.hi : ℝ) := hhi
+      ≤ ((LeanCert.Internal.Affine.evalUnchecked e ρ_affine cfg).toInterval.hi : ℝ) := hhi
     _ ≤ c := by exact_mod_cast h_check
 
 /-- **Golden Theorem for Affine Lower Bounds (Single Variable)** -/
@@ -312,7 +312,7 @@ theorem verify_lower_bound_affine1 (e : Expr) (hsupp : ExprSupportedCore e)
   simp only [checkLowerBoundAffine1, decide_eq_true_eq] at h_check
   have hlo := hmem.1
   calc (c : ℝ)
-      ≤ ((evalIntervalAffine e ρ_affine cfg).toInterval.lo : ℝ) := by exact_mod_cast h_check
+      ≤ ((LeanCert.Internal.Affine.evalUnchecked e ρ_affine cfg).toInterval.lo : ℝ) := by exact_mod_cast h_check
     _ ≤ Expr.eval (fun _ => x) e := hlo
 
 /-! ### Strict Affine Checkers -/
@@ -343,7 +343,7 @@ theorem verify_upper_bound_affine1_strict (e : Expr) (hsupp : ExprSupportedCore 
         evalIntervalAffine_correct e hsupp ρ_real ρ_affine eps hvalid henv cfg hdom
       have hmem := AffineForm.mem_toInterval_weak hvalid hmem_affine
       calc Expr.eval (fun _ => x) e
-          ≤ ((evalIntervalAffine e ρ_affine cfg).toInterval.hi : ℝ) := hmem.2
+          ≤ ((LeanCert.Internal.Affine.evalUnchecked e ρ_affine cfg).toInterval.hi : ℝ) := hmem.2
         _ ≤ c := by exact_mod_cast h_check.2
 
 /-- Strict affine lower-bound verification. -/
@@ -368,17 +368,17 @@ theorem verify_lower_bound_affine1_strict (e : Expr) (hsupp : ExprSupportedCore 
         evalIntervalAffine_correct e hsupp ρ_real ρ_affine eps hvalid henv cfg hdom
       have hmem := AffineForm.mem_toInterval_weak hvalid hmem_affine
       calc (c : ℝ)
-          ≤ ((evalIntervalAffine e ρ_affine cfg).toInterval.lo : ℝ) := by
+          ≤ ((LeanCert.Internal.Affine.evalUnchecked e ρ_affine cfg).toInterval.lo : ℝ) := by
               exact_mod_cast h_check.2
         _ ≤ Expr.eval (fun _ => x) e := hmem.1
 
-/-! ### Convenience Theorems for ExprSupported
+/-! ### Convenience Theorems for ADSupported
 
 For expressions that don't use `log`, domain validity is automatic. -/
 
-/-- Convenience theorem for ExprSupported expressions (no log).
+/-- Convenience theorem for ADSupported expressions (no log).
     Domain validity is automatic, so only the bound check is needed. -/
-theorem verify_upper_bound_affine1' (e : Expr) (hsupp : ExprSupported e)
+theorem verify_upper_bound_affine1' (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c : ℚ) (cfg : AffineConfig)
     (h_check : checkUpperBoundAffine1 e I c cfg = true) :
     ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c := by
@@ -386,8 +386,8 @@ theorem verify_upper_bound_affine1' (e : Expr) (hsupp : ExprSupported e)
     evalDomainValidAffine_of_ExprSupported hsupp _ _
   exact verify_upper_bound_affine1 e hsupp.toCore I c cfg hdom h_check
 
-/-- Convenience theorem for ExprSupported expressions (no log). -/
-theorem verify_lower_bound_affine1' (e : Expr) (hsupp : ExprSupported e)
+/-- Convenience theorem for ADSupported expressions (no log). -/
+theorem verify_lower_bound_affine1' (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c : ℚ) (cfg : AffineConfig)
     (h_check : checkLowerBoundAffine1 e I c cfg = true) :
     ∀ x ∈ I, c ≤ Expr.eval (fun _ => x) e := by

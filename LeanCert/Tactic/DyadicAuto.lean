@@ -72,7 +72,7 @@ theorem verify_upper_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
     (hdom : evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat ⟨lo, hi, hle⟩ prec)
         { precision := prec, taylorDepth := depth })
-    (h_check : (evalIntervalDyadic e
+    (h_check : (LeanCert.Internal.Dyadic.evalUnchecked e
         (fun _ => IntervalDyadic.ofIntervalRat ⟨lo, hi, hle⟩ prec)
         { precision := prec, taylorDepth := depth }).upperBoundedBy c = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, Core.Expr.eval (fun _ => x) e ≤ c := by
@@ -93,7 +93,7 @@ theorem verify_upper_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
   simp only [IntervalDyadic.upperBoundedBy, decide_eq_true_eq] at h_check
   -- Conclude: eval ≤ hi.toRat ≤ c
   calc Core.Expr.eval (fun _ => x) e
-      ≤ ((evalIntervalDyadic e ρ_dyad { precision := prec, taylorDepth := depth }).hi.toRat : ℝ) := h_eval.2
+      ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad { precision := prec, taylorDepth := depth }).hi.toRat : ℝ) := h_eval.2
     _ ≤ c := by exact_mod_cast h_check
 
 /-- Bridge theorem: Verify lower bound on Set.Icc using Dyadic arithmetic. -/
@@ -102,7 +102,7 @@ theorem verify_lower_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
     (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
     (hdom : evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat ⟨lo, hi, hle⟩ prec)
         { precision := prec, taylorDepth := depth })
-    (h_check : (evalIntervalDyadic e
+    (h_check : (LeanCert.Internal.Dyadic.evalUnchecked e
         (fun _ => IntervalDyadic.ofIntervalRat ⟨lo, hi, hle⟩ prec)
         { precision := prec, taylorDepth := depth }).lowerBoundedBy c = true) :
     ∀ x ∈ Set.Icc (lo : ℝ) hi, c ≤ Core.Expr.eval (fun _ => x) e := by
@@ -118,7 +118,7 @@ theorem verify_lower_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
     { precision := prec, taylorDepth := depth } h_prec hdom
   simp only [IntervalDyadic.lowerBoundedBy, decide_eq_true_eq] at h_check
   calc (c : ℝ)
-      ≤ ((evalIntervalDyadic e ρ_dyad { precision := prec, taylorDepth := depth }).lo.toRat : ℝ) := by exact_mod_cast h_check
+      ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad { precision := prec, taylorDepth := depth }).lo.toRat : ℝ) := by exact_mod_cast h_check
     _ ≤ Core.Expr.eval (fun _ => x) e := h_eval.1
 
 /-! ## Tactic Implementation -/
@@ -197,7 +197,7 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResul
         mkLambdaFVars #[i] body
 
       let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr]
-      let evalExpr ← mkAppM ``evalIntervalDyadic #[ast, envExpr, cfgExpr]
+      let evalExpr ← mkAppM ``LeanCert.Internal.Dyadic.evalUnchecked #[ast, envExpr, cfgExpr]
       let checkExpr ← mkAppM ``IntervalDyadic.upperBoundedBy #[evalExpr, cExpr]
 
       -- 9. Build proof that check = true using KERNEL REDUCTION (decide)
@@ -260,7 +260,7 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResul
         mkLambdaFVars #[i] body
 
       let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr]
-      let evalExpr ← mkAppM ``evalIntervalDyadic #[ast, envExpr, cfgExpr]
+      let evalExpr ← mkAppM ``LeanCert.Internal.Dyadic.evalUnchecked #[ast, envExpr, cfgExpr]
       let checkExpr ← mkAppM ``IntervalDyadic.lowerBoundedBy #[evalExpr, cExpr]
 
       let checkEqTrueTy ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]

@@ -39,22 +39,22 @@ These are the functions `native_decide` will execute. They return `Bool`, not `P
 /-- Check if an expression is bounded above by `c` on interval `I`.
     Returns `true` iff domain validity holds AND the computed upper bound is ≤ c. -/
 def checkUpperBound (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig) : Bool :=
-  checkDomainValid1 e I cfg && decide ((evalIntervalCore1 e I cfg).hi ≤ c)
+  checkDomainValid1 e I cfg && decide ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi ≤ c)
 
 /-- Check if an expression is bounded below by `c` on interval `I`.
     Returns `true` iff domain validity holds AND the computed lower bound is ≥ c. -/
 def checkLowerBound (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig) : Bool :=
-  checkDomainValid1 e I cfg && decide (c ≤ (evalIntervalCore1 e I cfg).lo)
+  checkDomainValid1 e I cfg && decide (c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo)
 
 /-- Check if an expression is strictly bounded above by `c` on interval `I`.
     Returns `true` iff domain validity holds AND the computed upper bound is < c. -/
 def checkStrictUpperBound (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig) : Bool :=
-  checkDomainValid1 e I cfg && decide ((evalIntervalCore1 e I cfg).hi < c)
+  checkDomainValid1 e I cfg && decide ((LeanCert.Internal.Rational.evalTotalCore1 e I cfg).hi < c)
 
 /-- Check if an expression is strictly bounded below by `c` on interval `I`.
     Returns `true` iff domain validity holds AND the computed lower bound is > c. -/
 def checkStrictLowerBound (e : Expr) (I : IntervalRat) (c : ℚ) (cfg : EvalConfig) : Bool :=
-  checkDomainValid1 e I cfg && decide (c < (evalIntervalCore1 e I cfg).lo)
+  checkDomainValid1 e I cfg && decide (c < (LeanCert.Internal.Rational.evalTotalCore1 e I cfg).lo)
 
 /-! ### Golden Theorems
 
@@ -147,12 +147,12 @@ theorem verify_bounds (e : Expr) (hsupp : ExprSupportedCore e)
 /-- Check that evaluating f at a point x gives a value ≥ c. -/
 def checkPointLowerBound (e : Expr) (x c : ℚ) (cfg : EvalConfig) : Bool :=
   let Ipt : IntervalRat := ⟨x, x, le_refl x⟩
-  checkDomainValid1 e Ipt cfg && decide (c ≤ (evalIntervalCore1 e Ipt cfg).lo)
+  checkDomainValid1 e Ipt cfg && decide (c ≤ (LeanCert.Internal.Rational.evalTotalCore1 e Ipt cfg).lo)
 
 /-- Check that evaluating f at a point x gives a value ≤ c. -/
 def checkPointUpperBound (e : Expr) (x c : ℚ) (cfg : EvalConfig) : Bool :=
   let Ipt : IntervalRat := ⟨x, x, le_refl x⟩
-  checkDomainValid1 e Ipt cfg && decide ((evalIntervalCore1 e Ipt cfg).hi ≤ c)
+  checkDomainValid1 e Ipt cfg && decide ((LeanCert.Internal.Rational.evalTotalCore1 e Ipt cfg).hi ≤ c)
 
 /-- Verify that c ≤ f(x) at a specific point x. -/
 theorem verify_point_lower_bound (e : Expr) (hsupp : ExprSupportedCore e)

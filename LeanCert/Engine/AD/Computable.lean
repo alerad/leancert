@@ -16,13 +16,13 @@ bound checking.
 
 * `DualInterval.expCore`, `sinCore`, `cosCore` - Taylor-based dual functions
 * `DualInterval.sinhCore`, `coshCore`, `tanhCore` - Hyperbolic Taylor-based duals
-* `evalDualCore` - Computable dual evaluator for ExprSupportedCore
+* `LeanCert.Internal.AD.evalTotalCore` - Computable dual evaluator for ExprSupportedCore
 * `derivIntervalCore` - Computable single-variable derivative interval
 
 ## Main theorems
 
-* `evalDualCore_val_correct` - Value component is correct
-* `evalDualCore_der_correct` - Derivative component is correct
+* `LeanCert.Engine.evalDualTotalCore_val_correct` - Value component is correct
+* `LeanCert.Engine.evalDualTotalCore_der_correct` - Derivative component is correct
 * `derivIntervalCore_correct` - Derivative interval correctness
 * `strictMonoOn_of_derivIntervalCore_pos` - Monotonicity from positive derivative
 * `strictAntiOn_of_derivIntervalCore_neg` - Antitonicity from negative derivative
@@ -84,6 +84,12 @@ def tanhCore (d : DualInterval) (_n : ℕ := 10) : DualInterval :=
 
 end DualInterval
 
+end LeanCert.Engine
+
+namespace LeanCert.Internal.AD
+
+open LeanCert.Core LeanCert.Engine
+
 /-- Computable dual interval evaluator for ExprSupportedCore expressions.
 
     This uses Taylor series approximations for transcendental functions,
@@ -91,35 +97,42 @@ end DualInterval
 
     For expressions outside `ExprSupportedCore` (inv, log, atanh), use `evalDual?`
     for domain-checked evaluation; correctness is not covered here. -/
-def evalDualCore (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : DualInterval :=
+def evalTotalCore (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : DualInterval :=
   match e with
   | Expr.const q => DualInterval.const q
   | Expr.var idx => ρ idx
-  | Expr.add e₁ e₂ => DualInterval.add (evalDualCore e₁ ρ cfg) (evalDualCore e₂ ρ cfg)
-  | Expr.mul e₁ e₂ => DualInterval.mul (evalDualCore e₁ ρ cfg) (evalDualCore e₂ ρ cfg)
-  | Expr.neg e => DualInterval.neg (evalDualCore e ρ cfg)
-  | Expr.inv e => DualInterval.inv (evalDualCore e ρ cfg)
-  | Expr.exp e => DualInterval.expCore (evalDualCore e ρ cfg) cfg.taylorDepth
-  | Expr.sin e => DualInterval.sinCore (evalDualCore e ρ cfg) cfg.taylorDepth
-  | Expr.cos e => DualInterval.cosCore (evalDualCore e ρ cfg) cfg.taylorDepth
-  | Expr.log e => DualInterval.logCore (evalDualCore e ρ cfg) cfg.taylorDepth
-  | Expr.atan e => DualInterval.atan (evalDualCore e ρ cfg)
-  | Expr.arsinh e => DualInterval.arsinh (evalDualCore e ρ cfg)
+  | Expr.add e₁ e₂ => DualInterval.add (LeanCert.Internal.AD.evalTotalCore e₁ ρ cfg) (LeanCert.Internal.AD.evalTotalCore e₂ ρ cfg)
+  | Expr.mul e₁ e₂ => DualInterval.mul (LeanCert.Internal.AD.evalTotalCore e₁ ρ cfg) (LeanCert.Internal.AD.evalTotalCore e₂ ρ cfg)
+  | Expr.neg e => DualInterval.neg (LeanCert.Internal.AD.evalTotalCore e ρ cfg)
+  | Expr.inv e => DualInterval.inv (LeanCert.Internal.AD.evalTotalCore e ρ cfg)
+  | Expr.exp e => DualInterval.expCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.sin e => DualInterval.sinCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.cos e => DualInterval.cosCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.log e => DualInterval.logCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.atan e => DualInterval.atan (LeanCert.Internal.AD.evalTotalCore e ρ cfg)
+  | Expr.arsinh e => DualInterval.arsinh (LeanCert.Internal.AD.evalTotalCore e ρ cfg)
   | Expr.atanh _ => default
-  | Expr.sinc e => DualInterval.sinc (evalDualCore e ρ cfg)
-  | Expr.erf e => DualInterval.erfCore (evalDualCore e ρ cfg) cfg.taylorDepth
-  | Expr.sinh e => DualInterval.sinhCore (evalDualCore e ρ cfg) cfg.taylorDepth
-  | Expr.cosh e => DualInterval.coshCore (evalDualCore e ρ cfg) cfg.taylorDepth
-  | Expr.tanh e => DualInterval.tanhCore (evalDualCore e ρ cfg) cfg.taylorDepth
-  | Expr.sqrt e => DualInterval.sqrt (evalDualCore e ρ cfg)
+  | Expr.sinc e => DualInterval.sinc (LeanCert.Internal.AD.evalTotalCore e ρ cfg)
+  | Expr.erf e => DualInterval.erfCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.sinh e => DualInterval.sinhCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.cosh e => DualInterval.coshCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.tanh e => DualInterval.tanhCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.sqrt e => DualInterval.sqrt (LeanCert.Internal.AD.evalTotalCore e ρ cfg)
   | Expr.namedConst c => DualInterval.ofMathConst c
+
+end LeanCert.Internal.AD
+
+namespace LeanCert.Engine
+
+open LeanCert.Core Filter
+open scoped Topology
 
 /-- Computable single-variable derivative interval -/
 def derivIntervalCore (e : Expr) (I : IntervalRat) (cfg : EvalConfig := {}) : IntervalRat :=
-  (evalDualCore e (fun _ => DualInterval.varActive I) cfg).der
+  (LeanCert.Internal.AD.evalTotalCore e (fun _ => DualInterval.varActive I) cfg).der
 
 /-- Domain validity for dual evaluation.
-    This is defined directly in terms of evalDualCore to ensure compatibility.
+    This is defined directly in terms of LeanCert.Internal.AD.evalTotalCore to ensure compatibility.
     For log, we require the argument interval to have positive lower bound. -/
 def evalDomainValidDual (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : Prop :=
   match e with
@@ -132,7 +145,7 @@ def evalDomainValidDual (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : Pro
   | Expr.exp e => evalDomainValidDual e ρ cfg
   | Expr.sin e => evalDomainValidDual e ρ cfg
   | Expr.cos e => evalDomainValidDual e ρ cfg
-  | Expr.log e => evalDomainValidDual e ρ cfg ∧ (evalDualCore e ρ cfg).val.lo > 0
+  | Expr.log e => evalDomainValidDual e ρ cfg ∧ (LeanCert.Internal.AD.evalTotalCore e ρ cfg).val.lo > 0
   | Expr.atan e => evalDomainValidDual e ρ cfg
   | Expr.arsinh e => evalDomainValidDual e ρ cfg
   | Expr.atanh e => evalDomainValidDual e ρ cfg
@@ -147,74 +160,74 @@ def evalDomainValidDual (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : Pro
 /-- Correctness theorem for computable dual value component.
 
     Note: Requires domain validity for log (positive argument interval). -/
-theorem evalDualCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
+theorem evalDualTotalCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
     (ρ_real : Nat → ℝ) (ρ_dual : DualEnv) (cfg : EvalConfig)
     (hρ : ∀ i, ρ_real i ∈ (ρ_dual i).val)
     (hdom : evalDomainValidDual e ρ_dual cfg) :
-    Expr.eval ρ_real e ∈ (evalDualCore e ρ_dual cfg).val := by
+    Expr.eval ρ_real e ∈ (LeanCert.Internal.AD.evalTotalCore e ρ_dual cfg).val := by
   induction hsupp with
   | const q =>
-    simp only [Expr.eval_const, evalDualCore, DualInterval.const]
+    simp only [Expr.eval_const, LeanCert.Internal.AD.evalTotalCore, DualInterval.const]
     exact IntervalRat.mem_singleton q
   | var idx =>
-    simp only [Expr.eval_var, evalDualCore]
+    simp only [Expr.eval_var, LeanCert.Internal.AD.evalTotalCore]
     exact hρ idx
   | add _ _ ih₁ ih₂ =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_add, evalDualCore, DualInterval.add]
+    simp only [Expr.eval_add, LeanCert.Internal.AD.evalTotalCore, DualInterval.add]
     exact IntervalRat.mem_add (ih₁ hdom.1) (ih₂ hdom.2)
   | mul _ _ ih₁ ih₂ =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_mul, evalDualCore, DualInterval.mul]
+    simp only [Expr.eval_mul, LeanCert.Internal.AD.evalTotalCore, DualInterval.mul]
     exact IntervalRat.mem_mul (ih₁ hdom.1) (ih₂ hdom.2)
   | neg _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_neg, evalDualCore, DualInterval.neg]
+    simp only [Expr.eval_neg, LeanCert.Internal.AD.evalTotalCore, DualInterval.neg]
     exact IntervalRat.mem_neg (ih hdom)
   | sin _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_sin, evalDualCore, DualInterval.sinCore]
+    simp only [Expr.eval_sin, LeanCert.Internal.AD.evalTotalCore, DualInterval.sinCore]
     exact IntervalRat.mem_sinComputable (ih hdom) cfg.taylorDepth
   | cos _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_cos, evalDualCore, DualInterval.cosCore]
+    simp only [Expr.eval_cos, LeanCert.Internal.AD.evalTotalCore, DualInterval.cosCore]
     exact IntervalRat.mem_cosComputable (ih hdom) cfg.taylorDepth
   | exp _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_exp, evalDualCore, DualInterval.expCore]
+    simp only [Expr.eval_exp, LeanCert.Internal.AD.evalTotalCore, DualInterval.expCore]
     exact IntervalRat.mem_expComputable (ih hdom) cfg.taylorDepth
   | sqrt _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_sqrt, evalDualCore, DualInterval.sqrt]
+    simp only [Expr.eval_sqrt, LeanCert.Internal.AD.evalTotalCore, DualInterval.sqrt]
     exact IntervalRat.mem_sqrtInterval' (ih hdom)
   | sinh _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_sinh, evalDualCore, DualInterval.sinhCore]
+    simp only [Expr.eval_sinh, LeanCert.Internal.AD.evalTotalCore, DualInterval.sinhCore]
     exact IntervalRat.mem_sinhComputable (ih hdom) cfg.taylorDepth
   | cosh _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_cosh, evalDualCore, DualInterval.coshCore]
+    simp only [Expr.eval_cosh, LeanCert.Internal.AD.evalTotalCore, DualInterval.coshCore]
     exact IntervalRat.mem_coshComputable (ih hdom) cfg.taylorDepth
   | tanh _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_tanh, evalDualCore, DualInterval.tanhCore]
+    simp only [Expr.eval_tanh, LeanCert.Internal.AD.evalTotalCore, DualInterval.tanhCore]
     exact mem_tanhInterval (ih hdom)
   | erf _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_erf, evalDualCore, DualInterval.erfCore]
+    simp only [Expr.eval_erf, LeanCert.Internal.AD.evalTotalCore, DualInterval.erfCore]
     simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
     exact Real.erf_mem_Icc _
   | log _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_log, evalDualCore, DualInterval.logCore]
+    simp only [Expr.eval_log, LeanCert.Internal.AD.evalTotalCore, DualInterval.logCore]
     exact IntervalRat.mem_logComputable (ih hdom.1) hdom.2 cfg.taylorDepth
   | namedConst c =>
-    simp only [Expr.eval_namedConst, evalDualCore, DualInterval.ofMathConst]
+    simp only [Expr.eval_namedConst, LeanCert.Internal.AD.evalTotalCore, DualInterval.ofMathConst]
     exact c.mem_interval
 
-/-- For ExprSupported expressions (which exclude log), domain validity is trivially true.
-    This is because ExprSupported has no log constructor. -/
-theorem evalDomainValidDual_of_ExprSupported (e : Expr) (hsupp : ExprSupported e)
+/-- For ADSupported expressions (which exclude log), domain validity is trivially true.
+    This is because ADSupported has no log constructor. -/
+theorem evalDomainValidDual_of_ExprSupported (e : Expr) (hsupp : ADSupported e)
     (ρ : DualEnv) (cfg : EvalConfig) : evalDomainValidDual e ρ cfg := by
   induction hsupp with
   | const _ => trivial
@@ -227,78 +240,78 @@ theorem evalDomainValidDual_of_ExprSupported (e : Expr) (hsupp : ExprSupported e
   | exp _ ih => exact ih
 
 /-- Correctness theorem for computable dual derivative component.
-    Uses ExprSupported since derivative correctness requires differentiability. -/
-theorem evalDualCore_der_correct (e : Expr) (hsupp : ExprSupported e)
+    Uses ADSupported since derivative correctness requires differentiability. -/
+theorem evalDualTotalCore_der_correct (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (x : ℝ) (hx : x ∈ I) (cfg : EvalConfig) :
-    deriv (evalFunc1 e) x ∈ (evalDualCore e (fun _ => DualInterval.varActive I) cfg).der := by
+    deriv (evalFunc1 e) x ∈ (LeanCert.Internal.AD.evalTotalCore e (fun _ => DualInterval.varActive I) cfg).der := by
   induction hsupp generalizing x with
   | const q =>
-    simp only [evalDualCore, DualInterval.const, evalFunc1_const, deriv_const]
+    simp only [LeanCert.Internal.AD.evalTotalCore, DualInterval.const, evalFunc1_const, deriv_const]
     convert IntervalRat.mem_singleton 0 using 1
     norm_cast
   | var _ =>
-    simp only [evalDualCore, DualInterval.varActive, evalFunc1_var]
+    simp only [LeanCert.Internal.AD.evalTotalCore, DualInterval.varActive, evalFunc1_var]
     rw [deriv_id]
     convert IntervalRat.mem_singleton 1 using 1
     norm_cast
   | add h₁ h₂ ih₁ ih₂ =>
     have hd₁ := evalFunc1_differentiable _ h₁
     have hd₂ := evalFunc1_differentiable _ h₂
-    simp only [evalDualCore, DualInterval.add, evalFunc1_add_pi, deriv_add (hd₁ x) (hd₂ x)]
+    simp only [LeanCert.Internal.AD.evalTotalCore, DualInterval.add, evalFunc1_add_pi, deriv_add (hd₁ x) (hd₂ x)]
     exact IntervalRat.mem_add (ih₁ x hx) (ih₂ x hx)
   | mul h₁ h₂ ih₁ ih₂ =>
     have hd₁ := evalFunc1_differentiable _ h₁
     have hd₂ := evalFunc1_differentiable _ h₂
-    simp only [evalDualCore, DualInterval.mul, evalFunc1_mul_pi, deriv_mul (hd₁ x) (hd₂ x)]
+    simp only [LeanCert.Internal.AD.evalTotalCore, DualInterval.mul, evalFunc1_mul_pi, deriv_mul (hd₁ x) (hd₂ x)]
     have hdom₁ := evalDomainValidDual_of_ExprSupported _ h₁ (fun _ => DualInterval.varActive I) cfg
     have hdom₂ := evalDomainValidDual_of_ExprSupported _ h₂ (fun _ => DualInterval.varActive I) cfg
-    have hval₁ := evalDualCore_val_correct _ h₁.toCore (fun _ => x)
+    have hval₁ := LeanCert.Engine.evalDualTotalCore_val_correct _ h₁.toCore (fun _ => x)
       (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom₁
-    have hval₂ := evalDualCore_val_correct _ h₂.toCore (fun _ => x)
+    have hval₂ := LeanCert.Engine.evalDualTotalCore_val_correct _ h₂.toCore (fun _ => x)
       (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom₂
     exact IntervalRat.mem_add (IntervalRat.mem_mul (ih₁ x hx) hval₂) (IntervalRat.mem_mul hval₁ (ih₂ x hx))
   | neg hs ih =>
     have hd := evalFunc1_differentiable _ hs
-    simp only [evalDualCore, DualInterval.neg, evalFunc1_neg_pi, deriv.neg]
+    simp only [LeanCert.Internal.AD.evalTotalCore, DualInterval.neg, evalFunc1_neg_pi, deriv.neg]
     exact IntervalRat.mem_neg (ih x hx)
   | @sin e' hs ih =>
     have hd := evalFunc1_differentiable e' hs
-    simp only [evalDualCore, DualInterval.sinCore, evalFunc1_sin]
+    simp only [LeanCert.Internal.AD.evalTotalCore, DualInterval.sinCore, evalFunc1_sin]
     rw [deriv_sin (hd.differentiableAt)]
     have hdom := evalDomainValidDual_of_ExprSupported e' hs (fun _ => DualInterval.varActive I) cfg
-    have hval := evalDualCore_val_correct e' hs.toCore (fun _ => x)
+    have hval := LeanCert.Engine.evalDualTotalCore_val_correct e' hs.toCore (fun _ => x)
       (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom
     have hcos := IntervalRat.mem_cosComputable hval cfg.taylorDepth
     exact IntervalRat.mem_mul hcos (ih x hx)
   | @cos e' hs ih =>
     have hd := evalFunc1_differentiable e' hs
-    simp only [evalDualCore, DualInterval.cosCore, evalFunc1_cos]
+    simp only [LeanCert.Internal.AD.evalTotalCore, DualInterval.cosCore, evalFunc1_cos]
     rw [deriv_cos (hd.differentiableAt)]
     have hdom := evalDomainValidDual_of_ExprSupported e' hs (fun _ => DualInterval.varActive I) cfg
-    have hval := evalDualCore_val_correct e' hs.toCore (fun _ => x)
+    have hval := LeanCert.Engine.evalDualTotalCore_val_correct e' hs.toCore (fun _ => x)
       (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom
     have hsin := IntervalRat.mem_sinComputable hval cfg.taylorDepth
     have hnegsin := IntervalRat.mem_neg hsin
     exact IntervalRat.mem_mul hnegsin (ih x hx)
   | @exp e' hs ih =>
     have hd := evalFunc1_differentiable e' hs
-    simp only [evalDualCore, DualInterval.expCore, evalFunc1_exp]
+    simp only [LeanCert.Internal.AD.evalTotalCore, DualInterval.expCore, evalFunc1_exp]
     rw [deriv_exp (hd.differentiableAt)]
     have hdom := evalDomainValidDual_of_ExprSupported e' hs (fun _ => DualInterval.varActive I) cfg
-    have hval := evalDualCore_val_correct e' hs.toCore (fun _ => x)
+    have hval := LeanCert.Engine.evalDualTotalCore_val_correct e' hs.toCore (fun _ => x)
       (fun _ => DualInterval.varActive I) cfg (fun _ => hx) hdom
     have hexp := IntervalRat.mem_expComputable hval cfg.taylorDepth
     exact IntervalRat.mem_mul hexp (ih x hx)
 
 /-- Convenience theorem: derivIntervalCore correctness -/
-theorem derivIntervalCore_correct (e : Expr) (hsupp : ExprSupported e)
+theorem derivIntervalCore_correct (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (x : ℝ) (hx : x ∈ I) (cfg : EvalConfig) :
     deriv (evalFunc1 e) x ∈ derivIntervalCore e I cfg :=
-  evalDualCore_der_correct e hsupp I x hx cfg
+  LeanCert.Engine.evalDualTotalCore_der_correct e hsupp I x hx cfg
 
 /-- If derivIntervalCore doesn't contain zero, the derivative is nonzero everywhere on I.
     This is a key theorem for Newton contraction analysis. -/
-theorem derivIntervalCore_nonzero_implies_deriv_nonzero (e : Expr) (hsupp : ExprSupported e)
+theorem derivIntervalCore_nonzero_implies_deriv_nonzero (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h : ¬(derivIntervalCore e I cfg).containsZero) :
     ∀ x ∈ I, deriv (evalFunc1 e) x ≠ 0 := by
@@ -312,7 +325,7 @@ theorem derivIntervalCore_nonzero_implies_deriv_nonzero (e : Expr) (hsupp : Expr
   · exact absurd hmem.2 (not_le.mpr (by exact_mod_cast hhi))
 
 /-- If derivIntervalCore.lo > 0, then the derivative is positive everywhere on I. -/
-theorem derivIntervalCore_pos_implies_deriv_pos (e : Expr) (hsupp : ExprSupported e)
+theorem derivIntervalCore_pos_implies_deriv_pos (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h : 0 < (derivIntervalCore e I cfg).lo) :
     ∀ x ∈ I, 0 < deriv (evalFunc1 e) x := by
@@ -323,7 +336,7 @@ theorem derivIntervalCore_pos_implies_deriv_pos (e : Expr) (hsupp : ExprSupporte
     _ ≤ deriv (evalFunc1 e) x := hmem.1
 
 /-- If derivIntervalCore.hi < 0, then the derivative is negative everywhere on I. -/
-theorem derivIntervalCore_neg_implies_deriv_neg (e : Expr) (hsupp : ExprSupported e)
+theorem derivIntervalCore_neg_implies_deriv_neg (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (h : (derivIntervalCore e I cfg).hi < 0) :
     ∀ x ∈ I, deriv (evalFunc1 e) x < 0 := by
@@ -334,7 +347,7 @@ theorem derivIntervalCore_neg_implies_deriv_neg (e : Expr) (hsupp : ExprSupporte
     _ < 0 := by exact_mod_cast h
 
 /-- Strictly positive derivative (via Core bounds) implies strict monotonicity -/
-theorem strictMonoOn_of_derivIntervalCore_pos (e : Expr) (hsupp : ExprSupported e)
+theorem strictMonoOn_of_derivIntervalCore_pos (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (hpos : 0 < (derivIntervalCore e I cfg).lo) :
     StrictMonoOn (evalFunc1 e) (Set.Icc (I.lo : ℝ) (I.hi : ℝ)) := by
@@ -350,7 +363,7 @@ theorem strictMonoOn_of_derivIntervalCore_pos (e : Expr) (hsupp : ExprSupported 
     exact hderiv_pos x hx_mem
 
 /-- Strictly negative derivative (via Core bounds) implies strict antitonicity -/
-theorem strictAntiOn_of_derivIntervalCore_neg (e : Expr) (hsupp : ExprSupported e)
+theorem strictAntiOn_of_derivIntervalCore_neg (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (cfg : EvalConfig)
     (hneg : (derivIntervalCore e I cfg).hi < 0) :
     StrictAntiOn (evalFunc1 e) (Set.Icc (I.lo : ℝ) (I.hi : ℝ)) := by

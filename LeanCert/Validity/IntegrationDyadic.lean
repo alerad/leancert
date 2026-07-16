@@ -11,8 +11,8 @@ import LeanCert.Engine.Integrate
 
 High-performance integration using Dyadic interval arithmetic.
 
-This module provides a drop-in replacement for the rational `integratePartitionWithInv`
-that uses `evalIntervalDyadic` instead of `evalInterval?`. Since `evalIntervalDyadic` is
+This module provides a drop-in replacement for the rational `integratePartitionChecked`
+that uses `LeanCert.Internal.Dyadic.evalUnchecked` instead of `evalInterval?`. Since `LeanCert.Internal.Dyadic.evalUnchecked` is
 total (returns wide bounds on domain violations rather than `none`), the integration
 functions are also total — domain violations manifest as wide bounds that cause the
 checker to return `false`, which is safe for the `native_decide` workflow.
@@ -36,7 +36,7 @@ namespace LeanCert.Validity.IntegrationDyadic
     Converts the rational interval to Dyadic, evaluates, converts result back to Rat. -/
 def evalDyadic1 (e : Expr) (I : IntervalRat) (cfg : DyadicConfig := {}) : IntervalRat :=
   let Idyad := IntervalDyadic.ofIntervalRat I cfg.precision
-  (evalIntervalDyadic e (fun _ => Idyad) cfg).toIntervalRat
+  (LeanCert.Internal.Dyadic.evalUnchecked e (fun _ => Idyad) cfg).toIntervalRat
 
 /-- Single-interval integration using Dyadic evaluation.
     Returns `width(I) × evalDyadic1(e, I)` as a rational interval. -/
@@ -45,7 +45,7 @@ def integrateInterval1Dyadic (e : Expr) (I : IntervalRat) (cfg : DyadicConfig :=
 
 /-- Correctness of single-interval Dyadic integration.
     If domain validity holds, the integral is contained in the computed bound. -/
-theorem integrateInterval1Dyadic_correct (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integrateInterval1Dyadic_correct (e : Expr)
     (I : IntervalRat) (cfg : DyadicConfig)
     (hprec : cfg.precision ≤ 0)
     (hdom : evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat I cfg.precision) cfg)
@@ -60,7 +60,7 @@ theorem integrateInterval1Dyadic_correct (e : Expr) (hsupp : ExprSupportedWithIn
       IntervalDyadic.mem_ofIntervalRat hx cfg.precision hprec
     have henv : envMemDyadic (fun _ => x) (fun _ => IntervalDyadic.ofIntervalRat I cfg.precision) :=
       fun _ => hmem_dyad
-    have heval := evalIntervalDyadic_correct_withInv e hsupp _ _ henv cfg hprec hdom
+    have heval := evalIntervalDyadic_correct_of_domain e _ _ henv cfg hprec hdom
     show Expr.eval (fun _ => x) e ∈ J
     simp only [hJ_def, evalDyadic1]
     exact IntervalDyadic.mem_toIntervalRat.mpr heval
@@ -187,7 +187,7 @@ def checkIntegralUpperBoundDyadicFull (e : Expr) (I : IntervalRat) (n : ℕ)
 
 /-! ### Bridge lemmas -/
 
-private theorem integral_mem_bound_dyadic (e : Expr) (hsupp : ExprSupportedWithInv e)
+private theorem integral_mem_bound_dyadic (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n)
     (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
     (hdomall : partitionDomainValid e I n hn cfg)
@@ -212,7 +212,7 @@ private theorem integral_mem_bound_dyadic (e : Expr) (hsupp : ExprSupportedWithI
         integrateInterval1Dyadic e (partitionInterval I n hn i hi') cfg := by
       simp [hbounds_def, collectBoundsDyadic, partitionInterval, uniformPartition]
     rw [hpart_eq]
-    apply integrateInterval1Dyadic_correct e hsupp _ cfg hprec
+    apply integrateInterval1Dyadic_correct e _ cfg hprec
     · exact hdomall i hi'
     · exact intervalIntegrable_on_partition e I n hn hInt i hi'
   have hsum_eq : ∑ k ∈ Finset.range n,
@@ -223,7 +223,7 @@ private theorem integral_mem_bound_dyadic (e : Expr) (hsupp : ExprSupportedWithI
   exact sum_mem_foldl_add hlen hmem_each
 
 /-- Bridge theorem (lower bound) using the combined checker. -/
-theorem integral_lower_of_check_dyadic (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_lower_of_check_dyadic (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)
     (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
     (hcheck : checkIntegralLowerBoundDyadicFull e I n c cfg = true)
@@ -232,13 +232,13 @@ theorem integral_lower_of_check_dyadic (e : Expr) (hsupp : ExprSupportedWithInv 
   unfold checkIntegralLowerBoundDyadicFull at hcheck
   simp only [hn, ↓reduceDIte, Bool.and_eq_true, decide_eq_true_eq] at hcheck
   have hdomall := checkPartitionDomainValid_correct e I n hn cfg hcheck.1
-  have hmem := integral_mem_bound_dyadic e hsupp I n hn cfg hprec hdomall hInt
+  have hmem := integral_mem_bound_dyadic e I n hn cfg hprec hdomall hInt
   simp only [IntervalRat.mem_def] at hmem
   calc (c : ℝ) ≤ ((integratePartitionDyadic e I n hn cfg).lo : ℝ) := by exact_mod_cast hcheck.2
     _ ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := hmem.1
 
 /-- Bridge theorem (upper bound) using the combined checker. -/
-theorem integral_upper_of_check_dyadic (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_upper_of_check_dyadic (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)
     (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
     (hcheck : checkIntegralUpperBoundDyadicFull e I n c cfg = true)
@@ -247,7 +247,7 @@ theorem integral_upper_of_check_dyadic (e : Expr) (hsupp : ExprSupportedWithInv 
   unfold checkIntegralUpperBoundDyadicFull at hcheck
   simp only [hn, ↓reduceDIte, Bool.and_eq_true, decide_eq_true_eq] at hcheck
   have hdomall := checkPartitionDomainValid_correct e I n hn cfg hcheck.1
-  have hmem := integral_mem_bound_dyadic e hsupp I n hn cfg hprec hdomall hInt
+  have hmem := integral_mem_bound_dyadic e I n hn cfg hprec hdomall hInt
   simp only [IntervalRat.mem_def] at hmem
   calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e
       ≤ ((integratePartitionDyadic e I n hn cfg).hi : ℝ) := hmem.2
@@ -345,7 +345,7 @@ private theorem part_hi_le_hi (parts : List IntervalRat) (I : IntervalRat)
 /-- The integral is contained in the list-based integration bound.
     Proved by showing each sub-integral is bounded, then using `sum_mem_foldl_add`.
     The key step is splitting `∫_{I.lo}^{I.hi}` into `∑ ∫_{parts[k].lo}^{parts[k].hi}`. -/
-private theorem integral_mem_bound_dyadic_list (e : Expr) (hsupp : ExprSupportedWithInv e)
+private theorem integral_mem_bound_dyadic_list (e : Expr)
     (parts : List IntervalRat) (I : IntervalRat)
     (hcover : ListPartitionCovers parts I)
     (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
@@ -422,7 +422,7 @@ private theorem integral_mem_bound_dyadic_list (e : Expr) (hsupp : ExprSupported
     have hi' : i < n := by simpa [hintegrals_def, List.length_ofFn] using hi
     simp only [hintegrals_def, List.getElem_ofFn]
     simp only [hbounds_def, collectBoundsDyadic, List.getElem_map]
-    apply integrateInterval1Dyadic_correct e hsupp _ cfg hprec
+    apply integrateInterval1Dyadic_correct e _ cfg hprec
     · exact hdomall _ (List.getElem_mem hi')
     · apply hInt.mono_set
       simp only [Set.uIcc_of_le (by exact_mod_cast (parts[i]'hi').le :
@@ -436,7 +436,7 @@ private theorem integral_mem_bound_dyadic_list (e : Expr) (hsupp : ExprSupported
 /-! ### Bridge lemmas for list-based partition -/
 
 /-- Bridge theorem (lower bound) for arbitrary partition. -/
-theorem integral_lower_of_check_dyadic_list (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_lower_of_check_dyadic_list (e : Expr)
     (I : IntervalRat) (parts : List IntervalRat)
     (hcover : ListPartitionCovers parts I)
     (c : ℚ) (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
@@ -446,13 +446,13 @@ theorem integral_lower_of_check_dyadic_list (e : Expr) (hsupp : ExprSupportedWit
   unfold checkIntegralLowerBoundDyadicList at hcheck
   simp only [Bool.and_eq_true, decide_eq_true_eq] at hcheck
   have hdomall := checkPartitionDomainValidList_correct e parts cfg hcheck.1
-  have hmem := integral_mem_bound_dyadic_list e hsupp parts I hcover cfg hprec hdomall hInt
+  have hmem := integral_mem_bound_dyadic_list e parts I hcover cfg hprec hdomall hInt
   simp only [IntervalRat.mem_def] at hmem
   calc (c : ℝ) ≤ ((integratePartitionDyadicList e parts cfg).lo : ℝ) := by exact_mod_cast hcheck.2
     _ ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := hmem.1
 
 /-- Bridge theorem (upper bound) for arbitrary partition. -/
-theorem integral_upper_of_check_dyadic_list (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_upper_of_check_dyadic_list (e : Expr)
     (I : IntervalRat) (parts : List IntervalRat)
     (hcover : ListPartitionCovers parts I)
     (c : ℚ) (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
@@ -462,7 +462,7 @@ theorem integral_upper_of_check_dyadic_list (e : Expr) (hsupp : ExprSupportedWit
   unfold checkIntegralUpperBoundDyadicList at hcheck
   simp only [Bool.and_eq_true, decide_eq_true_eq] at hcheck
   have hdomall := checkPartitionDomainValidList_correct e parts cfg hcheck.1
-  have hmem := integral_mem_bound_dyadic_list e hsupp parts I hcover cfg hprec hdomall hInt
+  have hmem := integral_mem_bound_dyadic_list e parts I hcover cfg hprec hdomall hInt
   simp only [IntervalRat.mem_def] at hmem
   calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e
       ≤ ((integratePartitionDyadicList e parts cfg).hi : ℝ) := hmem.2

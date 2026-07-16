@@ -59,46 +59,46 @@ def li2DyadicConfig : LeanCert.Engine.DyadicConfig :=
 
 /-! ### Helper definitions for certified integral bounds via native_decide -/
 
-/-- Boolean checker for integral lower bounds using `integratePartitionWithInv`. -/
+/-- Boolean checker for integral lower bounds using `integratePartitionChecked`. -/
 def checkIntegralLowerBound (e : Expr) (I : IntervalRat) (n : ℕ) (c : ℚ) : Bool :=
-  match integratePartitionWithInv e I n with
+  match integratePartitionChecked e I n with
   | some J => decide (c ≤ J.lo)
   | none => false
 
-/-- Boolean checker for integral upper bounds using `integratePartitionWithInv`. -/
+/-- Boolean checker for integral upper bounds using `integratePartitionChecked`. -/
 def checkIntegralUpperBound (e : Expr) (I : IntervalRat) (n : ℕ) (c : ℚ) : Bool :=
-  match integratePartitionWithInv e I n with
+  match integratePartitionChecked e I n with
   | some J => decide (J.hi ≤ c)
   | none => false
 
 /-- Bridge theorem: if `checkIntegralLowerBound` returns true, the integral is ≥ c. -/
-theorem integral_lower_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_lower_of_check (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)
     (hcheck : checkIntegralLowerBound e I n c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
     (c : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := by
   unfold checkIntegralLowerBound at hcheck
-  cases hbound : integratePartitionWithInv e I n with
+  cases hbound : integratePartitionChecked e I n with
   | none => simp [hbound] at hcheck
   | some J =>
     simp only [hbound, decide_eq_true_eq] at hcheck
-    have hmem := integratePartitionWithInv_correct e hsupp I n hn J hbound hInt
+    have hmem := integratePartitionChecked_correct e I n hn J hbound hInt
     simp only [IntervalRat.mem_def] at hmem
     calc (c : ℝ) ≤ (J.lo : ℝ) := by exact_mod_cast hcheck
       _ ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := hmem.1
 
 /-- Bridge theorem: if `checkIntegralUpperBound` returns true, the integral is ≤ c. -/
-theorem integral_upper_of_check (e : Expr) (hsupp : ExprSupportedWithInv e)
+theorem integral_upper_of_check (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)
     (hcheck : checkIntegralUpperBound e I n c = true)
     (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
     ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (c : ℝ) := by
   unfold checkIntegralUpperBound at hcheck
-  cases hbound : integratePartitionWithInv e I n with
+  cases hbound : integratePartitionChecked e I n with
   | none => simp [hbound] at hcheck
   | some J =>
     simp only [hbound, decide_eq_true_eq] at hcheck
-    have hmem := integratePartitionWithInv_correct e hsupp I n hn J hbound hInt
+    have hmem := integratePartitionChecked_correct e I n hn J hbound hInt
     simp only [IntervalRat.mem_def] at hmem
     calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (J.hi : ℝ) := hmem.2
       _ ≤ (c : ℝ) := by exact_mod_cast hcheck
@@ -112,21 +112,6 @@ def g_expr : Expr :=
   Expr.add
     (Expr.inv (Expr.log (Expr.add (Expr.const 1) (Expr.var 0))))
     (Expr.inv (Expr.log (Expr.add (Expr.const 1) (Expr.neg (Expr.var 0)))))
-
-theorem g_expr_supported : ExprSupportedWithInv g_expr := by
-  unfold g_expr
-  refine ExprSupportedWithInv.add ?_ ?_
-  · refine ExprSupportedWithInv.inv ?_
-    refine ExprSupportedWithInv.log ?_
-    refine ExprSupportedWithInv.add ?_ ?_
-    · exact ExprSupportedWithInv.const 1
-    · exact ExprSupportedWithInv.var 0
-  · refine ExprSupportedWithInv.inv ?_
-    refine ExprSupportedWithInv.log ?_
-    refine ExprSupportedWithInv.add ?_ ?_
-    · exact ExprSupportedWithInv.const 1
-    · refine ExprSupportedWithInv.neg ?_
-      exact ExprSupportedWithInv.var 0
 
 theorem g_expr_eval (t : ℝ) : Expr.eval (fun _ => t) g_expr = g t := by
   have hlog : (-t + 1) = (1 - t) := by ring
@@ -147,28 +132,6 @@ def g_alt_expr : Expr :=
       (Expr.mul
         (Expr.log (Expr.add (Expr.const 1) (Expr.var 0)))
         (Expr.log (Expr.add (Expr.const 1) (Expr.neg (Expr.var 0))))))
-
-theorem g_alt_expr_supported : ExprSupportedWithInv g_alt_expr := by
-  unfold g_alt_expr
-  refine ExprSupportedWithInv.mul ?_ ?_
-  · refine ExprSupportedWithInv.log ?_
-    refine ExprSupportedWithInv.add ?_ ?_
-    · exact ExprSupportedWithInv.const 1
-    · refine ExprSupportedWithInv.neg ?_
-      refine ExprSupportedWithInv.mul ?_ ?_
-      · exact ExprSupportedWithInv.var 0
-      · exact ExprSupportedWithInv.var 0
-  · refine ExprSupportedWithInv.inv ?_
-    refine ExprSupportedWithInv.mul ?_ ?_
-    · refine ExprSupportedWithInv.log ?_
-      refine ExprSupportedWithInv.add ?_ ?_
-      · exact ExprSupportedWithInv.const 1
-      · exact ExprSupportedWithInv.var 0
-    · refine ExprSupportedWithInv.log ?_
-      refine ExprSupportedWithInv.add ?_ ?_
-      · exact ExprSupportedWithInv.const 1
-      · refine ExprSupportedWithInv.neg ?_
-        exact ExprSupportedWithInv.var 0
 
 theorem g_alt_expr_eval (t : ℝ) (ht_pos : 0 < t) (ht_lt : t < 1) :
     Expr.eval (fun _ => t) g_alt_expr = g t := by
@@ -561,13 +524,12 @@ theorem g_mid_integral_lower :
   have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralLowerBoundDyadicFull
       g_alt_expr g_mid_interval_main 3000 (103775/100000) li2DyadicConfig = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_main
   have hlo : (g_mid_interval_main.lo : ℝ) = 1/1000 := by norm_num [g_mid_interval_main]
   have hhi : (g_mid_interval_main.hi : ℝ) = 999/1000 := by norm_num [g_mid_interval_main]
   rw [← hlo, ← hhi]
   exact LeanCert.Validity.IntegrationDyadic.integral_lower_of_check_dyadic
-    g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num) (103775/100000)
+    g_alt_expr g_mid_interval_main 3000 (by norm_num) (103775/100000)
     li2DyadicConfig (by native_decide) hcheck hInt
 
 set_option maxHeartbeats 4000000 in
@@ -581,13 +543,12 @@ theorem g_mid_integral_upper :
   have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralUpperBoundDyadicFull
       g_alt_expr g_mid_interval_main 3000 (104840/100000) li2DyadicConfig = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_main
   have hlo : (g_mid_interval_main.lo : ℝ) = 1/1000 := by norm_num [g_mid_interval_main]
   have hhi : (g_mid_interval_main.hi : ℝ) = 999/1000 := by norm_num [g_mid_interval_main]
   rw [← hlo, ← hhi]
   exact LeanCert.Validity.IntegrationDyadic.integral_upper_of_check_dyadic
-    g_alt_expr hsupp g_mid_interval_main 3000 (by norm_num) (104840/100000)
+    g_alt_expr g_mid_interval_main 3000 (by norm_num) (104840/100000)
     li2DyadicConfig (by native_decide) hcheck hInt
 
 /-! ### Additional Interval Bounds -/
@@ -675,12 +636,11 @@ theorem g_integral_12_lower_numerical :
   rw [hcast]
   have hcheck : checkIntegralLowerBound g_alt_expr g_interval_12 100 (8/10000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_12
   have hlo : (g_interval_12.lo : ℝ) = 1/10000 := by norm_num [g_interval_12]
   have hhi : (g_interval_12.hi : ℝ) = 1/1000 := by norm_num [g_interval_12]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_interval_12 100 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_interval_12 100 (by norm_num)
     (8/10000) hcheck hInt
 
 /-- Interval [999/1000, 9999/10000] for numerical integration. -/
@@ -722,12 +682,11 @@ theorem g_integral_45_lower_numerical :
   rw [hcast]
   have hcheck : checkIntegralLowerBound g_alt_expr g_interval_45 100 (8/10000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_45
   have hlo : (g_interval_45.lo : ℝ) = 999/1000 := by norm_num [g_interval_45]
   have hhi : (g_interval_45.hi : ℝ) = 9999/10000 := by norm_num [g_interval_45]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_interval_45 100 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_interval_45 100 (by norm_num)
     (8/10000) hcheck hInt
 
 /-- Interval [9999/10000, 99999/100000] for numerical integration. -/
@@ -769,12 +728,11 @@ theorem g_integral_56_lower_numerical :
   rw [hcast]
   have hcheck : checkIntegralLowerBound g_alt_expr g_interval_56 100 (8/100000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_56
   have hlo : (g_interval_56.lo : ℝ) = 9999/10000 := by norm_num [g_interval_56]
   have hhi : (g_interval_56.hi : ℝ) = 99999/100000 := by norm_num [g_interval_56]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_interval_56 100 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_interval_56 100 (by norm_num)
     (8/100000) hcheck hInt
 
 /-- Interval [1/100000, 1/10000] for numerical integration. -/
@@ -816,12 +774,11 @@ theorem g_integral_01_lower_numerical :
   rw [hcast]
   have hcheck : checkIntegralLowerBound g_alt_expr g_interval_01 100 (8/100000) = true := by
     native_decide
-  have hsupp := g_alt_expr_supported
   have hInt := g_alt_intervalIntegrable_01
   have hlo : (g_interval_01.lo : ℝ) = 1/100000 := by norm_num [g_interval_01]
   have hhi : (g_interval_01.hi : ℝ) = 1/10000 := by norm_num [g_interval_01]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr hsupp g_interval_01 100 (by norm_num)
+  exact integral_lower_of_check g_alt_expr g_interval_01 100 (by norm_num)
     (8/100000) hcheck hInt
 
 /-- Lower bound for [99999/100000, 1] using g > 0. -/

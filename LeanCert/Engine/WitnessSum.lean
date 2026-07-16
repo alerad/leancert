@@ -9,7 +9,7 @@ import LeanCert.Engine.FinSumDyadic
 # Witness-Based Finite Sum Evaluator
 
 Generic accumulator loop for finite sums parameterized by a user-provided
-per-term evaluator. Unlike `FinSumDyadic` (which uses `Core.Expr` + `evalIntervalDyadic`),
+per-term evaluator. Unlike `FinSumDyadic` (which uses `Core.Expr` + `LeanCert.Internal.Dyadic.evalUnchecked`),
 this module accepts any computable evaluator `Nat → DyadicConfig → IntervalDyadic`
 paired with a correctness proof.
 

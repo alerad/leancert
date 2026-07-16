@@ -408,17 +408,17 @@ verify_finsum_upper_full : splits the && via Bool.and_eq_true, applies
 IntervalEvalDyadic.lean with bridge theorem `checkDomainValidDyadic_correct`.
 We just loop it over all k.
 
-### ExprSupportedWithInv support
+### checked partial-function support
 
 `ExprSupportedCore` excludes `inv`, `atan`, `arsinh`, `atanh`. For sums like
-`∑ 1/(k*k)`, we need `ExprSupportedWithInv` which includes all operations.
+`∑ 1/(k*k)`, we use the checked evaluator, which handles partial operations.
 
-The WithInv correctness chain duplicates the Core chain using
-`evalIntervalDyadic_correct_withInv` instead of `evalIntervalDyadic_correct`:
+The Checked correctness chain duplicates the Core chain using
+`evalIntervalDyadic_correct_checked` instead of `evalIntervalDyadic_correct`:
 
 ```
-mem_evalSumTermDyadic_withInv → mem_finSumAux_withInv → mem_finSumDyadic_withInv
-  → verify_finsum_upper_withInv → verify_finsum_upper_full_withInv
+mem_evalSumTermDyadic_checked → mem_finSumAux_checked → mem_finSumDyadic_checked
+  → verify_finsum_upper_checked → verify_finsum_upper_full_checked
 ```
 
 Proofs are identical — only the support predicate and correctness lemma differ.
@@ -427,10 +427,10 @@ Proofs are identical — only the support predicate and correctness lemma differ
 
 1. Removed `mkDomainValidProof` and `buildDomainProof` (no longer needed)
 2. Added `detectSupportLevel`: try `mkSupportedCoreProof`, fallback to
-   `mkSupportedWithInvProof`
+   `mkSupportedCheckedProof`
 3. Bridge theorem selected by (support level × direction):
    - Core + upper → `verify_finsum_upper_full`
-   - WithInv + upper → `verify_finsum_upper_full_withInv`
+   - Checked + upper → `verify_finsum_upper_full_checked`
    etc.
 4. Bridge theorem arguments simplified: no domain proof needed (it's inside
    the combined checker).
@@ -466,7 +466,7 @@ The engine provides:
 
 ### Key difference from Expr-based approach
 
-- **No ExprSupportedCore/WithInv** — user handles semantics
+- **No ExprSupportedCore/Checked** — user handles semantics
 - **No evalDomainValidDyadic** — user's `hmem` proof covers domain
 - **No reification** — evaluator is a plain Lean function
 - **Same accumulator pattern** — reuses `finSumZero`, `mem_finSumZero`,
@@ -563,7 +563,7 @@ induction indices generalizing acc partialSum with
 `j ∈ k :: rest` given `hj : j ∈ rest`. Don't use `List.mem_cons_self k rest`
 (all-implicit args — gives "Function expected" error in this Lean version).
 
-Both ExprSupportedCore and ExprSupportedWithInv variants provided.
+Both ExprSupportedCore and checked-evaluation variants provided.
 
 ### Engine: Witness list chain (WitnessSum.lean)
 

@@ -21,7 +21,7 @@ with rigorous bounds on both.
 
 * `AD.Basic` - Core types: `DualInterval`, basic operations (`add`, `mul`, `neg`)
 * `AD.Transcendental` - Transcendental functions (`sin`, `cos`, `exp`, etc.)
-* `AD.Eval` - Evaluators: `evalDual`, `evalDual?`, `derivInterval`
+* `AD.Eval` - Evaluators: `LeanCert.Internal.AD.evalUnchecked`, `evalDual?`, `derivInterval`
 * `AD.Correctness` - Correctness theorems for supported expressions
 * `AD.PartialCorrectness` - Correctness for partial functions (inv, log, sqrt)
 * `AD.Computable` - Taylor-based computable evaluators
@@ -29,16 +29,16 @@ with rigorous bounds on both.
 ## Main definitions
 
 * `DualInterval` - A pair of intervals representing (value, derivative)
-* `evalDual` - Evaluate expression to get value and derivative intervals
+* `LeanCert.Internal.AD.evalUnchecked` - Evaluate expression to get value and derivative intervals
 * `evalDual?` - Partial evaluator supporting inv, log, sqrt
-* `evalDualCore` - Computable evaluator for native_decide
+* `LeanCert.Internal.AD.evalTotalCore` - Computable evaluator for native_decide
 
 ## Main theorems
 
-* `evalDual_val_correct` - Value component is correct for supported expressions
-* `evalDual_der_correct` - Derivative component is correct for supported expressions
+* `LeanCert.Engine.evalDualUnchecked_val_correct` - Value component is correct for supported expressions
+* `LeanCert.Engine.evalDualUnchecked_der_correct` - Derivative component is correct for supported expressions
 * `evalDual?_val_correct`, `evalDual?_der_correct` - Correctness with domain checks
-* `evalDualCore_val_correct`, `evalDualCore_der_correct` - Computable correctness
+* `LeanCert.Internal.AD.evalTotalCore_val_correct`, `LeanCert.Internal.AD.evalTotalCore_der_correct` - Computable correctness
 
 All theorems are FULLY PROVED with no sorry or axioms.
 -/

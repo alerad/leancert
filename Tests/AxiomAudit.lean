@@ -47,10 +47,10 @@ assert_no_sorry LeanCert.Engine.mem_erfPointComputable
 assert_no_sorry LeanCert.Engine.evalIntervalChecked_correct
 assert_no_sorry LeanCert.Engine.evalIntervalAffineChecked_correct
 assert_no_sorry LeanCert.Engine.evalIntervalDyadicChecked_correct
-assert_no_sorry LeanCert.Engine.evalIntervalWith_rational_correct
-assert_no_sorry LeanCert.Engine.evalIntervalWith_dyadic_correct
-assert_no_sorry LeanCert.Engine.evalIntervalWith_affine_correct
-assert_no_sorry LeanCert.Engine.evalIntervalWith_correct
+assert_no_sorry LeanCert.Internal.Eval.dispatch_rational_correct
+assert_no_sorry LeanCert.Internal.Eval.dispatch_dyadic_correct
+assert_no_sorry LeanCert.Internal.Eval.dispatch_affine_correct
+assert_no_sorry LeanCert.Internal.Eval.dispatch_correct
 assert_no_sorry LeanCert.evalInterval_correct
 assert_no_sorry LeanCert.evalInterval1_correct
 assert_no_sorry LeanCert.Backend.Rational.eval_correct
@@ -110,10 +110,10 @@ info: 'LeanCert.Engine.Optimization.globalMaximizeWith_upper_correct' depends on
 #print axioms LeanCert.Engine.Optimization.globalMaximizeWith_upper_correct
 
 /--
-info: 'LeanCert.Engine.evalIntervalWith_affine_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+info: 'LeanCert.Internal.Eval.dispatch_affine_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
 -/
 #guard_msgs in
-#print axioms LeanCert.Engine.evalIntervalWith_affine_correct
+#print axioms LeanCert.Internal.Eval.dispatch_affine_correct
 
 /--
 info: 'LeanCert.evalInterval_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
@@ -176,12 +176,12 @@ info: 'LeanCert.Validity.verify_upper_bound_dyadic' depends on axioms: [propext,
 #print axioms LeanCert.Validity.verify_upper_bound_dyadic
 
 /--
-info: 'LeanCert.Validity.Integration.integratePartitionWithInv_correct' depends on axioms: [propext,
+info: 'LeanCert.Validity.Integration.integratePartitionChecked_correct' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
 -/
 #guard_msgs in
-#print axioms LeanCert.Validity.Integration.integratePartitionWithInv_correct
+#print axioms LeanCert.Validity.Integration.integratePartitionChecked_correct
 
 /-! ### Whole-library sweep: no axioms minted inside LeanCert
 

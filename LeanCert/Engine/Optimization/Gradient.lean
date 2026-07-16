@@ -54,7 +54,7 @@ def mkDualEnvCore (ρ : IntervalEnv) (idx : Nat) : DualEnv :=
 
 /-- Evaluate with derivative with respect to variable `idx` (computable version) -/
 def evalWithDerivCore (e : Expr) (ρ : IntervalEnv) (idx : Nat) (cfg : EvalConfig := {}) : DualInterval :=
-  evalDualCore e (mkDualEnvCore ρ idx) cfg
+  LeanCert.Internal.AD.evalTotalCore e (mkDualEnvCore ρ idx) cfg
 
 /-- Computable derivative interval for multi-variable expressions.
     Computes the interval containing ∂f/∂xᵢ over the box. -/
@@ -63,81 +63,81 @@ def derivIntervalCoreN (e : Expr) (ρ : IntervalEnv) (idx : Nat) (cfg : EvalConf
 
 /-- Correctness of the computable derivative evaluator for an arbitrary
 coordinate of a multivariate expression. -/
-theorem evalDualCore_der_correct_idx (e : Expr) (hsupp : ExprSupported e)
+theorem evalDualTotalCore_der_correct_idx (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i) (x : ℝ) (hx : x ∈ ρ_int idx)
     (cfg : EvalConfig) :
     deriv (Expr.evalAlong e ρ_real idx) x ∈
-      (evalDualCore e (mkDualEnvCore ρ_int idx) cfg).der := by
+      (LeanCert.Internal.AD.evalTotalCore e (mkDualEnvCore ρ_int idx) cfg).der := by
   have hmem : ∀ i, Expr.updateVar ρ_real idx x i ∈
       (mkDualEnvCore ρ_int idx i).val := by
     simpa only [mkDualEnvCore, mkDualEnv] using
       (updateVar_mem_mkDualEnv_val ρ_real ρ_int idx x hx hρ)
   induction hsupp generalizing x with
   | const q =>
-      simp only [Expr.evalAlong_const', deriv_const, evalDualCore, DualInterval.const]
+      simp only [Expr.evalAlong_const', deriv_const, LeanCert.Internal.AD.evalTotalCore, DualInterval.const]
       exact_mod_cast IntervalRat.mem_singleton 0
   | var i =>
       by_cases hi : i = idx
       · subst i
-        simp only [Expr.evalAlong_var_active, evalDualCore, mkDualEnvCore,
+        simp only [Expr.evalAlong_var_active, LeanCert.Internal.AD.evalTotalCore, mkDualEnvCore,
           ↓reduceIte, DualInterval.varActive, deriv_id]
         exact_mod_cast IntervalRat.mem_singleton 1
-      · simp only [Expr.evalAlong_var_passive _ _ _ hi, deriv_const, evalDualCore,
+      · simp only [Expr.evalAlong_var_passive _ _ _ hi, deriv_const, LeanCert.Internal.AD.evalTotalCore,
           mkDualEnvCore, if_neg hi, DualInterval.varPassive]
         exact_mod_cast IntervalRat.mem_singleton 0
   | add h₁ h₂ ih₁ ih₂ =>
       have hd₁ := evalAlong_differentiable _ h₁ ρ_real idx
       have hd₂ := evalAlong_differentiable _ h₂ ρ_real idx
-      simp only [Expr.evalAlong_add_pi, deriv_add (hd₁ x) (hd₂ x), evalDualCore,
+      simp only [Expr.evalAlong_add_pi, deriv_add (hd₁ x) (hd₂ x), LeanCert.Internal.AD.evalTotalCore,
         DualInterval.add]
       exact IntervalRat.mem_add (ih₁ x hx hmem) (ih₂ x hx hmem)
   | mul h₁ h₂ ih₁ ih₂ =>
       have hd₁ := evalAlong_differentiable _ h₁ ρ_real idx
       have hd₂ := evalAlong_differentiable _ h₂ ρ_real idx
-      simp only [Expr.evalAlong_mul_pi, deriv_mul (hd₁ x) (hd₂ x), evalDualCore,
+      simp only [Expr.evalAlong_mul_pi, deriv_mul (hd₁ x) (hd₂ x), LeanCert.Internal.AD.evalTotalCore,
         DualInterval.mul]
       have hdom₁ := evalDomainValidDual_of_ExprSupported _ h₁
         (mkDualEnvCore ρ_int idx) cfg
       have hdom₂ := evalDomainValidDual_of_ExprSupported _ h₂
         (mkDualEnvCore ρ_int idx) cfg
-      have hval₁ := evalDualCore_val_correct _ h₁.toCore
+      have hval₁ := LeanCert.Engine.evalDualTotalCore_val_correct _ h₁.toCore
         (Expr.updateVar ρ_real idx x) (mkDualEnvCore ρ_int idx) cfg hmem hdom₁
-      have hval₂ := evalDualCore_val_correct _ h₂.toCore
+      have hval₂ := LeanCert.Engine.evalDualTotalCore_val_correct _ h₂.toCore
         (Expr.updateVar ρ_real idx x) (mkDualEnvCore ρ_int idx) cfg hmem hdom₂
       exact IntervalRat.mem_add (IntervalRat.mem_mul (ih₁ x hx hmem) hval₂)
         (IntervalRat.mem_mul hval₁ (ih₂ x hx hmem))
   | neg hs ih =>
       have hd := evalAlong_differentiable _ hs ρ_real idx
-      simp only [Expr.evalAlong_neg_pi, deriv.neg, evalDualCore, DualInterval.neg]
+      simp only [Expr.evalAlong_neg_pi, deriv.neg, LeanCert.Internal.AD.evalTotalCore, DualInterval.neg]
       exact IntervalRat.mem_neg (ih x hx hmem)
   | @sin e' hs ih =>
       have hd := evalAlong_differentiable e' hs ρ_real idx
-      simp only [Expr.evalAlong_sin, deriv_sin (hd.differentiableAt), evalDualCore,
+      simp only [Expr.evalAlong_sin, deriv_sin (hd.differentiableAt), LeanCert.Internal.AD.evalTotalCore,
         DualInterval.sinCore]
       have hdom := evalDomainValidDual_of_ExprSupported e' hs
         (mkDualEnvCore ρ_int idx) cfg
-      have hval := evalDualCore_val_correct e' hs.toCore
+      have hval := LeanCert.Engine.evalDualTotalCore_val_correct e' hs.toCore
         (Expr.updateVar ρ_real idx x) (mkDualEnvCore ρ_int idx) cfg hmem hdom
       exact IntervalRat.mem_mul
         (IntervalRat.mem_cosComputable hval cfg.taylorDepth) (ih x hx hmem)
   | @cos e' hs ih =>
       have hd := evalAlong_differentiable e' hs ρ_real idx
-      simp only [Expr.evalAlong_cos, deriv_cos (hd.differentiableAt), evalDualCore,
+      simp only [Expr.evalAlong_cos, deriv_cos (hd.differentiableAt), LeanCert.Internal.AD.evalTotalCore,
         DualInterval.cosCore]
       have hdom := evalDomainValidDual_of_ExprSupported e' hs
         (mkDualEnvCore ρ_int idx) cfg
-      have hval := evalDualCore_val_correct e' hs.toCore
+      have hval := LeanCert.Engine.evalDualTotalCore_val_correct e' hs.toCore
         (Expr.updateVar ρ_real idx x) (mkDualEnvCore ρ_int idx) cfg hmem hdom
       exact IntervalRat.mem_mul
         (IntervalRat.mem_neg (IntervalRat.mem_sinComputable hval cfg.taylorDepth)) (ih x hx hmem)
   | @exp e' hs ih =>
       have hd := evalAlong_differentiable e' hs ρ_real idx
-      simp only [Expr.evalAlong_exp, deriv_exp (hd.differentiableAt), evalDualCore,
+      simp only [Expr.evalAlong_exp, deriv_exp (hd.differentiableAt), LeanCert.Internal.AD.evalTotalCore,
         DualInterval.expCore]
       have hdom := evalDomainValidDual_of_ExprSupported e' hs
         (mkDualEnvCore ρ_int idx) cfg
-      have hval := evalDualCore_val_correct e' hs.toCore
+      have hval := LeanCert.Engine.evalDualTotalCore_val_correct e' hs.toCore
         (Expr.updateVar ρ_real idx x) (mkDualEnvCore ρ_int idx) cfg hmem hdom
       exact IntervalRat.mem_mul
         (IntervalRat.mem_expComputable hval cfg.taylorDepth) (ih x hx hmem)
@@ -217,7 +217,7 @@ def pruneBoxForMin (B : Box) (grad : List IntervalRat) : Box × List Nat :=
 
 /-- The computed gradient interval contains the true partial derivatives.
     This follows from evalDual_der_correct_idx in AD.lean. -/
-theorem gradientInterval_correct (e : Expr) (hsupp : ExprSupported e)
+theorem gradientInterval_correct (e : Expr) (hsupp : ADSupported e)
     (B : Box) (ρ : Nat → ℝ) (hρ : Box.envMem ρ B)
     (hzero : ∀ i, i ≥ B.length → ρ i = 0)
     (i : Fin B.length) :
@@ -237,7 +237,7 @@ theorem gradientInterval_correct (e : Expr) (hsupp : ExprSupported e)
 /-- If we prune a coordinate to lo because ∂f/∂xᵢ > 0, the minimum is preserved.
     Informal: if f is increasing in xᵢ on B, then min{f(x) : x ∈ B} = min{f(x) : xᵢ = B[i].lo}.
     NOTE: Requires ρ j = 0 for j ≥ B.length (standard assumption for box membership). -/
-theorem pruneToLo_preserves_min (e : Expr) (hsupp : ExprSupported e)
+theorem pruneToLo_preserves_min (e : Expr) (hsupp : ADSupported e)
     (B : Box) (i : Fin B.length)
     (hgrad : isStrictlyPositive (derivInterval e (Box.toEnv B) i.val) = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ j, j ≥ B.length → ρ j = 0) →
@@ -314,7 +314,7 @@ theorem pruneToLo_preserves_min (e : Expr) (hsupp : ExprSupported e)
 
 /-- If we prune a coordinate to hi because ∂f/∂xᵢ < 0, the minimum is preserved.
     NOTE: Requires ρ j = 0 for j ≥ B.length (standard assumption for box membership). -/
-theorem pruneToHi_preserves_min (e : Expr) (hsupp : ExprSupported e)
+theorem pruneToHi_preserves_min (e : Expr) (hsupp : ADSupported e)
     (B : Box) (i : Fin B.length)
     (hgrad : isStrictlyNegative (derivInterval e (Box.toEnv B) i.val) = true) :
     ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ j, j ≥ B.length → ρ j = 0) →
@@ -438,7 +438,7 @@ theorem pruneBoxForMin_length (B : Box) (grad : List IntervalRat) :
 
 /-- A positive computable derivative enclosure makes the objective increasing
 along the selected coordinate. -/
-theorem increasing_min_at_left_idx_core (e : Expr) (hsupp : ExprSupported e)
+theorem increasing_min_at_left_idx_core (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i) (cfg : EvalConfig)
     (hpos : 0 < (derivIntervalCoreN e ρ_int idx cfg).lo) :
@@ -452,7 +452,7 @@ theorem increasing_min_at_left_idx_core (e : Expr) (hsupp : ExprSupported e)
     · intro x hx
       rw [interior_Icc] at hx
       have hx' : x ∈ ρ_int idx := ⟨le_of_lt hx.1, le_of_lt hx.2⟩
-      have hmem := evalDualCore_der_correct_idx e hsupp ρ_real ρ_int idx hρ x hx' cfg
+      have hmem := evalDualTotalCore_der_correct_idx e hsupp ρ_real ρ_int idx hρ x hx' cfg
       exact lt_of_lt_of_le (by exact_mod_cast hpos) ((IntervalRat.mem_def _ _).mp hmem).1
   intro x hx
   rcases hx with ⟨hlo, hhi⟩
@@ -464,7 +464,7 @@ theorem increasing_min_at_left_idx_core (e : Expr) (hsupp : ExprSupported e)
 
 /-- A negative computable derivative enclosure makes the objective decreasing
 along the selected coordinate. -/
-theorem decreasing_min_at_right_idx_core (e : Expr) (hsupp : ExprSupported e)
+theorem decreasing_min_at_right_idx_core (e : Expr) (hsupp : ADSupported e)
     (ρ_real : Nat → ℝ) (ρ_int : IntervalEnv) (idx : Nat)
     (hρ : ∀ i, ρ_real i ∈ ρ_int i) (cfg : EvalConfig)
     (hneg : (derivIntervalCoreN e ρ_int idx cfg).hi < 0) :
@@ -478,7 +478,7 @@ theorem decreasing_min_at_right_idx_core (e : Expr) (hsupp : ExprSupported e)
     · intro x hx
       rw [interior_Icc] at hx
       have hx' : x ∈ ρ_int idx := ⟨le_of_lt hx.1, le_of_lt hx.2⟩
-      have hmem := evalDualCore_der_correct_idx e hsupp ρ_real ρ_int idx hρ x hx' cfg
+      have hmem := evalDualTotalCore_der_correct_idx e hsupp ρ_real ρ_int idx hρ x hx' cfg
       exact lt_of_le_of_lt ((IntervalRat.mem_def _ _).mp hmem).2 (by exact_mod_cast hneg)
   intro x hx
   rcases hx with ⟨hlo, hhi⟩
@@ -504,7 +504,7 @@ theorem decreasing_min_at_right_idx_core (e : Expr) (hsupp : ExprSupported e)
     The proof then shows f(ρ') ≤ f(ρ) by induction on coordinates, using
     the monotonicity lemmas `increasing_min_at_left_idx` and `decreasing_min_at_right_idx`.
 -/
-theorem pruneBoxForMin_correct (e : Expr) (hsupp : ExprSupported e) (B : Box)
+theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
     (cfg : EvalConfig := {}) :
     let grad := gradientIntervalCore e B cfg
     let B' := (pruneBoxForMin B grad).1

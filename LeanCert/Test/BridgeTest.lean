@@ -281,7 +281,7 @@ def jsonNatFieldIs (field : String) (expected : Nat) (j : Json) : Bool :=
   useMonotonicity := true
 })
 
-#guard jsonNatFieldIs "remainingBoxes" 0 (handleGlobalMin {
+#guard jsonNatFieldIs "iterations" 1 (handleGlobalMin {
   expr := Expr.var 0, box := #[zeroOneRaw], maxIters := 1,
   useMonotonicity := true
 })

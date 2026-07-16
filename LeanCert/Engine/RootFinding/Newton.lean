@@ -92,7 +92,7 @@ noncomputable def newtonStepSimple
     Option IntervalRat := do
   let c : ℚ := I.midpoint
   -- Interval for f(c) using singleton interval eval
-  let fc := evalInterval1 e (IntervalRat.singleton c)
+  let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
   -- Derivative interval on I
   let dI := derivInterval e (fun _ => I) varIdx
   -- If derivative interval contains zero, we can't safely divide
@@ -182,14 +182,14 @@ noncomputable def newtonInterval (e : Expr) (I : IntervalRat) (varIdx : Nat)
 /-- The derivative of evalFunc1 at any point in I is contained in derivInterval.
     This bridges our AD derivative bounds to actual derivatives.
     Requires UsesOnlyVar0, which we'll assume for root finding on single-variable expressions. -/
-theorem deriv_in_derivInterval (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem deriv_in_derivInterval (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (ξ : ℝ) (hξ : ξ ∈ I) :
     deriv (evalFunc1 e) ξ ∈ derivInterval e (fun _ => I) 0 :=
   derivInterval_correct_single e hsupp hvar0 I ξ hξ
 
 /-- Mean Value Theorem application: for differentiable f, f(x) - f(c) = f'(ξ)(x - c)
     for some ξ between c and x. -/
-theorem mvt_for_eval (e : Expr) (hsupp : ExprSupported e)
+theorem mvt_for_eval (e : Expr) (hsupp : ADSupported e)
     (I : IntervalRat) (c x : ℝ) (_hcI : c ∈ I) (_hxI : x ∈ I) (hcx : c ≠ x) :
     ∃ ξ, (min c x < ξ ∧ ξ < max c x) ∧
       evalFunc1 e x - evalFunc1 e c = deriv (evalFunc1 e) ξ * (x - c) := by
@@ -251,7 +251,7 @@ theorem between_mem_interval (I : IntervalRat) (c x ξ : ℝ)
 
     This captures the mathematical essence without dealing with the monadic
     structure of newtonStepTM/newtonStepSimple. -/
-theorem newton_operator_preserves_root (e : Expr) (hsupp : ExprSupported e) (_hvar0 : UsesOnlyVar0 e)
+theorem newton_operator_preserves_root (e : Expr) (hsupp : ADSupported e) (_hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat) (c : ℚ) (fc dI : IntervalRat)
     (hc_in_I : (c : ℝ) ∈ I)
     (hfc : evalFunc1 e c ∈ fc)
@@ -367,7 +367,7 @@ theorem newton_operator_preserves_root (e : Expr) (hsupp : ExprSupported e) (_hv
 
     Requires `UsesOnlyVar0 e` to connect our AD derivative bounds to actual derivatives.
     This is a reasonable assumption for root finding on single-variable expressions. -/
-theorem newton_preserves_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem newton_preserves_root (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I N : IntervalRat)
     (hN : newtonStepTM e I 0 1 = some N ∨ newtonStepSimple e I 0 = some N)
     (x : ℝ) (hx : x ∈ I) (hroot : Expr.eval (fun _ => x) e = 0) :
@@ -448,11 +448,11 @@ theorem newton_preserves_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : Uses
       rw [hN_eq_K]
       exact hx_in_K
   · -- Case: newtonStepSimple succeeded
-    -- newtonStepSimple uses I.midpoint for c, evalInterval1 for fc
+    -- newtonStepSimple uses I.midpoint for c, LeanCert.Internal.Rational.evalUnchecked1 for fc
     -- First, extract the key property: the derivative interval doesn't contain zero
     -- (otherwise newtonStepSimple would return none)
     set c : ℚ := I.midpoint with hc_def
-    set fc := evalInterval1 e (IntervalRat.singleton c) with hfc_def
+    set fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c) with hfc_def
     set dI := derivInterval e (fun _ => I) 0 with hdI_def
     have hzero : ¬IntervalRat.containsZero dI := by
       intro hcontra
@@ -514,7 +514,7 @@ theorem newton_preserves_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : Uses
     By MVT, this means f is strictly monotonic on I, hence at most one root.
 
     This lemma is independent of existence - it just proves uniqueness given any two roots. -/
-theorem newton_step_at_most_one_root (e : Expr) (hsupp : ExprSupported e) (hvar0 : UsesOnlyVar0 e)
+theorem newton_step_at_most_one_root (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (I : IntervalRat)
     (hN : (∃ N, newtonStepTM e I 0 1 = some N) ∨ (∃ N, newtonStepSimple e I 0 = some N))
     (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
@@ -646,7 +646,7 @@ lemma contraction_newton_bounds {I N : IntervalRat} {c : ℚ} {Q : IntervalRat}
 lemma newtonStepSimple_extract (e : Expr) (I N : IntervalRat)
     (hSimple : newtonStepSimple e I 0 = some N) :
     let c := I.midpoint
-    let fc := evalInterval1 e (IntervalRat.singleton c)
+    let fc := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton c)
     let dI := derivInterval e (fun _ => I) 0
     ∃ (hdI_nonzero : ¬dI.containsZero),
       let dNonzero : IntervalRat.IntervalRatNonzero := ⟨dI, hdI_nonzero⟩

@@ -9,6 +9,7 @@ import LeanCert.Engine.IntervalEval
 import LeanCert.Engine.IntervalEvalDyadic
 import LeanCert.Engine.IntervalEvalAffine
 import LeanCert.API.Eval
+import LeanCert.API.Optimization
 import LeanCert.Engine.Optimization.Global
 import LeanCert.Engine.Optimization.Backend
 import LeanCert.Engine.Optimization.Gradient
@@ -613,60 +614,59 @@ def handleEvalInterval (req : EvalRequest) : Json :=
         ("hi", toJson (toRawRat result.interval.hi))]
   | .error err => evalFailureJson err
 
-/-- Serialize a checked optimization result. -/
-def checkedGlobalResultJson : EvalResult GlobalResult → Json
-  | .error err => evalFailureJson err
-  | .ok result =>
-      let bestBoxJson := Json.arr
-        (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
-      Json.mkObj [
-        ("status", "certified"),
-        ("lo", toJson (toRawRat result.bound.lo)),
-        ("hi", toJson (toRawRat result.bound.hi)),
-        ("remainingBoxes", toJson result.remainingBoxes.length),
-        ("bestBox", bestBoxJson)]
-
 def checkedGlobalBackendResultJson : EvalResult GlobalOutcome → Json
   | .error err => evalFailureJson err
   | .ok outcome =>
       let result := outcome.result
       let bestBoxJson := Json.arr
-        (result.bound.bestBox.map (fun i => toJson (toRawInterval i))).toArray
+        (result.bestBox.map (fun i => toJson (toRawInterval i))).toArray
       Json.mkObj [
         ("status", "certified"),
         ("backend", concreteBackendName outcome.backend),
-        ("lo", toJson (toRawRat result.bound.lo)),
-        ("hi", toJson (toRawRat result.bound.hi)),
-        ("remainingBoxes", toJson result.remainingBoxes.length),
+        ("lo", toJson (toRawRat result.lowerBound)),
+        ("hi", toJson (toRawRat result.upperBound)),
+        ("iterations", toJson result.iterations),
         ("bestBox", bestBoxJson)]
 
 /-- Handle global minimization request -/
 def handleGlobalMin (req : OptimizeRequest) : Json :=
   let box : Box := req.box.toList.map RawInterval.toInterval
-  let cfg : BackendGlobalOptConfig := {
-    backend := req.backend
-    taylorDepth := req.taylorDepth
-    dyadicPrecision := req.precision
-    maxNoiseSymbols := req.maxNoiseSymbols
-    maxIterations := req.maxIters
-    tolerance := req.tolerance.toRat
-    useMonotonicity := req.useMonotonicity
+  let cfg : LeanCert.GlobalOptOptions := {
+    evaluation := {
+      backend := req.backend
+      precisionOptions := {
+        taylorDepth := req.taylorDepth
+        dyadicExponent := req.precision
+        maxNoiseSymbols := req.maxNoiseSymbols
+      }
+    }
+    search := {
+      maxIterations := req.maxIters
+      tolerance := req.tolerance.toRat
+      useMonotonicity := req.useMonotonicity
+    }
   }
-  checkedGlobalBackendResultJson (globalMinimizeWith cfg req.expr box)
+  checkedGlobalBackendResultJson (LeanCert.globalMinimize req.expr box cfg)
 
 /-- Handle global maximization request -/
 def handleGlobalMax (req : OptimizeRequest) : Json :=
   let box : Box := req.box.toList.map RawInterval.toInterval
-  let cfg : BackendGlobalOptConfig := {
-    backend := req.backend
-    taylorDepth := req.taylorDepth
-    dyadicPrecision := req.precision
-    maxNoiseSymbols := req.maxNoiseSymbols
-    maxIterations := req.maxIters
-    tolerance := req.tolerance.toRat
-    useMonotonicity := req.useMonotonicity
+  let cfg : LeanCert.GlobalOptOptions := {
+    evaluation := {
+      backend := req.backend
+      precisionOptions := {
+        taylorDepth := req.taylorDepth
+        dyadicExponent := req.precision
+        maxNoiseSymbols := req.maxNoiseSymbols
+      }
+    }
+    search := {
+      maxIterations := req.maxIters
+      tolerance := req.tolerance.toRat
+      useMonotonicity := req.useMonotonicity
+    }
   }
-  checkedGlobalBackendResultJson (globalMaximizeWith cfg req.expr box)
+  checkedGlobalBackendResultJson (LeanCert.globalMaximize req.expr box cfg)
 
 /-- Handle global minimization request with Dyadic backend -/
 def handleGlobalMinDyadic (req : OptimizeDyadicRequest) : Json :=
@@ -927,7 +927,7 @@ def handleFindUniqueRoot (req : FindUniqueRootRequest) : Json :=
   | .ok backend => if !req.expr.usesOnlyVar0 then
     evalFailureJson (.unsupportedFeature
       "unique-root Newton backend requires an expression using only variable 0")
-  else if !req.expr.checkSupported then
+  else if !req.expr.checkADSupported then
     evalFailureJson (.unsupportedFeature
       "unique-root Newton backend supports only const/var/add/mul/neg/exp/sin/cos")
   else
@@ -938,14 +938,20 @@ def handleFindUniqueRoot (req : FindUniqueRootRequest) : Json :=
 /-- Handle adaptive verification request using optimization -/
 def handleVerifyAdaptive (req : VerifyAdaptiveRequest) : Json :=
   let box : Box := req.box.toList.map RawInterval.toInterval
-  let cfg : BackendGlobalOptConfig := {
-    backend := req.backend
-    taylorDepth := req.taylorDepth
-    dyadicPrecision := req.precision
-    maxNoiseSymbols := req.maxNoiseSymbols
-    maxIterations := req.maxIters
-    tolerance := req.tolerance.toRat
-    useMonotonicity := false
+  let cfg : LeanCert.GlobalOptOptions := {
+    evaluation := {
+      backend := req.backend
+      precisionOptions := {
+        taylorDepth := req.taylorDepth
+        dyadicExponent := req.precision
+        maxNoiseSymbols := req.maxNoiseSymbols
+      }
+    }
+    search := {
+      maxIterations := req.maxIters
+      tolerance := req.tolerance.toRat
+      useMonotonicity := false
+    }
   }
   let bound := req.bound.toRat
 
@@ -956,20 +962,20 @@ def handleVerifyAdaptive (req : VerifyAdaptiveRequest) : Json :=
   else
     Expr.add req.expr (Expr.neg (Expr.const bound))  -- f - c
 
-  match globalMinimizeWith cfg testExpr box with
+  match LeanCert.globalMinimize testExpr box cfg with
   | .error err => Json.mkObj [
       ("status", evalFailureStatus err),
       ("verified", false),
       ("error", evalErrorToJson err)]
   | .ok outcome =>
     let result := outcome.result
-    let verified := decide (result.bound.lo ≥ 0)
+    let verified := decide (result.lowerBound ≥ 0)
     Json.mkObj [
       ("status", "certified"),
       ("backend", concreteBackendName outcome.backend),
       ("verified", toJson verified),
-      ("minValue", toJson (toRawRat result.bound.lo)),
-      ("remainingBoxes", toJson result.remainingBoxes.length)]
+      ("minValue", toJson (toRawRat result.lowerBound)),
+      ("iterations", toJson result.iterations)]
 
 /-- Handle neural network forward interval propagation request.
 
