@@ -14,26 +14,25 @@ we maximize `f(x)` and check if the result exceeds `C`.
 
 ## Main definitions
 
-* `CounterExampleStatus` - Whether a counter-example is verified or just a candidate
-* `CounterExample` - A point that violates (or may violate) a bound
+* `CounterExample` - A concretely checked point that violates a bound
 * `findViolation` - Search for counter-examples to `f(x) ≤ limit`
 * `findViolationLower` - Search for counter-examples to `limit ≤ f(x)`
 
 ## Counter-Example Types
 
-* **Verified**: The rigorous lower bound of `max(f)` exceeds the limit.
-  This is a mathematical proof that the bound is false.
+* **Certified point**: checked singleton evaluation places the complete output
+  enclosure in the violating region.
 
-* **Candidate**: The upper bound exceeds the limit, but the lower bound doesn't.
-  This might indicate a true violation (precision too low) or a false positive
-  (interval wrapping).
+Overlap between an optimizer enclosure and the violating region is deliberately
+not returned as a counter-example.  The reported midpoint is re-evaluated on a
+singleton box with the checked Rational evaluator before it is exposed.
 
 ## Usage
 
 ```lean
 -- Check if x² ≤ 3 on [-2, 2]
 let result := findViolation (Expr.mul (Expr.var 0) (Expr.var 0)) [⟨-2, 2, by norm_num⟩] 3
--- Returns some { status := .Verified, ... } because max(x²) = 4 > 3
+-- Returns a checked concrete witness near x = -2 or x = 2.
 ```
 -/
 
@@ -44,23 +43,13 @@ open LeanCert.Engine.Optimization
 
 /-! ### Counter-example types -/
 
-/-- Status of a counter-example -/
-inductive CounterExampleStatus where
-  /-- Definitely violates the bound (proof of negation possible) -/
-  | Verified
-  /-- Likely violates the bound (or precision too low) -/
-  | Candidate
-  deriving Repr, DecidableEq, Inhabited
-
 /-- A counter-example to a bound claim -/
 structure CounterExample where
   /-- The input point (midpoint of the best box) -/
   point : List ℚ
-  /-- The computed output interval at/near the point -/
+  /-- The checked output interval at the singleton point -/
   valueLo : ℚ
   valueHi : ℚ
-  /-- Whether the counter-example is verified or just a candidate -/
-  status : CounterExampleStatus
   /-- The box containing the counter-example -/
   box : Box
   /-- Number of iterations used -/
@@ -69,13 +58,71 @@ structure CounterExample where
 
 namespace CounterExample
 
-/-- Is this a verified counter-example? -/
-def isVerified (ce : CounterExample) : Bool :=
-  ce.status == .Verified
-
 /-- Get the midpoint of each interval in the box -/
 def boxMidpoint (B : Box) : List ℚ :=
   B.map (·.midpoint)
+
+/-- The singleton box corresponding to `boxMidpoint`. -/
+def midpointBox (B : Box) : Box :=
+  B.map (fun I => IntervalRat.singleton I.midpoint)
+
+/-- Construct an upper-bound counter-example only when checked point evaluation
+proves that the concrete midpoint violates `f(x) ≤ limit`. -/
+def checkedUpper? (e : Expr) (B : Box) (limit : ℚ) (iterations : Nat) :
+    EvalResult (Option CounterExample) := do
+  let value ← evalOnBoxRationalChecked e (midpointBox B)
+  if value.lo > limit then
+    return some {
+      point := boxMidpoint B
+      valueLo := value.lo
+      valueHi := value.hi
+      box := B
+      iterations
+    }
+  return none
+
+/-- Construct a lower-bound counter-example only when checked point evaluation
+proves that the concrete midpoint violates `limit ≤ f(x)`. -/
+def checkedLower? (e : Expr) (B : Box) (limit : ℚ) (iterations : Nat) :
+    EvalResult (Option CounterExample) := do
+  let value ← evalOnBoxRationalChecked e (midpointBox B)
+  if value.hi < limit then
+    return some {
+      point := boxMidpoint B
+      valueLo := value.lo
+      valueHi := value.hi
+      box := B
+      iterations
+    }
+  return none
+
+/-- Strict upper-bound counterpart of `checkedUpper?`. -/
+def checkedStrictUpper? (e : Expr) (B : Box) (limit : ℚ) (iterations : Nat) :
+    EvalResult (Option CounterExample) := do
+  let value ← evalOnBoxRationalChecked e (midpointBox B)
+  if value.lo ≥ limit then
+    return some {
+      point := boxMidpoint B
+      valueLo := value.lo
+      valueHi := value.hi
+      box := B
+      iterations
+    }
+  return none
+
+/-- Strict lower-bound counterpart of `checkedLower?`. -/
+def checkedStrictLower? (e : Expr) (B : Box) (limit : ℚ) (iterations : Nat) :
+    EvalResult (Option CounterExample) := do
+  let value ← evalOnBoxRationalChecked e (midpointBox B)
+  if value.hi ≤ limit then
+    return some {
+      point := boxMidpoint B
+      valueLo := value.lo
+      valueHi := value.hi
+      box := B
+      iterations
+    }
+  return none
 
 end CounterExample
 
@@ -84,54 +131,25 @@ end CounterExample
 /--
 Search for a counter-example to the claim `∀ x ∈ domain, f(x) ≤ limit`.
 
-Returns `some CounterExample` if the bound cannot be verified.
-Returns `none` if the theorem appears to be true (no violation found).
+Returns a counter-example only when checked evaluation proves that the concrete
+midpoint of the optimizer's best box violates the bound.  `none` means that no
+concrete witness was certified; it does not prove the bound.
 
-**Algorithm**: Maximize `f(x)` over the domain. If `max(f).lo > limit`,
-the bound is definitely false. If `max(f).hi > limit` but `lo ≤ limit`,
-there might be a violation.
+**Algorithm**: maximize `f`, then checked-evaluate the midpoint of the best box.
+An optimizer overlap alone never produces a result.
 -/
 def findViolation (e : Expr) (domain : Box) (limit : ℚ)
-    (cfg : GlobalOptConfig := {}) : Option CounterExample :=
+    (cfg : GlobalOptConfig := {}) : EvalResult (Option CounterExample) := do
   -- Maximize f to find the highest value
   let result := globalMaximizeCore e domain cfg
 
   let max_lo := result.bound.lo
-  let max_hi := result.bound.hi
   let best_box := result.bound.bestBox
 
   if max_lo > limit then
-    -- CASE 1: Verified counter-example
-    -- The certified lower bound for the global maximum exceeds the limit.
-    -- The midpoint is reported as a diagnostic representative of the returned box;
-    -- this function does not construct a Lean proof that the midpoint itself violates
-    -- the bound.
-    some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := max_lo
-      valueHi := max_hi
-      status := .Verified
-      box := best_box
-      iterations := result.bound.iterations
-    }
-  else if max_hi > limit then
-    -- CASE 2: Candidate counter-example
-    -- The upper bound exceeds limit, but lower bound doesn't.
-    -- This could be:
-    --   (a) A true violation that we can't rigorously prove (precision issue)
-    --   (b) A false positive from interval overestimation
-    some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := max_lo
-      valueHi := max_hi
-      status := .Candidate
-      box := best_box
-      iterations := result.bound.iterations
-    }
+    CounterExample.checkedUpper? e best_box limit result.bound.iterations
   else
-    -- CASE 3: No violation found
-    -- max_hi ≤ limit, so the bound appears to be true
-    none
+    return none
 
 /--
 Variant of `findViolation` with division support.
@@ -141,27 +159,10 @@ def findViolationDiv (e : Expr) (domain : Box) (limit : ℚ)
   let result ← globalMaximizeRationalChecked e domain cfg
 
   let max_lo := result.bound.lo
-  let max_hi := result.bound.hi
   let best_box := result.bound.bestBox
 
   if max_lo > limit then
-    return some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := max_lo
-      valueHi := max_hi
-      status := .Verified
-      box := best_box
-      iterations := result.bound.iterations
-    }
-  else if max_hi > limit then
-    return some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := max_lo
-      valueHi := max_hi
-      status := .Candidate
-      box := best_box
-      iterations := result.bound.iterations
-    }
+    CounterExample.checkedUpper? e best_box limit result.bound.iterations
   else
     return none
 
@@ -170,48 +171,24 @@ def findViolationDiv (e : Expr) (domain : Box) (limit : ℚ)
 /--
 Search for a counter-example to the claim `∀ x ∈ domain, limit ≤ f(x)`.
 
-Returns `some CounterExample` if the bound cannot be verified.
+Returns a result only when the checked midpoint enclosure lies below `limit`.
+`none` means no concrete witness was certified.
 
 **Algorithm**: Minimize `f(x)` over the domain. If `min(f).hi < limit`,
 the bound is definitely false.
 -/
 def findViolationLower (e : Expr) (domain : Box) (limit : ℚ)
-    (cfg : GlobalOptConfig := {}) : Option CounterExample :=
+    (cfg : GlobalOptConfig := {}) : EvalResult (Option CounterExample) := do
   -- Minimize f to find the lowest value
   let result := globalMinimizeCore e domain cfg
 
-  let min_lo := result.bound.lo
   let min_hi := result.bound.hi
   let best_box := result.bound.bestBox
 
   if min_hi < limit then
-    -- CASE 1: Verified counter-example
-    -- The certified upper bound for the global minimum is below the limit.
-    -- The midpoint is reported as a diagnostic representative of the returned box;
-    -- this function does not construct a Lean proof that the midpoint itself violates
-    -- the bound.
-    some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := min_lo
-      valueHi := min_hi
-      status := .Verified
-      box := best_box
-      iterations := result.bound.iterations
-    }
-  else if min_lo < limit then
-    -- CASE 2: Candidate counter-example
-    some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := min_lo
-      valueHi := min_hi
-      status := .Candidate
-      box := best_box
-      iterations := result.bound.iterations
-    }
+    CounterExample.checkedLower? e best_box limit result.bound.iterations
   else
-    -- CASE 3: No violation found
-    -- min_lo ≥ limit, so the bound appears to be true
-    none
+    return none
 
 /--
 Variant with division support.
@@ -220,28 +197,11 @@ def findViolationLowerDiv (e : Expr) (domain : Box) (limit : ℚ)
     (cfg : GlobalOptConfig := {}) : EvalResult (Option CounterExample) := do
   let result ← globalMinimizeRationalChecked e domain cfg
 
-  let min_lo := result.bound.lo
   let min_hi := result.bound.hi
   let best_box := result.bound.bestBox
 
   if min_hi < limit then
-    return some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := min_lo
-      valueHi := min_hi
-      status := .Verified
-      box := best_box
-      iterations := result.bound.iterations
-    }
-  else if min_lo < limit then
-    return some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := min_lo
-      valueHi := min_hi
-      status := .Candidate
-      box := best_box
-      iterations := result.bound.iterations
-    }
+    CounterExample.checkedLower? e best_box limit result.bound.iterations
   else
     return none
 
@@ -252,78 +212,41 @@ Search for a counter-example to `∀ x ∈ domain, f(x) < limit`.
 A violation means `f(x) ≥ limit` for some `x`.
 -/
 def findViolationStrict (e : Expr) (domain : Box) (limit : ℚ)
-    (cfg : GlobalOptConfig := {}) : Option CounterExample :=
+    (cfg : GlobalOptConfig := {}) : EvalResult (Option CounterExample) := do
   let result := globalMaximizeCore e domain cfg
 
   let max_lo := result.bound.lo
-  let max_hi := result.bound.hi
   let best_box := result.bound.bestBox
 
   -- For strict inequality, we need max(f) ≥ limit (not just >)
   if max_lo ≥ limit then
-    some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := max_lo
-      valueHi := max_hi
-      status := .Verified
-      box := best_box
-      iterations := result.bound.iterations
-    }
-  else if max_hi ≥ limit then
-    some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := max_lo
-      valueHi := max_hi
-      status := .Candidate
-      box := best_box
-      iterations := result.bound.iterations
-    }
+    CounterExample.checkedStrictUpper? e best_box limit result.bound.iterations
   else
-    none
+    return none
 
 /--
 Search for a counter-example to `∀ x ∈ domain, limit < f(x)`.
 A violation means `f(x) ≤ limit` for some `x`.
 -/
 def findViolationStrictLower (e : Expr) (domain : Box) (limit : ℚ)
-    (cfg : GlobalOptConfig := {}) : Option CounterExample :=
+    (cfg : GlobalOptConfig := {}) : EvalResult (Option CounterExample) := do
   let result := globalMinimizeCore e domain cfg
 
-  let min_lo := result.bound.lo
   let min_hi := result.bound.hi
   let best_box := result.bound.bestBox
 
   if min_hi ≤ limit then
-    some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := min_lo
-      valueHi := min_hi
-      status := .Verified
-      box := best_box
-      iterations := result.bound.iterations
-    }
-  else if min_lo ≤ limit then
-    some {
-      point := CounterExample.boxMidpoint best_box
-      valueLo := min_lo
-      valueHi := min_hi
-      status := .Candidate
-      box := best_box
-      iterations := result.bound.iterations
-    }
+    CounterExample.checkedStrictLower? e best_box limit result.bound.iterations
   else
-    none
+    return none
 
 /-! ### Pretty printing -/
 
 /-- Format a counter-example for display -/
 def CounterExample.format (ce : CounterExample) (limit : ℚ) : String :=
-  let statusStr := match ce.status with
-    | .Verified => "VERIFIED"
-    | .Candidate => "CANDIDATE (may be false positive)"
   let pointStr := ce.point.map toString |>.intersperse ", " |> String.join
   let intervalStr := s!"[{ce.valueLo}, {ce.valueHi}]"
-  s!"Counter-example ({statusStr}):\n\
+  s!"Certified counter-example:\n\
      • Point: ({pointStr})\n\
      • Value: {intervalStr}\n\
      • Limit: {limit}\n\

@@ -37,8 +37,8 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 1 := by
 - For `f(x) ≤ c`: maximizes `f(x)`, checks if max > c
 - For `c ≤ f(x)`: minimizes `f(x)`, checks if min < c
 
-A **Verified** counter-example is a rigorous proof of falsity.
-A **Candidate** counter-example might be a precision issue.
+A returned counter-example is a concrete rational point whose checked singleton
+enclosure lies wholly in the violating region.
 -/
 
 open Lean Meta Elab Tactic Term
@@ -165,35 +165,24 @@ where
     }
 
     -- Search for violation
-    let result := findViolation ast box limit optCfg
+    let result ← match findViolation ast box limit optCfg with
+      | .ok result => pure result
+      | .error err => throwError "interval_refute: checked evaluation failed: {repr err}"
 
     match result with
     | none =>
-      logInfo m!"✅ No counter-example found for f(x) ≤ {limit} on [{lo}, {hi}].\n\
-                 The theorem appears to be TRUE.\n\
-                 Try: interval_bound"
+      logInfo m!"No concrete counter-example was certified for f(x) ≤ {limit} on [{lo}, {hi}].\n\
+                 This search result is inconclusive; use interval_bound to prove the claim."
 
     | some ce =>
       let pointStr := ce.point.map toString |>.intersperse ", " |> String.join
-      match ce.status with
-      | .Verified =>
-        throwError m!"❌ Counter-example FOUND!\n\
-                      Input: x = ({pointStr})\n\
-                      Output: [{ce.valueLo}, {ce.valueHi}]\n\
-                      Limit: {limit}\n\
-                      Violation: Lower bound {ce.valueLo} > limit {limit}\n\
-                      The theorem is FALSE.\n\
-                      Iterations: {ce.iterations}"
-      | .Candidate =>
-        logWarning m!"⚠️ Potential counter-example found.\n\
-                      Input: x = ({pointStr})\n\
-                      Output: [{ce.valueLo}, {ce.valueHi}]\n\
-                      Limit: {limit}\n\
-                      Upper bound {ce.valueHi} > limit, but lower bound {ce.valueLo} ≤ limit.\n\
-                      This might be:\n\
-                      • A true violation (precision too low)\n\
-                      • A false positive (interval wrapping)\n\
-                      Try increasing maxIterations or taylorDepth."
+      throwError m!"❌ Counter-example FOUND!\n\
+                    Input: x = ({pointStr})\n\
+                    Output: [{ce.valueLo}, {ce.valueHi}]\n\
+                    Limit: {limit}\n\
+                    Violation: Lower bound {ce.valueLo} > limit {limit}\n\
+                    The theorem is FALSE.\n\
+                    Iterations: {ce.iterations}"
 
   /-- Refute ∀ x ∈ I, c ≤ f(x) -/
   refuteLowerBound (interval : IntervalInfo) (func bound : Lean.Expr)
@@ -213,32 +202,24 @@ where
       tolerance := cfg.tolerance
     }
 
-    let result := findViolationLower ast box limit optCfg
+    let result ← match findViolationLower ast box limit optCfg with
+      | .ok result => pure result
+      | .error err => throwError "interval_refute: checked evaluation failed: {repr err}"
 
     match result with
     | none =>
-      logInfo m!"✅ No counter-example found for {limit} ≤ f(x) on [{lo}, {hi}].\n\
-                 The theorem appears to be TRUE.\n\
-                 Try: interval_bound"
+      logInfo m!"No concrete counter-example was certified for {limit} ≤ f(x) on [{lo}, {hi}].\n\
+                 This search result is inconclusive; use interval_bound to prove the claim."
 
     | some ce =>
       let pointStr := ce.point.map toString |>.intersperse ", " |> String.join
-      match ce.status with
-      | .Verified =>
-        throwError m!"❌ Counter-example FOUND!\n\
-                      Input: x = ({pointStr})\n\
-                      Output: [{ce.valueLo}, {ce.valueHi}]\n\
-                      Limit: {limit}\n\
-                      Violation: Upper bound {ce.valueHi} < limit {limit}\n\
-                      The theorem is FALSE.\n\
-                      Iterations: {ce.iterations}"
-      | .Candidate =>
-        logWarning m!"⚠️ Potential counter-example found.\n\
-                      Input: x = ({pointStr})\n\
-                      Output: [{ce.valueLo}, {ce.valueHi}]\n\
-                      Limit: {limit}\n\
-                      Lower bound {ce.valueLo} < limit, but upper bound {ce.valueHi} ≥ limit.\n\
-                      This might be a precision issue."
+      throwError m!"❌ Counter-example FOUND!\n\
+                    Input: x = ({pointStr})\n\
+                    Output: [{ce.valueLo}, {ce.valueHi}]\n\
+                    Limit: {limit}\n\
+                    Violation: Upper bound {ce.valueHi} < limit {limit}\n\
+                    The theorem is FALSE.\n\
+                    Iterations: {ce.iterations}"
 
   /-- Refute ∀ x ∈ I, f(x) < c -/
   refuteStrictUpperBound (interval : IntervalInfo) (func bound : Lean.Expr)
@@ -258,25 +239,23 @@ where
       tolerance := cfg.tolerance
     }
 
-    let result := findViolationStrict ast box limit optCfg
+    let result ← match findViolationStrict ast box limit optCfg with
+      | .ok result => pure result
+      | .error err => throwError "interval_refute: checked evaluation failed: {repr err}"
 
     match result with
     | none =>
-      logInfo m!"✅ No counter-example found for f(x) < {limit} on [{lo}, {hi}].\n\
-                 The theorem appears to be TRUE."
+      logInfo m!"No concrete counter-example was certified for f(x) < {limit} on [{lo}, {hi}].\n\
+                 This search result is inconclusive."
 
     | some ce =>
       let pointStr := ce.point.map toString |>.intersperse ", " |> String.join
-      match ce.status with
-      | .Verified =>
-        throwError m!"❌ Counter-example FOUND!\n\
-                      Input: x = ({pointStr})\n\
-                      Output: [{ce.valueLo}, {ce.valueHi}]\n\
-                      Limit: {limit}\n\
-                      Violation: Lower bound {ce.valueLo} ≥ limit {limit}\n\
-                      The theorem is FALSE."
-      | .Candidate =>
-        logWarning m!"⚠️ Potential counter-example found at ({pointStr})."
+      throwError m!"❌ Counter-example FOUND!\n\
+                    Input: x = ({pointStr})\n\
+                    Output: [{ce.valueLo}, {ce.valueHi}]\n\
+                    Limit: {limit}\n\
+                    Violation: Lower bound {ce.valueLo} ≥ limit {limit}\n\
+                    The theorem is FALSE."
 
   /-- Refute ∀ x ∈ I, c < f(x) -/
   refuteStrictLowerBound (interval : IntervalInfo) (func bound : Lean.Expr)
@@ -296,25 +275,23 @@ where
       tolerance := cfg.tolerance
     }
 
-    let result := findViolationStrictLower ast box limit optCfg
+    let result ← match findViolationStrictLower ast box limit optCfg with
+      | .ok result => pure result
+      | .error err => throwError "interval_refute: checked evaluation failed: {repr err}"
 
     match result with
     | none =>
-      logInfo m!"✅ No counter-example found for {limit} < f(x) on [{lo}, {hi}].\n\
-                 The theorem appears to be TRUE."
+      logInfo m!"No concrete counter-example was certified for {limit} < f(x) on [{lo}, {hi}].\n\
+                 This search result is inconclusive."
 
     | some ce =>
       let pointStr := ce.point.map toString |>.intersperse ", " |> String.join
-      match ce.status with
-      | .Verified =>
-        throwError m!"❌ Counter-example FOUND!\n\
-                      Input: x = ({pointStr})\n\
-                      Output: [{ce.valueLo}, {ce.valueHi}]\n\
-                      Limit: {limit}\n\
-                      Violation: Upper bound {ce.valueHi} ≤ limit {limit}\n\
-                      The theorem is FALSE."
-      | .Candidate =>
-        logWarning m!"⚠️ Potential counter-example found at ({pointStr})."
+      throwError m!"❌ Counter-example FOUND!\n\
+                    Input: x = ({pointStr})\n\
+                    Output: [{ce.valueLo}, {ce.valueHi}]\n\
+                    Limit: {limit}\n\
+                    Violation: Upper bound {ce.valueHi} ≤ limit {limit}\n\
+                    The theorem is FALSE."
 
 /-! ## Syntax and tactic -/
 

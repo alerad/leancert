@@ -205,7 +205,7 @@ theorem evalIntervalWith_dyadic_correct (options : BackendOptions) (e : Expr)
 /-- The Affine dispatcher branch preserves the checked evaluator theorem.
 The noise assignment hypotheses are the standard semantic interpretation of
 the affine box environment. -/
-theorem evalIntervalWith_affine_correct (options : BackendOptions) (e : Expr)
+theorem evalIntervalWith_affine_correct_of_noise (options : BackendOptions) (e : Expr)
     (box : List IntervalRat) (outcome : IntervalOutcome)
     (hsuccess : evalIntervalWith { options with backend := .affine } e box = .ok outcome)
     (ρ : Nat → ℝ) (eps : AffineForm.NoiseAssignment)
