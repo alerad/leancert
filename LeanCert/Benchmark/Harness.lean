@@ -123,7 +123,11 @@ private def bitLength (n : Nat) : Nat :=
 private def formatWidth (width : ℚ) : String :=
   let exact := s!"{width}"
   if exact.length ≤ 32 then exact
-  else s!"{bitLength width.num.natAbs}-bit/{bitLength width.den}-bit"
+  else
+    let numeratorBits := bitLength width.num.natAbs
+    let denominatorBits := bitLength width.den
+    let scale := (numeratorBits : Int) - (denominatorBits : Int)
+    s!"≈2^{scale} ({numeratorBits}-bit/{denominatorBits}-bit)"
 
 private def measure (benchmark : Case) : IO (Nat × Outcome) := do
   let iterations := max 1 benchmark.innerIterations
@@ -176,7 +180,7 @@ private def runCase (runId : String) (cfg : Config) (benchmark : Case) : IO Bool
       outcome := { status := "not_run" }, timingNs := 0,
       innerIterations := 1, sample := 0 }).outcome
     let width := match lastOutcome.interval with
-      | some I => s!", width={I.hi - I.lo}"
+      | some I => s!", width={formatWidth (I.hi - I.lo)}"
       | none => ""
     IO.println s!"{benchmark.name} [{lastOutcome.status}{width}]"
     IO.println s!"  median={formatNanos (median timings)}, \

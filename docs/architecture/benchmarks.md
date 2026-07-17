@@ -51,7 +51,9 @@ Human and Markdown modes report the median, median absolute deviation, p10,
 and p90. Markdown mode also includes the result status, selected backend, and
 enclosure width in a table suitable for a pull request or benchmark artifact.
 The table also reports expression AST size and depth so scaling points are
-explicit.
+explicit. Long exact rational widths are summarized with their approximate
+binary scale and endpoint bit sizes, while the JSONL output retains the exact
+value.
 Timing is normalized per evaluator call. JSONL mode retains every sample
 together with:
 

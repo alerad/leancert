@@ -59,6 +59,8 @@ def xMinusX : Expr := .add (.var 0) (.neg (.var 0))
 
 def unitBox : List IntervalRat := [⟨-1, 1, by norm_num⟩]
 
+def narrowBox : List IntervalRat := [⟨-1 / 16, 1 / 16, by norm_num⟩]
+
 private def exprNodes : Expr → Nat
   | .const _ | .var _ | .namedConst _ => 1
   | .add a b | .mul a b => 1 + exprNodes a + exprNodes b
@@ -223,6 +225,18 @@ private def baselineWorkloads : List Workload := [
     parameters := [("nesting_depth", "3")]
   },
   {
+    name := "nested_sin_3_narrow"
+    family := "transcendental_quality"
+    expr := mkNestedSin 3
+    box := narrowBox
+    innerIterations := 2
+    parameters := [
+      ("nesting_depth", "3"),
+      ("domain", "[-1/16,1/16]"),
+      ("quality_case", "non_saturating")
+    ]
+  },
+  {
     name := "x_minus_x"
     family := "dependency"
     expr := xMinusX
@@ -248,6 +262,18 @@ private def heavyWorkloads : List Workload := [
     box := unitBox
     innerIterations := 1
     parameters := [("nesting_depth", "16")]
+  },
+  {
+    name := "nested_sin_4_narrow"
+    family := "transcendental_quality"
+    expr := mkNestedSin 4
+    box := narrowBox
+    innerIterations := 1
+    parameters := [
+      ("nesting_depth", "4"),
+      ("domain", "[-1/16,1/16]"),
+      ("quality_case", "non_saturating")
+    ]
   },
   {
     name := "rational_affine_chain_160"
