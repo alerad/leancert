@@ -170,3 +170,7 @@ root = "LeanCert.Bridge"
 [[lean_exe]]
 name = "check-compat"
 root = "LeanCert.CheckCompat"
+
+[[lean_exe]]
+name = "leancert-bench"
+root = "LeanCert.Benchmark.Main"
