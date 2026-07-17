@@ -31,6 +31,7 @@ structure Case where
 inductive OutputFormat where
   | human
   | jsonl
+  | markdown
   deriving DecidableEq
 
 structure Config where
@@ -48,7 +49,8 @@ Options:\n\
   --case TEXT                Run cases whose names contain TEXT\n\
   --samples N                Timed samples per case (default: 10)\n\
   --warmups N                Untimed warmups per case (default: 3)\n\
-  --format human|jsonl       Summary or one JSON object per sample\n\
+  --format human|jsonl|markdown\n\
+                              Console summary, raw samples, or Markdown table\n\
   --list                     List selected cases without running them\n\
   --help                     Show this help\n"
 
@@ -70,6 +72,7 @@ partial def parseArgs (args : List String) (cfg : Config := {}) : Except String 
       parseArgs rest { cfg with warmups := n }
   | "--format" :: "human" :: rest => parseArgs rest { cfg with format := .human }
   | "--format" :: "jsonl" :: rest => parseArgs rest { cfg with format := .jsonl }
+  | "--format" :: "markdown" :: rest => parseArgs rest { cfg with format := .markdown }
   | "--format" :: value :: _ => .error s!"unknown output format '{value}'"
   | "--list" :: rest => parseArgs rest { cfg with listOnly := true }
   | "--help" :: _ => .error usage
@@ -109,6 +112,9 @@ private def formatNanos (ns : Nat) : String :=
     s!"{ns / 1000}.{pad3 (ns % 1000)} µs"
   else
     s!"{ns} ns"
+
+private def markdownCell (value : String) : String :=
+  value.replace "|" "\\|" |>.replace "\n" " "
 
 private def measure (benchmark : Case) : IO (Nat × Outcome) := do
   let iterations := max 1 benchmark.innerIterations
@@ -167,6 +173,25 @@ private def runCase (runId : String) (cfg : Config) (benchmark : Case) : IO Bool
     IO.println s!"  median={formatNanos (median timings)}, \
 MAD={formatNanos (medianAbsoluteDeviation timings)}, \
 p10={formatNanos (percentile sorted 10)}, p90={formatNanos (percentile sorted 90)}"
+  else if cfg.format = .markdown then
+    let ordered := samples.reverse
+    let timings := ordered.map (·.timingNs)
+    let sorted := sortNats timings
+    let lastOutcome := (ordered.getD 0 {
+      runId := "", caseName := "", family := "", layer := .internal,
+      suite := "",
+      backendRequested := "", parameters := [], input := benchmark.input,
+      outcome := { status := "not_run" }, timingNs := 0,
+      innerIterations := 1, sample := 0 }).outcome
+    let backendUsed := lastOutcome.backendUsed.getD "—"
+    let width := match lastOutcome.interval with
+      | some I => s!"{I.hi - I.lo}"
+      | none => "—"
+    IO.println s!"| {markdownCell benchmark.name} | {benchmark.layer.name} | \
+{markdownCell benchmark.backendRequested} | {markdownCell backendUsed} | \
+{markdownCell lastOutcome.status} | {markdownCell width} | \
+{formatNanos (median timings)} | {formatNanos (medianAbsoluteDeviation timings)} | \
+{formatNanos (percentile sorted 10)} | {formatNanos (percentile sorted 90)} |"
   return samples.all fun sample => sample.outcome.status = benchmark.expectedStatus
 
 def runBenchmarks (cfg : Config) (benchmarks : List Case) : IO UInt32 := do
@@ -187,6 +212,16 @@ def runBenchmarks (cfg : Config) (benchmarks : List Case) : IO UInt32 := do
   if cfg.format = .human then
     IO.println s!"LeanCert benchmarks: suite={cfg.suite}, samples={cfg.samples}, warmups={cfg.warmups}"
     IO.println "Timing is per evaluator call; use JSONL for raw samples."
+  else if cfg.format = .markdown then
+    IO.println "# LeanCert benchmark results"
+    IO.println ""
+    IO.println s!"- Suite: {markdownCell cfg.suite}"
+    IO.println s!"- Timed samples per case: {cfg.samples}"
+    IO.println s!"- Untimed warmups per case: {cfg.warmups}"
+    IO.println "- Timing unit: per evaluator call"
+    IO.println ""
+    IO.println "| Case | Layer | Requested backend | Used backend | Status | Width | Median | MAD | p10 | p90 |"
+    IO.println "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |"
   let mut allPassed := true
   for benchmark in chosen do
     if !(← runCase runId cfg benchmark) then allPassed := false

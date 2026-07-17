@@ -34,11 +34,18 @@ lake exe leancert-bench --suite evaluation --case nested_sin
 lake exe leancert-bench \
   --suite evaluation --samples 15 --warmups 3 --format jsonl \
   > benchmark-results.jsonl
+
+# Run the full evaluator suite and write a readable Markdown report
+lake exe leancert-bench \
+  --suite evaluation --samples 15 --warmups 3 --format markdown \
+  > benchmark-results.md
 ```
 
-Human mode reports the median, median absolute deviation, p10, and p90. Timing
-is normalized per evaluator call. JSONL mode retains every sample together
-with:
+Human and Markdown modes report the median, median absolute deviation, p10,
+and p90. Markdown mode also includes the result status, selected backend, and
+enclosure width in a table suitable for a pull request or benchmark artifact.
+Timing is normalized per evaluator call. JSONL mode retains every sample
+together with:
 
 - exact rational endpoints and width;
 - endpoint numerator and denominator bit lengths;
