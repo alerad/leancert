@@ -185,6 +185,16 @@ def checkIntegralUpperBoundDyadicFull (e : Expr) (I : IntervalRat) (n : ℕ)
   else
     false
 
+/-- Combined checker for two-sided integral bounds. The partition is evaluated once,
+    so this is preferable to running the lower and upper checkers separately. -/
+def checkIntegralBoundsDyadicFull (e : Expr) (I : IntervalRat) (n : ℕ)
+    (lower upper : ℚ) (cfg : DyadicConfig := {}) : Bool :=
+  if hn : 0 < n then
+    let J := integratePartitionDyadic e I n hn cfg
+    checkPartitionDomainValid e I n hn cfg && decide (lower ≤ J.lo ∧ J.hi ≤ upper)
+  else
+    false
+
 /-! ### Bridge lemmas -/
 
 private theorem integral_mem_bound_dyadic (e : Expr)
@@ -252,6 +262,29 @@ theorem integral_upper_of_check_dyadic (e : Expr)
   calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e
       ≤ ((integratePartitionDyadic e I n hn cfg).hi : ℝ) := hmem.2
     _ ≤ (c : ℝ) := by exact_mod_cast hcheck.2
+
+/-- Bridge theorem for the two-sided Dyadic checker. -/
+theorem integral_bounds_of_check_dyadic (e : Expr)
+    (I : IntervalRat) (n : ℕ) (hn : 0 < n) (lower upper : ℚ)
+    (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
+    (hcheck : checkIntegralBoundsDyadicFull e I n lower upper cfg = true)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) MeasureTheory.volume I.lo I.hi) :
+    (lower : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∧
+      ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (upper : ℝ) := by
+  unfold checkIntegralBoundsDyadicFull at hcheck
+  simp only [hn, ↓reduceDIte, Bool.and_eq_true, decide_eq_true_eq] at hcheck
+  have hdomall := checkPartitionDomainValid_correct e I n hn cfg hcheck.1
+  have hmem := integral_mem_bound_dyadic e I n hn cfg hprec hdomall hInt
+  simp only [IntervalRat.mem_def] at hmem
+  constructor
+  · calc
+      (lower : ℝ) ≤ ((integratePartitionDyadic e I n hn cfg).lo : ℝ) := by
+        exact_mod_cast hcheck.2.1
+      _ ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := hmem.1
+  · calc
+      ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e
+          ≤ ((integratePartitionDyadic e I n hn cfg).hi : ℝ) := hmem.2
+      _ ≤ (upper : ℝ) := by exact_mod_cast hcheck.2.2
 
 /-! ### List-based (non-uniform) partition integration -/
 

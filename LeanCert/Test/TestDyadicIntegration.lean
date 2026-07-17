@@ -60,8 +60,9 @@ set_option profiler true in
 set_option profiler true in
 #eval checkIntegralUpperBoundDyadic g_alt_expr testInterval 3000 (104840/100000) veryHighPrec
 
--- Find optimal: precision -150, depth 15, 3000 parts
-def medPrec : DyadicConfig := { precision := -150, taylorDepth := 15 }
+-- Tuned Li2 configuration: depth 17 is insufficient for these bounds.
+def li2Prec : DyadicConfig := { precision := -53, taylorDepth := 18 }
 
 set_option profiler true in
-#eval checkIntegralLowerBoundDyadic g_alt_expr testInterval 3000 (103775/100000) medPrec
+#eval checkIntegralBoundsDyadicFull g_alt_expr testInterval 3000
+  (103775/100000) (104840/100000) li2Prec
