@@ -199,6 +199,20 @@ def expPointComputable (q : ℚ) (n : ℕ := 10) : IntervalRat :=
   let q' : ℚ := q / m
   pow (expPointComputableRaw q' n) m
 
+/-- Point exponential using Taylor coefficients prepared for depth `n`. -/
+def expPointComputableWithCoeffs (q : ℚ) (n : ℕ) (coeffs : List ℚ) : IntervalRat :=
+  let k := expReduceK q
+  let m : ℕ := (2 : ℕ) ^ k
+  let q' : ℚ := q / m
+  let I := singleton q'
+  let polyVal := evalTaylorSeries coeffs I
+  let remainder := expRemainderBoundComputable I n
+  pow (add polyVal remainder) m
+
+theorem expPointComputableWithCoeffs_eq (q : ℚ) (n : ℕ) :
+    expPointComputableWithCoeffs q n (expTaylorCoeffs n) = expPointComputable q n := by
+  simp [expPointComputableWithCoeffs, expPointComputable, expPointComputableRaw]
+
 /-- Hull of two intervals: smallest interval containing both. -/
 def hull (I J : IntervalRat) : IntervalRat :=
   ⟨min I.lo J.lo, max I.hi J.hi, le_trans (min_le_left _ _) (le_trans I.le (le_max_left _ _))⟩
@@ -236,6 +250,21 @@ def expComputable (I : IntervalRat) (n : ℕ := 10) : IntervalRat :=
     let polyVal := evalTaylorSeries coeffs I
     let remainder := expRemainderBoundComputable I n
     add polyVal remainder
+
+/-- Interval exponential using Taylor coefficients prepared for depth `n`. -/
+def expComputableWithCoeffs (I : IntervalRat) (n : ℕ) (coeffs : List ℚ) : IntervalRat :=
+  if I.hi ≤ 0 ∨ 0 ≤ I.lo then
+    let expLo := expPointComputableWithCoeffs I.lo n coeffs
+    let expHi := expPointComputableWithCoeffs I.hi n coeffs
+    hull expLo expHi
+  else
+    let polyVal := evalTaylorSeries coeffs I
+    let remainder := expRemainderBoundComputable I n
+    add polyVal remainder
+
+theorem expComputableWithCoeffs_eq (I : IntervalRat) (n : ℕ) :
+    expComputableWithCoeffs I n (expTaylorCoeffs n) = expComputable I n := by
+  simp [expComputableWithCoeffs, expComputable, expPointComputableWithCoeffs_eq]
 
 /-! ### Computable sin via Taylor series -/
 
@@ -276,6 +305,20 @@ def sinComputable (I : IntervalRat) (n : ℕ := 10) : IntervalRat :=
   | some refined => refined
   | none => raw  -- Should not happen for valid inputs
 
+/-- Interval sine using Taylor coefficients prepared for depth `n`. -/
+def sinComputableWithCoeffs (I : IntervalRat) (n : ℕ) (coeffs : List ℚ) : IntervalRat :=
+  let polyVal := evalTaylorSeries coeffs I
+  let remainder := sinRemainderBoundComputable I n
+  let raw := add polyVal remainder
+  let globalBound : IntervalRat := ⟨-1, 1, by norm_num⟩
+  match intersect raw globalBound with
+  | some refined => refined
+  | none => raw
+
+theorem sinComputableWithCoeffs_eq (I : IntervalRat) (n : ℕ) :
+    sinComputableWithCoeffs I n (sinTaylorCoeffs n) = sinComputable I n := by
+  simp [sinComputableWithCoeffs, sinComputable]
+
 /-! ### Computable cos via Taylor series -/
 
 /-- Taylor coefficients for cos: 1, 0, -1/2, 0, 1/24, 0, ... -/
@@ -314,6 +357,20 @@ def cosComputable (I : IntervalRat) (n : ℕ := 10) : IntervalRat :=
   match intersect raw globalBound with
   | some refined => refined
   | none => raw  -- Should not happen for valid inputs
+
+/-- Interval cosine using Taylor coefficients prepared for depth `n`. -/
+def cosComputableWithCoeffs (I : IntervalRat) (n : ℕ) (coeffs : List ℚ) : IntervalRat :=
+  let polyVal := evalTaylorSeries coeffs I
+  let remainder := cosRemainderBoundComputable I n
+  let raw := add polyVal remainder
+  let globalBound : IntervalRat := ⟨-1, 1, by norm_num⟩
+  match intersect raw globalBound with
+  | some refined => refined
+  | none => raw
+
+theorem cosComputableWithCoeffs_eq (I : IntervalRat) (n : ℕ) :
+    cosComputableWithCoeffs I n (cosTaylorCoeffs n) = cosComputable I n := by
+  simp [cosComputableWithCoeffs, cosComputable]
 
 /-! ### Computable sinh and cosh via exp -/
 
@@ -1357,6 +1414,23 @@ def atanhPointComputable (q : ℚ) (n : ℕ := 15) : IntervalRat :=
     let remainder := atanhRemainderBoundComputable r n
     add polyVal remainder
 
+/-- Point `atanh` using Taylor coefficients prepared for depth `n`. -/
+def atanhPointComputableWithCoeffs (q : ℚ) (n : ℕ)
+    (coeffs : List ℚ) : IntervalRat :=
+  let r := |q|
+  if r ≥ 1 then
+    ⟨-1000, 1000, by norm_num⟩
+  else
+    let I := singleton q
+    let polyVal := evalTaylorSeries coeffs I
+    let remainder := atanhRemainderBoundComputable r n
+    add polyVal remainder
+
+theorem atanhPointComputableWithCoeffs_eq (q : ℚ) (n : ℕ) :
+    atanhPointComputableWithCoeffs q n (atanhTaylorCoeffs n) =
+      atanhPointComputable q n := by
+  simp [atanhPointComputableWithCoeffs, atanhPointComputable]
+
 /-- The atanh series: atanh(x) = Σ_{k=0}^∞ x^(2k+1)/(2k+1) for |x| < 1.
     Derived from Mathlib's hasSum_log_sub_log_of_abs_lt_one. -/
 theorem Real.atanh_hasSum' {x : ℝ} (hx : |x| < 1) :
@@ -1750,6 +1824,26 @@ def logPointComputable (q : ℚ) (n : ℕ := 20) : IntervalRat :=
     let k_ln2 := scale k (ln2Computable n)
     add log_m k_ln2
 
+/-- Logarithm evaluation using all configuration-dependent data prepared for depth `n`. -/
+def logPointComputablePrepared (q : ℚ) (n : ℕ) (ln2 : IntervalRat)
+    (atanhCoeffs : List ℚ) : IntervalRat :=
+  if q ≤ 0 then
+    ⟨-1000, 1000, by norm_num⟩
+  else
+    let k := logReductionExponent q
+    let m := logReduceMantissa q
+    let y := (m - 1) / (m + 1)
+    let atanh_y := atanhPointComputableWithCoeffs y n atanhCoeffs
+    let log_m := scale 2 atanh_y
+    let k_ln2 := scale k ln2
+    add log_m k_ln2
+
+theorem logPointComputablePrepared_eq (q : ℚ) (n : ℕ) :
+    logPointComputablePrepared q n (ln2Computable n) (atanhTaylorCoeffs n) =
+      logPointComputable q n := by
+  simp [logPointComputablePrepared, logPointComputable,
+    atanhPointComputableWithCoeffs_eq]
+
 /-- Computable interval enclosure for log using endpoint evaluation.
     Since log is strictly increasing on (0, ∞), we evaluate at endpoints. -/
 def logComputable (I : IntervalRat) (n : ℕ := 20) : IntervalRat :=
@@ -1760,6 +1854,21 @@ def logComputable (I : IntervalRat) (n : ℕ := 20) : IntervalRat :=
     let logLo := logPointComputable I.lo n
     let logHi := logPointComputable I.hi n
     hull logLo logHi
+
+/-- Interval logarithm using all data prepared for depth `n`. -/
+def logComputablePrepared (I : IntervalRat) (n : ℕ) (ln2 : IntervalRat)
+    (atanhCoeffs : List ℚ) : IntervalRat :=
+  if I.lo ≤ 0 then
+    ⟨-1000, 1000, by norm_num⟩
+  else
+    let logLo := logPointComputablePrepared I.lo n ln2 atanhCoeffs
+    let logHi := logPointComputablePrepared I.hi n ln2 atanhCoeffs
+    hull logLo logHi
+
+theorem logComputablePrepared_eq (I : IntervalRat) (n : ℕ) :
+    logComputablePrepared I n (ln2Computable n) (atanhTaylorCoeffs n) =
+      logComputable I n := by
+  simp [logComputablePrepared, logComputable, logPointComputablePrepared_eq]
 
 /-- The local logReductionExponent equals LogReduction.reductionExponent for positive q -/
 private theorem logReductionExponent_eq {q : ℚ} (hq : 0 < q) :
@@ -2078,6 +2187,22 @@ def atanhComputable (I : IntervalRat) (n : ℕ := 15) : IntervalRat :=
     let atanhLo := atanhPointComputable I.lo n
     let atanhHi := atanhPointComputable I.hi n
     hull atanhLo atanhHi
+
+/-- Interval `atanh` using Taylor coefficients prepared for depth `n`. -/
+def atanhComputableWithCoeffs (I : IntervalRat) (n : ℕ)
+    (coeffs : List ℚ) : IntervalRat :=
+  if I.lo ≤ -1 then
+    ⟨-1000, 1000, by norm_num⟩
+  else if 1 ≤ I.hi then
+    ⟨-1000, 1000, by norm_num⟩
+  else
+    let atanhLo := atanhPointComputableWithCoeffs I.lo n coeffs
+    let atanhHi := atanhPointComputableWithCoeffs I.hi n coeffs
+    hull atanhLo atanhHi
+
+theorem atanhComputableWithCoeffs_eq (I : IntervalRat) (n : ℕ) :
+    atanhComputableWithCoeffs I n (atanhTaylorCoeffs n) = atanhComputable I n := by
+  simp [atanhComputableWithCoeffs, atanhComputable, atanhPointComputableWithCoeffs_eq]
 
 /-- FTIA for atanhComputable: if x ∈ I and I ⊂ (-1, 1), then atanh(x) ∈ atanhComputable I n. -/
 theorem mem_atanhComputable {x : ℝ} {I : IntervalRat} (hx : x ∈ I)

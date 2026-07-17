@@ -13,9 +13,9 @@ precompileModules = false
 # Note: LeanCert.Examples.Li2Bounds is the lightweight li(2) interface for
 # downstream projects (builds in seconds; its two bound statements are
 # intentionally `sorry` — see the file docstring). The machine-checked proofs
-# live in the Li2Verified target (several minutes of native_decide interval
-# arithmetic), built in LeanCert CI, which ends with a statement-identity
-# check against the interface.
+# live in the Li2Verified target (under a minute of native_decide interval
+# arithmetic on a typical development machine), built in LeanCert CI, which
+# ends with a statement-identity check against the interface.
 
 # Examples and tests - not part of default build
 # Build with: lake build examples
@@ -101,6 +101,7 @@ roots = [
   "LeanCert.Test.FinSumBound",
   "LeanCert.Test.FinSumExpandTest",
   "LeanCert.Test.Hardening",
+  "LeanCert.Test.IntegrationDyadicChecked",
   "LeanCert.Test.Numeral",
   "LeanCert.Test.Pisano",
   "LeanCert.Test.PublicEvalAPI",
@@ -109,7 +110,6 @@ roots = [
   "LeanCert.Test.SqrtTest",
   "LeanCert.Test.Support",
   "LeanCert.Test.TestDyadicEval",
-  "LeanCert.Test.TestDyadicIntegration",
   "LeanCert.Test.TestPhase3",
   "LeanCert.Test.TransformerTest",
   "LeanCert.Test.TrigReduction",
@@ -154,6 +154,7 @@ roots = [
   "LeanCert.Test.BenchmarkBackends",
   "LeanCert.Test.ExtremeBenchmark",
   "LeanCert.Test.IntensiveBenchmark",
+  "LeanCert.Test.TestDyadicIntegration",
   "LeanCert.Test.TimingBenchmark",
 ]
 precompileModules = false
