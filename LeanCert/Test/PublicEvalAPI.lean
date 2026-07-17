@@ -21,6 +21,11 @@ open LeanCert.Core
 def unitInterval : IntervalRat := ⟨0, 1, by norm_num⟩
 def crossesZero : IntervalRat := ⟨-1, 1, by norm_num⟩
 def identity : Expr := .var 0
+def sine : Expr := .sin identity
+
+def denominatorGrowth : Nat → Expr
+  | 0 => identity
+  | n + 1 => .add (.const (1 / 1000003)) (denominatorGrowth n)
 
 def invalidDyadicOptions : EvalOptions := {
   backend := .dyadic
@@ -60,7 +65,9 @@ def optimizationFailed (result : EvalResult GlobalOutcome) : Bool :=
   | .ok _ => false
   | .error _ => true
 
-#guard usedBackend .dyadic (evalInterval identity [unitInterval])
+#guard usedBackend .rational (evalInterval identity [unitInterval])
+#guard usedBackend .dyadic (evalInterval sine [unitInterval])
+#guard usedBackend .dyadic (evalInterval (denominatorGrowth 30) [unitInterval])
 #guard usedBackend .rational
   (evalInterval identity [unitInterval] { backend := .rational })
 #guard usedBackend .dyadic

@@ -84,6 +84,74 @@ def resolveBackend (choice : BackendChoice) (operation : BackendOperation) :
   else
     .error (.unsupportedBackend s!"{repr selected} does not support certified {repr operation}")
 
+/-- The two backends considered by automatic interval evaluation.
+
+Affine selection is kept separate until the dependency heuristic has its own
+quality benchmarks and policy tests. -/
+inductive AutomaticIntervalBackend where
+  | rational
+  | dyadic
+  deriving Repr, DecidableEq
+
+def AutomaticIntervalBackend.toConcrete : AutomaticIntervalBackend → ConcreteBackend
+  | .rational => .rational
+  | .dyadic => .dyadic
+
+structure AutomaticIntervalStats where
+  hasNonlinear : Bool := false
+  denominatorBits : Nat := 0
+  deriving Repr, DecidableEq
+
+private def rationalDenominatorBits (q : ℚ) : Nat :=
+  if q.den = 0 then 0 else Nat.log2 q.den + 1
+
+private def AutomaticIntervalStats.combine
+    (left right : AutomaticIntervalStats) : AutomaticIntervalStats := {
+  hasNonlinear := left.hasNonlinear || right.hasNonlinear
+  denominatorBits := left.denominatorBits + right.denominatorBits
+}
+
+/-- Static features used by automatic interval-backend selection.
+
+The denominator score is additive over the syntax tree. It cheaply predicts
+the exact-rational growth seen in long expressions with many non-dyadic
+coefficients. -/
+def automaticIntervalStats : Expr → AutomaticIntervalStats
+  | .const q => { denominatorBits := rationalDenominatorBits q }
+  | .var _ => {}
+  | .namedConst c => {
+      denominatorBits :=
+        rationalDenominatorBits c.interval.lo + rationalDenominatorBits c.interval.hi
+    }
+  | .add left right | .mul left right =>
+      (automaticIntervalStats left).combine (automaticIntervalStats right)
+  | .neg e => automaticIntervalStats e
+  | .inv e | .exp e | .sin e | .cos e | .log e | .atan e | .arsinh e |
+      .atanh e | .sinc e | .erf e | .sinh e | .cosh e | .tanh e | .sqrt e =>
+      { automaticIntervalStats e with hasNonlinear := true }
+
+/-- Denominator-bit budget beyond which automatic selection avoids exact Rational growth. -/
+def automaticIntervalDenominatorBudget : Nat := 512
+
+/-- Select Rational for ordinary algebraic expressions and Dyadic for
+nonlinear/transcendental expressions or syntax with high denominator-growth
+risk. The selector is deterministic and runs once at the operation boundary. -/
+def selectAutomaticIntervalBackend (e : Expr) : AutomaticIntervalBackend :=
+  let stats := automaticIntervalStats e
+  if stats.hasNonlinear || stats.denominatorBits > automaticIntervalDenominatorBudget then
+    .dyadic
+  else
+    .rational
+
+/-- Resolve interval evaluation with expression-aware automatic selection. -/
+def resolveIntervalBackend (choice : BackendChoice) (e : Expr) :
+    EvalResult ConcreteBackend :=
+  match choice with
+  | .auto => .ok (selectAutomaticIntervalBackend e).toConcrete
+  | .rational => .ok .rational
+  | .dyadic => .ok .dyadic
+  | .affine => .ok .affine
+
 /-- Convert a box-shaped list to the conventional interval environment. -/
 def intervalEnvOfList (box : List IntervalRat) : IntervalEnv :=
   fun i => box.getD i (IntervalRat.singleton 0)
@@ -103,7 +171,7 @@ expose legacy finite sentinels for reciprocal, logarithm, or `atanh` failures.
 -/
 def dispatch (options : BackendOptions) (e : Expr)
     (box : List IntervalRat) : EvalResult IntervalOutcome :=
-  match resolveBackend options.backend .intervalEvaluation with
+  match resolveIntervalBackend options.backend e with
   | .error err => .error err
   | .ok backend => match backend with
     | .rational =>
@@ -133,12 +201,21 @@ def dispatch (options : BackendOptions) (e : Expr)
         (fun result => { interval := result.toInterval, backend }) <$>
           evalIntervalAffineChecked e (toAffineEnv box) cfg
 
-/-- `auto` is definitionally the checked Dyadic path for interval evaluation. -/
-theorem dispatch_auto_eq_dyadic (options : BackendOptions)
-    (e : Expr) (box : List IntervalRat) :
+/-- Automatic Rational selection is observationally the explicit checked path. -/
+theorem dispatch_auto_eq_rational_of_select (options : BackendOptions)
+    (e : Expr) (box : List IntervalRat)
+    (hselect : selectAutomaticIntervalBackend e = .rational) :
+    dispatch { options with backend := .auto } e box =
+      dispatch { options with backend := .rational } e box := by
+  simp [dispatch, resolveIntervalBackend, AutomaticIntervalBackend.toConcrete, hselect]
+
+/-- Automatic Dyadic selection is observationally the explicit checked path. -/
+theorem dispatch_auto_eq_dyadic_of_select (options : BackendOptions)
+    (e : Expr) (box : List IntervalRat)
+    (hselect : selectAutomaticIntervalBackend e = .dyadic) :
     dispatch { options with backend := .auto } e box =
       dispatch { options with backend := .dyadic } e box := by
-  rfl
+  simp [dispatch, resolveIntervalBackend, AutomaticIntervalBackend.toConcrete, hselect]
 
 /-- The Rational dispatcher branch preserves the checked evaluator theorem. -/
 theorem dispatch_rational_correct (options : BackendOptions) (e : Expr)
@@ -148,18 +225,18 @@ theorem dispatch_rational_correct (options : BackendOptions) (e : Expr)
     Expr.eval ρ e ∈ outcome.interval := by
   have hdepth : options.taylorDepth = 10 := by
     by_contra h
-    simp [dispatch, resolveBackend, backendSupports, h] at hsuccess
+    simp [dispatch, resolveIntervalBackend, h] at hsuccess
   cases heval : evalIntervalChecked e (intervalEnvOfList box) with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [dispatch, resolveBackend, backendSupports, hdepth, heval] using hsuccess
+        simpa [dispatch, resolveIntervalBackend, hdepth, heval] using hsuccess
       contradiction
   | ok I =>
       have hsound := evalIntervalChecked_correct e (intervalEnvOfList box) I heval ρ hρ
       have hout : outcome = { interval := I, backend := .rational } := by
         have h : (Except.ok { interval := I, backend := ConcreteBackend.rational } :
             EvalResult IntervalOutcome) = Except.ok outcome := by
-          simpa [dispatch, resolveBackend, backendSupports, hdepth, heval] using hsuccess
+          simpa [dispatch, resolveIntervalBackend, hdepth, heval] using hsuccess
         injection h with h'
         exact h'.symm
       subst outcome
@@ -177,7 +254,7 @@ theorem dispatch_dyadic_correct (options : BackendOptions) (e : Expr)
     have : Except.error (EvalError.invalidConfiguration
         "dyadicPrecision must be nonpositive for certified outward rounding") =
         Except.ok outcome := by
-      simpa [dispatch, resolveBackend, backendSupports, hpos] using hsuccess
+      simpa [dispatch, resolveIntervalBackend, hpos] using hsuccess
     contradiction
   let cfg : DyadicConfig := {
     precision := options.dyadicPrecision
@@ -190,7 +267,7 @@ theorem dispatch_dyadic_correct (options : BackendOptions) (e : Expr)
   cases heval : evalIntervalDyadicChecked e ρd cfg with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [dispatch, resolveBackend, backendSupports, cfg, ρd,
+        simpa [dispatch, resolveIntervalBackend, cfg, ρd,
           show ¬options.dyadicPrecision > 0 from not_lt.mpr hprec, heval] using hsuccess
       contradiction
   | ok I =>
@@ -201,7 +278,7 @@ theorem dispatch_dyadic_correct (options : BackendOptions) (e : Expr)
         have h : (Except.ok {
             interval := I.toIntervalRat, backend := ConcreteBackend.dyadic } :
             EvalResult IntervalOutcome) = Except.ok outcome := by
-          simpa [dispatch, resolveBackend, backendSupports, cfg, ρd,
+          simpa [dispatch, resolveIntervalBackend, cfg, ρd,
             show ¬options.dyadicPrecision > 0 from not_lt.mpr hprec, heval] using hsuccess
         injection h with h'
         exact h'.symm
@@ -225,7 +302,7 @@ theorem dispatch_affine_correct_of_noise (options : BackendOptions) (e : Expr)
   cases heval : evalIntervalAffineChecked e (toAffineEnv box) cfg with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [dispatch, resolveBackend, backendSupports, cfg, heval] using hsuccess
+        simpa [dispatch, resolveIntervalBackend, cfg, heval] using hsuccess
       contradiction
   | ok a =>
       have hsound := evalIntervalAffineChecked_correct e ρ (toAffineEnv box) eps
@@ -236,7 +313,7 @@ theorem dispatch_affine_correct_of_noise (options : BackendOptions) (e : Expr)
         have h : (Except.ok {
             interval := a.toInterval, backend := ConcreteBackend.affine } :
             EvalResult IntervalOutcome) = Except.ok outcome := by
-          simpa [dispatch, resolveBackend, backendSupports, cfg, heval] using hsuccess
+          simpa [dispatch, resolveIntervalBackend, cfg, heval] using hsuccess
         injection h with h'
         exact h'.symm
       subst outcome
@@ -275,9 +352,25 @@ theorem dispatch_correct (options : BackendOptions) (e : Expr)
   rcases options with ⟨backend, taylorDepth, dyadicPrecision, maxNoiseSymbols⟩
   cases backend with
   | auto =>
-      exact dispatch_dyadic_correct
-        { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
-        e box outcome hsuccess rho hrho
+      cases hselect : selectAutomaticIntervalBackend e with
+      | rational =>
+          apply dispatch_rational_correct
+            { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+            e box outcome
+          · rw [← dispatch_auto_eq_rational_of_select
+              { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+              e box hselect]
+            exact hsuccess
+          · exact hrho
+      | dyadic =>
+          apply dispatch_dyadic_correct
+            { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+            e box outcome
+          · rw [← dispatch_auto_eq_dyadic_of_select
+              { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+              e box hselect]
+            exact hsuccess
+          · exact hrho
   | rational =>
       exact dispatch_rational_correct
         { backend := .rational, taylorDepth, dyadicPrecision, maxNoiseSymbols }
