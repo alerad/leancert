@@ -159,8 +159,10 @@ once per certificate and reuses it for every cell. This cache is an internal,
 deterministic default: it introduces no public flag, mutable state, persisted
 artifact, or new trust assumption. The prepared evaluator's interval result
 and domain-validity bit are both proved equal to the original evaluator. The
-context is operation-independent and can host further certified constants or
-coefficient tables; logarithm reduction is its first optimized consumer.
+context is operation-independent and currently prepares the certified `log 2`
+enclosure together with the coefficient families used by `log`, `exp`, `sin`,
+`cos`, and `atanh`. Further kernels can join this mechanism without changing
+the public evaluator configuration.
 
 Search and tuning code may propose nonuniform rational partitions without
 entering the trusted proof boundary. The certificate checker independently

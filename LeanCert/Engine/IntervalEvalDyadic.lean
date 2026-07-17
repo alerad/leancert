@@ -403,9 +403,9 @@ open LeanCert.Core LeanCert.Engine
 
 /-- Static data prepared once for repeated Dyadic evaluation.
 
-The coefficient families make the context operation-independent: logarithm is
-the first consumer, while exp/trigonometric kernels can be migrated without
-changing the evaluator or its public configuration. -/
+The context is operation-independent: logarithm, exponential, trigonometric,
+and inverse-hyperbolic kernels share certified constants and coefficient
+families without changing the public evaluator configuration. -/
 structure PreparedContext where
   cfg : DyadicConfig
   ln2 : IntervalRat
@@ -431,7 +431,8 @@ def prepareContext (cfg : DyadicConfig) : PreparedContext :=
 def logIntervalPrepared (I : IntervalDyadic) (ctx : PreparedContext) : IntervalDyadic :=
   let IRat := I.toIntervalRat
   if IRat.lo > 0 then
-    let result := IntervalRat.logComputableWithLn2 IRat ctx.cfg.taylorDepth ctx.ln2
+    let result := IntervalRat.logComputablePrepared IRat ctx.cfg.taylorDepth ctx.ln2
+      ctx.atanhCoeffs
     IntervalDyadic.ofIntervalRat result ctx.cfg.precision
   else
     ⟨Core.Dyadic.ofInt (-1000), Core.Dyadic.ofInt 1000, by simp [Dyadic.toRat_ofInt]⟩
@@ -439,7 +440,51 @@ def logIntervalPrepared (I : IntervalDyadic) (ctx : PreparedContext) : IntervalD
 theorem logIntervalPrepared_prepareContext (I : IntervalDyadic) (cfg : DyadicConfig) :
     logIntervalPrepared I (prepareContext cfg) = logIntervalDyadic I cfg := by
   simp [logIntervalPrepared, prepareContext, logIntervalDyadic,
-    IntervalRat.logComputableWithLn2_eq]
+    IntervalRat.logComputablePrepared_eq]
+
+/-- Exponential kernel using the context's prepared Taylor coefficients. -/
+def expIntervalPrepared (I : IntervalDyadic) (ctx : PreparedContext) : IntervalDyadic :=
+  let result := IntervalRat.expComputableWithCoeffs I.toIntervalRat ctx.cfg.taylorDepth
+    ctx.expCoeffs
+  IntervalDyadic.ofIntervalRat result ctx.cfg.precision
+
+theorem expIntervalPrepared_prepareContext (I : IntervalDyadic) (cfg : DyadicConfig) :
+    expIntervalPrepared I (prepareContext cfg) = expIntervalDyadic I cfg := by
+  simp [expIntervalPrepared, prepareContext, expIntervalDyadic,
+    IntervalRat.expComputableWithCoeffs_eq]
+
+/-- Sine kernel using the context's prepared Taylor coefficients. -/
+def sinIntervalPrepared (I : IntervalDyadic) (ctx : PreparedContext) : IntervalDyadic :=
+  let result := IntervalRat.sinComputableWithCoeffs I.toIntervalRat ctx.cfg.taylorDepth
+    ctx.sinCoeffs
+  IntervalDyadic.ofIntervalRat result ctx.cfg.precision
+
+theorem sinIntervalPrepared_prepareContext (I : IntervalDyadic) (cfg : DyadicConfig) :
+    sinIntervalPrepared I (prepareContext cfg) = sinIntervalDyadic I cfg := by
+  simp [sinIntervalPrepared, prepareContext, sinIntervalDyadic,
+    IntervalRat.sinComputableWithCoeffs_eq]
+
+/-- Cosine kernel using the context's prepared Taylor coefficients. -/
+def cosIntervalPrepared (I : IntervalDyadic) (ctx : PreparedContext) : IntervalDyadic :=
+  let result := IntervalRat.cosComputableWithCoeffs I.toIntervalRat ctx.cfg.taylorDepth
+    ctx.cosCoeffs
+  IntervalDyadic.ofIntervalRat result ctx.cfg.precision
+
+theorem cosIntervalPrepared_prepareContext (I : IntervalDyadic) (cfg : DyadicConfig) :
+    cosIntervalPrepared I (prepareContext cfg) = cosIntervalDyadic I cfg := by
+  simp [cosIntervalPrepared, prepareContext, cosIntervalDyadic,
+    IntervalRat.cosComputableWithCoeffs_eq]
+
+/-- Inverse-hyperbolic-tangent kernel using prepared Taylor coefficients. -/
+def atanhIntervalPrepared (I : IntervalDyadic) (ctx : PreparedContext) : IntervalDyadic :=
+  let result := IntervalRat.atanhComputableWithCoeffs I.toIntervalRat ctx.cfg.taylorDepth
+    ctx.atanhCoeffs
+  IntervalDyadic.ofIntervalRat result ctx.cfg.precision
+
+theorem atanhIntervalPrepared_prepareContext (I : IntervalDyadic) (cfg : DyadicConfig) :
+    atanhIntervalPrepared I (prepareContext cfg) = atanhIntervalDyadic I cfg := by
+  simp [atanhIntervalPrepared, prepareContext, atanhIntervalDyadic,
+    IntervalRat.atanhComputableWithCoeffs_eq]
 
 /-- Evaluate an expression and its domain-validity bit in one traversal.
 The value component is exactly `LeanCert.Internal.Dyadic.evalUnchecked`; the validity component is
@@ -533,13 +578,13 @@ def evalPreparedCached (e : Expr) (ρ : IntervalDyadicEnv)
       (invIntervalDyadic r.1 ctx.cfg, r.2 && (decide (I.lo > 0) || decide (I.hi < 0)))
   | .exp e =>
       let r := evalPreparedCached e ρ ctx
-      (expIntervalDyadic r.1 ctx.cfg, r.2)
+      (expIntervalPrepared r.1 ctx, r.2)
   | .sin e =>
       let r := evalPreparedCached e ρ ctx
-      (sinIntervalDyadic r.1 ctx.cfg, r.2)
+      (sinIntervalPrepared r.1 ctx, r.2)
   | .cos e =>
       let r := evalPreparedCached e ρ ctx
-      (cosIntervalDyadic r.1 ctx.cfg, r.2)
+      (cosIntervalPrepared r.1 ctx, r.2)
   | .log e =>
       let r := evalPreparedCached e ρ ctx
       (logIntervalPrepared r.1 ctx, r.2 && decide (r.1.toIntervalRat.lo > 0))
@@ -552,7 +597,7 @@ def evalPreparedCached (e : Expr) (ρ : IntervalDyadicEnv)
   | .atanh e =>
       let r := evalPreparedCached e ρ ctx
       let I := r.1.toIntervalRat
-      (atanhIntervalDyadic r.1 ctx.cfg,
+      (atanhIntervalPrepared r.1 ctx,
         r.2 && decide (I.lo > -1) && decide (I.hi < 1))
   | .sinc e =>
       let r := evalPreparedCached e ρ ctx
@@ -601,7 +646,11 @@ theorem evalIntervalDyadicPreparedCached_fst (e : Expr) (ρ : IntervalDyadicEnv)
   induction e <;>
     simp [LeanCert.Internal.Dyadic.evalPreparedCached,
       LeanCert.Internal.Dyadic.evalUnchecked,
-      LeanCert.Internal.Dyadic.logIntervalPrepared_prepareContext, *]
+      LeanCert.Internal.Dyadic.logIntervalPrepared_prepareContext,
+      LeanCert.Internal.Dyadic.expIntervalPrepared_prepareContext,
+      LeanCert.Internal.Dyadic.sinIntervalPrepared_prepareContext,
+      LeanCert.Internal.Dyadic.cosIntervalPrepared_prepareContext,
+      LeanCert.Internal.Dyadic.atanhIntervalPrepared_prepareContext, *]
 
 theorem evalIntervalDyadicPreparedCached_snd (e : Expr) (ρ : IntervalDyadicEnv)
     (cfg : DyadicConfig := {}) :
