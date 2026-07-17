@@ -144,14 +144,22 @@ See `LeanCert/Test/BenchmarkBackends.lean` for performance comparisons.
 High-performance integration using the dyadic backend, enabling verified integral bounds for complex expressions where rational arithmetic would be prohibitively slow:
 
 - `integrateInterval1Dyadic_correct`: Single-interval dyadic integration correctness
-- `integratePartitionDyadic_correct`: Partition-based dyadic integration with uniform partitioning
-- `integratePartitionDyadic_bound_correct`: Upper/lower bound extraction from partition results
+- `integral_bounds_of_check_dyadic`: Two-sided certified bounds with uniform partitioning
+- `integral_bounds_of_check_dyadic_list`: Two-sided certified bounds with an arbitrary checked partition
+- `checkListPartitionCovers_correct`: Candidate partitions are independently checked for endpoints and adjacency
 
 The dyadic integration module (`Validity/IntegrationDyadic.lean`) uses an
 internal total evaluator together with executable domain checks. Public
 checked integration returns `none` on invalid domains; boolean certificate
 checkers return `false`. Correctness theorems require either a successful
 checked result or the corresponding domain-validity hypothesis.
+
+Search and tuning code may propose nonuniform rational partitions without
+entering the trusted proof boundary. The certificate checker independently
+verifies that the candidate covers the requested interval without gaps, fuses
+domain validation with interval evaluation, and accepts only when the final
+enclosure proves the requested bounds. This supports pilot-driven autotuning
+while keeping failure and inconclusive search results distinct from proofs.
 
 ### Bernstein Polynomial Enclosure
 

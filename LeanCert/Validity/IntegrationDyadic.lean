@@ -121,6 +121,28 @@ def integratePartitionDyadic (e : Expr) (I : IntervalRat) (n : ℕ) (hn : 0 < n)
   let bounds := collectBoundsDyadic e parts cfg
   bounds.foldl IntervalRat.add (IntervalRat.singleton 0)
 
+/-- Evaluate and validate every partition cell in one expression traversal.
+
+The first component is definitionally the same enclosure produced by
+`integratePartitionDyadic`; the second component is the corresponding domain
+check.  Keeping them together avoids walking the expression tree twice per
+cell when a full certificate is checked. -/
+def integratePartitionDyadicChecked (e : Expr) (I : IntervalRat) (n : ℕ) (hn : 0 < n)
+    (cfg : DyadicConfig := {}) : IntervalRat × Bool :=
+  let cells := (uniformPartition I n hn).map fun Ik =>
+    let Idyad := IntervalDyadic.ofIntervalRat Ik cfg.precision
+    let result := LeanCert.Internal.Dyadic.evalCached e (fun _ => Idyad) cfg
+    (IntervalRat.mul (IntervalRat.singleton Ik.width) result.1.toIntervalRat, result.2)
+  (cells.map Prod.fst |>.foldl IntervalRat.add (IntervalRat.singleton 0),
+    cells.all Prod.snd)
+
+theorem integratePartitionDyadicChecked_fst (e : Expr) (I : IntervalRat)
+    (n : ℕ) (hn : 0 < n) (cfg : DyadicConfig) :
+    (integratePartitionDyadicChecked e I n hn cfg).1 = integratePartitionDyadic e I n hn cfg := by
+  simp [integratePartitionDyadicChecked, integratePartitionDyadic, collectBoundsDyadic,
+    evalDyadic1, integrateInterval1Dyadic, Function.comp_def,
+    evalIntervalDyadicCached_fst]
+
 /-! ### Domain validity -/
 
 /-- Domain validity for all subintervals in a partition. -/
@@ -135,6 +157,12 @@ def checkPartitionDomainValid (e : Expr) (I : IntervalRat) (n : ℕ) (hn : 0 < n
     (cfg : DyadicConfig) : Bool :=
   (uniformPartition I n hn).all fun Ik =>
     checkDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat Ik cfg.precision) cfg
+
+theorem integratePartitionDyadicChecked_snd (e : Expr) (I : IntervalRat)
+    (n : ℕ) (hn : 0 < n) (cfg : DyadicConfig) :
+    (integratePartitionDyadicChecked e I n hn cfg).2 = checkPartitionDomainValid e I n hn cfg := by
+  simp [integratePartitionDyadicChecked, checkPartitionDomainValid, Function.comp_def,
+    evalIntervalDyadicCached_snd]
 
 theorem checkPartitionDomainValid_correct (e : Expr) (I : IntervalRat) (n : ℕ) (hn : 0 < n)
     (cfg : DyadicConfig) :
@@ -190,8 +218,8 @@ def checkIntegralUpperBoundDyadicFull (e : Expr) (I : IntervalRat) (n : ℕ)
 def checkIntegralBoundsDyadicFull (e : Expr) (I : IntervalRat) (n : ℕ)
     (lower upper : ℚ) (cfg : DyadicConfig := {}) : Bool :=
   if hn : 0 < n then
-    let J := integratePartitionDyadic e I n hn cfg
-    checkPartitionDomainValid e I n hn cfg && decide (lower ≤ J.lo ∧ J.hi ≤ upper)
+    let result := integratePartitionDyadicChecked e I n hn cfg
+    result.2 && decide (lower ≤ result.1.lo ∧ result.1.hi ≤ upper)
   else
     false
 
@@ -273,6 +301,8 @@ theorem integral_bounds_of_check_dyadic (e : Expr)
       ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (upper : ℝ) := by
   unfold checkIntegralBoundsDyadicFull at hcheck
   simp only [hn, ↓reduceDIte, Bool.and_eq_true, decide_eq_true_eq] at hcheck
+  rw [integratePartitionDyadicChecked_snd] at hcheck
+  rw [integratePartitionDyadicChecked_fst] at hcheck
   have hdomall := checkPartitionDomainValid_correct e I n hn cfg hcheck.1
   have hmem := integral_mem_bound_dyadic e I n hn cfg hprec hdomall hInt
   simp only [IntervalRat.mem_def] at hmem
@@ -294,11 +324,36 @@ def integratePartitionDyadicList (e : Expr) (parts : List IntervalRat)
   let bounds := collectBoundsDyadic e parts cfg
   bounds.foldl IntervalRat.add (IntervalRat.singleton 0)
 
+/-- One-pass enclosure and domain check for an arbitrary partition. -/
+def integratePartitionDyadicListChecked (e : Expr) (parts : List IntervalRat)
+    (cfg : DyadicConfig := {}) : IntervalRat × Bool :=
+  let cells := parts.map fun Ik =>
+    let Idyad := IntervalDyadic.ofIntervalRat Ik cfg.precision
+    let result := LeanCert.Internal.Dyadic.evalCached e (fun _ => Idyad) cfg
+    (IntervalRat.mul (IntervalRat.singleton Ik.width) result.1.toIntervalRat, result.2)
+  (cells.map Prod.fst |>.foldl IntervalRat.add (IntervalRat.singleton 0),
+    cells.all Prod.snd)
+
+theorem integratePartitionDyadicListChecked_fst (e : Expr) (parts : List IntervalRat)
+    (cfg : DyadicConfig) :
+    (integratePartitionDyadicListChecked e parts cfg).1 =
+      integratePartitionDyadicList e parts cfg := by
+  simp [integratePartitionDyadicListChecked, integratePartitionDyadicList,
+    collectBoundsDyadic, integrateInterval1Dyadic, evalDyadic1, Function.comp_def,
+    evalIntervalDyadicCached_fst]
+
 /-- Domain validity check for an arbitrary list of subintervals. -/
 def checkPartitionDomainValidList (e : Expr) (parts : List IntervalRat)
     (cfg : DyadicConfig) : Bool :=
   parts.all fun Ik =>
     checkDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat Ik cfg.precision) cfg
+
+theorem integratePartitionDyadicListChecked_snd (e : Expr) (parts : List IntervalRat)
+    (cfg : DyadicConfig) :
+    (integratePartitionDyadicListChecked e parts cfg).2 =
+      checkPartitionDomainValidList e parts cfg := by
+  simp [integratePartitionDyadicListChecked, checkPartitionDomainValidList,
+    Function.comp_def, evalIntervalDyadicCached_snd]
 
 /-- Combined checker (lower bound) for arbitrary partition. -/
 def checkIntegralLowerBoundDyadicList (e : Expr) (parts : List IntervalRat)
@@ -312,6 +367,12 @@ def checkIntegralUpperBoundDyadicList (e : Expr) (parts : List IntervalRat)
   checkPartitionDomainValidList e parts cfg &&
   decide ((integratePartitionDyadicList e parts cfg).hi ≤ c)
 
+/-- Fused two-sided checker for an arbitrary partition. -/
+def checkIntegralBoundsDyadicList (e : Expr) (parts : List IntervalRat)
+    (lower upper : ℚ) (cfg : DyadicConfig := {}) : Bool :=
+  let result := integratePartitionDyadicListChecked e parts cfg
+  result.2 && decide (lower ≤ result.1.lo ∧ result.1.hi ≤ upper)
+
 /-! ### List partition coverage -/
 
 /-- A list of intervals forms a partition of `I`: non-empty, adjacent, and spanning `[I.lo, I.hi]`.
@@ -323,6 +384,56 @@ structure ListPartitionCovers (parts : List IntervalRat) (I : IntervalRat) : Pro
   last_hi : (parts.getLast nonempty).hi = I.hi
   adjacent : ∀ k (hk : k + 1 < parts.length),
     (parts[k]'(by omega)).hi = (parts[k + 1]'hk).lo
+
+/-- Check adjacency of consecutive intervals. -/
+def checkAdjacent : List IntervalRat → Bool
+  | [] | [_] => true
+  | a :: b :: rest => decide (a.hi = b.lo) && checkAdjacent (b :: rest)
+
+private theorem checkAdjacent_correct (parts : List IntervalRat) :
+    checkAdjacent parts = true → ∀ k (hk : k + 1 < parts.length),
+      (parts[k]'(by omega)).hi = (parts[k + 1]'hk).lo := by
+  induction parts with
+  | nil => simp
+  | cons a tail ih =>
+    cases tail with
+    | nil => simp
+    | cons b rest =>
+      simp only [checkAdjacent, Bool.and_eq_true, decide_eq_true_eq]
+      rintro ⟨hab, hrest⟩ k hk
+      cases k with
+      | zero => simpa using hab
+      | succ k =>
+        have hkTail : k + 1 < (b :: rest).length := by simpa using hk
+        change ((b :: rest)[k]'(by omega)).hi =
+          ((b :: rest)[k + 1]'hkTail).lo
+        exact ih hrest k hkTail
+
+/-- Independently check that an arbitrary candidate partition exactly covers `I`. -/
+def checkListPartitionCovers (parts : List IntervalRat) (I : IntervalRat) : Bool :=
+  match h : parts with
+  | [] => false
+  | p :: ps =>
+      decide (p.lo = I.lo) &&
+      decide (((p :: ps).getLast (by simp)).hi = I.hi) &&
+      checkAdjacent (p :: ps)
+
+theorem checkListPartitionCovers_correct (parts : List IntervalRat) (I : IntervalRat) :
+    checkListPartitionCovers parts I = true → ListPartitionCovers parts I := by
+  intro hcheck
+  cases hparts : parts with
+  | nil =>
+    rw [hparts] at hcheck
+    simp [checkListPartitionCovers] at hcheck
+  | cons p ps =>
+    rw [hparts] at hcheck
+    simp only [checkListPartitionCovers, Bool.and_eq_true, decide_eq_true_eq] at hcheck
+    refine ⟨by simp, ?_, ?_, ?_⟩
+    · simpa [hparts] using hcheck.1.1
+    · simpa [hparts] using hcheck.1.2
+    · intro k hk
+      have hadj := checkAdjacent_correct (p :: ps) hcheck.2 k (by simpa [hparts] using hk)
+      simpa [hparts] using hadj
 
 /-- Domain validity for all subintervals in a list-based partition. -/
 def listPartitionDomainValid (e : Expr) (parts : List IntervalRat)
@@ -500,5 +611,26 @@ theorem integral_upper_of_check_dyadic_list (e : Expr)
   calc ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e
       ≤ ((integratePartitionDyadicList e parts cfg).hi : ℝ) := hmem.2
     _ ≤ (c : ℝ) := by exact_mod_cast hcheck.2
+
+/-- Bridge theorem for a fused two-sided arbitrary-partition certificate. -/
+theorem integral_bounds_of_check_dyadic_list (e : Expr)
+    (I : IntervalRat) (parts : List IntervalRat)
+    (hcover : ListPartitionCovers parts I)
+    (lower upper : ℚ) (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
+    (hcheck : checkIntegralBoundsDyadicList e parts lower upper cfg = true)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
+      MeasureTheory.volume I.lo I.hi) :
+    (lower : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∧
+      ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (upper : ℝ) := by
+  unfold checkIntegralBoundsDyadicList at hcheck
+  simp only [Bool.and_eq_true, decide_eq_true_eq] at hcheck
+  rw [integratePartitionDyadicListChecked_snd] at hcheck
+  rw [integratePartitionDyadicListChecked_fst] at hcheck
+  have hdomall := checkPartitionDomainValidList_correct e parts cfg hcheck.1
+  have hmem := integral_mem_bound_dyadic_list e parts I hcover cfg hprec hdomall hInt
+  simp only [IntervalRat.mem_def] at hmem
+  constructor
+  · exact le_trans (by exact_mod_cast hcheck.2.1) hmem.1
+  · exact le_trans hmem.2 (by exact_mod_cast hcheck.2.2)
 
 end LeanCert.Validity.IntegrationDyadic

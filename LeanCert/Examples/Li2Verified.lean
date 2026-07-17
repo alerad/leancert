@@ -23,7 +23,8 @@ This file proves `li2_bounds_verified`, which establishes:
 
 The proof uses:
 - Partition of [0, 1] into 7 subintervals
-- Dyadic interval arithmetic with 3000 partitions on [1/1000, 999/1000]
+- Dyadic interval arithmetic with a checked, pilot-tuned 2300-cell partition on
+  [1/1000, 999/1000]
 - 100 partitions on tail intervals
 - Analytic bounds on tiny tail intervals near 0 and 1
 
@@ -53,8 +54,8 @@ open Li2
 
 /-! ### Dyadic configuration for fast integration -/
 
-/-- Dyadic precision config for Li2 integration. The default -53-bit precision
-    with Taylor depth 18 is sufficient for the 3000-partition bounds. -/
+/-- Dyadic precision config for Li2 integration. IEEE-like -53-bit precision
+    with Taylor depth 18 is sufficient for the checked adaptive-partition bounds. -/
 def li2DyadicConfig : LeanCert.Engine.DyadicConfig :=
   LeanCert.Engine.DyadicConfig.mk (-53) 18
 
@@ -445,6 +446,16 @@ theorem integral_upper_bound (a b c : ℝ) (ha_pos : 0 < a) (hb_lt : b < 1)
 /-- The main mid-range interval [1/1000, 999/1000] for numerical integration. -/
 def g_mid_interval_main : IntervalRat := ⟨1/1000, 999/1000, by norm_num⟩
 
+/-- A pilot-tuned partition for the verified mid-range integral.  More cells are
+allocated where a coarse interval evaluation contributes the most enclosure width. -/
+def g_mid_partition : List IntervalRat :=
+  LeanCert.Engine.uniformPartition
+      (⟨1 / 1000, 1 / 20, by norm_num⟩ : IntervalRat) 420 (by norm_num) ++
+  LeanCert.Engine.uniformPartition
+      (⟨1 / 20, 9 / 10, by norm_num⟩ : IntervalRat) 1620 (by norm_num) ++
+  LeanCert.Engine.uniformPartition
+      (⟨9 / 10, 999 / 1000, by norm_num⟩ : IntervalRat) 260 (by norm_num)
+
 theorem g_intervalIntegrable_main :
     IntervalIntegrable g volume (g_mid_interval_main.lo : ℝ) (g_mid_interval_main.hi : ℝ) := by
   have hlo_pos : 0 < (g_mid_interval_main.lo : ℝ) := by norm_num [g_mid_interval_main]
@@ -521,13 +532,16 @@ theorem g_mid_integral_bounds :
     (103775 : ℚ) / 100000 ≤ ∫ t in (1 / 1000 : ℝ)..(999 / 1000), g t ∧
       ∫ t in (1 / 1000 : ℝ)..(999 / 1000), g t ≤ (104840 : ℚ) / 100000 := by
   rw [← g_alt_integral_eq]
-  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralBoundsDyadicFull
-      g_alt_expr g_mid_interval_main 3000 (103775 / 100000) (104840 / 100000)
+  have hcover : LeanCert.Validity.IntegrationDyadic.ListPartitionCovers
+      g_mid_partition g_mid_interval_main :=
+    LeanCert.Validity.IntegrationDyadic.checkListPartitionCovers_correct _ _ (by native_decide)
+  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralBoundsDyadicList
+      g_alt_expr g_mid_partition (103775 / 100000) (104840 / 100000)
         li2DyadicConfig = true := by
     native_decide
   simpa [g_mid_interval_main] using
-    (LeanCert.Validity.IntegrationDyadic.integral_bounds_of_check_dyadic
-      g_alt_expr g_mid_interval_main 3000 (by norm_num) (103775 / 100000)
+    (LeanCert.Validity.IntegrationDyadic.integral_bounds_of_check_dyadic_list
+      g_alt_expr g_mid_interval_main g_mid_partition hcover (103775 / 100000)
       (104840 / 100000) li2DyadicConfig (by native_decide) hcheck
       g_alt_intervalIntegrable_main)
 
