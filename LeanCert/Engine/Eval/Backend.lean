@@ -84,21 +84,21 @@ def resolveBackend (choice : BackendChoice) (operation : BackendOperation) :
   else
     .error (.unsupportedBackend s!"{repr selected} does not support certified {repr operation}")
 
-/-- The two backends considered by automatic interval evaluation.
-
-Affine selection is kept separate until the dependency heuristic has its own
-quality benchmarks and policy tests. -/
+/-- Backends considered by automatic interval evaluation. -/
 inductive AutomaticIntervalBackend where
   | rational
   | dyadic
+  | affine
   deriving Repr, DecidableEq
 
 def AutomaticIntervalBackend.toConcrete : AutomaticIntervalBackend → ConcreteBackend
   | .rational => .rational
   | .dyadic => .dyadic
+  | .affine => .affine
 
 structure AutomaticIntervalStats where
   hasNonlinear : Bool := false
+  hasExactCancellation : Bool := false
   denominatorBits : Nat := 0
   deriving Repr, DecidableEq
 
@@ -108,8 +108,13 @@ private def rationalDenominatorBits (q : ℚ) : Nat :=
 private def AutomaticIntervalStats.combine
     (left right : AutomaticIntervalStats) : AutomaticIntervalStats := {
   hasNonlinear := left.hasNonlinear || right.hasNonlinear
+  hasExactCancellation := left.hasExactCancellation || right.hasExactCancellation
   denominatorBits := left.denominatorBits + right.denominatorBits
 }
+
+private def isExactCancellation : Expr → Expr → Bool
+  | left, .neg right | .neg right, left => decide (left = right)
+  | _, _ => false
 
 /-- Static features used by automatic interval-backend selection.
 
@@ -123,7 +128,12 @@ def automaticIntervalStats : Expr → AutomaticIntervalStats
       denominatorBits :=
         rationalDenominatorBits c.interval.lo + rationalDenominatorBits c.interval.hi
     }
-  | .add left right | .mul left right =>
+  | .add left right =>
+      let combined := (automaticIntervalStats left).combine (automaticIntervalStats right)
+      { combined with
+        hasExactCancellation := combined.hasExactCancellation ||
+          isExactCancellation left right }
+  | .mul left right =>
       (automaticIntervalStats left).combine (automaticIntervalStats right)
   | .neg e => automaticIntervalStats e
   | .inv e | .exp e | .sin e | .cos e | .log e | .atan e | .arsinh e |
@@ -133,12 +143,16 @@ def automaticIntervalStats : Expr → AutomaticIntervalStats
 /-- Denominator-bit budget beyond which automatic selection avoids exact Rational growth. -/
 def automaticIntervalDenominatorBudget : Nat := 512
 
-/-- Select Rational for ordinary algebraic expressions and Dyadic for
-nonlinear/transcendental expressions or syntax with high denominator-growth
-risk. The selector is deterministic and runs once at the operation boundary. -/
+/-- Select Affine for exact repeated-subexpression cancellation, Rational for
+ordinary algebraic expressions, and Dyadic for nonlinear/transcendental
+expressions or syntax with high denominator-growth risk. The selector is
+deterministic and runs once at the operation boundary. -/
 def selectAutomaticIntervalBackend (e : Expr) : AutomaticIntervalBackend :=
   let stats := automaticIntervalStats e
-  if stats.hasNonlinear || stats.denominatorBits > automaticIntervalDenominatorBudget then
+  if stats.hasExactCancellation then
+    .affine
+  else if stats.hasNonlinear ||
+      stats.denominatorBits > automaticIntervalDenominatorBudget then
     .dyadic
   else
     .rational
@@ -215,6 +229,14 @@ theorem dispatch_auto_eq_dyadic_of_select (options : BackendOptions)
     (hselect : selectAutomaticIntervalBackend e = .dyadic) :
     dispatch { options with backend := .auto } e box =
       dispatch { options with backend := .dyadic } e box := by
+  simp [dispatch, resolveIntervalBackend, AutomaticIntervalBackend.toConcrete, hselect]
+
+/-- Automatic Affine selection is observationally the explicit checked path. -/
+theorem dispatch_auto_eq_affine_of_select (options : BackendOptions)
+    (e : Expr) (box : List IntervalRat)
+    (hselect : selectAutomaticIntervalBackend e = .affine) :
+    dispatch { options with backend := .auto } e box =
+      dispatch { options with backend := .affine } e box := by
   simp [dispatch, resolveIntervalBackend, AutomaticIntervalBackend.toConcrete, hselect]
 
 /-- The Rational dispatcher branch preserves the checked evaluator theorem. -/
@@ -367,6 +389,15 @@ theorem dispatch_correct (options : BackendOptions) (e : Expr)
             { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
             e box outcome
           · rw [← dispatch_auto_eq_dyadic_of_select
+              { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+              e box hselect]
+            exact hsuccess
+          · exact hrho
+      | affine =>
+          apply dispatch_affine_correct
+            { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
+            e box outcome
+          · rw [← dispatch_auto_eq_affine_of_select
               { backend := .auto, taylorDepth, dyadicPrecision, maxNoiseSymbols }
               e box hselect]
             exact hsuccess

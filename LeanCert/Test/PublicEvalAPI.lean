@@ -22,6 +22,7 @@ def unitInterval : IntervalRat := ⟨0, 1, by norm_num⟩
 def crossesZero : IntervalRat := ⟨-1, 1, by norm_num⟩
 def identity : Expr := .var 0
 def sine : Expr := .sin identity
+def cancellation : Expr := .add identity (.neg identity)
 
 def denominatorGrowth : Nat → Expr
   | 0 => identity
@@ -67,6 +68,7 @@ def optimizationFailed (result : EvalResult GlobalOutcome) : Bool :=
 
 #guard usedBackend .rational (evalInterval identity [unitInterval])
 #guard usedBackend .dyadic (evalInterval sine [unitInterval])
+#guard usedBackend .affine (evalInterval cancellation [unitInterval])
 #guard usedBackend .dyadic (evalInterval (denominatorGrowth 30) [unitInterval])
 #guard usedBackend .rational
   (evalInterval identity [unitInterval] { backend := .rational })

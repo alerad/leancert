@@ -15,17 +15,18 @@ Supported selector values are `auto`, `rational`, `dyadic`, and `affine`.
 
 | Operation | `auto` backend | Explicit alternatives |
 |---|---|---|
-| Interval evaluation and bound checks | Expression-aware Rational/Dyadic | Rational, Dyadic, Affine |
+| Interval evaluation and bound checks | Expression-aware Rational/Dyadic/Affine | Rational, Dyadic, Affine |
 | Global optimization | Dyadic | Rational, Dyadic, Affine |
 | Integration | Rational | Rational |
 | Root finding | Rational | Rational |
 
-For interval evaluation, `auto` chooses Rational for ordinary algebraic
-expressions and Dyadic for nonlinear expressions or syntax whose cumulative
-rational-denominator size exceeds the configured internal budget. Global
-optimization remains Dyadic by default; integration and roots remain
-Rational. Automatic selection does not fall through after a domain error. An
-explicit unsupported backend is rejected rather than silently changed.
+For interval evaluation, `auto` chooses Affine for exact repeated-subexpression
+cancellation, Rational for ordinary algebraic expressions, and Dyadic for
+nonlinear expressions or syntax whose cumulative rational-denominator size
+exceeds the configured internal budget. Global optimization remains Dyadic by
+default; integration and roots remain Rational. Automatic selection does not
+fall through after a domain error. An explicit unsupported backend is rejected
+rather than silently changed.
 
 Every successful evaluation comes from a checked evaluator and records the
 concrete backend in its result. Reciprocal intervals containing zero,
