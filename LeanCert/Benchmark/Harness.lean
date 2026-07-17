@@ -45,7 +45,8 @@ structure Config where
 def usage : String := "LeanCert benchmark harness\n\n\
 Usage: lake exe leancert-bench [options]\n\n\
 Options:\n\
-  --suite smoke|evaluation   Select benchmark suite (default: smoke)\n\
+  --suite smoke|evaluation|heavy|full\n\
+                              Select benchmark suite (default: smoke)\n\
   --case TEXT                Run cases whose names contain TEXT\n\
   --samples N                Timed samples per case (default: 10)\n\
   --warmups N                Untimed warmups per case (default: 3)\n\
@@ -116,6 +117,14 @@ private def formatNanos (ns : Nat) : String :=
 private def markdownCell (value : String) : String :=
   value.replace "|" "\\|" |>.replace "\n" " "
 
+private def bitLength (n : Nat) : Nat :=
+  if n = 0 then 0 else Nat.log2 n + 1
+
+private def formatWidth (width : ℚ) : String :=
+  let exact := s!"{width}"
+  if exact.length ≤ 32 then exact
+  else s!"{bitLength width.num.natAbs}-bit/{bitLength width.den}-bit"
+
 private def measure (benchmark : Case) : IO (Nat × Outcome) := do
   let iterations := max 1 benchmark.innerIterations
   let start ← IO.monoNanosNow
@@ -185,10 +194,11 @@ p10={formatNanos (percentile sorted 10)}, p90={formatNanos (percentile sorted 90
       innerIterations := 1, sample := 0 }).outcome
     let backendUsed := lastOutcome.backendUsed.getD "—"
     let width := match lastOutcome.interval with
-      | some I => s!"{I.hi - I.lo}"
+      | some I => formatWidth (I.hi - I.lo)
       | none => "—"
     IO.println s!"| {markdownCell benchmark.name} | {benchmark.layer.name} | \
 {markdownCell benchmark.backendRequested} | {markdownCell backendUsed} | \
+{benchmark.input.astNodes} | {benchmark.input.astDepth} | \
 {markdownCell lastOutcome.status} | {markdownCell width} | \
 {formatNanos (median timings)} | {formatNanos (medianAbsoluteDeviation timings)} | \
 {formatNanos (percentile sorted 10)} | {formatNanos (percentile sorted 90)} |"
@@ -220,8 +230,8 @@ def runBenchmarks (cfg : Config) (benchmarks : List Case) : IO UInt32 := do
     IO.println s!"- Untimed warmups per case: {cfg.warmups}"
     IO.println "- Timing unit: per evaluator call"
     IO.println ""
-    IO.println "| Case | Layer | Requested backend | Used backend | Status | Width | Median | MAD | p10 | p90 |"
-    IO.println "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |"
+    IO.println "| Case | Layer | Requested backend | Used backend | Nodes | Depth | Status | Width | Median | MAD | p10 | p90 |"
+    IO.println "| --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |"
   let mut allPassed := true
   for benchmark in chosen do
     if !(← runCase runId cfg benchmark) then allPassed := false

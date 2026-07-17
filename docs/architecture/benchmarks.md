@@ -27,6 +27,12 @@ lake exe leancert-bench --list
 # Run the complete evaluator/backend matrix
 lake exe leancert-bench --suite evaluation
 
+# Run only the larger scaling workloads
+lake exe leancert-bench --suite heavy
+
+# Run both the baseline and heavier evaluator matrices
+lake exe leancert-bench --suite full
+
 # Select one family of cases
 lake exe leancert-bench --suite evaluation --case nested_sin
 
@@ -35,15 +41,17 @@ lake exe leancert-bench \
   --suite evaluation --samples 15 --warmups 3 --format jsonl \
   > benchmark-results.jsonl
 
-# Run the full evaluator suite and write a readable Markdown report
+# Run the baseline and heavier suites and write a readable Markdown report
 lake exe leancert-bench \
-  --suite evaluation --samples 15 --warmups 3 --format markdown \
+  --suite full --samples 15 --warmups 3 --format markdown \
   > benchmark-results.md
 ```
 
 Human and Markdown modes report the median, median absolute deviation, p10,
 and p90. Markdown mode also includes the result status, selected backend, and
 enclosure width in a table suitable for a pull request or benchmark artifact.
+The table also reports expression AST size and depth so scaling points are
+explicit.
 Timing is normalized per evaluator call. JSONL mode retains every sample
 together with:
 
