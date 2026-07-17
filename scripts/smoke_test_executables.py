@@ -33,7 +33,7 @@ def fail(message: str, process: subprocess.CompletedProcess[str] | None = None) 
 
 def main() -> int:
     try:
-        run("lake", "build", "leancert", "lean_bridge", "check-compat")
+        run("lake", "build", "leancert", "lean_bridge", "check-compat", "leancert-bench")
 
         cli = run("lake", "exe", "leancert")
         expected_banner = "LeanCert - A Wolfram-Like, Proof-Producing Engine in Lean"
@@ -56,6 +56,15 @@ def main() -> int:
             return fail("The compatibility checker rejected the repository's Mathlib pin.", compat)
         if compat_response.get("expected_rev") != compat_response.get("found_commit"):
             return fail("The compatibility checker reported inconsistent resolved commits.", compat)
+
+        benchmark = run(
+            "lake", "exe", "leancert-bench",
+            "--case", "x_minus_x.checked.auto",
+            "--samples", "1", "--warmups", "0", "--format", "jsonl",
+        )
+        benchmark_sample = json.loads(benchmark.stdout)
+        if benchmark_sample.get("backend_used") != "dyadic":
+            return fail("The benchmark executable did not run its checked Auto smoke case.", benchmark)
     except subprocess.CalledProcessError as error:
         return fail(f"Executable smoke test command failed: {' '.join(error.cmd)}", error)
     except (json.JSONDecodeError, TypeError) as error:
