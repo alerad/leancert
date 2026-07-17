@@ -129,9 +129,10 @@ check.  Keeping them together avoids walking the expression tree twice per
 cell when a full certificate is checked. -/
 def integratePartitionDyadicChecked (e : Expr) (I : IntervalRat) (n : ℕ) (hn : 0 < n)
     (cfg : DyadicConfig := {}) : IntervalRat × Bool :=
+  let ctx := LeanCert.Internal.Dyadic.prepareContext cfg
   let cells := (uniformPartition I n hn).map fun Ik =>
     let Idyad := IntervalDyadic.ofIntervalRat Ik cfg.precision
-    let result := LeanCert.Internal.Dyadic.evalCached e (fun _ => Idyad) cfg
+    let result := LeanCert.Internal.Dyadic.evalPreparedCached e (fun _ => Idyad) ctx
     (IntervalRat.mul (IntervalRat.singleton Ik.width) result.1.toIntervalRat, result.2)
   (cells.map Prod.fst |>.foldl IntervalRat.add (IntervalRat.singleton 0),
     cells.all Prod.snd)
@@ -141,7 +142,7 @@ theorem integratePartitionDyadicChecked_fst (e : Expr) (I : IntervalRat)
     (integratePartitionDyadicChecked e I n hn cfg).1 = integratePartitionDyadic e I n hn cfg := by
   simp [integratePartitionDyadicChecked, integratePartitionDyadic, collectBoundsDyadic,
     evalDyadic1, integrateInterval1Dyadic, Function.comp_def,
-    evalIntervalDyadicCached_fst]
+    evalIntervalDyadicPreparedCached_fst]
 
 /-! ### Domain validity -/
 
@@ -162,7 +163,7 @@ theorem integratePartitionDyadicChecked_snd (e : Expr) (I : IntervalRat)
     (n : ℕ) (hn : 0 < n) (cfg : DyadicConfig) :
     (integratePartitionDyadicChecked e I n hn cfg).2 = checkPartitionDomainValid e I n hn cfg := by
   simp [integratePartitionDyadicChecked, checkPartitionDomainValid, Function.comp_def,
-    evalIntervalDyadicCached_snd]
+    evalIntervalDyadicPreparedCached_snd]
 
 theorem checkPartitionDomainValid_correct (e : Expr) (I : IntervalRat) (n : ℕ) (hn : 0 < n)
     (cfg : DyadicConfig) :
@@ -327,9 +328,10 @@ def integratePartitionDyadicList (e : Expr) (parts : List IntervalRat)
 /-- One-pass enclosure and domain check for an arbitrary partition. -/
 def integratePartitionDyadicListChecked (e : Expr) (parts : List IntervalRat)
     (cfg : DyadicConfig := {}) : IntervalRat × Bool :=
+  let ctx := LeanCert.Internal.Dyadic.prepareContext cfg
   let cells := parts.map fun Ik =>
     let Idyad := IntervalDyadic.ofIntervalRat Ik cfg.precision
-    let result := LeanCert.Internal.Dyadic.evalCached e (fun _ => Idyad) cfg
+    let result := LeanCert.Internal.Dyadic.evalPreparedCached e (fun _ => Idyad) ctx
     (IntervalRat.mul (IntervalRat.singleton Ik.width) result.1.toIntervalRat, result.2)
   (cells.map Prod.fst |>.foldl IntervalRat.add (IntervalRat.singleton 0),
     cells.all Prod.snd)
@@ -340,7 +342,7 @@ theorem integratePartitionDyadicListChecked_fst (e : Expr) (parts : List Interva
       integratePartitionDyadicList e parts cfg := by
   simp [integratePartitionDyadicListChecked, integratePartitionDyadicList,
     collectBoundsDyadic, integrateInterval1Dyadic, evalDyadic1, Function.comp_def,
-    evalIntervalDyadicCached_fst]
+    evalIntervalDyadicPreparedCached_fst]
 
 /-- Domain validity check for an arbitrary list of subintervals. -/
 def checkPartitionDomainValidList (e : Expr) (parts : List IntervalRat)
@@ -353,7 +355,7 @@ theorem integratePartitionDyadicListChecked_snd (e : Expr) (parts : List Interva
     (integratePartitionDyadicListChecked e parts cfg).2 =
       checkPartitionDomainValidList e parts cfg := by
   simp [integratePartitionDyadicListChecked, checkPartitionDomainValidList,
-    Function.comp_def, evalIntervalDyadicCached_snd]
+    Function.comp_def, evalIntervalDyadicPreparedCached_snd]
 
 /-- Combined checker (lower bound) for arbitrary partition. -/
 def checkIntegralLowerBoundDyadicList (e : Expr) (parts : List IntervalRat)

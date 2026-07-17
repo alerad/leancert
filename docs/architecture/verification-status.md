@@ -154,6 +154,14 @@ checked integration returns `none` on invalid domains; boolean certificate
 checkers return `false`. Correctness theorems require either a successful
 checked result or the corresponding domain-validity hypothesis.
 
+Checked partition integration prepares configuration-dependent numerical data
+once per certificate and reuses it for every cell. This cache is an internal,
+deterministic default: it introduces no public flag, mutable state, persisted
+artifact, or new trust assumption. The prepared evaluator's interval result
+and domain-validity bit are both proved equal to the original evaluator. The
+context is operation-independent and can host further certified constants or
+coefficient tables; logarithm reduction is its first optimized consumer.
+
 Search and tuning code may propose nonuniform rational partitions without
 entering the trusted proof boundary. The certificate checker independently
 verifies that the candidate covers the requested interval without gaps, fuses

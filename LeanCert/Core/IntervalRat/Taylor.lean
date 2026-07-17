@@ -1750,6 +1750,27 @@ def logPointComputable (q : ℚ) (n : ℕ := 20) : IntervalRat :=
     let k_ln2 := scale k (ln2Computable n)
     add log_m k_ln2
 
+/-- Logarithm evaluation with a prepared enclosure of `log 2`.
+
+This is the residual, input-dependent part of `logPointComputable`.  Callers
+that evaluate many points at the same Taylor depth can compute `ln2` once and
+reuse it without changing the resulting interval. -/
+def logPointComputableWithLn2 (q : ℚ) (n : ℕ) (ln2 : IntervalRat) : IntervalRat :=
+  if q ≤ 0 then
+    ⟨-1000, 1000, by norm_num⟩
+  else
+    let k := logReductionExponent q
+    let m := logReduceMantissa q
+    let y := (m - 1) / (m + 1)
+    let atanh_y := atanhPointComputable y n
+    let log_m := scale 2 atanh_y
+    let k_ln2 := scale k ln2
+    add log_m k_ln2
+
+theorem logPointComputableWithLn2_eq (q : ℚ) (n : ℕ) :
+    logPointComputableWithLn2 q n (ln2Computable n) = logPointComputable q n := by
+  simp [logPointComputableWithLn2, logPointComputable]
+
 /-- Computable interval enclosure for log using endpoint evaluation.
     Since log is strictly increasing on (0, ∞), we evaluate at endpoints. -/
 def logComputable (I : IntervalRat) (n : ℕ := 20) : IntervalRat :=
@@ -1760,6 +1781,19 @@ def logComputable (I : IntervalRat) (n : ℕ := 20) : IntervalRat :=
     let logLo := logPointComputable I.lo n
     let logHi := logPointComputable I.hi n
     hull logLo logHi
+
+/-- Interval logarithm using a prepared enclosure of `log 2`. -/
+def logComputableWithLn2 (I : IntervalRat) (n : ℕ) (ln2 : IntervalRat) : IntervalRat :=
+  if I.lo ≤ 0 then
+    ⟨-1000, 1000, by norm_num⟩
+  else
+    let logLo := logPointComputableWithLn2 I.lo n ln2
+    let logHi := logPointComputableWithLn2 I.hi n ln2
+    hull logLo logHi
+
+theorem logComputableWithLn2_eq (I : IntervalRat) (n : ℕ) :
+    logComputableWithLn2 I n (ln2Computable n) = logComputable I n := by
+  simp [logComputableWithLn2, logComputable, logPointComputableWithLn2_eq]
 
 /-- The local logReductionExponent equals LogReduction.reductionExponent for positive q -/
 private theorem logReductionExponent_eq {q : ℚ} (hq : 0 < q) :
