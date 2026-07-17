@@ -12,6 +12,8 @@ PHILO*
 *.hash
 .DS_Store
 site/
+benchmark-results*.jsonl
+benchmark-results*.md
 __pycache__/
 *.pyc
 .lake/

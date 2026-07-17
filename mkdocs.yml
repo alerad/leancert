@@ -91,6 +91,7 @@ nav:
     - Table Certificates: architecture/table-certificates.md
     - Root Finding: architecture/root-finding.md
     - Verification Status: architecture/verification-status.md
+    - Benchmark Harness: architecture/benchmarks.md
   - Reference:
     - Imports: reference/imports.md
     - Tactics: reference/tactics.md
