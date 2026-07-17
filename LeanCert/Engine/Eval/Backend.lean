@@ -194,7 +194,7 @@ def dispatch (options : BackendOptions) (e : Expr)
             "the checked Rational evaluator has fixed Taylor depth 10")
         else
           (fun result => { interval := result, backend }) <$>
-            evalIntervalChecked e (intervalEnvOfList box)
+            evalIntervalTightChecked e (intervalEnvOfList box)
     | .dyadic =>
         if options.dyadicPrecision > 0 then
           .error (.invalidConfiguration
@@ -248,13 +248,14 @@ theorem dispatch_rational_correct (options : BackendOptions) (e : Expr)
   have hdepth : options.taylorDepth = 10 := by
     by_contra h
     simp [dispatch, resolveIntervalBackend, h] at hsuccess
-  cases heval : evalIntervalChecked e (intervalEnvOfList box) with
+  cases heval : evalIntervalTightChecked e (intervalEnvOfList box) with
   | error err =>
       have : Except.error err = Except.ok outcome := by
         simpa [dispatch, resolveIntervalBackend, hdepth, heval] using hsuccess
       contradiction
   | ok I =>
-      have hsound := evalIntervalChecked_correct e (intervalEnvOfList box) I heval ρ hρ
+      have hsound := evalIntervalTightChecked_correct e (intervalEnvOfList box)
+        {} I heval ρ hρ
       have hout : outcome = { interval := I, backend := .rational } := by
         have h : (Except.ok { interval := I, backend := ConcreteBackend.rational } :
             EvalResult IntervalOutcome) = Except.ok outcome := by

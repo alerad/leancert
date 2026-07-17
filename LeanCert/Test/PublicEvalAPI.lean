@@ -44,6 +44,11 @@ def failed (result : EvalResult IntervalOutcome) : Bool :=
   | .ok _ => false
   | .error _ => true
 
+def widthLessThan (bound : ℚ) (result : EvalResult IntervalOutcome) : Bool :=
+  match result with
+  | .ok outcome => decide (outcome.interval.hi - outcome.interval.lo < bound)
+  | .error _ => false
+
 def oneStepSearch : SearchOptions := {
   maxIterations := 1
   tolerance := 1 / 100
@@ -70,6 +75,8 @@ def optimizationFailed (result : EvalResult GlobalOutcome) : Bool :=
 #guard usedBackend .dyadic (evalInterval sine [unitInterval])
 #guard usedBackend .affine (evalInterval cancellation [unitInterval])
 #guard usedBackend .dyadic (evalInterval (denominatorGrowth 30) [unitInterval])
+#guard widthLessThan 2
+  (evalInterval sine [unitInterval] { backend := .rational })
 #guard usedBackend .rational
   (evalInterval identity [unitInterval] { backend := .rational })
 #guard usedBackend .dyadic

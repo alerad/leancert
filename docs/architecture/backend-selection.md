@@ -104,7 +104,10 @@ each arithmetic operation, exactly as its evaluator and proof specify.
 evaluator currently has a fixed verified depth of 10; Rational evaluation,
 optimization, integration, bisection, and candidate-certification requests
 with another value are rejected as invalid configuration rather than silently
-ignoring the option.
+ignoring the option. For the verified computable core, checked Rational
+evaluation uses the tight Taylor/reduced-range evaluator. Other syntax falls
+back to the general checked Rational evaluator, retaining structured domain
+errors and the backend-independent correctness contract.
 
 Checked global optimization supports `useMonotonicity`. For the differentiable
 `const/var/add/mul/neg/exp/sin/cos` fragment, a computable interval-AD gradient
