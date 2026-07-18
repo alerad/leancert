@@ -243,8 +243,8 @@ def jsonNatFieldIs (field : String) (expected : Nat) (j : Json) : Bool :=
   expr := Expr.atanh (Expr.var 0), box := #[halfRaw]
 })
 
--- The generic endpoint defaults to the checked Dyadic fast path.
-#guard jsonBackendIs "dyadic" (handleEvalInterval {
+-- The generic endpoint selects Rational for inexpensive polynomial input.
+#guard jsonBackendIs "rational" (handleEvalInterval {
   expr := Expr.add (Expr.var 0) (Expr.const 1), box := #[halfRaw]
 })
 

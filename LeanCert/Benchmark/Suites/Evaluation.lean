@@ -200,7 +200,8 @@ private def workloadCases (workload : Workload) (suiteNames : List String)
   internalCase workload .dyadic includeSmoke suiteNames,
   internalCase workload .affine
     (includeSmoke && workload.name = "x_minus_x") suiteNames,
-  checkedCase workload "auto" .auto .dyadic includeSmoke suiteNames,
+  checkedCase workload "auto" .auto
+    (selectAutomaticIntervalBackend workload.expr).toConcrete includeSmoke suiteNames,
   checkedCase workload "rational" .rational .rational false suiteNames,
   checkedCase workload "dyadic" .dyadic .dyadic false suiteNames,
   checkedCase workload "affine" .affine .affine

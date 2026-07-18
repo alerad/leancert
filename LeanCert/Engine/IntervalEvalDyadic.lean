@@ -985,7 +985,7 @@ theorem evalIntervalDyadicChecked_correct (e : Expr)
   | false =>
     have : Except.error (diagnoseEvalIntervalDyadicFailure e ρ_dyad cfg) =
         Except.ok result := by
-      simpa [cached, hvalid] using hsuccess
+      simp [cached, hvalid] at hsuccess
     contradiction
   | true =>
     have hsuccess' : (Except.ok cached.1 : EvalResult IntervalDyadic) = Except.ok result := by

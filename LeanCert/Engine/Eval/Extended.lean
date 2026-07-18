@@ -531,6 +531,43 @@ theorem evalIntervalChecked_correct (e : Expr) (ρ_int : IntervalEnv) (I : Inter
     subst I
     exact evalInterval?_correct e ρ_int J heval ρ_real hρ
 
+/-- Checked Rational evaluation with a tight path for the verified computable
+core. Unsupported syntax or a failed core-domain check falls back to the
+general checked evaluator, preserving its structured domain errors. -/
+def evalIntervalTightChecked (e : Expr) (ρ : IntervalEnv)
+    (cfg : EvalConfig := {}) : EvalResult IntervalRat :=
+  if e.checkSupportedCore && checkDomainValid e ρ cfg then
+    .ok (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
+  else
+    evalIntervalChecked e ρ
+
+/-- Every successful tight checked Rational evaluation encloses the expression
+value. The core branch uses the core correctness theorem; the fallback uses
+the general checked evaluator theorem. -/
+theorem evalIntervalTightChecked_correct (e : Expr) (ρ_int : IntervalEnv)
+    (cfg : EvalConfig) (I : IntervalRat)
+    (hsuccess : evalIntervalTightChecked e ρ_int cfg = .ok I)
+    (ρ_real : Nat → ℝ) (hρ : envMem ρ_real ρ_int) :
+    Expr.eval ρ_real e ∈ I := by
+  by_cases hsupp : e.checkSupportedCore = true
+  · by_cases hdom : checkDomainValid e ρ_int cfg = true
+    · have hsupp' := Expr.checkSupportedCore_correct hsupp
+      have hdom' := checkDomainValid_correct e ρ_int cfg hdom
+      have hmem := evalIntervalCore_correct e hsupp' ρ_real ρ_int hρ cfg hdom'
+      simp [evalIntervalTightChecked, hsupp, hdom] at hsuccess
+      subst I
+      exact hmem
+    · have hfallback :
+          evalIntervalTightChecked e ρ_int cfg = evalIntervalChecked e ρ_int := by
+        simp [evalIntervalTightChecked, hsupp, hdom]
+      rw [hfallback] at hsuccess
+      exact evalIntervalChecked_correct e ρ_int I hsuccess ρ_real hρ
+  · have hfallback :
+        evalIntervalTightChecked e ρ_int cfg = evalIntervalChecked e ρ_int := by
+      simp [evalIntervalTightChecked, hsupp]
+    rw [hfallback] at hsuccess
+    exact evalIntervalChecked_correct e ρ_int I hsuccess ρ_real hρ
+
 /-- Single-variable version of evalInterval? -/
 def evalInterval?1 (e : Expr) (I : IntervalRat) : Option IntervalRat :=
   evalInterval? e (fun _ => I)

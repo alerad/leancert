@@ -158,4 +158,31 @@ def Expr.checkSupportedCore : Expr → Bool
       .sinh e | .cosh e | .tanh e | .erf e => e.checkSupportedCore
   | _ => false
 
+/-- A successful computable core-support check produces the corresponding
+proof object required by the tight Rational evaluator theorem. -/
+theorem Expr.checkSupportedCore_correct {e : Expr}
+    (h : e.checkSupportedCore = true) : ExprSupportedCore e := by
+  induction e with
+  | const q => exact .const q
+  | var idx => exact .var idx
+  | add left right ihLeft ihRight =>
+      simp only [Expr.checkSupportedCore, Bool.and_eq_true] at h
+      exact .add (ihLeft h.1) (ihRight h.2)
+  | mul left right ihLeft ihRight =>
+      simp only [Expr.checkSupportedCore, Bool.and_eq_true] at h
+      exact .mul (ihLeft h.1) (ihRight h.2)
+  | neg e ih => exact .neg (ih h)
+  | exp e ih => exact .exp (ih h)
+  | sin e ih => exact .sin (ih h)
+  | cos e ih => exact .cos (ih h)
+  | log e ih => exact .log (ih h)
+  | erf e ih => exact .erf (ih h)
+  | sinh e ih => exact .sinh (ih h)
+  | cosh e ih => exact .cosh (ih h)
+  | tanh e ih => exact .tanh (ih h)
+  | sqrt e ih => exact .sqrt (ih h)
+  | namedConst c => exact .namedConst c
+  | inv _ _ | atan _ _ | arsinh _ _ | atanh _ _ | sinc _ _ =>
+      simp [Expr.checkSupportedCore] at h
+
 end LeanCert.Core

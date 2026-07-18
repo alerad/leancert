@@ -76,7 +76,9 @@ theorem BoxEnvMem.eq_zero {rho : Nat → ℝ} {box : List IntervalRat}
 
 /-- Evaluate an expression over a rational box using a checked certified backend.
 
-The default `.auto` backend currently selects Dyadic evaluation. Explicit
+The default `.auto` backend selects Affine for exact cancellation patterns,
+Rational for ordinary algebraic expressions, and Dyadic for nonlinear
+expressions or syntax with high exact-denominator growth risk. Explicit
 backend requests are honored and invalid domains or configurations return a
 structured `EvalError`; they never return a fallback interval. -/
 def evalInterval (e : Expr) (box : List IntervalRat)

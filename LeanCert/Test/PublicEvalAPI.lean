@@ -21,6 +21,12 @@ open LeanCert.Core
 def unitInterval : IntervalRat := ⟨0, 1, by norm_num⟩
 def crossesZero : IntervalRat := ⟨-1, 1, by norm_num⟩
 def identity : Expr := .var 0
+def sine : Expr := .sin identity
+def cancellation : Expr := .add identity (.neg identity)
+
+def denominatorGrowth : Nat → Expr
+  | 0 => identity
+  | n + 1 => .add (.const (1 / 1000003)) (denominatorGrowth n)
 
 def invalidDyadicOptions : EvalOptions := {
   backend := .dyadic
@@ -37,6 +43,11 @@ def failed (result : EvalResult IntervalOutcome) : Bool :=
   match result with
   | .ok _ => false
   | .error _ => true
+
+def widthLessThan (bound : ℚ) (result : EvalResult IntervalOutcome) : Bool :=
+  match result with
+  | .ok outcome => decide (outcome.interval.hi - outcome.interval.lo < bound)
+  | .error _ => false
 
 def oneStepSearch : SearchOptions := {
   maxIterations := 1
@@ -60,7 +71,12 @@ def optimizationFailed (result : EvalResult GlobalOutcome) : Bool :=
   | .ok _ => false
   | .error _ => true
 
-#guard usedBackend .dyadic (evalInterval identity [unitInterval])
+#guard usedBackend .rational (evalInterval identity [unitInterval])
+#guard usedBackend .dyadic (evalInterval sine [unitInterval])
+#guard usedBackend .affine (evalInterval cancellation [unitInterval])
+#guard usedBackend .dyadic (evalInterval (denominatorGrowth 30) [unitInterval])
+#guard widthLessThan 2
+  (evalInterval sine [unitInterval] { backend := .rational })
 #guard usedBackend .rational
   (evalInterval identity [unitInterval] { backend := .rational })
 #guard usedBackend .dyadic
