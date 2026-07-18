@@ -178,7 +178,7 @@ private theorem psiUB_eq_acc (n : Nat) (hn : 0 < n) (depth : Nat) :
 /-- Core bridge: if the incremental loop `go` returns true starting at step `n`
 with accumulator `acc = psiUB(n-1)`, then `checkPsiLeMulWith m slope depth` holds
 for all `m in [n, bound]`. -/
-private def go_true_implies_checkPsiLeMulWith
+private theorem go_true_implies_checkPsiLeMulWith
     (bound : Nat) (slope : Rat) (depth n : Nat) (hn_pos : 0 < n) (acc : Rat)
     (hacc : acc = psiUB (n - 1) depth)
     (hgo : checkAllPsiLeMulWith.go bound slope depth n acc = true)

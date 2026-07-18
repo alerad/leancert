@@ -251,7 +251,7 @@ theorem dispatch_rational_correct (options : BackendOptions) (e : Expr)
   cases heval : evalIntervalTightChecked e (intervalEnvOfList box) with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [dispatch, resolveIntervalBackend, hdepth, heval] using hsuccess
+        simp [dispatch, resolveIntervalBackend, hdepth, heval] at hsuccess
       contradiction
   | ok I =>
       have hsound := evalIntervalTightChecked_correct e (intervalEnvOfList box)
@@ -277,7 +277,7 @@ theorem dispatch_dyadic_correct (options : BackendOptions) (e : Expr)
     have : Except.error (EvalError.invalidConfiguration
         "dyadicPrecision must be nonpositive for certified outward rounding") =
         Except.ok outcome := by
-      simpa [dispatch, resolveIntervalBackend, hpos] using hsuccess
+      simp [dispatch, resolveIntervalBackend, hpos] at hsuccess
     contradiction
   let cfg : DyadicConfig := {
     precision := options.dyadicPrecision
@@ -290,8 +290,8 @@ theorem dispatch_dyadic_correct (options : BackendOptions) (e : Expr)
   cases heval : evalIntervalDyadicChecked e ρd cfg with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [dispatch, resolveIntervalBackend, cfg, ρd,
-          show ¬options.dyadicPrecision > 0 from not_lt.mpr hprec, heval] using hsuccess
+        simp [dispatch, resolveIntervalBackend, cfg, ρd,
+          show ¬options.dyadicPrecision > 0 from not_lt.mpr hprec, heval] at hsuccess
       contradiction
   | ok I =>
       have hsound := evalIntervalDyadicChecked_correct e ρ ρd hρd cfg hprec I heval
@@ -325,7 +325,7 @@ theorem dispatch_affine_correct_of_noise (options : BackendOptions) (e : Expr)
   cases heval : evalIntervalAffineChecked e (toAffineEnv box) cfg with
   | error err =>
       have : Except.error err = Except.ok outcome := by
-        simpa [dispatch, resolveIntervalBackend, cfg, heval] using hsuccess
+        simp [dispatch, resolveIntervalBackend, cfg, heval] at hsuccess
       contradiction
   | ok a =>
       have hsound := evalIntervalAffineChecked_correct e ρ (toAffineEnv box) eps

@@ -486,7 +486,7 @@ private lemma odd_composition_has_non_two_block {n : ℕ} (hn : n % 2 = 1) (comp
 private lemma ofScalars_apply_prod (c : ℕ → ℝ) (k : ℕ) (v : Fin k → ℝ) :
     (FormalMultilinearSeries.ofScalars ℝ c k) v = c k * ∏ i, v i := by
   simp only [FormalMultilinearSeries.ofScalars]
-  simp only [ContinuousMultilinearMap.smul_apply, smul_eq_mul]
+  simp only [smul_apply, smul_eq_mul]
   congr 1
   rw [ContinuousMultilinearMap.mkPiAlgebraFin_apply]
   simp [List.prod_ofFn]
@@ -531,7 +531,7 @@ private lemma coeff_comp_sq_ofScalars (c : ℕ → ℝ) (n : ℕ) :
     ((FormalMultilinearSeries.ofScalars ℝ c).comp sqSeries).coeff n =
       if n % 2 = 0 then c (n / 2) else 0 := by
   simp only [FormalMultilinearSeries.coeff, FormalMultilinearSeries.comp,
-    ContinuousMultilinearMap.sum_apply]
+    sum_apply]
   by_cases hn : n % 2 = 0
   case neg =>
     rw [if_neg hn]

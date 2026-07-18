@@ -106,7 +106,7 @@ theorem mem_insertByBound_iff (queue : List (ℚ × Box)) (lb : ℚ) (B : Box)
   | nil => simp [insertByBound]
   | cons head tail ih =>
       simp only [insertByBound]
-      split <;> simp [ih, or_assoc, or_left_comm]
+      split <;> simp [ih, or_left_comm]
 
 /-- Pop the box with smallest lower bound -/
 def popBest (queue : List (ℚ × Box)) : Option ((ℚ × Box) × List (ℚ × Box)) :=

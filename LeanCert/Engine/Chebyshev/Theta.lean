@@ -206,7 +206,7 @@ where
 
 /-! ### Bridge: checkAllThetaLeMulWith.go → checkThetaLeMulWith -/
 
-private def go_true_implies_checkThetaLeMulWith
+private theorem go_true_implies_checkThetaLeMulWith
     (bound : Nat) (slope : Rat) (depth n : Nat) (hn_pos : 0 < n) (acc : Rat)
     (hacc : acc = thetaUB (n - 1) depth)
     (hgo : checkAllThetaLeMulWith.go bound slope depth n acc = true)
@@ -288,7 +288,7 @@ where
 
 /-! ### Bridge: checkAllThetaAbsError.go → checkThetaAbsError -/
 
-private def go_true_implies_checkThetaAbsError
+private theorem go_true_implies_checkThetaAbsError
     (limit : Nat) (bound : Rat) (depth n : Nat) (hn_pos : 0 < n)
     (accUB accLB : Rat)
     (haccUB : accUB = thetaUB (n - 1) depth)
@@ -400,7 +400,7 @@ where
 
 /-! ### Bridge: checkAllThetaRelError.go → checkThetaRelError -/
 
-private def go_true_implies_checkThetaRelError
+private theorem go_true_implies_checkThetaRelError
     (start limit : Nat) (bound : Rat) (depth n : Nat) (hn_pos : 0 < n)
     (accUB accLB : Rat)
     (haccUB : accUB = thetaUB (n - 1) depth)
@@ -552,7 +552,7 @@ where
 
 /-! ### Bridge: checkAllThetaRelErrorReal → pointwise -/
 
-private def go_true_implies_checkAllThetaRelErrorReal
+private theorem go_true_implies_checkAllThetaRelErrorReal
     (start limit : Nat) (bound : Rat) (depth n : Nat) (hn_pos : 0 < n)
     (accUB accLB : Rat)
     (haccUB : accUB = thetaUB (n - 1) depth)
