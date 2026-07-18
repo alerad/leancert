@@ -63,7 +63,7 @@ def main() -> int:
             "--samples", "1", "--warmups", "0", "--format", "jsonl",
         )
         benchmark_sample = json.loads(benchmark.stdout)
-        if benchmark_sample.get("backend_used") != "dyadic":
+        if benchmark_sample.get("backend_used") != "affine":
             return fail("The benchmark executable did not run its checked Auto smoke case.", benchmark)
     except subprocess.CalledProcessError as error:
         return fail(f"Executable smoke test command failed: {' '.join(error.cmd)}", error)
