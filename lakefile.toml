@@ -55,6 +55,21 @@ name = "DownstreamInterface"
 roots = ["LeanCert.Test.DownstreamInterface"]
 precompileModules = false
 
+# Downstream behavioral guard: compiles representative proof patterns copied
+# from PrimeNumberTheoremAnd. This complements the name-only interface guard.
+# Build explicitly with: lake build DownstreamPatterns
+[[lean_lib]]
+name = "DownstreamPatterns"
+roots = [
+  "LeanCert.Test.DownstreamPatterns",
+  "LeanCert.Test.DownstreamPatterns.Tactics",
+  "LeanCert.Test.DownstreamPatterns.BKLNW",
+  "LeanCert.Test.DownstreamPatterns.Chebyshev",
+  "LeanCert.Test.DownstreamPatterns.PNTCompilers",
+  "LeanCert.Test.DownstreamPatterns.Li2",
+]
+precompileModules = false
+
 # Chebyshev psi smoke test (native_decide)
 # Build explicitly with: lake build ChebyshevPsiTest
 [[lean_lib]]
