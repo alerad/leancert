@@ -3,8 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.ChebyshevPsi
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.CertifiedBounds.Chebyshev
 
 /-!
 # PrimeNumberTheoremAnd Chebyshev checker patterns
@@ -16,8 +15,7 @@ target cheap while protecting the same APIs and elaboration shapes.
 
 namespace LeanCert.Test.DownstreamPatterns.Chebyshev
 
-open LeanCert.Engine.ChebyshevPsi
-open LeanCert.Engine.ChebyshevTheta
+open LeanCert.CertifiedBounds.Chebyshev
 
 private theorem psiChecks : checkAllPsiLeMulWith 5 2 20 = true := by
   native_decide

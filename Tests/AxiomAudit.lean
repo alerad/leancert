@@ -241,10 +241,11 @@ run_meta do
 inline `:= by sorry` forms or tactic-generated holes. This sweep runs
 `collectAxioms` (the `#print axioms` engine) on every public constant declared
 in a `LeanCert.*` module and fails if any of them depends on `sorryAx` —
-except the four explicitly sanctioned `Li2` interface declarations (the
-lightweight-interface/heavy-verification split used by PNT+; see
-`LeanCert/Examples/Li2Bounds.lean`). Their verified counterparts and a
-statement-identity check live in the `Li2Verified` CI target.
+except the four legacy `Li2` interface declarations and their four canonical
+`LeanCert.CertifiedBounds.Li2` aliases (the lightweight-interface/heavy-
+verification split used by PNT+; see `LeanCert/Examples/Li2Bounds.lean`).
+Their verified counterparts and a statement-identity check live in the
+`Li2Verified` CI target.
 
 Internal (name-mangled) constants are skipped: a sorry inside an internal
 auxiliary taints every public declaration that uses it, so the public sweep
@@ -254,7 +255,11 @@ open Lean in
 run_meta do
   let env ← getEnv
   let allowed : Array Name :=
-    #[``Li2.li2_lower, ``Li2.li2_upper, ``Li2.li2_bounds, ``Li2.li2_approx_1045]
+    #[``Li2.li2_lower, ``Li2.li2_upper, ``Li2.li2_bounds, ``Li2.li2_approx_1045,
+      ``LeanCert.CertifiedBounds.Li2.lower,
+      ``LeanCert.CertifiedBounds.Li2.upper,
+      ``LeanCert.CertifiedBounds.Li2.bounds,
+      ``LeanCert.CertifiedBounds.Li2.approx_1045]
   let moduleNames := env.header.moduleNames
   let isLeanCertModule (n : Name) : Bool :=
     match env.getModuleIdxFor? n with

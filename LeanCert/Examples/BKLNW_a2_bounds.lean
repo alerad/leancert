@@ -114,3 +114,87 @@ lemma a2_300_exp_upper :
   LeanCert.Examples.BKLNW_a2_reflective.a2_300_exp_upper
 
 end LeanCert.Examples.BKLNW_a2_bounds
+
+namespace LeanCert.CertifiedBounds.BKLNW
+
+alias floor_20 := LeanCert.Examples.BKLNW_a2_bounds.floor_20
+alias floor_25 := LeanCert.Examples.BKLNW_a2_bounds.floor_25
+alias floor_30 := LeanCert.Examples.BKLNW_a2_bounds.floor_30
+alias floor_35 := LeanCert.Examples.BKLNW_a2_bounds.floor_35
+alias floor_40 := LeanCert.Examples.BKLNW_a2_bounds.floor_40
+alias floor_43 := LeanCert.Examples.BKLNW_a2_bounds.floor_43
+alias floor_100 := LeanCert.Examples.BKLNW_a2_bounds.floor_100
+alias floor_150 := LeanCert.Examples.BKLNW_a2_bounds.floor_150
+alias floor_200 := LeanCert.Examples.BKLNW_a2_bounds.floor_200
+alias floor_250 := LeanCert.Examples.BKLNW_a2_bounds.floor_250
+alias floor_300 := LeanCert.Examples.BKLNW_a2_bounds.floor_300
+alias f_eq_bklnwF_exp := LeanCert.Examples.BKLNW_a2_bounds.f_eq_bklnwF_exp
+alias a2_20_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_lower
+alias a2_20_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_upper
+alias a2_25_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_25_exp_lower
+alias a2_25_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_25_exp_upper
+alias a2_30_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_30_exp_lower
+alias a2_30_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_30_exp_upper
+alias a2_35_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_35_exp_lower
+alias a2_35_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_35_exp_upper
+alias a2_40_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_40_exp_lower
+alias a2_40_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_40_exp_upper
+alias a2_43_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_43_exp_lower
+alias a2_43_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_43_exp_upper
+alias a2_100_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_100_exp_lower
+alias a2_100_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_100_exp_upper
+alias a2_150_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_150_exp_lower
+alias a2_150_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_150_exp_upper
+alias a2_200_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_200_exp_lower
+alias a2_200_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_200_exp_upper
+alias a2_250_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_250_exp_lower
+alias a2_250_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_250_exp_upper
+alias a2_300_exp_lower := LeanCert.Examples.BKLNW_a2_bounds.a2_300_exp_lower
+alias a2_300_exp_upper := LeanCert.Examples.BKLNW_a2_bounds.a2_300_exp_upper
+
+end LeanCert.CertifiedBounds.BKLNW
+
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_20_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_20_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_25_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_25_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_25_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_25_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_30_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_30_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_30_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_30_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_35_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_35_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_35_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_35_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_40_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_40_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_40_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_40_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_43_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_43_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_43_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_43_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_100_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_100_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_100_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_100_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_150_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_150_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_150_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_150_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_200_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_200_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_200_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_200_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_250_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_250_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_250_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_250_exp_upper
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_300_exp_lower (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_300_exp_lower
+attribute [deprecated LeanCert.CertifiedBounds.BKLNW.a2_300_exp_upper (since := "2026-07-19")]
+  LeanCert.Examples.BKLNW_a2_bounds.a2_300_exp_upper
