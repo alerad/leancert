@@ -1,3 +1,4 @@
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -70,6 +71,57 @@ name = "Example"
                 original.replace('rev = "old-revision"', 'rev = "v4.33.0"'),
             )
 
+    def test_lakefile_pin_does_not_depend_on_field_order(self) -> None:
+        original = '''[[require]]
+rev = "old-revision"
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "lakefile.toml"
+            path.write_text(original, encoding="utf-8")
+            update_mathlib_pin(path, "v4.33.0")
+            self.assertEqual(
+                path.read_text(encoding="utf-8"),
+                original.replace('rev = "old-revision"', 'rev = "v4.33.0"'),
+            )
+
+    def test_lakefile_pin_updates_only_matching_git_requirement(self) -> None:
+        original = '''[[require]]
+name = "mathlib"
+git = "https://example.com/not-mathlib.git"
+rev = "leave-this-alone"
+
+[[require]]
+rev = "old-revision"
+git = "https://github.com/leanprover-community/mathlib4.git"
+name = "mathlib"
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "lakefile.toml"
+            path.write_text(original, encoding="utf-8")
+            update_mathlib_pin(path, "v4.33.0")
+            updated = path.read_text(encoding="utf-8")
+            self.assertIn('rev = "leave-this-alone"', updated)
+            self.assertIn('rev = "v4.33.0"', updated)
+            self.assertNotIn('rev = "old-revision"', updated)
+
+    def test_lakefile_pin_preserves_crlf(self) -> None:
+        original = (
+            b'[[require]]\r\n'
+            b'rev = "old-revision"\r\n'
+            b'name = "mathlib"\r\n'
+            b'git = "https://github.com/leanprover-community/mathlib4.git"\r\n'
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "lakefile.toml"
+            path.write_bytes(original)
+            update_mathlib_pin(path, "v4.33.0")
+            self.assertEqual(
+                path.read_bytes(),
+                original.replace(b'"old-revision"', b'"v4.33.0"'),
+            )
+
     def test_prepared_artifact_contains_all_update_inputs(self) -> None:
         lakefile = '''name = "Example"
 
@@ -101,6 +153,33 @@ rev = "old-revision"
                 (prepared / "lean-toolchain").read_text(),
                 "leanprover/lean4:v4.33.0\n",
             )
+
+    def test_prepare_restores_metadata_after_update_failure(self) -> None:
+        lakefile = '''[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "old-revision"
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            originals = {
+                "lakefile.toml": lakefile.encode(),
+                "lean-toolchain": b"leanprover/lean4:v4.32.0\n",
+                "lake-manifest.json": b'{"original": true}\n',
+            }
+            for filename, contents in originals.items():
+                (root / filename).write_bytes(contents)
+
+            failure = subprocess.CalledProcessError(1, ["lake", "update"])
+            with patch(
+                "scripts.mathlib_stable_update.subprocess.run", side_effect=failure
+            ):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    prepare_update(root, "v4.33.0", root / "metadata")
+
+            for filename, contents in originals.items():
+                self.assertEqual((root / filename).read_bytes(), contents)
+            self.assertFalse((root / "metadata").exists())
 
 
 if __name__ == "__main__":

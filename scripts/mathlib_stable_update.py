@@ -76,40 +76,48 @@ def read_toolchain(path: Path) -> str:
 
 def update_mathlib_pin(path: Path, tag: str) -> None:
     """Update the Mathlib `rev` while preserving the rest of lakefile.toml."""
-    data = tomllib.loads(path.read_text(encoding="utf-8"))
-    requirements = data.get("require", [])
-    matches = [
-        requirement
-        for requirement in requirements
-        if requirement.get("name") == "mathlib"
-        and requirement.get("git") == MATHLIB_REMOTE
-    ]
-    if len(matches) != 1:
-        raise ValueError(f"expected exactly one Mathlib requirement, found {len(matches)}")
+    contents = path.read_bytes().decode("utf-8")
+    # Validate the complete document before locating its textual block.
+    tomllib.loads(contents)
+    lines = contents.splitlines(keepends=True)
 
-    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
-    in_requirement = False
-    is_mathlib = False
-    replaced = False
-    for index, line in enumerate(lines):
-        stripped = line.strip()
-        if stripped == "[[require]]":
-            in_requirement = True
-            is_mathlib = False
-            continue
-        if in_requirement and stripped.startswith("[["):
-            in_requirement = False
-        if in_requirement and re.fullmatch(r'name\s*=\s*"mathlib"', stripped):
-            is_mathlib = True
-        if in_requirement and is_mathlib and re.fullmatch(r'rev\s*=\s*"[^"]+"', stripped):
-            newline = "\n" if line.endswith("\n") else ""
-            indent = line[: len(line) - len(line.lstrip())]
-            lines[index] = f'{indent}rev = "{tag}"{newline}'
-            replaced = True
-            break
-    if not replaced:
-        raise ValueError("could not locate Mathlib rev in lakefile.toml")
-    path.write_text("".join(lines), encoding="utf-8")
+    table_header = re.compile(
+        r"^\s*(?:\[[^\[\]\r\n]+\]|\[\[[^\[\]\r\n]+\]\])\s*(?:#.*)?$"
+    )
+    starts = [
+        index for index, line in enumerate(lines) if line.strip() == "[[require]]"
+    ]
+    matching_blocks: list[tuple[int, int]] = []
+    for start in starts:
+        end = next(
+            (
+                index
+                for index in range(start + 1, len(lines))
+                if table_header.fullmatch(lines[index].rstrip("\r\n"))
+            ),
+            len(lines),
+        )
+        block = tomllib.loads("".join(lines[start:end]))["require"][0]
+        if block.get("name") == "mathlib" and block.get("git") == MATHLIB_REMOTE:
+            matching_blocks.append((start, end))
+
+    if len(matching_blocks) != 1:
+        raise ValueError(
+            f"expected exactly one Mathlib requirement, found {len(matching_blocks)}"
+        )
+
+    start, end = matching_blocks[0]
+    rev_line = re.compile(r'^(\s*rev\s*=\s*)"[^"]*"(.*)$')
+    for index in range(start + 1, end):
+        line = lines[index]
+        body = line.rstrip("\r\n")
+        newline = line[len(body) :]
+        match = rev_line.fullmatch(body)
+        if match is not None:
+            lines[index] = f'{match.group(1)}"{tag}"{match.group(2)}{newline}'
+            path.write_bytes("".join(lines).encode("utf-8"))
+            return
+    raise ValueError("could not locate Mathlib rev in the matching requirement")
 
 
 def write_outputs(path: Path | None, tag: str | None) -> None:
@@ -126,19 +134,35 @@ def write_outputs(path: Path | None, tag: str | None) -> None:
 
 
 def prepare_update(root: Path, tag: str, metadata_dir: Path) -> None:
-    update_mathlib_pin(root / "lakefile.toml", tag)
-    (root / "lean-toolchain").write_text(f"leanprover/lean4:{tag}\n", encoding="utf-8")
-    subprocess.run(
-        ["lake", "update"],
-        cwd=root,
-        env={**os.environ, "MATHLIB_NO_CACHE_ON_UPDATE": "1"},
-        check=True,
-    )
+    filenames = ("lakefile.toml", "lean-toolchain", "lake-manifest.json")
+    originals = {
+        filename: (root / filename).read_bytes() if (root / filename).exists() else None
+        for filename in filenames
+    }
+    try:
+        update_mathlib_pin(root / "lakefile.toml", tag)
+        (root / "lean-toolchain").write_text(
+            f"leanprover/lean4:{tag}\n", encoding="utf-8"
+        )
+        subprocess.run(
+            ["lake", "update"],
+            cwd=root,
+            env={**os.environ, "MATHLIB_NO_CACHE_ON_UPDATE": "1"},
+            check=True,
+        )
 
-    destination = metadata_dir / tag
-    destination.mkdir(parents=True, exist_ok=True)
-    for filename in ("lakefile.toml", "lean-toolchain", "lake-manifest.json"):
-        shutil.copy2(root / filename, destination / filename)
+        destination = metadata_dir / tag
+        destination.mkdir(parents=True, exist_ok=True)
+        for filename in filenames:
+            shutil.copy2(root / filename, destination / filename)
+    except Exception:
+        for filename, contents in originals.items():
+            target = root / filename
+            if contents is None:
+                target.unlink(missing_ok=True)
+            else:
+                target.write_bytes(contents)
+        raise
 
 
 def main() -> int:
