@@ -23,6 +23,9 @@ jobs:
       - name: Check every test module is wired into a Lake target
         run: python3 scripts/check_test_wiring.py
 
+      - name: Test stable Mathlib update discovery
+        run: python3 -m unittest discover -s scripts/tests -p 'test_mathlib_stable_update.py'
+
       - name: Build and smoke-test public executables
         run: python3 scripts/smoke_test_executables.py
 

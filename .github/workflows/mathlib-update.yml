@@ -12,13 +12,35 @@ jobs:
       is-update-available: ${{ steps.check.outputs.is-update-available }}
       new-tags: ${{ steps.check.outputs.new-tags }}
     steps:
-      - name: Check for available updates
-        id: check
-        uses: leanprover-community/mathlib-update-action@v1
+      - uses: actions/checkout@v5
+
+      - name: Configure Lean
+        uses: leanprover/lean-action@v1
         with:
-          intermediate_releases: stable
-          lake_package_directory: .
-          legacy_update: false
+          auto-config: false
+          use-github-cache: false
+          use-mathlib-cache: false
+          reinstall-transient-toolchain: true
+
+      - name: Test stable-release checker
+        run: python3 -m unittest discover -s scripts/tests -p 'test_mathlib_stable_update.py'
+
+      # The upstream discovery action parses this repository's historical tags
+      # and crashes on non-SemVer names such as v4.30.0.5. Our checker compares
+      # strict stable Mathlib tags directly against lean-toolchain instead.
+      - name: Check for available stable updates
+        id: check
+        run: |
+          python3 scripts/mathlib_stable_update.py \
+            --github-output "$GITHUB_OUTPUT" \
+            --prepare-metadata mathlib-update-metadata
+
+      - name: Upload update metadata
+        if: ${{ steps.check.outputs.is-update-available == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-metadata
+          path: mathlib-update-metadata/
 
   do-update:
     runs-on: ubuntu-latest
@@ -40,7 +62,7 @@ jobs:
           tag: ${{ matrix.tag }}
           on_update_succeeds: pr
           on_update_fails: issue
-          update_if_modified: lean-toolchain
+          update_if_modified: lake-manifest.json
           build_args: --log-level=warning
           lake_package_directory: .
           legacy_update: false
