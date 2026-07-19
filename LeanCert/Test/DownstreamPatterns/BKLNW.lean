@@ -3,9 +3,8 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.Examples.BKLNW_a2_pow2
-import LeanCert.Examples.BKLNW_a2_bounds
+import LeanCert.Tactic
+import LeanCert.CertifiedBounds.BKLNW
 
 /-!
 # PrimeNumberTheoremAnd BKLNW certificate patterns
@@ -24,7 +23,7 @@ noncomputable def downstreamF (x : ℝ) : ℝ :=
   ∑ k ∈ Icc 3 ⌊log x / log 2⌋₊, x ^ ((1 : ℝ) / k - 1 / 3)
 
 private lemma downstreamF_eq :
-    downstreamF = LeanCert.Examples.BKLNW_a2_pow2.f := rfl
+    downstreamF = LeanCert.CertifiedBounds.BKLNW.f := rfl
 
 private lemma floor_20 : ⌊(20 : ℝ) / log 2⌋₊ = 28 := by
   rw [Nat.floor_eq_iff (by positivity : (0 : ℝ) ≤ 20 / log 2)]
@@ -38,19 +37,19 @@ private lemma exp_lower :
     (1.4262 : ℝ) ≤
       (1 + 193571378 / (10 : ℝ) ^ 16) * downstreamF (exp (20 : ℝ)) := by
   simpa [downstreamF_eq] using
-    LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_lower
+    LeanCert.CertifiedBounds.BKLNW.a2_20_exp_lower
 
 private lemma exp_upper :
     (1 + 193571378 / (10 : ℝ) ^ 16) * downstreamF (exp (20 : ℝ)) ≤
       (1.4262 : ℝ) + (1 : ℝ) / 10 ^ 4 := by
   simpa [downstreamF_eq] using
-    LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_upper
+    LeanCert.CertifiedBounds.BKLNW.a2_20_exp_upper
 
 private lemma pow29_upper :
     (1 + 193571378 / (10 : ℝ) ^ 16) * downstreamF ((2 : ℝ) ^ (29 : ℕ)) ≤
       (1.4262 : ℝ) + (1 : ℝ) / 10 ^ 4 := by
   rw [downstreamF_eq]
-  exact LeanCert.Examples.BKLNW_a2_pow2.pow29_upper
+  exact LeanCert.CertifiedBounds.BKLNW.pow29_upper
 
 /-- Complete downstream composition for the first BKLNW table point. -/
 example :

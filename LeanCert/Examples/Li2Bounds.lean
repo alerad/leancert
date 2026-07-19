@@ -23,8 +23,9 @@ lake target (`lake build Li2Verified`) in LeanCert CI.
    compilation if the types of the interface theorems below differ from the
    types of the verified theorems.
 2. `Tests/AxiomAudit.lean` sweeps every library declaration's axiom set
-   against an exact allowlist of the four `Li2` declarations in this file;
-   any other sorry-dependent declaration in LeanCert fails CI.
+   against an exact allowlist of the four legacy `Li2` declarations and their
+   four canonical `LeanCert.CertifiedBounds.Li2` aliases in this file; any
+   other sorry-dependent declaration in LeanCert fails CI.
 -/
 
 open MeasureTheory LeanCert.Engine.TaylorModel
@@ -62,3 +63,42 @@ theorem li2_approx_1045 : |li2 - (1045:ℚ)/1000| ≤ (15:ℚ)/1000 := by
   · linarith
 
 end Li2
+
+namespace LeanCert.CertifiedBounds.Li2
+
+/-- The symmetric logarithmic integrand used to define `li(2)`. -/
+noncomputable abbrev integrand : ℝ → ℝ := _root_.Li2.g
+
+/-- The certified value `li(2)`, exposed through LeanCert's stable bounds API. -/
+noncomputable abbrev value : ℝ := _root_.Li2.li2
+
+/-- The symmetric logarithmic integrand is positive on `(0, 1)`. -/
+alias integrand_pos := _root_.Li2.g_pos
+
+/-- The symmetric logarithmic integrand is at most two on `(0, 1)`. -/
+alias integrand_le_two := _root_.Li2.g_le_two
+
+/-- Certified lower bound: `1.039 ≤ li(2)`. -/
+theorem lower : (1039 : ℚ) / 1000 ≤ value := _root_.Li2.li2_lower
+
+/-- Certified upper bound: `li(2) ≤ 1.06`. -/
+theorem upper : value ≤ (106 : ℚ) / 100 := _root_.Li2.li2_upper
+
+/-- Combined certified bounds for `li(2)`. -/
+theorem bounds : (1039 : ℚ) / 1000 ≤ value ∧ value ≤ (106 : ℚ) / 100 :=
+  _root_.Li2.li2_bounds
+
+/-- Convenient approximation theorem around `1.045`. -/
+theorem approx_1045 : |value - (1045 : ℚ) / 1000| ≤ (15 : ℚ) / 1000 :=
+  _root_.Li2.li2_approx_1045
+
+end LeanCert.CertifiedBounds.Li2
+
+attribute [deprecated LeanCert.CertifiedBounds.Li2.lower (since := "2026-07-19")]
+  Li2.li2_lower
+attribute [deprecated LeanCert.CertifiedBounds.Li2.upper (since := "2026-07-19")]
+  Li2.li2_upper
+attribute [deprecated LeanCert.CertifiedBounds.Li2.bounds (since := "2026-07-19")]
+  Li2.li2_bounds
+attribute [deprecated LeanCert.CertifiedBounds.Li2.approx_1045 (since := "2026-07-19")]
+  Li2.li2_approx_1045

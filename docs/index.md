@@ -3,6 +3,8 @@
 LeanCert is a Lean 4 library for certified numerical computation and
 proof-producing certificate workflows.
 
+Downstream users should begin with the [supported public API](reference/public-api.md).
+
 LeanCert is organized around proof intent:
 
 1. **Direct automation** closes concrete bounds, roots, optimizations, and

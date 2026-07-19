@@ -19,4 +19,9 @@ import LeanCert.ANT.PNTCompilers
 Reusable finite certificate bridges for arithmetic step sums, Abel/partial
 summation transforms, finite Euler products, Mertens-style prime sums, and
 asymptotic envelope algebra.
+
+This module is the stable umbrella import for the supported `LeanCert.ANT`
+namespace. Downstream projects should import `LeanCert.ANT` rather than its
+individual implementation modules unless they intentionally need a narrow
+dependency.
 -/
