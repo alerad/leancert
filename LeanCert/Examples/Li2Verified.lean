@@ -59,6 +59,11 @@ open Li2
 def li2DyadicConfig : LeanCert.Engine.DyadicConfig :=
   LeanCert.Engine.DyadicConfig.mk (-53) 18
 
+/-- Slightly deeper Taylor expansion for the tiny interval nearest zero, where
+    the certified lower bound is tighter than the other 100-cell tail checks. -/
+def li2TailDyadicConfig : LeanCert.Engine.DyadicConfig :=
+  LeanCert.Engine.DyadicConfig.mk (-53) 22
+
 /-! ### Helper definitions for certified integral bounds via native_decide -/
 
 /-- Boolean checker for integral lower bounds using `integratePartitionChecked`. -/
@@ -638,14 +643,16 @@ theorem g_integral_12_lower_numerical :
   rw [← g_alt_integral_eq_12]
   have hcast : ((8:ℚ)/10000 : ℝ) = ((8/10000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  have hcheck : checkIntegralLowerBound g_alt_expr g_interval_12 100 (8/10000) = true := by
+  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralLowerBoundDyadicFull
+      g_alt_expr g_interval_12 100 (8 / 10000) li2DyadicConfig = true := by
     native_decide
   have hInt := g_alt_intervalIntegrable_12
   have hlo : (g_interval_12.lo : ℝ) = 1/10000 := by norm_num [g_interval_12]
   have hhi : (g_interval_12.hi : ℝ) = 1/1000 := by norm_num [g_interval_12]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr g_interval_12 100 (by norm_num)
-    (8/10000) hcheck hInt
+  exact LeanCert.Validity.IntegrationDyadic.integral_lower_of_check_dyadic
+    g_alt_expr g_interval_12 100 (by norm_num) (8 / 10000) li2DyadicConfig
+      (by native_decide) hcheck hInt
 
 /-- Interval [999/1000, 9999/10000] for numerical integration. -/
 def g_interval_45 : IntervalRat := ⟨999/1000, 9999/10000, by norm_num⟩
@@ -684,14 +691,16 @@ theorem g_integral_45_lower_numerical :
   rw [← g_alt_integral_eq_45]
   have hcast : ((8:ℚ)/10000 : ℝ) = ((8/10000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  have hcheck : checkIntegralLowerBound g_alt_expr g_interval_45 100 (8/10000) = true := by
+  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralLowerBoundDyadicFull
+      g_alt_expr g_interval_45 100 (8 / 10000) li2DyadicConfig = true := by
     native_decide
   have hInt := g_alt_intervalIntegrable_45
   have hlo : (g_interval_45.lo : ℝ) = 999/1000 := by norm_num [g_interval_45]
   have hhi : (g_interval_45.hi : ℝ) = 9999/10000 := by norm_num [g_interval_45]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr g_interval_45 100 (by norm_num)
-    (8/10000) hcheck hInt
+  exact LeanCert.Validity.IntegrationDyadic.integral_lower_of_check_dyadic
+    g_alt_expr g_interval_45 100 (by norm_num) (8 / 10000) li2DyadicConfig
+      (by native_decide) hcheck hInt
 
 /-- Interval [9999/10000, 99999/100000] for numerical integration. -/
 def g_interval_56 : IntervalRat := ⟨9999/10000, 99999/100000, by norm_num⟩
@@ -730,14 +739,16 @@ theorem g_integral_56_lower_numerical :
   rw [← g_alt_integral_eq_56]
   have hcast : ((8:ℚ)/100000 : ℝ) = ((8/100000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  have hcheck : checkIntegralLowerBound g_alt_expr g_interval_56 100 (8/100000) = true := by
+  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralLowerBoundDyadicFull
+      g_alt_expr g_interval_56 100 (8 / 100000) li2DyadicConfig = true := by
     native_decide
   have hInt := g_alt_intervalIntegrable_56
   have hlo : (g_interval_56.lo : ℝ) = 9999/10000 := by norm_num [g_interval_56]
   have hhi : (g_interval_56.hi : ℝ) = 99999/100000 := by norm_num [g_interval_56]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr g_interval_56 100 (by norm_num)
-    (8/100000) hcheck hInt
+  exact LeanCert.Validity.IntegrationDyadic.integral_lower_of_check_dyadic
+    g_alt_expr g_interval_56 100 (by norm_num) (8 / 100000) li2DyadicConfig
+      (by native_decide) hcheck hInt
 
 /-- Interval [1/100000, 1/10000] for numerical integration. -/
 def g_interval_01 : IntervalRat := ⟨1/100000, 1/10000, by norm_num⟩
@@ -776,14 +787,16 @@ theorem g_integral_01_lower_numerical :
   rw [← g_alt_integral_eq_01]
   have hcast : ((8:ℚ)/100000 : ℝ) = ((8/100000 : ℚ) : ℝ) := by norm_cast
   rw [hcast]
-  have hcheck : checkIntegralLowerBound g_alt_expr g_interval_01 100 (8/100000) = true := by
+  have hcheck : LeanCert.Validity.IntegrationDyadic.checkIntegralLowerBoundDyadicFull
+      g_alt_expr g_interval_01 100 (8 / 100000) li2TailDyadicConfig = true := by
     native_decide
   have hInt := g_alt_intervalIntegrable_01
   have hlo : (g_interval_01.lo : ℝ) = 1/100000 := by norm_num [g_interval_01]
   have hhi : (g_interval_01.hi : ℝ) = 1/10000 := by norm_num [g_interval_01]
   rw [← hlo, ← hhi]
-  exact integral_lower_of_check g_alt_expr g_interval_01 100 (by norm_num)
-    (8/100000) hcheck hInt
+  exact LeanCert.Validity.IntegrationDyadic.integral_lower_of_check_dyadic
+    g_alt_expr g_interval_01 100 (by norm_num) (8 / 100000) li2TailDyadicConfig
+      (by native_decide) hcheck hInt
 
 /-- Lower bound for [99999/100000, 1] using g > 0. -/
 theorem g_integral_67_lower :
