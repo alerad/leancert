@@ -159,6 +159,7 @@ private def checkedParameters : List (String × String) := [
 private structure Workload where
   name : String
   family : String
+  tier : String := "micro"
   expr : Expr
   box : List IntervalRat
   innerIterations : Nat
@@ -168,6 +169,7 @@ private def internalCase (workload : Workload) (backend : ConcreteBackend)
     (isSmoke : Bool) (suiteNames : List String) : Case := {
   name := s!"eval.{workload.name}.internal.{backendName backend}"
   family := workload.family
+  tier := workload.tier
   layer := .internal
   backendRequested := backendName backend
   suites := if isSmoke then "smoke" :: suiteNames else suiteNames
@@ -185,6 +187,7 @@ private def checkedCase (workload : Workload) (requested : String)
     (suiteNames : List String) : Case := {
   name := s!"eval.{workload.name}.checked.{requested}"
   family := workload.family
+  tier := workload.tier
   layer := .checkedAPI
   backendRequested := requested
   suites := if isSmoke then "smoke" :: suiteNames else suiteNames
@@ -251,6 +254,7 @@ private def heavyWorkloads : List Workload := [
   {
     name := "polynomial_75"
     family := "arithmetic"
+    tier := "scaling"
     expr := mkPolynomial 75
     box := unitBox
     innerIterations := 1
@@ -259,6 +263,7 @@ private def heavyWorkloads : List Workload := [
   {
     name := "nested_sin_16"
     family := "transcendental"
+    tier := "scaling"
     expr := mkNestedSin 16
     box := unitBox
     innerIterations := 1
@@ -267,6 +272,7 @@ private def heavyWorkloads : List Workload := [
   {
     name := "nested_sin_4_narrow"
     family := "transcendental_quality"
+    tier := "scaling"
     expr := mkNestedSin 4
     box := narrowBox
     innerIterations := 1
@@ -279,6 +285,7 @@ private def heavyWorkloads : List Workload := [
   {
     name := "rational_affine_chain_160"
     family := "representation"
+    tier := "scaling"
     expr := mkRationalAffineChain 160
     box := unitBox
     innerIterations := 1
@@ -287,6 +294,7 @@ private def heavyWorkloads : List Workload := [
   {
     name := "repeated_cancellation_128"
     family := "dependency"
+    tier := "scaling"
     expr := mkRepeatedCancellation 128
     box := unitBox
     innerIterations := 1
@@ -294,10 +302,78 @@ private def heavyWorkloads : List Workload := [
   }
 ]
 
+/-! Scaling points use only the public checked Auto path. Running every
+backend at these sizes would mostly measure deliberately unsuitable choices
+and make the suite unnecessarily expensive. -/
+private def scalingWorkloads : List Workload := [
+  {
+    name := "polynomial_150"
+    family := "arithmetic_scaling"
+    tier := "scaling"
+    expr := mkPolynomial 150
+    box := unitBox
+    innerIterations := 1
+    parameters := [("degree", "150"), ("scaling_axis", "degree")]
+  },
+  {
+    name := "polynomial_300"
+    family := "arithmetic_scaling"
+    tier := "scaling"
+    expr := mkPolynomial 300
+    box := unitBox
+    innerIterations := 1
+    parameters := [("degree", "300"), ("scaling_axis", "degree")]
+  },
+  {
+    name := "nested_sin_32"
+    family := "transcendental_scaling"
+    tier := "scaling"
+    expr := mkNestedSin 32
+    box := unitBox
+    innerIterations := 1
+    parameters := [("nesting_depth", "32"), ("scaling_axis", "nesting_depth")]
+  },
+  {
+    name := "nested_sin_64"
+    family := "transcendental_scaling"
+    tier := "scaling"
+    expr := mkNestedSin 64
+    box := unitBox
+    innerIterations := 1
+    parameters := [("nesting_depth", "64"), ("scaling_axis", "nesting_depth")]
+  },
+  {
+    name := "rational_affine_chain_640"
+    family := "representation_scaling"
+    tier := "scaling"
+    expr := mkRationalAffineChain 640
+    box := unitBox
+    innerIterations := 1
+    parameters := [
+      ("chain_length", "640"), ("coefficient_bits", "20"),
+      ("scaling_axis", "chain_length")
+    ]
+  },
+  {
+    name := "repeated_cancellation_2048"
+    family := "dependency_scaling"
+    tier := "scaling"
+    expr := mkRepeatedCancellation 2048
+    box := unitBox
+    innerIterations := 1
+    parameters := [("repeated_occurrences", "4096"), ("scaling_axis", "occurrences")]
+  }
+]
+
+private def scalingCase (workload : Workload) : Case :=
+  checkedCase workload "auto" .auto
+    (selectAutomaticIntervalBackend workload.expr).toConcrete false ["scaling", "full", "all"]
+
 def cases : List Case :=
   (baselineWorkloads.flatMap fun workload =>
-    workloadCases workload ["evaluation", "full"] true) ++
+    workloadCases workload ["evaluation", "full", "all"] true) ++
   (heavyWorkloads.flatMap fun workload =>
-    workloadCases workload ["heavy", "full"] false)
+    workloadCases workload ["heavy", "full", "all"] false) ++
+  scalingWorkloads.map scalingCase
 
 end LeanCert.Benchmark.Evaluation
