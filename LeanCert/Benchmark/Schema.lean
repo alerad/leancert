@@ -23,11 +23,13 @@ open LeanCert.Core
 inductive Layer where
   | internal
   | checkedAPI
+  | algorithm
   deriving Repr, DecidableEq
 
 def Layer.name : Layer → String
   | .internal => "internal"
   | .checkedAPI => "checked_api"
+  | .algorithm => "algorithm"
 
 structure InputMetrics where
   astNodes : Nat
@@ -47,6 +49,7 @@ structure Sample where
   suite : String
   caseName : String
   family : String
+  tier : String
   layer : Layer
   backendRequested : String
   parameters : List (String × String)
@@ -82,11 +85,12 @@ private def optionJson (f : α → Json) : Option α → Json
   | some value => f value
 
 def Sample.asJson (result : Sample) : Json := Json.mkObj [
-  ("schema", toJson (1 : Nat)),
+  ("schema", toJson (2 : Nat)),
   ("run_id", toJson result.runId),
   ("suite", toJson result.suite),
   ("case", toJson result.caseName),
   ("family", toJson result.family),
+  ("tier", toJson result.tier),
   ("layer", toJson result.layer.name),
   ("backend_requested", toJson result.backendRequested),
   ("backend_used", optionJson toJson result.outcome.backendUsed),

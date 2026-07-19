@@ -6,12 +6,12 @@ Authors: LeanCert Contributors
 import LeanCert.Benchmark.Schema
 
 /-!
-# Minimal benchmark harness
+# Benchmark harness
 
-The harness deliberately measures compiled evaluator actions only.  It supports
-warmups, repeated raw samples, human summaries, JSONL output, suite selection,
-and case-name filtering.  Algorithm counters and proof-pipeline profiling can
-be layered on later without changing the sample schema.
+The harness measures compiled evaluator and checked algorithm actions. It
+supports warmups, repeated raw samples, human summaries, JSONL output, suite
+selection, and case-name filtering. Algorithm counters and proof-pipeline
+profiling can be layered on later without changing the sample schema.
 -/
 
 namespace LeanCert.Benchmark
@@ -19,6 +19,7 @@ namespace LeanCert.Benchmark
 structure Case where
   name : String
   family : String
+  tier : String := "micro"
   layer : Layer
   backendRequested : String
   suites : List String
@@ -45,7 +46,7 @@ structure Config where
 def usage : String := "LeanCert benchmark harness\n\n\
 Usage: lake exe leancert-bench [options]\n\n\
 Options:\n\
-  --suite smoke|evaluation|heavy|full\n\
+  --suite smoke|evaluation|heavy|scaling|full|end-to-end|all\n\
                               Select benchmark suite (default: smoke)\n\
   --case TEXT                Run cases whose names contain TEXT\n\
   --samples N                Timed samples per case (default: 10)\n\
@@ -156,6 +157,7 @@ private def runCase (runId : String) (cfg : Config) (benchmark : Case) : IO Bool
       suite := cfg.suite
       caseName := benchmark.name
       family := benchmark.family
+      tier := benchmark.tier
       layer := benchmark.layer
       backendRequested := benchmark.backendRequested
       parameters := benchmark.parameters
@@ -174,7 +176,7 @@ private def runCase (runId : String) (cfg : Config) (benchmark : Case) : IO Bool
     let timings := ordered.map (·.timingNs)
     let sorted := sortNats timings
     let lastOutcome := (ordered.getD 0 {
-      runId := "", caseName := "", family := "", layer := .internal,
+      runId := "", caseName := "", family := "", tier := "", layer := .internal,
       suite := "",
       backendRequested := "", parameters := [], input := benchmark.input,
       outcome := { status := "not_run" }, timingNs := 0,
@@ -191,7 +193,7 @@ p10={formatNanos (percentile sorted 10)}, p90={formatNanos (percentile sorted 90
     let timings := ordered.map (·.timingNs)
     let sorted := sortNats timings
     let lastOutcome := (ordered.getD 0 {
-      runId := "", caseName := "", family := "", layer := .internal,
+      runId := "", caseName := "", family := "", tier := "", layer := .internal,
       suite := "",
       backendRequested := "", parameters := [], input := benchmark.input,
       outcome := { status := "not_run" }, timingNs := 0,
@@ -200,7 +202,7 @@ p10={formatNanos (percentile sorted 10)}, p90={formatNanos (percentile sorted 90
     let width := match lastOutcome.interval with
       | some I => formatWidth (I.hi - I.lo)
       | none => "—"
-    IO.println s!"| {markdownCell benchmark.name} | {benchmark.layer.name} | \
+    IO.println s!"| {markdownCell benchmark.name} | {markdownCell benchmark.tier} | {benchmark.layer.name} | \
 {markdownCell benchmark.backendRequested} | {markdownCell backendUsed} | \
 {benchmark.input.astNodes} | {benchmark.input.astDepth} | \
 {markdownCell lastOutcome.status} | {markdownCell width} | \
@@ -225,17 +227,17 @@ def runBenchmarks (cfg : Config) (benchmarks : List Case) : IO UInt32 := do
   let runId := s!"run-{← IO.monoNanosNow}"
   if cfg.format = .human then
     IO.println s!"LeanCert benchmarks: suite={cfg.suite}, samples={cfg.samples}, warmups={cfg.warmups}"
-    IO.println "Timing is per evaluator call; use JSONL for raw samples."
+    IO.println "Timing is per benchmark action; use JSONL for raw samples."
   else if cfg.format = .markdown then
     IO.println "# LeanCert benchmark results"
     IO.println ""
     IO.println s!"- Suite: {markdownCell cfg.suite}"
     IO.println s!"- Timed samples per case: {cfg.samples}"
     IO.println s!"- Untimed warmups per case: {cfg.warmups}"
-    IO.println "- Timing unit: per evaluator call"
+    IO.println "- Timing unit: per benchmark action"
     IO.println ""
-    IO.println "| Case | Layer | Requested backend | Used backend | Nodes | Depth | Status | Width | Median | MAD | p10 | p90 |"
-    IO.println "| --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |"
+    IO.println "| Case | Tier | Layer | Requested backend | Used backend | Nodes | Depth | Status | Width | Median | MAD | p10 | p90 |"
+    IO.println "| --- | --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |"
   let mut allPassed := true
   for benchmark in chosen do
     if !(← runCase runId cfg benchmark) then allPassed := false
