@@ -40,3 +40,6 @@ jobs:
 
       - name: Build DownstreamInterface (PrimeNumberTheoremAnd-facing surface)
         run: lake build DownstreamInterface
+
+      - name: Build DownstreamPatterns (PrimeNumberTheoremAnd proof shapes)
+        run: lake build DownstreamPatterns

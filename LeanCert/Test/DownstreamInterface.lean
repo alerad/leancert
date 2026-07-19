@@ -10,7 +10,9 @@ import LeanCert.Engine.TaylorModel
 import LeanCert.Examples.Li2Bounds
 import LeanCert.Examples.BKLNW_a2_pow2
 import LeanCert.Examples.BKLNW_a2_bounds
-import LeanCert.Examples.BKLNW_a2_reflective
+import LeanCert.ANT.PNTCompilers
+import LeanCert.ANT.Asymp.Pointwise
+import LeanCert.ANT.Asymp.Inequality
 
 /-!
 # Downstream interface guard
@@ -29,6 +31,19 @@ Regenerate the list against a PrimeNumberTheoremAnd checkout with:
 #check @LeanCert.Engine.ChebyshevTheta.abs_theta_sub_le_mul_of_checkThetaRelErrorReal
 #check @LeanCert.Engine.ChebyshevTheta.checkAllThetaRelErrorReal_implies
 
+-- Engine.ChebyshevPsi (used after opening the namespace downstream)
+#check @LeanCert.Engine.ChebyshevPsi.checkAllPsiLeMulWith
+#check @LeanCert.Engine.ChebyshevPsi.checkAllPsiLeMulWith_implies_checkPsiLeMulWith
+#check @LeanCert.Engine.ChebyshevPsi.psi_le_of_checkPsiLeMulWith
+
+-- Engine.TaylorModel and the lightweight Li2 interface
+#check @LeanCert.Engine.TaylorModel.symmetricLogCombination
+#check @Li2.li2
+#check @Li2.g_pos
+#check @Li2.g_le_two
+#check @Li2.li2_lower
+#check @Li2.li2_upper
+
 -- Examples.BKLNW_a2_pow2
 #check @LeanCert.Examples.BKLNW_a2_pow2.f
 #check @LeanCert.Examples.BKLNW_a2_pow2.pow29_upper
@@ -43,26 +58,26 @@ Regenerate the list against a PrimeNumberTheoremAnd checkout with:
 #check @LeanCert.Examples.BKLNW_a2_pow2.pow361_upper
 #check @LeanCert.Examples.BKLNW_a2_pow2.pow433_upper
 
--- Examples.BKLNW_a2_reflective
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_20_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_20_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_25_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_25_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_30_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_30_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_35_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_35_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_40_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_40_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_43_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_43_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_100_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_100_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_150_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_150_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_200_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_200_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_250_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_250_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_300_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_reflective.a2_300_exp_upper
+-- Examples.BKLNW_a2_bounds
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_25_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_25_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_30_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_30_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_35_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_35_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_40_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_40_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_43_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_43_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_100_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_100_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_150_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_150_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_200_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_200_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_250_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_250_exp_upper
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_300_exp_lower
+#check @LeanCert.Examples.BKLNW_a2_bounds.a2_300_exp_upper
