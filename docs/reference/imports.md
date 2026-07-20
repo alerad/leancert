@@ -37,6 +37,17 @@ import LeanCert.Engine.ChebyshevTheta
 import LeanCert.Validity.Krawczyk
 ```
 
+## Domain-aware automatic differentiation
+
+```lean
+import LeanCert.Engine.AD.DomainChecked
+import LeanCert.Engine.Optimization.Gradient -- checked full gradients
+```
+
+Use `import LeanCert` for the re-exported public names
+`derivIntervalChecked`, `gradientIntervalChecked`, and their soundness
+theorems.
+
 ## ML Verification
 
 ```lean

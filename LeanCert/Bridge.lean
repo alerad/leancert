@@ -1018,31 +1018,36 @@ def handleForwardInterval (req : ForwardIntervalRequest) : Json :=
 Computes bounds on all partial derivatives (the gradient) over a box.
 This is used for computing Lipschitz constants: L = max_i sup_x |∂f/∂xᵢ(x)|.
 
+Reciprocal and logarithm nodes are accepted when the request box proves their
+domain conditions. Domain or support failures use the standard structured
+checked-evaluation response.
+
 Returns: Array of intervals, one per variable, each containing ∂f/∂xᵢ for all x ∈ box.
 Also returns the Lipschitz bound L = max(|lo|, |hi|) over all partial derivatives. -/
 def handleDerivInterval (req : DerivIntervalRequest) : Json :=
   let box : Box := req.box.toList.map RawInterval.toInterval
   let cfg : EvalConfig := { taylorDepth := req.taylorDepth }
 
-  -- Compute gradient interval using computable AD
-  let gradients := Optimization.gradientIntervalCore req.expr box cfg
+  match Optimization.gradientIntervalChecked req.expr box cfg with
+  | .error err => evalFailureJson err
+  | .ok gradients =>
+    -- Compute Lipschitz bound: max of absolute values of all partial derivative bounds
+    let lipschitzBound := gradients.foldl (fun acc I =>
+      max acc (max (abs I.lo) (abs I.hi))) (0 : ℚ)
 
-  -- Compute Lipschitz bound: max of absolute values of all partial derivative bounds
-  let lipschitzBound := gradients.foldl (fun acc I =>
-    max acc (max (abs I.lo) (abs I.hi))) (0 : ℚ)
+    -- Serialize gradient intervals
+    let gradientsJson := gradients.map (fun I =>
+      Json.mkObj [
+        ("lo", toJson (toRawRat I.lo)),
+        ("hi", toJson (toRawRat I.hi))
+      ])
 
-  -- Serialize gradient intervals
-  let gradientsJson := gradients.map (fun I =>
     Json.mkObj [
-      ("lo", toJson (toRawRat I.lo)),
-      ("hi", toJson (toRawRat I.hi))
-    ])
-
-  Json.mkObj [
-    ("gradients", Json.arr gradientsJson.toArray),
-    ("lipschitz_bound", toJson (toRawRat lipschitzBound)),
-    ("num_vars", toJson gradients.length)
-  ]
+      ("status", "certified"),
+      ("gradients", Json.arr gradientsJson.toArray),
+      ("lipschitz_bound", toJson (toRawRat lipschitzBound)),
+      ("num_vars", toJson gradients.length)
+    ]
 
 /-! ## 5. Main Event Loop -/
 

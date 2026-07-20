@@ -32,3 +32,19 @@ imports continue to compile. Their legacy certificate declarations are
 deprecated with machine-readable replacements. Direct `LeanCert.Engine.*`
 imports remain available for implementation-level work, but downstream proofs
 should prefer the stable certified-bounds aliases where one exists.
+
+## Checked automatic differentiation
+
+The aggregate `LeanCert` import also exposes the checked AD boundary:
+
+- `derivIntervalChecked` and `derivIntervalChecked1` for one coordinate;
+- `gradientIntervalChecked` for every coordinate of a list-backed box;
+- `evalWithDerivChecked_der_correct` and `derivIntervalChecked_correct` as the
+  semantic soundness theorems;
+- `gradientIntervalChecked_correct` for coordinate-aligned full-gradient
+  soundness;
+- `evalWithDerivChecked_differentiableAt` for extracting differentiability.
+
+These APIs support `inv` and `log` when their interval arguments prove the
+required domain conditions. They return `EvalResult`; application code should
+not substitute the internal total evaluator.
