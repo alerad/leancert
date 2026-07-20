@@ -25,6 +25,9 @@ build before such a change can merge.
 Regenerate the list against a PrimeNumberTheoremAnd checkout with:
 
   git grep -h -o -E 'LeanCert\.[A-Za-z0-9_.]+' -- 'PrimeNumberTheoremAnd/' | sort -u
+
+This inventory cannot see unqualified declarations brought into scope with
+`open`; the behavioral pattern suite must cover those downstream call shapes.
 -/
 
 -- Engine.ChebyshevTheta
