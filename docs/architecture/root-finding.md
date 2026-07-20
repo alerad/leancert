@@ -259,6 +259,6 @@ This is used internally for:
 | `Engine/RootFinding/Bisection.lean` | Bisection algorithm |
 | `Engine/RootFinding/Contraction.lean` | Newton contraction verification |
 | `Engine/RootFinding/MVTBounds.lean` | Mean value theorem utilities |
-| `Engine/RootFinding/Krawczyk.lean` | Polynomial-system checker and soundness bridge |
+| `Engine/RootFinding/Krawczyk.lean` | Nonlinear-system checker and soundness bridge |
 | `Validity/Krawczyk.lean` | Stable golden theorem |
 | `Tactic/Discovery.lean` | `interval_roots`, `interval_unique_root` tactics |
