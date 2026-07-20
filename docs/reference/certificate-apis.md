@@ -21,3 +21,4 @@ point is [Proof Templates](../proof-templates/overview.md).
 - [QProduct Certificates](../certificates/qproduct.md)
 - [ConstantFactory Certificates](../certificates/constants.md)
 - [Contour-Shift Certificates](../certificates/contour-shift.md)
+- [Nonlinear-System Root Certificates](../direct/roots.md)

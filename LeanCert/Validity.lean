@@ -15,6 +15,7 @@ import LeanCert.Validity.AffineBounds
 import LeanCert.Validity.AffineCover
 import LeanCert.Validity.Monotonicity
 import LeanCert.Validity.DirectedLimit
+import LeanCert.Validity.Krawczyk
 
 /-!
 # Validity Layer
@@ -40,4 +41,7 @@ The Engine computes numbers; Validity turns them into theorems.
 
 * `Validity.Dyadic`, `Validity.FinSum`, `Validity.Chebyshev` - Stable
   forwarding imports for domain-specific bridge theorem families.
+
+* `Validity.Krawczyk` - certified existence and uniqueness for square systems
+  in the differentiable AD fragment on rational boxes.
 -/

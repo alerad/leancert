@@ -31,6 +31,12 @@ import LeanCert.Engine.ChebyshevPsi
 import LeanCert.Engine.ChebyshevTheta
 ```
 
+## Nonlinear System Roots
+
+```lean
+import LeanCert.Validity.Krawczyk
+```
+
 ## ML Verification
 
 ```lean

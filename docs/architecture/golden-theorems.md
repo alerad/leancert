@@ -23,6 +23,7 @@ Golden Theorems are defined across multiple files:
 - `Validity/DyadicBounds.lean` - Dyadic arithmetic (fast)
 - `Validity/AffineBounds.lean` - Affine arithmetic (tight bounds)
 - `Validity/Monotonicity.lean` - Monotonicity via automatic differentiation
+- `Validity/Krawczyk.lean` - existence and uniqueness for square systems in the differentiable AD fragment
 - `Engine/Chebyshev/Psi.lean` - Chebyshev `ψ` finite-range certificates
 - `Engine/Chebyshev/Theta.lean` - Chebyshev `θ` finite-range certificates
 - `Cert/Interval.lean` - shared rational interval Golden Theorem combinators
@@ -62,6 +63,9 @@ theorem verify_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
 | Root existence | `verify_sign_change` | `checkSignChange` |
 | Root uniqueness | `verify_unique_root_computable` | `checkNewtonContractsCore` |
 | No roots | `verify_no_root` | `checkNoRoot` |
+| System-root existence | `verify_system_root_exists` | `krawczykCheck` |
+| System-root uniqueness | `verify_system_root_unique` | `krawczykCheck` |
+| Unique system root | `verify_unique_system_root` | `krawczykCheck` |
 
 ```lean
 theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
