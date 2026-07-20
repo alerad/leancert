@@ -7,6 +7,7 @@ import LeanCert.Test.DownstreamPatterns.Tactics
 import LeanCert.Test.DownstreamPatterns.BKLNW
 import LeanCert.Test.DownstreamPatterns.Chebyshev
 import LeanCert.Test.DownstreamPatterns.PNTCompilers
+import LeanCert.Test.DownstreamPatterns.Table4Ext
 import LeanCert.Test.DownstreamPatterns.Li2
 
 /-!

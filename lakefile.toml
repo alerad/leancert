@@ -66,6 +66,7 @@ roots = [
   "LeanCert.Test.DownstreamPatterns.BKLNW",
   "LeanCert.Test.DownstreamPatterns.Chebyshev",
   "LeanCert.Test.DownstreamPatterns.PNTCompilers",
+  "LeanCert.Test.DownstreamPatterns.Table4Ext",
   "LeanCert.Test.DownstreamPatterns.Li2",
 ]
 precompileModules = false
