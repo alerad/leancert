@@ -92,6 +92,24 @@ theorem verify_global_lower_bound (e : Expr) (hsupp : ADSupported e)
 
 > **Note**: Global optimization uses `ADSupported` (not `ExprSupportedCore`) and multivariate environments.
 
+### Checked Automatic Differentiation
+
+Checked AD combines support and box-dependent domain validation with interval
+dual-number evaluation. A successful result is therefore enough to derive the
+semantic derivative statement; callers do not separately prove that reciprocal
+arguments exclude zero or logarithm arguments are positive.
+
+| Boundary | Rational arithmetic | Dyadic arithmetic |
+|---|---|---|
+| One partial | `derivIntervalChecked_correct` | `derivIntervalDyadicChecked_correct` |
+| Gradient | `gradientIntervalChecked_correct` | `gradientIntervalDyadicChecked_correct` |
+| Rational input converted to Dyadic | — | `derivIntervalDyadicCheckedOfRat_correct`, `gradientIntervalDyadicCheckedOfRat_correct` |
+| Differentiability from a successful value-and-derivative call | `evalWithDerivChecked_differentiableAt` | `evalWithDerivDyadicChecked_differentiableAt` |
+
+The Dyadic `OfRat` theorems include the outward input-conversion proof. See
+[Checked Automatic Differentiation](../direct/checked-ad.md) for a complete
+compiled example and the exact coordinate alignment of gradient results.
+
 ### Integration
 
 **Rational backend:**

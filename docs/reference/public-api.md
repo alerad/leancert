@@ -57,4 +57,8 @@ API takes an `IntervalDyadicEnv` plus `DyadicConfig`, rejects positive
 shape and require no separate support or domain proof. Callers that already
 have rational boxes can use `derivIntervalDyadicCheckedOfRat` and
 `gradientIntervalDyadicCheckedOfRat`; conversion and its containment proof are
-part of their Golden Theorems.
+part of their Golden Theorems. The backend selector in `EvalOptions` does not
+dispatch AD calls; select one of these checked boundaries explicitly. See
+[Checked Automatic Differentiation](../direct/checked-ad.md) for a copy-paste
+example, the entry-point decision table, supported syntax, error behavior, and
+benchmark command.

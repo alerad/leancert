@@ -58,6 +58,7 @@ nav:
     - Bounds and Inequalities: direct/bounds.md
     - Roots and No-Root Proofs: direct/roots.md
     - Optimization and Discovery: direct/optimization-discovery.md
+    - Checked Automatic Differentiation: direct/checked-ad.md
     - Integration: direct/integration.md
     - Troubleshooting: direct/troubleshooting.md
     - Tactics Reference: direct/tactics-reference.md

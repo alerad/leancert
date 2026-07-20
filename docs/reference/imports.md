@@ -48,7 +48,9 @@ import LeanCert.Engine.Optimization.Gradient -- checked full gradients
 Use `import LeanCert` for the re-exported public names
 `derivIntervalChecked`, `gradientIntervalChecked`, the Dyadic counterparts
 `derivIntervalDyadicChecked` and `gradientIntervalDyadicChecked`, and their
-soundness theorems.
+soundness theorems. See
+[Checked Automatic Differentiation](../direct/checked-ad.md) for backend choice,
+Rational-input Dyadic wrappers, and Golden-Theorem examples.
 
 ## ML Verification
 

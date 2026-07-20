@@ -24,6 +24,7 @@ LeanCert is organized around proof intent:
 | A concrete inequality over an interval | [Direct Automation → Bounds](direct/bounds.md) |
 | A root existence, uniqueness, or no-root claim | [Direct Automation → Roots](direct/roots.md) |
 | A global minimum or maximum problem | [Direct Automation → Optimization and Discovery](direct/optimization-discovery.md) |
+| A certified partial derivative or gradient enclosure | [Direct Automation → Checked Automatic Differentiation](direct/checked-ad.md) |
 | A definite integral bound | [Direct Automation → Integration](direct/integration.md) |
 | Generated finite rows to verify | [Proof Templates → Table Certificates](proof-templates/table-certificates.md) |
 | A summatory function with a main term and error term | [Proof Templates → Asymptotic Envelopes](proof-templates/asymptotic-envelopes.md) |
