@@ -3,6 +3,12 @@
 Use this path for root existence, uniqueness, and no-root goals over an
 interval.
 
+For square multivariate systems in LeanCert's differentiable AD fragment, use the certificate API
+`KrawczykCert`, `krawczykCheck`, and `verify_unique_system_root`. See the
+[system architecture and examples](../architecture/root-finding.md#nonlinear-systems-krawczyk).
+A tactic front end is not required: the intended proof is one checker theorem
+followed by `native_decide`.
+
 Typical goals:
 
 ```lean

@@ -8,6 +8,7 @@ import LeanCert.Engine.RootFinding.Bisection
 import LeanCert.Engine.RootFinding.Newton
 import LeanCert.Engine.RootFinding.MVTBounds
 import LeanCert.Engine.RootFinding.Contraction
+import LeanCert.Engine.RootFinding.Krawczyk
 
 /-!
 # Root Finding: Main Module
@@ -32,6 +33,9 @@ This module re-exports all components of the root finding library.
 * `Contraction.lean` - Main contraction theorems (`newton_contraction_has_root`,
   `newton_contraction_unique_root`, `newtonIntervalGo_preserves_root`)
 
+* `Krawczyk.lean` - Dimension-safe nonlinear-system certificates with a
+  computable norm-form Krawczyk checker for the differentiable AD fragment
+
 ## Usage
 
 For most applications, import this module to get access to all root finding
@@ -52,6 +56,7 @@ Or import specific submodules as needed.
   `newton_contraction_has_root`, `newton_contraction_unique_root`,
   `newtonIntervalGo_preserves_root`
 - MVT wrapper lemmas and all contraction contradiction lemmas
+- Polynomial systems: `krawczykCheck_sound`
 -/
 
 namespace LeanCert.Engine

@@ -118,6 +118,7 @@ roots = [
   "LeanCert.Test.FinSumExpandTest",
   "LeanCert.Test.Hardening",
   "LeanCert.Test.IntegrationDyadicChecked",
+  "LeanCert.Test.Krawczyk",
   "LeanCert.Test.Numeral",
   "LeanCert.Test.Pisano",
   "LeanCert.Test.PublicEvalAPI",

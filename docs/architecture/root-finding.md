@@ -8,6 +8,48 @@ LeanCert provides verified root finding with proofs of existence and uniqueness.
 |-----------|--------|--------|--------|
 | Bisection | Existence | Sign change + IVT | `interval_roots` |
 | Newton Contraction | Uniqueness | Fixed-point theorem | `interval_unique_root` |
+| Norm-form Krawczyk | Existence + uniqueness for square differentiable systems | Interval Jacobian + Banach | certificate API |
+
+## Nonlinear Systems (Krawczyk)
+
+For a square system `F : Fin n → Expr` in LeanCert's `ADSupported` fragment,
+LeanCert can check an untrusted rational center `m` and rational preconditioner
+`Y`. It computes an interval Jacobian on the box, bounds the infinity operator
+norm of `I - Y J(X)`, and checks a strict self-map enclosure. A successful check
+certifies exactly one real root in the box.
+
+```lean
+import LeanCert.Validity.Krawczyk
+
+open LeanCert.Core LeanCert.Engine LeanCert.Validity
+
+example (F : Fin n → Expr) (X : Fin n → IntervalRat)
+    (cert : KrawczykCert n)
+    (h : krawczykCheck F X cert = true) :
+    ∃! x, FinBoxMem x X ∧ SystemZero F x := by
+  exact verify_unique_system_root F X cert {} h
+```
+
+`KrawczykCert` is dimension-safe: malformed vector and matrix shapes cannot be
+constructed. The checker accepts constants, variables, addition,
+multiplication, negation, `sin`, `cos`, and `exp`. It uses a strong norm-form
+condition, which is sometimes more conservative than the componentwise
+textbook Krawczyk operator but gives a direct Banach proof.
+
+Three golden theorems expose the same successful check in the common goal
+shapes: `verify_system_root_exists`, `verify_system_root_unique`, and
+`verify_unique_system_root`.
+
+### Current limits
+
+- Systems must be square and use the `ADSupported` expression fragment.
+- Boxes, centers, and preconditioners use exact rational data.
+- The norm-form enclosure is intentionally conservative; a rejected
+  certificate is inconclusive.
+- LeanCert checks but does not currently generate the approximate center or
+  inverse-Jacobian preconditioner. Those remain untrusted frontend/CAS data.
+- The theorem is over real boxes. Complex systems must first be represented as
+  coupled real and imaginary coordinates.
 
 ## Bisection (Existence)
 
@@ -217,4 +259,6 @@ This is used internally for:
 | `Engine/RootFinding/Bisection.lean` | Bisection algorithm |
 | `Engine/RootFinding/Contraction.lean` | Newton contraction verification |
 | `Engine/RootFinding/MVTBounds.lean` | Mean value theorem utilities |
+| `Engine/RootFinding/Krawczyk.lean` | Nonlinear-system checker and soundness bridge |
+| `Validity/Krawczyk.lean` | Stable golden theorem |
 | `Tactic/Discovery.lean` | `interval_roots`, `interval_unique_root` tactics |

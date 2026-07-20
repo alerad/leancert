@@ -26,7 +26,9 @@ The larger suites are split by purpose:
 - `full` combines evaluator, heavy, and scaling cases but excludes seconds-scale
   algorithms;
 - `end-to-end` measures checked Li₂-style partitioned integration from 100 to
-  2300 cells;
+  2300 cells and complete nonlinear-system root checks;
+- `krawczyk` isolates interval-Jacobian construction, rational matrix/norm
+  assembly, and the complete checked certificate path;
 - `all` includes every suite, including the seconds-scale integration cases.
 
 ## Commands
@@ -50,6 +52,9 @@ lake exe leancert-bench --suite full
 # Run Li₂-style checked partition integration (recommended sample count)
 lake exe leancert-bench \
   --suite end-to-end --samples 3 --warmups 1
+
+# Profile nonlinear-system certification phases
+lake exe leancert-bench --suite krawczyk --samples 15 --warmups 3
 
 # Run absolutely everything
 lake exe leancert-bench --suite all
