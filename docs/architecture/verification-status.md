@@ -219,6 +219,23 @@ These return `none` for unsupported partial operations such as `inv`, `log`, and
 certificate. Total fallback evaluators are confined to `LeanCert.Internal.*`;
 new code should use checked or strict variants.
 
+Automatic differentiation has a computable domain-aware path for `inv` and
+`log`: `evalDualChecked`, `derivIntervalChecked`, and
+`Optimization.gradientIntervalChecked`.  Successful results certify value
+enclosure, differentiability, and derivative enclosure.  Reciprocal boxes that
+contain zero, nonpositive logarithm boxes, and unsupported nodes return an
+`EvalError`.  The bridge's derivative/Lipschitz endpoint uses this checked path.
+The legacy total AD core remains internal machinery for already-proved
+domain-free fragments.
+
+`AD.Dyadic` provides the bounded-denominator equivalent:
+`evalDualDyadicChecked`, `derivIntervalDyadicChecked`, and
+`gradientIntervalDyadicChecked`. Algebraic dual operations stay Dyadic and
+round outward after every addition and multiplication; the established
+verified Dyadic transcendental wrappers handle `sin`, `cos`, `exp`, `inv`, and
+`log`. Golden Theorems cover value enclosure, differentiability, indexed
+derivatives, and coordinate-aligned gradients.
+
 ### Neural Network Verification
 
 The ML module provides verified interval propagation for neural networks:

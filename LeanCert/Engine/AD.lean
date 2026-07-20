@@ -9,6 +9,8 @@ import LeanCert.Engine.AD.Eval
 import LeanCert.Engine.AD.Correctness
 import LeanCert.Engine.AD.PartialCorrectness
 import LeanCert.Engine.AD.Computable
+import LeanCert.Engine.AD.DomainChecked
+import LeanCert.Engine.AD.Dyadic
 
 /-!
 # Automatic Differentiation via Intervals
@@ -25,6 +27,8 @@ with rigorous bounds on both.
 * `AD.Correctness` - Correctness theorems for supported expressions
 * `AD.PartialCorrectness` - Correctness for partial functions (inv, log, sqrt)
 * `AD.Computable` - Taylor-based computable evaluators
+* `AD.DomainChecked` - Computable AD with box-dependent checks for inv and log
+* `AD.Dyadic` - Domain-aware AD with bounded-denominator Dyadic arithmetic
 
 ## Main definitions
 
@@ -32,6 +36,8 @@ with rigorous bounds on both.
 * `LeanCert.Internal.AD.evalUnchecked` - Evaluate expression to get value and derivative intervals
 * `evalDual?` - Partial evaluator supporting inv, log, sqrt
 * `LeanCert.Internal.AD.evalTotalCore` - Computable evaluator for native_decide
+* `evalDualChecked`, `derivIntervalChecked` - Computable, structured-failure APIs for inv/log
+* `evalDualDyadicChecked`, `derivIntervalDyadicChecked` - Checked Dyadic counterparts
 
 ## Main theorems
 
@@ -39,6 +45,8 @@ with rigorous bounds on both.
 * `LeanCert.Engine.evalDualUnchecked_der_correct` - Derivative component is correct for supported expressions
 * `evalDual?_val_correct`, `evalDual?_der_correct` - Correctness with domain checks
 * `LeanCert.Internal.AD.evalTotalCore_val_correct`, `LeanCert.Internal.AD.evalTotalCore_der_correct` - Computable correctness
+* `evalWithDerivChecked_der_correct`, `derivIntervalChecked_correct` - Golden theorems for
+  successful domain-aware computation
 
 All theorems are FULLY PROVED with no sorry or axioms.
 -/

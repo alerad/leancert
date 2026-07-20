@@ -95,8 +95,10 @@ open LeanCert.Core LeanCert.Engine
     This uses Taylor series approximations for transcendental functions,
     making it fully computable and usable with `native_decide`.
 
-    For expressions outside `ExprSupportedCore` (inv, log, atanh), use `evalDual?`
-    for domain-checked evaluation; correctness is not covered here. -/
+    For `inv` and `log`, use `evalDualChecked` or the bounded-denominator
+    `evalDualDyadicChecked`; they validate the actual input box before exposing
+    this total kernel's result. Correctness is not claimed for unchecked
+    partial-operation branches here. -/
 def evalTotalCore (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : DualInterval :=
   match e with
   | Expr.const q => DualInterval.const q

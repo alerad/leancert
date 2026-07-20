@@ -147,6 +147,65 @@ theorem evalDualTotalCore_der_correct_idx (e : Expr) (hsupp : ADSupported e)
 def gradientIntervalCore (e : Expr) (B : Box) (cfg : EvalConfig := {}) : List IntervalRat :=
   (List.range B.length).map fun i => derivIntervalCoreN e (Box.toEnv B) i cfg
 
+/-- Compute every partial derivative using the domain-aware checked AD path.
+Unlike `gradientIntervalCore`, this rejects unsupported syntax, reciprocal
+arguments containing zero, and nonpositive logarithm arguments instead of
+returning a finite interval that could be mistaken for a certificate. -/
+def gradientIntervalChecked (e : Expr) (B : Box) (cfg : EvalConfig := {}) :
+    EvalResult (List IntervalRat) :=
+  (List.range B.length).mapM fun i =>
+    derivIntervalChecked e (Box.toEnv B) i cfg
+
+private theorem derivIntervalsChecked_correct (e : Expr) (B : Box)
+    (cfg : EvalConfig) (ρReal : Nat → ℝ)
+    (hρ : ∀ i, ρReal i ∈ Box.toEnv B i) (indices : List Nat)
+    (gradient : List IntervalRat)
+    (hok : indices.mapM (fun i => derivIntervalChecked e (Box.toEnv B) i cfg) =
+      .ok gradient) :
+    List.Forall₂ (fun i dI => deriv (Expr.evalAlong e ρReal i) (ρReal i) ∈ dI)
+      indices gradient := by
+  induction indices generalizing gradient with
+  | nil =>
+      simp only [List.mapM_nil, pure, Except.pure, Except.ok.injEq] at hok
+      subst gradient
+      exact .nil
+  | cons i indices ih =>
+      simp only [List.mapM_cons] at hok
+      cases hdi : derivIntervalChecked e (Box.toEnv B) i cfg with
+      | error err =>
+          rw [hdi] at hok
+          simp only [bind, Except.bind] at hok
+          cases hok
+      | ok dI =>
+          rw [hdi] at hok
+          simp only [bind, Except.bind] at hok
+          cases htail : List.mapM
+              (fun j => derivIntervalChecked e (Box.toEnv B) j cfg) indices with
+          | error err =>
+              rw [htail] at hok
+              cases hok
+          | ok tail =>
+              rw [htail] at hok
+              simp only [pure, Except.pure, Except.ok.injEq] at hok
+              subst gradient
+              exact .cons
+                (derivIntervalChecked_correct e ρReal (Box.toEnv B) i cfg dI
+                  (ρReal i) (hρ i) hρ hdi)
+                (ih tail htail)
+
+/-- Golden soundness theorem for a successfully computed checked gradient.
+The output list is aligned with coordinates `0, …, B.length - 1`. -/
+theorem gradientIntervalChecked_correct (e : Expr) (B : Box)
+    (cfg : EvalConfig) (ρReal : Nat → ℝ)
+    (hρ : Box.envMem ρReal B)
+    (hzero : ∀ i, i ≥ B.length → ρReal i = 0)
+    (gradient : List IntervalRat)
+    (hok : gradientIntervalChecked e B cfg = .ok gradient) :
+    List.Forall₂ (fun i dI => deriv (Expr.evalAlong e ρReal i) (ρReal i) ∈ dI)
+      (List.range B.length) gradient := by
+  exact derivIntervalsChecked_correct e B cfg ρReal
+    (Box.envMem_toEnv ρReal B hρ hzero) (List.range B.length) gradient hok
+
 /-! ### Sign classification -/
 
 /-- Classification of an interval's sign -/

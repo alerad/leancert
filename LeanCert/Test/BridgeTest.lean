@@ -356,4 +356,28 @@ def singularOptimizationFails (backend : BackendChoice) : Bool :=
 #guard singularOptimizationFails .dyadic
 #guard singularOptimizationFails .affine
 
+/-! The derivative endpoint now uses domain-aware AD.  It certifies `inv` and
+`log` on valid boxes and returns the same structured failures as evaluation on
+invalid boxes. -/
+
+def positiveRaw : RawInterval := {
+  lo := { n := 1, d := 1 }, hi := { n := 2, d := 1 }
+}
+
+def crossesZeroRaw : RawInterval := {
+  lo := { n := -1, d := 1 }, hi := { n := 1, d := 1 }
+}
+
+#guard jsonStatusIs "certified" (handleDerivInterval {
+  expr := Expr.inv (Expr.var 0), box := #[positiveRaw]
+})
+
+#guard jsonStatusIs "domain_error" (handleDerivInterval {
+  expr := Expr.inv (Expr.var 0), box := #[crossesZeroRaw]
+})
+
+#guard jsonStatusIs "domain_error" (handleDerivInterval {
+  expr := Expr.log (Expr.var 0), box := #[crossesZeroRaw]
+})
+
 end LeanCert.Test.BridgeTest

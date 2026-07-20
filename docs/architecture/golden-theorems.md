@@ -349,6 +349,60 @@ The approach uses automatic differentiation to compute interval bounds on deriva
 
 The mathematical foundation is the Mean Value Theorem: if f' has consistent sign, then f is monotonic.
 
+### Domain-aware automatic differentiation
+
+`ADSupported` remains the fast, domain-free fragment.  For expressions that
+contain reciprocal or logarithm nodes, use the computable checked API instead:
+
+```lean
+derivIntervalChecked  : Expr → IntervalEnv → Nat → EvalConfig →
+  EvalResult IntervalRat
+gradientIntervalChecked : Expr → Box → EvalConfig →
+  EvalResult (List IntervalRat)
+derivIntervalDyadicChecked : Expr → IntervalDyadicEnv → Nat → DyadicConfig →
+  EvalResult IntervalDyadic
+gradientIntervalDyadicChecked : Expr → IntervalDyadicEnv → Nat → DyadicConfig →
+  EvalResult (List IntervalDyadic)
+derivIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConfig →
+  EvalResult IntervalDyadic
+gradientIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConfig →
+  EvalResult (List IntervalDyadic)
+```
+
+The checker recursively validates syntax and the actual input box.  It accepts
+`inv e` only when the computed enclosure of `e` excludes zero, and `log e`
+only when that enclosure is strictly positive.  Failure is structured data
+(`reciprocalContainsZero`, `logNonpositive`, or a nested/unsupported failure),
+not a finite fallback interval.
+
+The derivative API's Golden Theorem does not require a separate syntactic
+support proof: successful checked computation carries the support and domain
+evidence.
+
+```lean
+theorem derivIntervalChecked_correct
+    (hok : derivIntervalChecked e ρInt idx cfg = .ok dI)
+    (hx : x ∈ ρInt idx)
+    (hρ : ∀ i, ρReal i ∈ ρInt i) :
+    deriv (Expr.evalAlong e ρReal idx) x ∈ dI
+```
+
+`evalWithDerivChecked_differentiableAt` additionally extracts the analytic
+differentiability fact certified by the same successful run.  The current
+checked fragment is `const`, `var`, `add`, `mul`, `neg`, `sin`, `cos`, `exp`,
+`inv`, and `log`; other partial functions are rejected explicitly.
+
+For full gradients, `gradientIntervalChecked_correct` returns a
+`List.Forall₂` proof aligning coordinates `0, …, B.length - 1` with their
+certified derivative intervals.
+
+The Dyadic variants use the identical checked fragment and failure model while
+performing dual addition and multiplication with Dyadic endpoints and outward
+rounding at every operation. Their public success condition also certifies that
+`cfg.precision ≤ 0`. The corresponding Golden Theorems are
+`derivIntervalDyadicChecked_correct` and
+`gradientIntervalDyadicChecked_correct`.
+
 **Example:**
 ```lean
 -- Prove exp is strictly increasing on [0, 1]

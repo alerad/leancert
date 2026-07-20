@@ -206,8 +206,39 @@ export LeanCert.Engine (
   evalIntervalRefined1_correct
   DualInterval
   derivInterval
+  EvalError
+  EvalResult
+  checkADDomain
+  evalDualChecked
+  evalWithDerivChecked
+  derivIntervalChecked
+  derivIntervalChecked1
+  evalDualChecked_val_correct
+  evalWithDerivChecked_differentiableAt
+  evalWithDerivChecked_der_correct
+  derivIntervalChecked_correct
+  DualIntervalDyadic
+  DualDyadicEnv
+  checkDyadicADDomain
+  evalDualDyadicChecked
+  evalWithDerivDyadicChecked
+  derivIntervalDyadicChecked
+  derivIntervalDyadicChecked1
+  derivIntervalDyadicCheckedOfRat
+  derivIntervalDyadicChecked1OfRat
+  gradientIntervalDyadicChecked
+  gradientIntervalDyadicCheckedOfRat
+  evalDualDyadicChecked_val_correct
+  evalWithDerivDyadicChecked_differentiableAt
+  evalWithDerivDyadicChecked_der_correct
+  derivIntervalDyadicChecked_correct
+  derivIntervalDyadicCheckedOfRat_correct
+  gradientIntervalDyadicChecked_correct
+  gradientIntervalDyadicCheckedOfRat_correct
   evalDualRefined_val_correct
   DyadicConfig
+  IntervalDyadicEnv
+  toDyadicEnv
   evalIntervalDyadicChecked
   evalIntervalDyadicChecked_correct
 )
@@ -315,6 +346,8 @@ export LeanCert.Engine (
 -- Re-export global optimization
 export LeanCert.Engine.Optimization (
   Box
+  gradientIntervalChecked
+  gradientIntervalChecked_correct
   GlobalOptConfig
   GlobalBound
   GlobalResult
