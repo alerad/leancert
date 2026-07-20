@@ -359,6 +359,14 @@ derivIntervalChecked  : Expr → IntervalEnv → Nat → EvalConfig →
   EvalResult IntervalRat
 gradientIntervalChecked : Expr → Box → EvalConfig →
   EvalResult (List IntervalRat)
+derivIntervalDyadicChecked : Expr → IntervalDyadicEnv → Nat → DyadicConfig →
+  EvalResult IntervalDyadic
+gradientIntervalDyadicChecked : Expr → IntervalDyadicEnv → Nat → DyadicConfig →
+  EvalResult (List IntervalDyadic)
+derivIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConfig →
+  EvalResult IntervalDyadic
+gradientIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConfig →
+  EvalResult (List IntervalDyadic)
 ```
 
 The checker recursively validates syntax and the actual input box.  It accepts
@@ -387,6 +395,13 @@ checked fragment is `const`, `var`, `add`, `mul`, `neg`, `sin`, `cos`, `exp`,
 For full gradients, `gradientIntervalChecked_correct` returns a
 `List.Forall₂` proof aligning coordinates `0, …, B.length - 1` with their
 certified derivative intervals.
+
+The Dyadic variants use the identical checked fragment and failure model while
+performing dual addition and multiplication with Dyadic endpoints and outward
+rounding at every operation. Their public success condition also certifies that
+`cfg.precision ≤ 0`. The corresponding Golden Theorems are
+`derivIntervalDyadicChecked_correct` and
+`gradientIntervalDyadicChecked_correct`.
 
 **Example:**
 ```lean

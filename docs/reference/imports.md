@@ -41,12 +41,14 @@ import LeanCert.Validity.Krawczyk
 
 ```lean
 import LeanCert.Engine.AD.DomainChecked
+import LeanCert.Engine.AD.Dyadic        -- bounded-denominator checked AD
 import LeanCert.Engine.Optimization.Gradient -- checked full gradients
 ```
 
 Use `import LeanCert` for the re-exported public names
-`derivIntervalChecked`, `gradientIntervalChecked`, and their soundness
-theorems.
+`derivIntervalChecked`, `gradientIntervalChecked`, the Dyadic counterparts
+`derivIntervalDyadicChecked` and `gradientIntervalDyadicChecked`, and their
+soundness theorems.
 
 ## ML Verification
 

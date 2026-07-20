@@ -228,6 +228,14 @@ contain zero, nonpositive logarithm boxes, and unsupported nodes return an
 The legacy total AD core remains internal machinery for already-proved
 domain-free fragments.
 
+`AD.Dyadic` provides the bounded-denominator equivalent:
+`evalDualDyadicChecked`, `derivIntervalDyadicChecked`, and
+`gradientIntervalDyadicChecked`. Algebraic dual operations stay Dyadic and
+round outward after every addition and multiplication; the established
+verified Dyadic transcendental wrappers handle `sin`, `cos`, `exp`, `inv`, and
+`log`. Golden Theorems cover value enclosure, differentiability, indexed
+derivatives, and coordinate-aligned gradients.
+
 ### Neural Network Verification
 
 The ML module provides verified interval propagation for neural networks:

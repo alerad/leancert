@@ -48,3 +48,13 @@ The aggregate `LeanCert` import also exposes the checked AD boundary:
 These APIs support `inv` and `log` when their interval arguments prove the
 required domain conditions. They return `EvalResult`; application code should
 not substitute the internal total evaluator.
+
+For deep expressions where rational denominators would grow, the same boundary
+is available through `evalDualDyadicChecked`,
+`derivIntervalDyadicChecked`, and `gradientIntervalDyadicChecked`. The Dyadic
+API takes an `IntervalDyadicEnv` plus `DyadicConfig`, rejects positive
+`precision`, and returns Dyadic enclosures. Its Golden Theorems have the same
+shape and require no separate support or domain proof. Callers that already
+have rational boxes can use `derivIntervalDyadicCheckedOfRat` and
+`gradientIntervalDyadicCheckedOfRat`; conversion and its containment proof are
+part of their Golden Theorems.

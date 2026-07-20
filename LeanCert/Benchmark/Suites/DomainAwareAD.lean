@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Benchmark.Harness
-import LeanCert.Engine.AD.DomainChecked
+import LeanCert.Engine.AD.Dyadic
 
 /-! Benchmarks for checked reciprocal/logarithm automatic differentiation. -/
 
@@ -17,6 +17,12 @@ private def positive : IntervalRat := ⟨1, 2, by norm_num⟩
 private def crossesZero : IntervalRat := ⟨-1, 1, by norm_num⟩
 private def nested : Expr := .log (.inv (.add (.var 0) (.const 1)))
 private def reciprocal : Expr := .inv (.var 0)
+
+private def deepNested : Nat → Expr
+  | 0 => .add (.var 0) (.const 2)
+  | n + 1 => .add (.mul (deepNested n) (.const (1 / 3))) (.const (1 / 7))
+
+private def deepDomainAware : Expr := .log (.inv (deepNested 60))
 
 private def chooseInterval (fallback : IntervalRat) : IO IntervalRat := do
   let stamp ← IO.monoNanosNow
@@ -42,6 +48,34 @@ private def rejectedRun : IO Outcome := do
   | .ok result =>
       return { status := "unexpected_success", interval := some result, backendUsed := some "rational" }
 
+private def dyadicCheckedRun : IO Outcome := do
+  let I ← chooseInterval positive
+  let rho : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I (-53)
+  match derivIntervalDyadicChecked nested rho 0 {} with
+  | .ok result =>
+      let resultRat : IntervalRat := result.toIntervalRat
+      return { status := "success", interval := some resultRat, backendUsed := some "dyadic" }
+  | .error err =>
+      return { status := "error", error := some s!"{repr err}", backendUsed := some "dyadic" }
+
+private def deepRationalRun : IO Outcome := do
+  let I ← chooseInterval positive
+  match derivIntervalChecked deepDomainAware (fun _ => I) 0 {} with
+  | .ok result =>
+      return { status := "success", interval := some result, backendUsed := some "rational" }
+  | .error err =>
+      return { status := "error", error := some s!"{repr err}", backendUsed := some "rational" }
+
+private def deepDyadicRun : IO Outcome := do
+  let I ← chooseInterval positive
+  let rho : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I (-53)
+  match derivIntervalDyadicChecked deepDomainAware rho 0 {} with
+  | .ok result =>
+      let resultRat : IntervalRat := result.toIntervalRat
+      return { status := "success", interval := some resultRat, backendUsed := some "dyadic" }
+  | .error err =>
+      return { status := "error", error := some s!"{repr err}", backendUsed := some "dyadic" }
+
 def cases : List Case := [
   {
     name := "ad.inv_log_nested.unchecked"
@@ -66,6 +100,18 @@ def cases : List Case := [
     run := checkedRun
   },
   {
+    name := "ad.inv_log_nested.dyadic_checked"
+    family := "automatic_differentiation"
+    layer := .checkedAPI
+    backendRequested := "dyadic"
+    suites := ["smoke", "ad", "full", "all"]
+    parameters := [("domain", "[1,2]"), ("implementation", "dyadic_domain_checked"),
+      ("precision", "-53")]
+    input := { astNodes := 5, astDepth := 4, variableCount := 1 }
+    innerIterations := 50
+    run := dyadicCheckedRun
+  },
+  {
     name := "ad.inv_crosses_zero.rejected"
     family := "automatic_differentiation"
     layer := .checkedAPI
@@ -76,6 +122,29 @@ def cases : List Case := [
     innerIterations := 100
     expectedStatus := "domain_rejected"
     run := rejectedRun
+  },
+  {
+    name := "ad.deep_inv_log.rational_checked"
+    family := "automatic_differentiation"
+    layer := .checkedAPI
+    backendRequested := "rational"
+    suites := ["ad", "full", "all"]
+    parameters := [("depth", "60"), ("implementation", "domain_checked")]
+    input := { astNodes := 245, astDepth := 124, variableCount := 1 }
+    innerIterations := 5
+    run := deepRationalRun
+  },
+  {
+    name := "ad.deep_inv_log.dyadic_checked"
+    family := "automatic_differentiation"
+    layer := .checkedAPI
+    backendRequested := "dyadic"
+    suites := ["ad", "full", "all"]
+    parameters := [("depth", "60"), ("implementation", "dyadic_domain_checked"),
+      ("precision", "-53")]
+    input := { astNodes := 245, astDepth := 124, variableCount := 1 }
+    innerIterations := 5
+    run := deepDyadicRun
   }
 ]
 

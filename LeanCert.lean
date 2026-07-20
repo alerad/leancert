@@ -217,8 +217,28 @@ export LeanCert.Engine (
   evalWithDerivChecked_differentiableAt
   evalWithDerivChecked_der_correct
   derivIntervalChecked_correct
+  DualIntervalDyadic
+  DualDyadicEnv
+  checkDyadicADDomain
+  evalDualDyadicChecked
+  evalWithDerivDyadicChecked
+  derivIntervalDyadicChecked
+  derivIntervalDyadicChecked1
+  derivIntervalDyadicCheckedOfRat
+  derivIntervalDyadicChecked1OfRat
+  gradientIntervalDyadicChecked
+  gradientIntervalDyadicCheckedOfRat
+  evalDualDyadicChecked_val_correct
+  evalWithDerivDyadicChecked_differentiableAt
+  evalWithDerivDyadicChecked_der_correct
+  derivIntervalDyadicChecked_correct
+  derivIntervalDyadicCheckedOfRat_correct
+  gradientIntervalDyadicChecked_correct
+  gradientIntervalDyadicCheckedOfRat_correct
   evalDualRefined_val_correct
   DyadicConfig
+  IntervalDyadicEnv
+  toDyadicEnv
   evalIntervalDyadicChecked
   evalIntervalDyadicChecked_correct
 )
