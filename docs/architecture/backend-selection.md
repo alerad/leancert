@@ -16,6 +16,7 @@ Supported selector values are `auto`, `rational`, `dyadic`, and `affine`.
 | Operation | `auto` backend | Explicit alternatives |
 |---|---|---|
 | Interval evaluation and bound checks | Expression-aware Rational/Dyadic/Affine | Rational, Dyadic, Affine |
+| Checked automatic differentiation | Explicit API (no `auto` dispatcher yet) | Rational, Dyadic |
 | Global optimization | Dyadic | Rational, Dyadic, Affine |
 | Integration | Rational | Rational |
 | Root finding | Rational | Rational |
@@ -37,6 +38,14 @@ implementation details. The golden
 theorem `LeanCert.evalInterval_correct` proves that every successful public
 result encloses the real expression value, independently of which backend was
 selected.
+
+Checked automatic differentiation deliberately has explicit entry points
+rather than using `EvalOptions`: `derivIntervalChecked` uses Rational arithmetic,
+while `derivIntervalDyadicChecked` and
+`derivIntervalDyadicCheckedOfRat` use bounded-denominator Dyadic arithmetic.
+The `OfRat` boundary is the convenient choice for Rational input boxes. See
+[Checked Automatic Differentiation](../direct/checked-ad.md) for the complete
+entry-point and Golden-Theorem map.
 
 ```lean
 import LeanCert

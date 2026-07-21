@@ -12,6 +12,7 @@ The default `smoke` suite exercises representative workloads from:
 
 - arithmetic denominator growth;
 - nested transcendental evaluation;
+- checked Rational and Dyadic automatic differentiation;
 - affine dependency tracking.
 
 Each workload contains internal evaluator cases and checked public-API cases.
@@ -39,6 +40,9 @@ lake exe leancert-bench --list
 
 # Run the complete evaluator/backend matrix
 lake exe leancert-bench --suite evaluation
+
+# Compare checked Rational and Dyadic AD, including denominator growth
+lake exe leancert-bench --suite ad --samples 15 --warmups 3
 
 # Run the moderately larger explicit-backend matrix
 lake exe leancert-bench --suite heavy
