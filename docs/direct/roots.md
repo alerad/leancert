@@ -25,6 +25,18 @@ interval_unique_root
 root_bound
 ```
 
+## Global algebraic simplicity
+
+For an exact rational polynomial, `BezoutCert` checks an identity
+`A * P + B * P' = c` with `c ≠ 0`. One successful exact check proves that the
+polynomial is separable and squarefree and that every real root is simple,
+without choosing a bounding interval. `QPoly.toExpr` connects that result to
+the expression used by the interval root pipeline.
+
+See [Algebraic Root Certificates](../certificates/algebraic-roots.md) for the
+checker, Golden Theorems, and a complete example. This API certifies
+simplicity; global root counting and algebraic isolation are future layers.
+
 Minimal root-existence example:
 
 ```lean

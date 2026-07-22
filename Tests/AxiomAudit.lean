@@ -66,6 +66,8 @@ assert_no_sorry LeanCert.Engine.Optimization.globalMinimizeDyadicChecked_lo_corr
 assert_no_sorry LeanCert.Engine.Optimization.globalMinimizeAffineChecked_lo_correct
 assert_no_sorry LeanCert.Engine.Optimization.globalMinimizeWith_lower_correct
 assert_no_sorry LeanCert.Engine.Optimization.globalMaximizeWith_upper_correct
+assert_no_sorry LeanCert.Engine.bezoutCheck_sound
+assert_no_sorry LeanCert.Validity.Algebra.verify_real_roots_simple
 
 /-! ### Exact axiom pinning (catches `native_decide` / `ofReduceBool` creep) -/
 
@@ -162,6 +164,18 @@ info: 'LeanCert.Validity.RootFinding.verify_no_root' depends on axioms: [propext
 -/
 #guard_msgs in
 #print axioms LeanCert.Validity.RootFinding.verify_no_root
+
+/--
+info: 'LeanCert.Engine.bezoutCheck_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Engine.bezoutCheck_sound
+
+/--
+info: 'LeanCert.Validity.Algebra.verify_real_roots_simple' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Validity.Algebra.verify_real_roots_simple
 
 /--
 info: 'LeanCert.Validity.verify_upper_bound_affine1_strict' depends on axioms: [propext, Classical.choice, Quot.sound]

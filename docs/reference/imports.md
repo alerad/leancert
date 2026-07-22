@@ -37,6 +37,12 @@ import LeanCert.Engine.ChebyshevTheta
 import LeanCert.Validity.Krawczyk
 ```
 
+## Algebraic Root Simplicity
+
+```lean
+import LeanCert.Validity.Algebra
+```
+
 ## Domain-aware automatic differentiation
 
 ```lean

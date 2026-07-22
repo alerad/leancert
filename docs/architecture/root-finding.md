@@ -9,6 +9,12 @@ LeanCert provides verified root finding with proofs of existence and uniqueness.
 | Bisection | Existence | Sign change + IVT | `interval_roots` |
 | Newton Contraction | Uniqueness | Fixed-point theorem | `interval_unique_root` |
 | Norm-form Krawczyk | Existence + uniqueness for square differentiable systems | Interval Jacobian + Banach | certificate API |
+| Bézout derivative | Global simplicity of all roots of a rational polynomial | Exact identity `A P + B P' = c ≠ 0` | certificate API |
+
+The Bézout layer is algebraic rather than isolating: it proves that roots are
+simple globally. Its `QPoly.toExpr` bridge lets that fact compose with the
+interval algorithms below. See
+[Algebraic Root Certificates](../certificates/algebraic-roots.md).
 
 ## Nonlinear Systems (Krawczyk)
 

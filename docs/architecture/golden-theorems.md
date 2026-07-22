@@ -24,6 +24,7 @@ Golden Theorems are defined across multiple files:
 - `Validity/AffineBounds.lean` - Affine arithmetic (tight bounds)
 - `Validity/Monotonicity.lean` - Monotonicity via automatic differentiation
 - `Validity/Krawczyk.lean` - existence and uniqueness for square systems in the differentiable AD fragment
+- `Validity/Algebra.lean` - separability, squarefreeness, and simple real roots from exact Bézout identities
 - `Engine/Chebyshev/Psi.lean` - Chebyshev `ψ` finite-range certificates
 - `Engine/Chebyshev/Theta.lean` - Chebyshev `θ` finite-range certificates
 - `Cert/Interval.lean` - shared rational interval Golden Theorem combinators
@@ -66,6 +67,8 @@ theorem verify_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
 | System-root existence | `verify_system_root_exists` | `krawczykCheck` |
 | System-root uniqueness | `verify_system_root_unique` | `krawczykCheck` |
 | Unique system root | `verify_unique_system_root` | `krawczykCheck` |
+| Polynomial separability | `verify_separable` | `bezoutCheck` |
+| Every real polynomial root is simple | `verify_real_roots_simple` | `bezoutCheck` |
 
 ```lean
 theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)

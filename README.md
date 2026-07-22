@@ -12,6 +12,7 @@ LeanCert is a Lean 4 library for certified numerical reasoning. It provides proo
 * Verified interval bounds for real-valued expressions
 * Proof automation for inequalities over intervals
 * Root existence and uniqueness tactics
+* Exact Bézout certificates for polynomial separability and simple roots
 * Global minimum and maximum certificates
 * Definite integral bound certificates
 * Dyadic and rational arithmetic backends

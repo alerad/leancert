@@ -107,6 +107,7 @@ precompileModules = false
 name = "FunctionalTests"
 roots = [
   "LeanCert.Test.AffineCoverTest",
+  "LeanCert.Test.AlgebraicBezout",
   "LeanCert.Test.AsympCheckers",
   "LeanCert.Test.AsympEnv",
   "LeanCert.Test.AsympTransforms",
