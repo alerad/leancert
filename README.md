@@ -52,10 +52,10 @@ lake exe check-compat
 Prove a simple bound over an interval:
 
 ```lean
-import LeanCert.Tactic.IntervalAuto
+import LeanCert.Tactic
 
 example : forall x in Set.Icc (0 : Real) 1, Real.exp x <= 3 := by
-  certify_bound
+  leancert
 ```
 
 Use a larger Taylor depth for tighter transcendental bounds:
@@ -150,8 +150,13 @@ example : exists! x in Set.Icc (1 : Real) 2, x^2 - 2 = 0 := by
 
 ## Choosing a Tactic
 
+Start with `leancert`. It recognizes point and interval inequalities,
+multivariate bounds, root existence/uniqueness/exclusion, extrema, existential
+bounds, and finite sums. Use `leancert?` to see the dedicated tactic selected.
+
 | Goal                                       | Tactic                 |
 | ------------------------------------------ | ---------------------- |
+| Any recognized non-integral goal           | `leancert`             |
 | `forall x in I, f x <= c`                  | `certify_bound`        |
 | `forall x in I, c <= f x`                  | `certify_bound`        |
 | Kernel-oriented dyadic bound               | `certify_kernel`       |

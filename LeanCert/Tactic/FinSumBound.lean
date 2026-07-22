@@ -91,7 +91,7 @@ structure FinSumGoal where
 
 /-- Parse a goal of the form `∑ k ∈ Finset.Icc a b, f k ≤ target`
     or `target ≤ ∑ k ∈ Finset.Icc a b, f k`. -/
-private def parseFinSumGoal (goalType : Lean.Expr) : Option FinSumGoal := do
+def parseFinSumGoal (goalType : Lean.Expr) : Option FinSumGoal := do
   -- Match LE.le _ _ lhs rhs
   let_expr LE.le _ _ lhs rhs := goalType | none
   -- Check if lhs is a Finset.Icc sum
@@ -118,7 +118,7 @@ structure FinSumGoalList where
   isUpper : Bool
 
 /-- Parse a goal for the list path: ∑ k ∈ S, f k ≤ target (any Finset S). -/
-private def parseFinSumGoalList (goalType : Lean.Expr) : MetaM (Option FinSumGoalList) := do
+def parseFinSumGoalList (goalType : Lean.Expr) : MetaM (Option FinSumGoalList) := do
   let_expr LE.le _ _ lhs rhs := goalType | return none
   let tryExtract (sumSide otherSide : Lean.Expr) (isUpper : Bool) :
       MetaM (Option FinSumGoalList) := do
@@ -422,7 +422,7 @@ private def tryRewriteFinSum : TacticM Unit := do
   replaceMainGoal (newGoal :: result.mvarIds)
 
 /-- Main dispatch: try Icc path first, then list path. -/
-private def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
+def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
   let goal ← getMainGoal
   let goalType ← goal.getType
   -- Try Icc path first (faster, no Nodup check needed)
@@ -436,6 +436,12 @@ private def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := d
   throwError "finsum_bound: goal is not of the form \
     `∑ k ∈ S, f k ≤ target` or `target ≤ ∑ k ∈ S, f k` \
     where S is a recognized Finset (Icc, Ico, Ioc, Ioo, range, or explicit)"
+
+/-- Whether `goalType` is a finite-sum bound understood by `finsum_bound`. -/
+def isFinSumBoundGoal (goalType : Lean.Expr) : MetaM Bool := do
+  if (parseFinSumGoal goalType).isSome then
+    return true
+  return (← parseFinSumGoalList goalType).isSome
 
 /-! ## Main Tactic -/
 

@@ -2,6 +2,31 @@
 
 Complete reference for all LeanCert tactics.
 
+## Semantic Front Door
+
+### `leancert` and `leancert?`
+
+`leancert` classifies the mathematical shape of a goal and transactionally
+tries a bounded portfolio of existing proof-producing tactics. Failed attempts
+restore the complete tactic state. `leancert?` also reports the winning
+dedicated tactic. Closed Boolean checkers whose implementation is under the
+`LeanCert` namespace are routed to `native_decide`; arbitrary closed
+propositions are not.
+
+```lean
+import LeanCert.Tactic
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x^2 ≤ 1 := by leancert
+example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x^2 = 2 := by leancert?
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27/100 : ℚ) := by
+  leancert (subdivisions := 8)
+```
+
+Inline options are `budget`, `taylorDepth`, `subdivisions`, and
+`maxIterations`. The budget counts deterministic strategies; it does not alter
+Lean's heartbeat setting. Ordinary integral inequalities remain on the
+dedicated `interval_integrate` path pending the integral front-end.
+
 ## Bound Proving
 
 ### `certify_bound`

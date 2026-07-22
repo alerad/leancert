@@ -23,24 +23,19 @@ lake update
 ## 2. Direct Automation: Prove a Bound
 
 ```lean
-import LeanCert.Tactic.IntervalAuto
+import LeanCert.Tactic
 
 example : forall x in Set.Icc (0 : Real) 1, Real.exp x <= 3 := by
-  certify_bound
+  leancert
 ```
 
 ## 3. Direct Automation: Find a Root Existence Proof
 
 ```lean
-import LeanCert.Tactic.Discovery
+import LeanCert.Tactic
 
-open LeanCert.Core
-
-def I12 : IntervalRat := { lo := 1, hi := 2, le := by norm_num }
-
-example : exists x in I12, Expr.eval (fun _ => x)
-    (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))) = 0 := by
-  interval_roots
+example : exists x in Set.Icc (1 : Real) 2, x^2 = 2 := by
+  leancert
 ```
 
 ## 4. Use Discovery Commands
