@@ -123,6 +123,8 @@ roots = [
   "LeanCert.Test.Hardening",
   "LeanCert.Test.IntegrationDyadicChecked",
   "LeanCert.Test.Krawczyk",
+  "LeanCert.Test.LeanCertTransactional",
+  "LeanCert.Test.NaturalSyntaxRepairs",
   "LeanCert.Test.Numeral",
   "LeanCert.Test.Pisano",
   "LeanCert.Test.PublicEvalAPI",

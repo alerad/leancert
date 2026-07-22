@@ -10,6 +10,7 @@ import LeanCert.Meta.Numeral
 import LeanCert.Meta.ProveSupported
 import LeanCert.Tactic.IntervalAuto.Types
 import LeanCert.Tactic.IntervalAuto.Extract
+import LeanCert.Tactic.LeanCert.Normalize
 
 /-!
 # Common Proving Utilities
@@ -352,20 +353,24 @@ def extractRatBound (bound : Lean.Expr) : TacticM Lean.Expr := do
                       • Use a rational approximation\n\
                       • Use interval_decide for point inequalities with transcendentals"
 
-/-- Try to extract AST from an Expr.eval application, or reify if it's a raw expression -/
-def getAst (func : Lean.Expr) : TacticM Lean.Expr := do
+/-- Extract an AST and retain the definitions unfolded while reifying it. -/
+def getAstWithReport (func : Lean.Expr) : TacticM LeanCert.Meta.ReifyReport := do
   lambdaTelescope func fun _vars body => do
     let fn := body.getAppFn
     if fn.isConstOf ``LeanCert.Core.Expr.eval then
       let args := body.getAppArgs
       if args.size ≥ 2 then
-        return args[1]!
+        return { expr := args[1]! }
       else
         throwError m!"Unexpected Expr.eval application structure.\n\
                       Expected: Expr.eval env ast\n\
                       Got {args.size} arguments: {args.toList}"
     else
-      reify func
+      reifyWithReport func
+
+/-- Backward-compatible AST extraction entry point. -/
+def getAst (func : Lean.Expr) : TacticM Lean.Expr := do
+  return (← getAstWithReport func).expr
 
 /-- Get a core support proof when available. Checked evaluators need no support
 proof; their branch receives an unused placeholder. -/

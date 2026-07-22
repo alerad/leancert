@@ -123,10 +123,10 @@ def parseExistentialGoal (goalType : Lean.Expr) : MetaM (Option ExistentialBound
 
 /-! ## Helper Functions -/
 
-/-- Try to extract AST from an Expr.eval application, or reify if it's a raw expression.
+/-- Extract an AST and retain definitions unfolded during reification.
     This enables automatic reification - users can write standard math like `x * x + sin x`
     without needing to wrap in `Expr.eval`. -/
-def getAstFromFunc (func : Lean.Expr) : TacticM Lean.Expr := do
+def getAstFromFuncWithReport (func : Lean.Expr) : TacticM LeanCert.Meta.ReifyReport := do
   -- func is (fun x => body) where body might be Expr.eval or a raw expression
   lambdaTelescope func fun _vars body => do
     -- Check if body is an Expr.eval application
@@ -138,22 +138,26 @@ def getAstFromFunc (func : Lean.Expr) : TacticM Lean.Expr := do
       -- So args[0] is env, args[1] is ast
       if args.size ≥ 2 then
         trace[LeanCert.discovery] "Extracted AST from Expr.eval wrapper"
-        return args[1]!
+        return { expr := args[1]! }
       else
         throwError "Unexpected Expr.eval application structure"
     else
       -- It's a raw expression - reify it automatically
       trace[LeanCert.discovery] "Auto-reifying raw expression: {body}"
       try
-        let ast ← reify func
+        let report ← reifyWithReport func
         trace[LeanCert.discovery] "Reification successful"
-        return ast
+        return report
       catch e =>
         throwError m!"Failed to reify expression to LeanCert AST.\n\
                       Expression: {body}\n\n\
                       Error: {e.toMessageData}\n\n\
                       Supported operations: +, -, *, /, sin, cos, exp, log, sqrt, π, ...\n\
                       Tip: Unfold custom definitions with 'simp only [myDef]' first."
+
+/-- Backward-compatible AST-only extraction entry point. -/
+def getAstFromFunc (func : Lean.Expr) : TacticM Lean.Expr := do
+  return (← getAstFromFuncWithReport func).expr
 
 /-! ### Domain normalization helpers -/
 
@@ -1161,11 +1165,27 @@ unsafe def elabIntervalMaximizeMv : Tactic := fun stx => do
 
 /-- Result of analyzing a root existence goal -/
 inductive RootExistsGoal where
-  /-- ∃ x ∈ I, f x = 0 -/
+  /-- `∃ x ∈ I, lhs x = rhs x`, represented by `lhs - rhs`. -/
   | existsRoot (varName : Name) (interval : Lean.Expr) (func : Lean.Expr)
+      (reverseZeroEquality : Bool := false)
   deriving Repr
 
-/-- Try to parse a goal as a root existence goal: ∃ x ∈ I, f(x) = 0 -/
+/-- Turn an equality involving `x` into the zero-finding function `lhs - rhs`. -/
+def rootDifferenceFunction? (eqExpr x : Lean.Expr) : MetaM (Option (Lean.Expr × Bool)) := do
+  match_expr eqExpr with
+  | Eq _ lhs rhs =>
+    if !lhs.containsFVar x.fvarId! && !rhs.containsFVar x.fvarId! then
+      return none
+    let zero ← mkAppOptM ``OfNat.ofNat #[mkConst ``Real, mkRawNatLit 0, none]
+    if ← isDefEq (← whnf rhs) zero then
+      return some (← mkLambdaFVars #[x] lhs, false)
+    if ← isDefEq (← whnf lhs) zero then
+      return some (← mkLambdaFVars #[x] rhs, true)
+    let diff ← mkAppM ``HSub.hSub #[lhs, rhs]
+    return some (← mkLambdaFVars #[x] diff, false)
+  | _ => return none
+
+/-- Try to parse a goal as a root existence goal: `∃ x ∈ I, lhs x = rhs x`. -/
 def parseRootExistsGoal (goal : Lean.Expr) : MetaM (Option RootExistsGoal) := do
   let goal ← whnf goal
   -- Check for ∃ x, x ∈ I ∧ f x = 0
@@ -1183,10 +1203,10 @@ def parseRootExistsGoal (goal : Lean.Expr) : MetaM (Option RootExistsGoal) := do
           -- Extract interval from membership
           let interval? ← extractInterval memExpr x
           let some interval := interval? | return none
-          -- Extract function from equality f(x) = 0
-          let func? ← extractFuncFromEqZero eqExpr x
-          let some func := func? | return none
-          return some (.existsRoot name interval func)
+          -- Reify equality as the root function lhs - rhs.
+          let func? ← rootDifferenceFunction? eqExpr x
+          let some (func, reverseZeroEquality) := func? | return none
+          return some (.existsRoot name interval func reverseZeroEquality)
         | _ => return none
     else return none
   | _ => return none
@@ -1241,61 +1261,23 @@ where
         return some (← mkSetIccFromBounds loExpr hiExpr)
       return none
 
-  /-- Extract function from f(x) = 0 -/
-  extractFuncFromEqZero (eqExpr : Lean.Expr) (x : Lean.Expr) : MetaM (Option Lean.Expr) := do
-    match_expr eqExpr with
-    | Eq _ lhs rhs =>
-      -- Check if rhs is 0 by constructing (0 : ℝ) and checking definitional equality
-      let zero ← mkAppOptM ``OfNat.ofNat #[mkConst ``Real, mkRawNatLit 0, none]
-      let rhs ← whnf rhs
-      let isZero ← isDefEq rhs zero
-      if !isZero then return none
-      -- lhs should contain x
-      if lhs.containsFVar x.fvarId! then
-        return some (← mkLambdaFVars #[x] lhs)
-      else
-        return none
-    | _ => return none
-
-/-- Check if a root goal needs normalization (f = c where c ≠ 0) -/
-private def needsRootNormalization (goalType : Lean.Expr) : MetaM Bool := do
-  let goalType ← whnf goalType
-  match_expr goalType with
-  | Exists _ body =>
-    if let .lam _ _ innerBody _ := body then
-      let innerBody ← whnf innerBody
-      match_expr innerBody with
-      | And _ eqExpr =>
-        match_expr eqExpr with
-        | Eq _ _ rhs =>
-          let zero ← mkAppOptM ``OfNat.ofNat #[mkConst ``Real, mkRawNatLit 0, none]
-          let rhs ← whnf rhs
-          let isZero ← isDefEq rhs zero
-          return !isZero
-        | _ => return false
-      | _ => return false
-    else return false
-  | _ => return false
-
 /-- The interval_roots tactic implementation -/
 def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
   LeanCert.Tactic.Auto.intervalNormCore
-  -- Normalize f = c to f - c = 0 form only if needed
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-  if ← needsRootNormalization goalType then
-    try evalTactic (← `(tactic| conv => arg 1; ext x; arg 2; rw [← sub_eq_zero]))
-    catch _ => pure ()
-  let goal ← getMainGoal
-  let goalType ← goal.getType
+  let initialGoal ← getMainGoal
+  let goalType ← initialGoal.getType
 
   -- 1. Parse the goal
-  let some (.existsRoot _varName interval func) ← parseRootExistsGoal goalType
+  let some (.existsRoot _varName interval func reverseZeroEquality) ← parseRootExistsGoal goalType
     | let diagReport ← LeanCert.Tactic.Auto.mkDiagnosticReport "interval_roots" goalType "parse"
-        (some m!"Expected form: ∃ x ∈ I, f(x) = 0\n\n\
+        (some m!"Expected form: ∃ x ∈ I, lhs(x) = rhs(x)\n\n\
                  The function f must be continuous on interval I.\n\
                  Uses intermediate value theorem to find roots.")
       throwError "interval_roots: Could not parse goal.\n\n{diagReport}"
+
+  if reverseZeroEquality then
+    evalTactic (← `(tactic| conv => arg 1; ext x; arg 2; rw [eq_comm]))
+  let goal ← getMainGoal
 
   goal.withContext do
     let mut fromSetIcc := false
@@ -1312,7 +1294,9 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
             throwError "interval_roots: Only IntervalRat or literal Set.Icc intervals are supported"
 
     -- 2. Get AST (either from Expr.eval or by reifying)
-    let ast ← getAstFromFunc func
+    let reified ← getAstFromFuncWithReport func
+    let ast := reified.expr
+    LeanCert.Tactic.unfoldReifiedDefinitions reified.unfolded
 
     -- 3. Generate ExprSupportedCore proof
     let supportProof ← mkSupportedCoreProof ast
@@ -1332,7 +1316,8 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
       let proofSyntax ← Term.exprToSyntax proof
       evalTactic (← `(tactic| refine (by
         have h := $proofSyntax (by native_decide)
-        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
+        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
+          add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
     else
       -- 7. Apply the proof - this leaves the certificate check as a goal
       let newGoals ← goal.apply proof
@@ -1374,8 +1359,9 @@ elab "interval_roots" depth:(num)? : tactic => do
 
 /-! ## Unique Root Tactic -/
 
-/-- Parse a unique root goal: ∃! x, x ∈ I ∧ f(x) = 0 -/
-def parseUniqueRootGoal (goalType : Lean.Expr) : MetaM (Option (Name × Lean.Expr × Lean.Expr)) := do
+/-- Parse a unique root goal: `∃! x, x ∈ I ∧ lhs x = rhs x`. -/
+def parseUniqueRootGoal (goalType : Lean.Expr) :
+    MetaM (Option (Name × Lean.Expr × Lean.Expr × Bool)) := do
   -- Match: ∃! x, P x where P x = (x ∈ I ∧ f(x) = 0)
   -- NOTE: Don't call whnf before matching ExistsUnique - it would expand to Exists!
   match_expr goalType with
@@ -1431,20 +1417,8 @@ def parseUniqueRootGoal (goalType : Lean.Expr) : MetaM (Option (Name × Lean.Exp
         | And memExpr eqExpr =>
           -- Extract interval from membership (use pattern matching)
           let some interval ← extractInterval memExpr | return none
-          -- Extract function from equality
-          let some func := ← (do
-            match_expr eqExpr with
-            | Eq _ lhs rhs =>
-              let zero ← mkAppOptM ``OfNat.ofNat #[mkConst ``Real, mkRawNatLit 0, none]
-              let rhs ← whnf rhs
-              let isZero ← isDefEq rhs zero
-              if !isZero then return none
-              if lhs.containsFVar x.fvarId! then
-                return some (← mkLambdaFVars #[x] lhs)
-              else
-                return none
-            | _ => return none) | return none
-          return some (name, interval, func)
+          let some (func, reverseZeroEquality) ← rootDifferenceFunction? eqExpr x | return none
+          return some (name, interval, func, reverseZeroEquality)
         | _ => return none
     else return none
   | _ => return none
@@ -1461,12 +1435,16 @@ def parseUniqueRootGoal (goalType : Lean.Expr) : MetaM (Option (Name × Lean.Exp
 -/
 unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
   LeanCert.Tactic.Auto.intervalNormCore
-  let goal ← getMainGoal
-  let goalType ← goal.getType
+  let initialGoal ← getMainGoal
+  let goalType ← initialGoal.getType
 
   -- Parse goal: ∃! x, x ∈ I ∧ f(x) = 0
-  let some (_varName, interval, func) ← parseUniqueRootGoal goalType
-    | throwError "interval_unique_root: Goal must be of form `∃! x, x ∈ I ∧ f(x) = 0`"
+  let some (_varName, interval, func, reverseZeroEquality) ← parseUniqueRootGoal goalType
+    | throwError "interval_unique_root: Goal must be of form `∃! x, x ∈ I ∧ lhs(x) = rhs(x)`"
+
+  if reverseZeroEquality then
+    evalTactic (← `(tactic| conv => arg 1; ext x; arg 2; rw [eq_comm]))
+  let goal ← getMainGoal
 
   let mut fromSetIcc := false
   let intervalExpr ←
@@ -1482,7 +1460,9 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
           throwError "interval_unique_root: Only IntervalRat or literal Set.Icc intervals are supported"
 
   -- Extract AST
-  let ast ← getAstFromFunc func
+  let reified ← getAstFromFuncWithReport func
+  let ast := reified.expr
+  LeanCert.Tactic.unfoldReifiedDefinitions reified.unfolded
 
   -- Generate ADSupported proof (required by verify_unique_root_computable)
   let supportProof ← mkSupportedProof ast
@@ -1505,7 +1485,8 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
       let proofSyntax ← Term.exprToSyntax proof
       evalTactic (← `(tactic| refine (by
         have h := $proofSyntax (by native_decide)
-        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
+        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
+          add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
   else
     -- Apply the proof (leaves one certificate check goal)
     let newGoals ← goal.apply proof
