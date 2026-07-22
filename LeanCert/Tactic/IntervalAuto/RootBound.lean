@@ -40,20 +40,20 @@ def rootBoundCore (taylorDepth : Nat) : TacticM Unit := do
     proveForallNeZero goal interval func taylorDepth
 
 where
-  /-- Try to extract AST from an Expr.eval application, or reify if it's a raw expression -/
-  getAst (func : Lean.Expr) : TacticM Lean.Expr := do
+  /-- Extract an AST and retain definitions unfolded during reification. -/
+  getAst (func : Lean.Expr) : TacticM LeanCert.Meta.ReifyReport := do
     lambdaTelescope func fun _vars body => do
       let fn := body.getAppFn
       if fn.isConstOf ``LeanCert.Core.Expr.eval then
         let args := body.getAppArgs
         if args.size ≥ 2 then
-          return args[1]!
+          return { expr := args[1]! }
         else
           throwError m!"Unexpected Expr.eval application structure.\n\
                         Expected: Expr.eval env ast\n\
                         Got {args.size} arguments: {args.toList}"
       else
-        reify func
+        reifyWithReport func
 
   /-- Try to convert Set.Icc to IntervalRat for root_bound -/
   tryConvertSetIccForRootBound (interval : Lean.Expr) : MetaM (Option Lean.Expr) := do
@@ -91,7 +91,13 @@ where
               throwError "root_bound: Only IntervalRat or literal Set.Icc intervals are supported"
 
       -- 1. Get AST
-      let ast ← getAst func
+      let reified ← getAst func
+      let ast := reified.expr
+
+      -- Keep the user's goal synchronized with definitions delta-reduced by
+      -- reification.  The verifier conclusion can then be bridged with the
+      -- fixed arithmetic normalization below.
+      unfoldReifiedDefinitions reified.unfolded
 
       -- 2. Generate ExprSupportedCore proof
       let supportProof ← mkSupportedCoreProof ast
@@ -108,7 +114,7 @@ where
         let proofSyntax ← Term.exprToSyntax proof
         evalTactic (← `(tactic| refine (by
           have h := $proofSyntax (by native_decide)
-          simpa [IntervalRat.mem_iff_mem_Icc] using h)))
+          simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
       else
         -- 5. Apply the proof - this leaves the certificate check as a goal
         let newGoals ← goal.apply proof

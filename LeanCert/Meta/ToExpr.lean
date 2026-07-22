@@ -55,8 +55,23 @@ structure Context where
   /-- Array of free variables from the lambda telescope -/
   vars : Array Lean.Expr := #[]
 
-/-- The translation monad: ReaderT over MetaM with our Context. -/
-abbrev TranslateM := ReaderT Context MetaM
+/-- Mutable bookkeeping for one reification pass. -/
+structure ReifyState where
+  /-- Definitions delta-reduced while exposing supported arithmetic. -/
+  unfolded : Array Name := #[]
+  /-- Remaining delta-reduction steps.  This prevents recursive wrappers from
+  making reification diverge. -/
+  remainingUnfoldSteps : Nat := 128
+
+/-- The result of reification together with information needed to bridge the
+reflected expression back to the user's original syntax. -/
+structure ReifyReport where
+  expr : Lean.Expr
+  unfolded : Array Name := #[]
+
+/-- The translation monad: a read-only variable context plus bounded
+reification bookkeeping over `MetaM`. -/
+abbrev TranslateM := ReaderT Context (StateT ReifyState MetaM)
 
 /-- Look up a Free Variable in the context. Returns its de Bruijn index if found. -/
 def findVarIdx? (e : Lean.Expr) : TranslateM (Option Nat) := do
@@ -98,9 +113,14 @@ def mkExprMul (e1 e2 : Lean.Expr) : MetaM Lean.Expr :=
 def mkExprNeg (e : Lean.Expr) : MetaM Lean.Expr :=
   mkAppM ``LeanCert.Core.Expr.neg #[e]
 
-/-- Build subtraction `e1 - e2` as `e1 + (-e2)` in Expr AST. -/
-def mkExprSub (e1 e2 : Lean.Expr) : MetaM Lean.Expr := do
-  mkExprAdd e1 (← mkExprNeg e2)
+/-- Build subtraction through the named `Expr.sub` wrapper.
+
+`Expr.sub` is definitionally implemented by addition and negation, so the
+executable evaluator is unchanged.  Preserving the wrapper until bridge
+normalization lets `Expr.eval_sub` recover the user's `lhs - rhs` syntax and
+is essential for general root goals `lhs = rhs`. -/
+def mkExprSub (e1 e2 : Lean.Expr) : MetaM Lean.Expr :=
+  mkAppM ``LeanCert.Core.Expr.sub #[e1, e2]
 
 /-- Build `LeanCert.Core.Expr.inv e`. -/
 def mkExprInv (e : Lean.Expr) : MetaM Lean.Expr :=
@@ -241,10 +261,22 @@ partial def toLeanCertExpr (e : Lean.Expr) : TranslateM Lean.Expr := do
       return result
 
   -- 5. Try to unfold definitions and retry
+  let state ← get
+  if state.remainingUnfoldSteps = 0 then
+    throwError "LeanCert reification exceeded its definition-unfolding budget"
   let e' ← unfoldDefinition? e
   match e' with
   | some unfolded =>
     if unfolded != e then
+      let headName? := e.getAppFn.constName?
+      modify fun state =>
+        let names := match headName? with
+          | some name =>
+              if state.unfolded.contains name then state.unfolded else state.unfolded.push name
+          | none => state.unfolded
+        { state with
+          unfolded := names
+          remainingUnfoldSteps := state.remainingUnfoldSteps - 1 }
       toLeanCertExpr unfolded
     else
       throwUnsupported e
@@ -511,11 +543,17 @@ This function uses `lambdaTelescope` to introduce the lambda-bound variables
 as free variables, then translates the body with those variables tracked in
 the context.
 -/
-def reify (e : Lean.Expr) : MetaM Lean.Expr := do
+def reifyWithReport (e : Lean.Expr) (maxUnfoldSteps : Nat := 128) : MetaM ReifyReport := do
   lambdaTelescope e fun vars body => do
     -- 'vars' are the fvars for the lambda arguments
     let ctx : Context := { vars := vars }
-    (toLeanCertExpr body).run ctx
+    let (expr, state) ← (toLeanCertExpr body).run ctx |>.run
+      { remainingUnfoldSteps := maxUnfoldSteps }
+    return { expr, unfolded := state.unfolded }
+
+/-- Backward-compatible reification entry point which discards bridge metadata. -/
+def reify (e : Lean.Expr) : MetaM Lean.Expr := do
+  return (← reifyWithReport e).expr
 
 /-! ## Testing Infrastructure -/
 

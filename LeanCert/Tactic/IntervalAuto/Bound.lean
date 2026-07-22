@@ -245,7 +245,8 @@ where
       discard <| tryNormalizeGoalToIcc
       let goal ← getMainGoal
       -- 1. Get AST (either from Expr.eval or by reifying)
-      let ast ← getAst func
+      let reified ← getAstWithReport func
+      let ast := reified.expr
 
       -- 2. Extract rational bound from possible coercion
       let boundRat ← extractRatBound bound
@@ -363,8 +364,9 @@ where
               if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
               if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
-              -- Last resort - leave the goal for the user but warn
-              logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
+              if ← tryClose (closeReificationBridge reified) then continue
+              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+                Remaining bridge goal: {← g.getType}"
 
         | none =>
           -- Direct IntervalRat goal - use appropriate verify_upper_bound theorem
@@ -417,7 +419,9 @@ where
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
-              logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
+              if ← tryClose (closeReificationBridge reified) then continue
+              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+                Remaining bridge goal: {← g.getType}"
 
   /-- Prove ∀ x ∈ I, c ≤ f x -/
   proveForallGe (goal : MVarId) (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
@@ -425,7 +429,8 @@ where
     goal.withContext do
       discard <| tryNormalizeGoalToIcc
       let goal ← getMainGoal
-      let ast ← getAst func
+      let reified ← getAstWithReport func
+      let ast := reified.expr
       let boundRat ← extractRatBound bound
 
       -- Try Dyadic backend first
@@ -529,7 +534,9 @@ where
               if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
               if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
-              logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
+              if ← tryClose (closeReificationBridge reified) then continue
+              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+                Remaining bridge goal: {← g.getType}"
 
         | none =>
           -- Direct IntervalRat goal - use appropriate verify_lower_bound theorem
@@ -582,7 +589,9 @@ where
               if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
-              logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
+              if ← tryClose (closeReificationBridge reified) then continue
+              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+                Remaining bridge goal: {← g.getType}"
 
   /-- Prove ∀ x ∈ I, f x < c -/
   proveForallLt (goal : MVarId) (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
@@ -590,7 +599,8 @@ where
     goal.withContext do
       discard <| tryNormalizeGoalToIcc
       let goal ← getMainGoal
-      let ast ← getAst func
+      let reified ← getAstWithReport func
+      let ast := reified.expr
       let boundRat ← extractRatBound bound
 
       -- Try Dyadic backend first
@@ -693,7 +703,9 @@ where
               if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
               if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
-              logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
+              if ← tryClose (closeReificationBridge reified) then continue
+              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+                Remaining bridge goal: {← g.getType}"
 
         | none =>
           -- Direct IntervalRat goal - use appropriate theorem
@@ -719,7 +731,8 @@ where
     goal.withContext do
       discard <| tryNormalizeGoalToIcc
       let goal ← getMainGoal
-      let ast ← getAst func
+      let reified ← getAstWithReport func
+      let ast := reified.expr
       let boundRat ← extractRatBound bound
 
       -- Try Dyadic backend first
@@ -822,7 +835,9 @@ where
               if ← tryClose (evalTactic (← `(tactic| simp [Rat.divInt_eq_div]))) then continue
               if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
-              logWarning m!"interval_bound: Could not close side goal: {← g.getType}"
+              if ← tryClose (closeReificationBridge reified) then continue
+              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+                Remaining bridge goal: {← g.getType}"
 
         | none =>
           -- Direct IntervalRat goal - use appropriate theorem
