@@ -68,6 +68,10 @@ assert_no_sorry LeanCert.Engine.Optimization.globalMinimizeWith_lower_correct
 assert_no_sorry LeanCert.Engine.Optimization.globalMaximizeWith_upper_correct
 assert_no_sorry LeanCert.Engine.bezoutCheck_sound
 assert_no_sorry LeanCert.Validity.Algebra.verify_real_roots_simple
+assert_no_sorry LeanCert.Engine.cubicCountCheckSubdiv_sound
+assert_no_sorry LeanCert.Validity.Algebra.verify_cubic_root_count_subdiv
+assert_no_sorry LeanCert.Engine.Algebra.cubic_root_gap_gt_of_discr_bound
+assert_no_sorry LeanCert.Engine.Algebra.cubic_roots_pairwise_gap_gt_of_discr_bound_and_radius
 
 /-! ### Exact axiom pinning (catches `native_decide` / `ofReduceBool` creep) -/
 
@@ -176,6 +180,12 @@ info: 'LeanCert.Validity.Algebra.verify_real_roots_simple' depends on axioms: [p
 -/
 #guard_msgs in
 #print axioms LeanCert.Validity.Algebra.verify_real_roots_simple
+
+/--
+info: 'LeanCert.Validity.Algebra.verify_cubic_root_count_subdiv' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Validity.Algebra.verify_cubic_root_count_subdiv
 
 /--
 info: 'LeanCert.Validity.verify_upper_bound_affine1_strict' depends on axioms: [propext, Classical.choice, Quot.sound]

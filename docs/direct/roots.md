@@ -25,7 +25,7 @@ interval_unique_root
 root_bound
 ```
 
-## Global algebraic simplicity
+## Global algebraic simplicity and counts
 
 For an exact rational polynomial, `BezoutCert` checks an identity
 `A * P + B * P' = c` with `c ≠ 0`. One successful exact check proves that the
@@ -34,8 +34,13 @@ without choosing a bounding interval. `QPoly.toExpr` connects that result to
 the expression used by the interval root pipeline.
 
 See [Algebraic Root Certificates](../certificates/algebraic-roots.md) for the
-checker, Golden Theorems, and a complete example. This API certifies
-simplicity; global root counting and algebraic isolation are future layers.
+checker, Golden Theorems, and complete examples. `CubicFamily` additionally
+supports uniform one-or-three real-root counts over parameter boxes.
+`cubicCountCheckSubdiv` automatically bisects boxes when dependency makes a
+direct discriminant enclosure inconclusive. Algebraic root isolation and
+automatic root-radius generation are future layers; the scale-aware theorem
+`cubic_root_gap_gt_of_discr_bound` already turns suitable discriminant and
+root-gap upper bounds into a quantitative separation result.
 
 Minimal root-existence example:
 

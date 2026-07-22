@@ -25,5 +25,9 @@ namespace LeanCert.Test.ValidityExports
 #check LeanCert.Validity.Algebra.verify_coprime_deriv
 #check LeanCert.Validity.Algebra.verify_real_roots_simple
 #check LeanCert.Validity.Algebra.verify_toExpr_roots_simple
+#check LeanCert.Validity.Algebra.verify_cubic_root_count
+#check LeanCert.Validity.Algebra.verify_cubic_root_count_subdiv
+#check LeanCert.Engine.Algebra.cubic_root_gap_gt_of_discr_bound
+#check LeanCert.Engine.Algebra.cubic_roots_pairwise_gap_gt_of_discr_bound_and_radius
 
 end LeanCert.Test.ValidityExports
