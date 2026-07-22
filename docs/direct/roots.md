@@ -37,10 +37,11 @@ See [Algebraic Root Certificates](../certificates/algebraic-roots.md) for the
 checker, Golden Theorems, and complete examples. `CubicFamily` additionally
 supports uniform one-or-three real-root counts over parameter boxes.
 `cubicCountCheckSubdiv` automatically bisects boxes when dependency makes a
-direct discriminant enclosure inconclusive. Algebraic root isolation and
-automatic root-radius generation are future layers; the scale-aware theorem
-`cubic_root_gap_gt_of_discr_bound` already turns suitable discriminant and
-root-gap upper bounds into a quantitative separation result.
+direct discriminant enclosure inconclusive. For a fixed exact rational cubic,
+`cubicIsolationCheck` composes a global three-root count with three ordered
+Newton certificates and proves exhaustion: one unique root per interval and
+no roots elsewhere. `QCubic.cauchyRadius` and `separationMeshCheck` additionally
+provide an executable a-priori radius and pairwise root-gap bound.
 
 Minimal root-existence example:
 

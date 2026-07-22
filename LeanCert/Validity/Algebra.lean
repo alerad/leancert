@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.Algebra.Bezout
-import LeanCert.Engine.Algebra.CubicCount
+import LeanCert.Validity.Algebra.CubicIsolation
 
 /-!
 # Golden theorems for algebraic root certificates
@@ -75,5 +75,29 @@ theorem verify_cubic_root_count_subdiv (P : CubicFamily) (B : Optimization.Box)
       (∀ i, i ≥ B.length → rho i = 0) →
       (Engine.Algebra.cubicZeroSet (P.at rho)).ncard = count.toNat :=
   cubicCountCheckSubdiv_sound P B count maxDepth cfg h
+
+/-- Every real root of an exact rational cubic lies in its executable Cauchy
+radius. -/
+theorem verify_cubic_root_radius (P : QCubic) (ha : P.a ≠ 0) {x : ℝ}
+    (hx : x ∈ Engine.Algebra.cubicZeroSet P.toReal) : |x| ≤ P.cauchyRadius :=
+  P.root_abs_le_cauchyRadius ha hx
+
+/-- A successful mesh check gives a strict lower bound on all three pairwise
+root gaps. -/
+theorem verify_cubic_separation_mesh (P : QCubic) {eps : ℚ} {x y z : ℝ}
+    (hcheck : P.separationMeshCheck eps = true)
+    (hroots : P.toReal.roots = {x, y, z}) :
+    (eps : ℝ) < |x - y| ∧ (eps : ℝ) < |x - z| ∧ (eps : ℝ) < |y - z| :=
+  P.separationMeshCheck_sound hcheck hroots
+
+/-- Ergonomic separation theorem for any two distinct real roots, avoiding an
+explicit root-multiset enumeration. -/
+theorem verify_cubic_distinct_roots_separated (P : QCubic) {eps : ℚ}
+    (hcount : P.threeRootCountCheck = true)
+    (hmesh : P.separationMeshCheck eps = true) {x y : ℝ}
+    (hx : x ∈ Engine.Algebra.cubicZeroSet P.toReal)
+    (hy : y ∈ Engine.Algebra.cubicZeroSet P.toReal) (hxy : x ≠ y) :
+    (eps : ℝ) < |x - y| :=
+  P.separationMeshCheck_sound_of_distinct_roots hcount hmesh hx hy hxy
 
 end LeanCert.Validity.Algebra

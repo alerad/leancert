@@ -58,6 +58,46 @@ example : ∀ rho : Nat → ℝ, parameters.envMem rho →
 The padding condition matches LeanCert's other box APIs: variables beyond the
 box dimension evaluate to zero.
 
+## Complete cubic isolation
+
+For an exact rational cubic, `CubicIsolationCert` combines the algebraic and
+analytic layers in one executable check:
+
+1. `QCubic.threeRootCountCheck` proves globally that the discriminant is
+   positive, hence there are exactly three real roots.
+2. Three `checkNewtonContractsCore` calls prove a unique root in each rational
+   interval.
+3. `intervalsOrdered` proves the intervals pairwise disjoint.
+4. Finite-cardinality exhaustion proves that every real root is in their
+   union.
+
+```lean
+def p : QCubic := ⟨1, 0, -1, 0⟩ -- x³ - x
+
+def isolation : CubicIsolationCert where
+  left := ⟨-11 / 10, -9 / 10, by norm_num⟩
+  middle := ⟨-1 / 10, 1 / 10, by norm_num⟩
+  right := ⟨9 / 10, 11 / 10, by norm_num⟩
+
+example : cubicIsolationCheck p isolation = true := by native_decide
+
+example : Engine.Algebra.cubicZeroSet p.toReal ⊆
+    intervalSet isolation.left ∪ intervalSet isolation.middle ∪
+      intervalSet isolation.right := by
+  exact (verify_complete_cubic_isolation p isolation (by native_decide)).2.2.2
+```
+
+The full Golden Theorem also returns one `∃!` statement for each interval.
+This API intentionally handles fixed `QCubic` coefficients. Uniform root
+counts for parameter families remain available through `CubicFamily`; tracking
+three moving isolating intervals over a parameter box is a distinct problem.
+
+The executable `QCubic` representation has explicit `toQPoly` and
+`toCubicRat` bridges in addition to `toReal` and `toExpr`. The interval data
+and algebraic exhaustion lemmas live in the Engine layer; the combined Newton
+checker and its soundness theorem live in `Validity.Algebra`, preserving the
+Engine-to-Validity dependency direction.
+
 ### Dependency and automatic subdivision
 
 The discriminant repeats coefficient expressions, so ordinary interval
@@ -149,7 +189,8 @@ untrusted: LeanCert always replays the identity with `bezoutCheck`.
 
 ## Stable theorem surface
 
-All wrappers consume the same hypothesis `bezoutCheck P cert = true`:
+The stable wrappers expose each successful executable check in its common
+semantic goal shape:
 
 | Goal | Golden theorem |
 |---|---|
@@ -160,6 +201,10 @@ All wrappers consume the same hypothesis `bezoutCheck P cert = true`:
 | Simple roots in the `Expr` layer | `verify_toExpr_roots_simple` |
 | Uniform cubic count on one parameter box | `verify_cubic_root_count` |
 | Uniform cubic count with subdivision | `verify_cubic_root_count_subdiv` |
+| Three unique roots and global exhaustion | `verify_complete_cubic_isolation` |
+| Cauchy radius for every real root | `verify_cubic_root_radius` |
+| Pairwise separation from an exact mesh check | `verify_cubic_separation_mesh` |
+| Separation of any two distinct real roots | `verify_cubic_distinct_roots_separated` |
 | Scale-aware gap lower bound for three named roots | `cubic_root_gap_gt_of_discr_bound` |
 | Pairwise gaps from a common root radius | `cubic_roots_pairwise_gap_gt_of_discr_bound_and_radius` |
 
@@ -177,11 +222,16 @@ the three roots `x`, `y`, `z`, a lower bound `d ≤ |discr|`, bounds
 `A⁴ M⁴ eps² < d`, it concludes `eps < |x-y|`. The root ordering can be
 permuted to bound any pair.
 
-`cubic_roots_pairwise_gap_gt_of_discr_bound_and_radius` is the convenient
-all-pairs form. If all three roots satisfy `|r| ≤ R`, the two unused gaps are
-at most `2R`; the single threshold `A⁴(2R)⁴eps² < d` then proves all three
-pairwise gaps exceed `eps`.
+`QCubic.cauchyRadius` now supplies the common radius automatically using exact
+rational coefficient arithmetic. `separationMeshCheck P eps` checks
+`|a|⁴(2R)⁴eps² < |discr|`; on success,
+`verify_cubic_separation_mesh` proves that all three pairwise root gaps exceed
+`eps`. `automaticSeparationMesh` supplies a deterministic rational candidate,
+and `automaticSeparationMesh_check` proves that this candidate always passes
+when the leading coefficient and discriminant are nonzero. The Boolean checker
+remains the source of truth for user-provided mesh widths.
 
-Automating the `M` premise is a later certificate layer: it should combine a
-Cauchy root-radius checker with this theorem, rather than hide an unstated
-scale assumption in the discriminant API.
+`verify_cubic_distinct_roots_separated` is the high-level semantic form: given
+the three-root count, a successful mesh check, and two distinct members of the
+real zero set, it proves their distance exceeds the mesh width. Users need not
+construct or reorder a `Cubic.roots` multiset identity.
