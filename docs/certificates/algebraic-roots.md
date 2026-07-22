@@ -92,6 +92,12 @@ This API intentionally handles fixed `QCubic` coefficients. Uniform root
 counts for parameter families remain available through `CubicFamily`; tracking
 three moving isolating intervals over a parameter box is a distinct problem.
 
+The executable `QCubic` representation has explicit `toQPoly` and
+`toCubicRat` bridges in addition to `toReal` and `toExpr`. The interval data
+and algebraic exhaustion lemmas live in the Engine layer; the combined Newton
+checker and its soundness theorem live in `Validity.Algebra`, preserving the
+Engine-to-Validity dependency direction.
+
 ### Dependency and automatic subdivision
 
 The discriminant repeats coefficient expressions, so ordinary interval
@@ -198,6 +204,7 @@ semantic goal shape:
 | Three unique roots and global exhaustion | `verify_complete_cubic_isolation` |
 | Cauchy radius for every real root | `verify_cubic_root_radius` |
 | Pairwise separation from an exact mesh check | `verify_cubic_separation_mesh` |
+| Separation of any two distinct real roots | `verify_cubic_distinct_roots_separated` |
 | Scale-aware gap lower bound for three named roots | `cubic_root_gap_gt_of_discr_bound` |
 | Pairwise gaps from a common root radius | `cubic_roots_pairwise_gap_gt_of_discr_bound_and_radius` |
 
@@ -220,4 +227,11 @@ rational coefficient arithmetic. `separationMeshCheck P eps` checks
 `|a|⁴(2R)⁴eps² < |discr|`; on success,
 `verify_cubic_separation_mesh` proves that all three pairwise root gaps exceed
 `eps`. `automaticSeparationMesh` supplies a deterministic rational candidate,
-while the Boolean checker remains the source of truth.
+and `automaticSeparationMesh_check` proves that this candidate always passes
+when the leading coefficient and discriminant are nonzero. The Boolean checker
+remains the source of truth for user-provided mesh widths.
+
+`verify_cubic_distinct_roots_separated` is the high-level semantic form: given
+the three-root count, a successful mesh check, and two distinct members of the
+real zero set, it proves their distance exceeds the mesh width. Users need not
+construct or reorder a `Cubic.roots` multiset identity.

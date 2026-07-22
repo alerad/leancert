@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.Algebra.Bezout
-import LeanCert.Engine.Algebra.CubicRadius
+import LeanCert.Validity.Algebra.CubicIsolation
 
 /-!
 # Golden theorems for algebraic root certificates
@@ -76,18 +76,6 @@ theorem verify_cubic_root_count_subdiv (P : CubicFamily) (B : Optimization.Box)
       (Engine.Algebra.cubicZeroSet (P.at rho)).ncard = count.toNat :=
   cubicCountCheckSubdiv_sound P B count maxDepth cfg h
 
-/-- A successful complete-isolation check proves one unique root in each of
-three ordered intervals and proves that those intervals contain every real
-root of the exact rational cubic. -/
-theorem verify_complete_cubic_isolation (P : QCubic) (cert : CubicIsolationCert)
-    (h : cubicIsolationCheck P cert = true) :
-    (∃! x, x ∈ cert.left ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
-    (∃! x, x ∈ cert.middle ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
-    (∃! x, x ∈ cert.right ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
-    Engine.Algebra.cubicZeroSet P.toReal ⊆
-      intervalSet cert.left ∪ intervalSet cert.middle ∪ intervalSet cert.right :=
-  cubicIsolationCheck_sound P cert h
-
 /-- Every real root of an exact rational cubic lies in its executable Cauchy
 radius. -/
 theorem verify_cubic_root_radius (P : QCubic) (ha : P.a ≠ 0) {x : ℝ}
@@ -101,5 +89,15 @@ theorem verify_cubic_separation_mesh (P : QCubic) {eps : ℚ} {x y z : ℝ}
     (hroots : P.toReal.roots = {x, y, z}) :
     (eps : ℝ) < |x - y| ∧ (eps : ℝ) < |x - z| ∧ (eps : ℝ) < |y - z| :=
   P.separationMeshCheck_sound hcheck hroots
+
+/-- Ergonomic separation theorem for any two distinct real roots, avoiding an
+explicit root-multiset enumeration. -/
+theorem verify_cubic_distinct_roots_separated (P : QCubic) {eps : ℚ}
+    (hcount : P.threeRootCountCheck = true)
+    (hmesh : P.separationMeshCheck eps = true) {x y : ℝ}
+    (hx : x ∈ Engine.Algebra.cubicZeroSet P.toReal)
+    (hy : y ∈ Engine.Algebra.cubicZeroSet P.toReal) (hxy : x ≠ y) :
+    (eps : ℝ) < |x - y| :=
+  P.separationMeshCheck_sound_of_distinct_roots hcount hmesh hx hy hxy
 
 end LeanCert.Validity.Algebra

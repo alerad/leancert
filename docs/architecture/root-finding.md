@@ -27,6 +27,9 @@ For fixed rational cubics, the complete-isolation layer joins these worlds:
 count globally, isolate locally, then use cardinality to prove exhaustion.
 The companion Cauchy-radius and separation-mesh checker can choose a certified
 search domain and a safe mesh width before local isolation starts.
+Pure cubic representations and interval ordering remain under `Engine`; the
+composition with the Newton Golden Theorem is intentionally located under
+`Validity.Algebra`.
 
 ## Nonlinear Systems (Krawczyk)
 

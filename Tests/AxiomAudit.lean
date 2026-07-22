@@ -72,11 +72,13 @@ assert_no_sorry LeanCert.Engine.cubicCountCheckSubdiv_sound
 assert_no_sorry LeanCert.Validity.Algebra.verify_cubic_root_count_subdiv
 assert_no_sorry LeanCert.Engine.Algebra.cubic_root_gap_gt_of_discr_bound
 assert_no_sorry LeanCert.Engine.Algebra.cubic_roots_pairwise_gap_gt_of_discr_bound_and_radius
-assert_no_sorry LeanCert.Engine.cubicIsolationCheck_sound
+assert_no_sorry LeanCert.Validity.Algebra.cubicIsolationCheck_sound
 assert_no_sorry LeanCert.Validity.Algebra.verify_complete_cubic_isolation
 assert_no_sorry LeanCert.Engine.QCubic.root_abs_le_cauchyRadius
+assert_no_sorry LeanCert.Engine.QCubic.automaticSeparationMesh_check
 assert_no_sorry LeanCert.Engine.QCubic.separationMeshCheck_sound
 assert_no_sorry LeanCert.Validity.Algebra.verify_cubic_separation_mesh
+assert_no_sorry LeanCert.Validity.Algebra.verify_cubic_distinct_roots_separated
 
 /-! ### Exact axiom pinning (catches `native_decide` / `ofReduceBool` creep) -/
 

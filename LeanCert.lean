@@ -268,21 +268,23 @@ export LeanCert.Engine (
   cubicCountCheckSubdiv_sound
   QCubic
   QCubic.discr
+  QCubic.toCubicRat
   QCubic.toReal
+  QCubic.toQPoly
   QCubic.toExpr
   QCubic.threeRootCountCheck
   QCubic.cauchyRadius
   QCubic.automaticSeparationMesh
+  QCubic.automaticSeparationMesh_check
   QCubic.separationMeshCheck
   CubicIsolationCert
   CubicIsolationCert.intervalsOrdered
   CubicIsolationCert.ordered_disjoint
   intervalSet
-  cubicIsolationCheck
-  cubicIsolationCheck_sound
   three_unique_roots_exhaust
   QCubic.root_abs_le_cauchyRadius
   QCubic.separationMeshCheck_sound
+  QCubic.separationMeshCheck_sound_of_distinct_roots
 )
 
 export LeanCert.Validity.Algebra (
@@ -293,9 +295,12 @@ export LeanCert.Validity.Algebra (
   verify_toExpr_roots_simple
   verify_cubic_root_count
   verify_cubic_root_count_subdiv
+  cubicIsolationCheck
+  cubicIsolationCheck_sound
   verify_complete_cubic_isolation
   verify_cubic_root_radius
   verify_cubic_separation_mesh
+  verify_cubic_distinct_roots_separated
 )
 
 -- Re-export reflective sum evaluator (O(1) proof size for finite sums)

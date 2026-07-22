@@ -3,7 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.CubicIsolation
+import LeanCert.Engine.Algebra.QCubic
 
 /-!
 # Executable radius and separation bounds for exact rational cubics
@@ -90,6 +90,73 @@ def QCubic.automaticSeparationMesh (P : QCubic) : ℚ :=
   let C := |P.a| ^ 4 * (2 * P.cauchyRadius) ^ 4
   D / (1 + C + D)
 
+/-- The deterministic mesh constructor passes the exact checker for every
+genuine cubic with nonzero discriminant. -/
+theorem QCubic.automaticSeparationMesh_check (P : QCubic)
+    (ha : P.a ≠ 0) (hdiscr : P.discr ≠ 0) :
+    P.separationMeshCheck P.automaticSeparationMesh = true := by
+  let D : ℚ := |P.discr|
+  let C : ℚ := |P.a| ^ 4 * (2 * P.cauchyRadius) ^ 4
+  let T : ℚ := 1 + C + D
+  have hD : 0 < D := by exact abs_pos.mpr hdiscr
+  have hC : 0 ≤ C := by
+    dsimp [C]
+    positivity
+  have hT : 0 < T := by
+    dsimp [T]
+    linarith
+  have hCD : C * D < T ^ 2 := by
+    dsimp [T]
+    nlinarith [sq_nonneg C, sq_nonneg D, mul_nonneg hC hD.le]
+  have hthreshold : C * (D / T) ^ 2 < D := by
+    rw [div_pow]
+    rw [show C * (D ^ 2 / T ^ 2) = (C * D ^ 2) / T ^ 2 by ring]
+    apply (div_lt_iff₀ (sq_pos_of_pos hT)).2
+    nlinarith [mul_lt_mul_of_pos_right hCD hD]
+  simp only [QCubic.separationMeshCheck, Bool.and_eq_true, decide_eq_true_eq]
+  refine ⟨⟨ha, ?_⟩, ?_⟩
+  · simpa [QCubic.automaticSeparationMesh, D, C, T] using div_pos hD hT
+  · simpa [QCubic.automaticSeparationMesh, D, C, T] using hthreshold
+
+theorem QCubic.mem_roots_iff_mem_zeroSet (P : QCubic) (ha : P.a ≠ 0) (x : ℝ) :
+    x ∈ P.toReal.roots ↔ x ∈ cubicZeroSet P.toReal := by
+  have haR : P.toReal.a ≠ 0 := by
+    simp only [QCubic.toReal]
+    exact_mod_cast ha
+  have hp : P.toReal.toPoly ≠ 0 := by
+    intro hp
+    apply haR
+    have := congrArg (fun q : Polynomial ℝ => q.coeff 3) hp
+    simpa using this
+  rw [Cubic.mem_roots_iff hp]
+  simp [cubicZeroSet]
+
+/-- Three distinct real zeros enumerate the root multiset of a genuine cubic. -/
+theorem QCubic.roots_eq_three_of_mem (P : QCubic) (ha : P.a ≠ 0) {x y z : ℝ}
+    (hx : x ∈ cubicZeroSet P.toReal) (hy : y ∈ cubicZeroSet P.toReal)
+    (hz : z ∈ cubicZeroSet P.toReal)
+    (hxy : x ≠ y) (hxz : x ≠ z) (hyz : y ≠ z) :
+    P.toReal.roots = {x, y, z} := by
+  classical
+  have hxroot := (P.mem_roots_iff_mem_zeroSet ha x).2 hx
+  have hyroot := (P.mem_roots_iff_mem_zeroSet ha y).2 hy
+  have hzroot := (P.mem_roots_iff_mem_zeroSet ha z).2 hz
+  have hsub : ({x, y, z} : Multiset ℝ) ≤ P.toReal.roots := by
+    change (x ::ₘ y ::ₘ {z}) ≤ P.toReal.roots
+    rw [Multiset.cons_le_of_notMem (by simp [hxy, hxz])]
+    refine ⟨hxroot, ?_⟩
+    rw [Multiset.cons_le_of_notMem (by simp [hyz])]
+    exact ⟨hyroot, Multiset.singleton_le.mpr hzroot⟩
+  symm
+  apply Multiset.eq_of_le_of_card_le hsub
+  have haR : P.toReal.a ≠ 0 := by
+    simp only [QCubic.toReal]
+    exact_mod_cast ha
+  calc
+    P.toReal.roots.card = P.toReal.toPoly.roots.card := rfl
+    _ ≤ P.toReal.toPoly.natDegree := Polynomial.card_roots' _
+    _ = 3 := Cubic.natDegree_of_a_ne_zero haR
+
 /-- Soundness of the exact separation-mesh checker. -/
 theorem QCubic.separationMeshCheck_sound (P : QCubic) {eps : ℚ} {x y z : ℝ}
     (hcheck : P.separationMeshCheck eps = true)
@@ -121,5 +188,33 @@ theorem QCubic.separationMeshCheck_sound (P : QCubic) {eps : ℚ} {x y z : ℝ}
   · rw [QCubic.toReal_discr]
     simp only [QCubic.toReal]
     norm_cast
+
+/-- User-facing separation: any two distinct real roots of a certified
+three-root cubic are farther apart than the checked mesh width. -/
+theorem QCubic.separationMeshCheck_sound_of_distinct_roots
+    (P : QCubic) {eps : ℚ}
+    (hcount : P.threeRootCountCheck = true)
+    (hmesh : P.separationMeshCheck eps = true) {x y : ℝ}
+    (hx : x ∈ cubicZeroSet P.toReal) (hy : y ∈ cubicZeroSet P.toReal)
+    (hxy : x ≠ y) : (eps : ℝ) < |x - y| := by
+  have hcard := P.threeRootCountCheck_sound hcount
+  have ha : P.a ≠ 0 := by
+    simp only [QCubic.threeRootCountCheck, Bool.and_eq_true, decide_eq_true_eq] at hcount
+    exact hcount.1
+  have hz : ∃ z ∈ cubicZeroSet P.toReal, z ≠ x ∧ z ≠ y := by
+    by_contra hnone
+    push Not at hnone
+    have hsub : cubicZeroSet P.toReal ⊆ ({x, y} : Set ℝ) := by
+      intro z hz
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff]
+      by_contra hpair
+      have hzx : z ≠ x := fun h => hpair (Or.inl h)
+      exact hpair (Or.inr (hnone z hz hzx))
+    have hle := Set.ncard_le_ncard hsub (by simp : ({x, y} : Set ℝ).Finite)
+    rw [hcard] at hle
+    simp [hxy] at hle
+  obtain ⟨z, hz, hzx, hzy⟩ := hz
+  have hroots := P.roots_eq_three_of_mem ha hx hy hz hxy hzx.symm hzy.symm
+  exact (P.separationMeshCheck_sound hmesh hroots).1
 
 end LeanCert.Engine

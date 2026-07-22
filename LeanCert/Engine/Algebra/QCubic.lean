@@ -3,24 +3,22 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+import LeanCert.Engine.Algebra.Bezout
 import LeanCert.Engine.Algebra.CubicCount
-import LeanCert.Validity.Bounds
+import LeanCert.Engine.AD.Correctness
 
 /-!
-# Complete isolation certificates for exact rational cubics
+# Exact rational cubics and isolation data
 
-This module composes global discriminant counting with three local interval
-Newton certificates. Pairwise-disjoint isolating intervals containing three
-roots exhaust a finite root set of cardinality three.
+This module contains the executable algebraic representation and the generic
+set-theoretic machinery used by complete cubic isolation.  It deliberately
+does not import LeanCert's Validity layer.
 -/
 
 namespace LeanCert.Engine
 
 open LeanCert.Core
 open LeanCert.Engine.Algebra
-open LeanCert.Validity.RootFinding
-
-/-! ### Exact rational cubics -/
 
 /-- An executable exact rational cubic `a*x^3 + b*x^2 + c*x + d`. -/
 structure QCubic where
@@ -35,9 +33,17 @@ def QCubic.discr (P : QCubic) : ℚ :=
   P.b ^ 2 * P.c ^ 2 - 4 * P.a * P.c ^ 3 - 4 * P.b ^ 3 * P.d -
     27 * P.a ^ 2 * P.d ^ 2 + 18 * P.a * P.b * P.c * P.d
 
+/-- The corresponding Mathlib rational cubic. -/
+def QCubic.toCubicRat (P : QCubic) : Cubic ℚ :=
+  ⟨P.a, P.b, P.c, P.d⟩
+
 /-- Semantic real cubic. -/
 def QCubic.toReal (P : QCubic) : Cubic ℝ :=
   ⟨P.a, P.b, P.c, P.d⟩
+
+/-- Exact executable polynomial in ascending coefficient order. -/
+def QCubic.toQPoly (P : QCubic) : QPoly :=
+  ⟨#[P.d, P.c, P.b, P.a]⟩
 
 /-- Horner expression in variable zero. -/
 def QCubic.toExpr (P : QCubic) : Expr :=
@@ -53,6 +59,10 @@ def QCubic.toExpr (P : QCubic) : Expr :=
 @[simp] theorem QCubic.toReal_discr (P : QCubic) :
     P.toReal.discr = P.discr := by
   simp [QCubic.toReal, QCubic.discr, Cubic.discr]
+
+@[simp] theorem QCubic.toCubicRat_discr (P : QCubic) :
+    P.toCubicRat.discr = P.discr := by
+  simp [QCubic.toCubicRat, QCubic.discr, Cubic.discr]
 
 theorem QCubic.toExpr_supported (P : QCubic) : ADSupported P.toExpr := by
   rw [← Expr.checkADSupported_eq_true_iff]
@@ -136,7 +146,7 @@ theorem three_unique_roots_exhaust {S I₁ I₂ I₃ : Set ℝ}
   · exact Set.mem_union_left _ (Set.mem_union_right _ hx₂.1)
   · exact Set.mem_union_right _ hx₃.1
 
-/-! ### Executable isolation certificates -/
+/-! ### Isolation data -/
 
 /-- Three rational intervals, ordered from left to right, with one Newton
 configuration shared by their local uniqueness checks. -/
@@ -150,14 +160,6 @@ structure CubicIsolationCert where
 /-- Strict ordering implies pairwise disjointness, including at endpoints. -/
 def CubicIsolationCert.intervalsOrdered (cert : CubicIsolationCert) : Bool :=
   decide (cert.left.hi < cert.middle.lo) && decide (cert.middle.hi < cert.right.lo)
-
-/-- Check the global count, the three local Newton contractions, and interval
-disjointness. -/
-def cubicIsolationCheck (P : QCubic) (cert : CubicIsolationCert) : Bool :=
-  P.threeRootCountCheck && cert.intervalsOrdered &&
-    checkNewtonContractsCore P.toExpr cert.left cert.cfg &&
-    checkNewtonContractsCore P.toExpr cert.middle cert.cfg &&
-    checkNewtonContractsCore P.toExpr cert.right cert.cfg
 
 /-- The real set represented by a rational interval. -/
 def intervalSet (I : IntervalRat) : Set ℝ := Set.Icc I.lo I.hi
@@ -180,38 +182,5 @@ theorem CubicIsolationCert.ordered_disjoint (cert : CubicIsolationCert)
     linarith
   exact ⟨disjoint_of_lt h.1,
     disjoint_of_lt ((h.1.trans_le cert.middle.le).trans h.2), disjoint_of_lt h.2⟩
-
-/-- Soundness theorem for complete cubic isolation. -/
-theorem cubicIsolationCheck_sound (P : QCubic) (cert : CubicIsolationCert)
-    (h : cubicIsolationCheck P cert = true) :
-    (∃! x, x ∈ cert.left ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
-    (∃! x, x ∈ cert.middle ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
-    (∃! x, x ∈ cert.right ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
-    cubicZeroSet P.toReal ⊆
-      intervalSet cert.left ∪ intervalSet cert.middle ∪ intervalSet cert.right := by
-  rw [cubicIsolationCheck] at h
-  simp only [Bool.and_eq_true] at h
-  rcases h with ⟨⟨⟨⟨hcount, hordered⟩, hleft⟩, hmiddle⟩, hright⟩
-  have hcont (I : IntervalRat) :
-      ContinuousOn (fun x : ℝ => Expr.eval (fun _ => x) P.toExpr) (Set.Icc I.lo I.hi) :=
-    P.toExpr_continuous.continuousOn
-  have huLeft := verify_unique_root_computable P.toExpr P.toExpr_supported
-    P.toExpr_usesOnlyVar0 cert.left cert.cfg (hcont cert.left) hleft
-  have huMiddle := verify_unique_root_computable P.toExpr P.toExpr_supported
-    P.toExpr_usesOnlyVar0 cert.middle cert.cfg (hcont cert.middle) hmiddle
-  have huRight := verify_unique_root_computable P.toExpr P.toExpr_supported
-    P.toExpr_usesOnlyVar0 cert.right cert.cfg (hcont cert.right) hright
-  refine ⟨huLeft, huMiddle, huRight, ?_⟩
-  have hdisj := cert.ordered_disjoint hordered
-  apply three_unique_roots_exhaust (P.threeRootCountCheck_sound hcount)
-  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_setOf_eq, QCubic.toReal,
-      QCubic.eval_toExpr] using huLeft
-  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_setOf_eq, QCubic.toReal,
-      QCubic.eval_toExpr] using huMiddle
-  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_setOf_eq, QCubic.toReal,
-      QCubic.eval_toExpr] using huRight
-  · exact hdisj.1
-  · exact hdisj.2.1
-  · exact hdisj.2.2
 
 end LeanCert.Engine
