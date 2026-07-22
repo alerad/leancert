@@ -8,8 +8,9 @@ import LeanCert.CertifiedBounds
 import LeanCert.ANT
 ```
 
-`LeanCert.Tactic` exposes supported proof automation, including
-`interval_auto`, `interval_decide`, and `interval_bound`.
+`LeanCert.Tactic` exposes supported proof automation, including the semantic
+`leancert` / `leancert?` front door and the dedicated `interval_auto`,
+`interval_decide`, `interval_bound`, root, optimization, and finite-sum tactics.
 
 `LeanCert.CertifiedBounds` exposes pre-verified numerical results under:
 

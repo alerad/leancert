@@ -219,6 +219,51 @@ theorem mem_split_general {lo mid hi : ℚ} {x : ℝ}
   · right
     exact ⟨le_of_lt h, hx.2⟩
 
+/-- Combine already-certified upper bounds on adjacent intervals.  Unlike the
+checker-specific theorem below, this supports recursive subdivision proofs. -/
+theorem combine_upper_bound_general_split (e : Expr) (lo mid hi c : ℚ)
+    (hLo : lo ≤ mid) (hHi : mid ≤ hi)
+    (h_left : ∀ x ∈ Set.Icc (lo : ℝ) (mid : ℝ), Expr.eval (fun _ => x) e ≤ c)
+    (h_right : ∀ x ∈ Set.Icc (mid : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e ≤ c) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e ≤ c := by
+  intro x hx
+  rcases mem_split_general hx hLo hHi with hL | hR
+  · exact h_left x hL
+  · exact h_right x hR
+
+/-- Combine already-certified lower bounds on adjacent intervals. -/
+theorem combine_lower_bound_general_split (e : Expr) (lo mid hi c : ℚ)
+    (hLo : lo ≤ mid) (hHi : mid ≤ hi)
+    (h_left : ∀ x ∈ Set.Icc (lo : ℝ) (mid : ℝ), c ≤ Expr.eval (fun _ => x) e)
+    (h_right : ∀ x ∈ Set.Icc (mid : ℝ) (hi : ℝ), c ≤ Expr.eval (fun _ => x) e) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c ≤ Expr.eval (fun _ => x) e := by
+  intro x hx
+  rcases mem_split_general hx hLo hHi with hL | hR
+  · exact h_left x hL
+  · exact h_right x hR
+
+/-- Combine already-certified strict upper bounds on adjacent intervals. -/
+theorem combine_strict_upper_bound_general_split (e : Expr) (lo mid hi c : ℚ)
+    (hLo : lo ≤ mid) (hHi : mid ≤ hi)
+    (h_left : ∀ x ∈ Set.Icc (lo : ℝ) (mid : ℝ), Expr.eval (fun _ => x) e < c)
+    (h_right : ∀ x ∈ Set.Icc (mid : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e < c) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), Expr.eval (fun _ => x) e < c := by
+  intro x hx
+  rcases mem_split_general hx hLo hHi with hL | hR
+  · exact h_left x hL
+  · exact h_right x hR
+
+/-- Combine already-certified strict lower bounds on adjacent intervals. -/
+theorem combine_strict_lower_bound_general_split (e : Expr) (lo mid hi c : ℚ)
+    (hLo : lo ≤ mid) (hHi : mid ≤ hi)
+    (h_left : ∀ x ∈ Set.Icc (lo : ℝ) (mid : ℝ), c < Expr.eval (fun _ => x) e)
+    (h_right : ∀ x ∈ Set.Icc (mid : ℝ) (hi : ℝ), c < Expr.eval (fun _ => x) e) :
+    ∀ x ∈ Set.Icc (lo : ℝ) (hi : ℝ), c < Expr.eval (fun _ => x) e := by
+  intro x hx
+  rcases mem_split_general hx hLo hHi with hL | hR
+  · exact h_left x hL
+  · exact h_right x hR
+
 /-- Combine upper bounds from two arbitrary adjacent intervals.
     If f ≤ c on [lo, mid] and f ≤ c on [mid, hi], then f ≤ c on [lo, hi]. -/
 theorem verify_upper_bound_general_split (e : Expr) (hsupp : ExprSupportedCore e)

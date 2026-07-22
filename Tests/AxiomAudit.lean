@@ -79,6 +79,10 @@ assert_no_sorry LeanCert.Engine.QCubic.automaticSeparationMesh_check
 assert_no_sorry LeanCert.Engine.QCubic.separationMeshCheck_sound
 assert_no_sorry LeanCert.Validity.Algebra.verify_cubic_separation_mesh
 assert_no_sorry LeanCert.Validity.Algebra.verify_cubic_distinct_roots_separated
+assert_no_sorry LeanCert.Validity.combine_upper_bound_general_split
+assert_no_sorry LeanCert.Validity.combine_lower_bound_general_split
+assert_no_sorry LeanCert.Validity.combine_strict_upper_bound_general_split
+assert_no_sorry LeanCert.Validity.combine_strict_lower_bound_general_split
 
 /-! ### Exact axiom pinning (catches `native_decide` / `ofReduceBool` creep) -/
 

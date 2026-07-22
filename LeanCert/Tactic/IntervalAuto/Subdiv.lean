@@ -61,40 +61,19 @@ private partial def proveUpperBoundWithSubdiv
 
   let leftProof ← proveUpperBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some _ := leftProof
+  let some leftProof := leftProof
     | trace[interval_decide] "Left half failed"; return none
 
   let rightProof ← proveUpperBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some _ := rightProof
+  let some rightProof := rightProof
     | trace[interval_decide] "Right half failed"; return none
-
-  let leftInterval ← mkAppM ``IntervalRat.mk #[loRatExpr, midExpr, loLeMidExpr]
-  let rightInterval ← mkAppM ``IntervalRat.mk #[midExpr, hiRatExpr, midLeHiExpr]
-
-  let leftCheckExpr ← mkAppM ``LeanCert.Validity.checkUpperBound
-    #[ast, leftInterval, boundRat, cfgExpr]
-  let rightCheckExpr ← mkAppM ``LeanCert.Validity.checkUpperBound
-    #[ast, rightInterval, boundRat, cfgExpr]
-
-  let leftCertTy ← mkAppM ``Eq #[leftCheckExpr, mkConst ``Bool.true]
-  let leftCertGoal ← mkFreshExprMVar leftCertTy
-  setGoals [leftCertGoal.mvarId!]
-  evalTactic (← `(tactic| native_decide))
-  let leftCertProof := leftCertGoal
-
-  let rightCertTy ← mkAppM ``Eq #[rightCheckExpr, mkConst ``Bool.true]
-  let rightCertGoal ← mkFreshExprMVar rightCertTy
-  setGoals [rightCertGoal.mvarId!]
-  evalTactic (← `(tactic| native_decide))
-  let rightCertProof := rightCertGoal
 
   trace[interval_decide] "Subdivision succeeded on both halves - combining proofs"
 
-  let proof ← mkAppM ``Validity.verify_upper_bound_general_split
-    #[ast, supportProof, loRatExpr, midExpr, hiRatExpr,
-      loLeMidExpr, midLeHiExpr, leProof, boundRat, cfgExpr,
-      leftCertProof, rightCertProof]
+  let proof ← mkAppM ``Validity.combine_upper_bound_general_split
+    #[ast, loRatExpr, midExpr, hiRatExpr, boundRat,
+      loLeMidExpr, midLeHiExpr, leftProof, rightProof]
 
   return some proof
 
@@ -136,40 +115,19 @@ private partial def proveLowerBoundWithSubdiv
 
   let leftProof ← proveLowerBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some _ := leftProof
+  let some leftProof := leftProof
     | trace[interval_decide] "Left half failed"; return none
 
   let rightProof ← proveLowerBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some _ := rightProof
+  let some rightProof := rightProof
     | trace[interval_decide] "Right half failed"; return none
-
-  let leftInterval ← mkAppM ``IntervalRat.mk #[loRatExpr, midExpr, loLeMidExpr]
-  let rightInterval ← mkAppM ``IntervalRat.mk #[midExpr, hiRatExpr, midLeHiExpr]
-
-  let leftCheckExpr ← mkAppM ``LeanCert.Validity.checkLowerBound
-    #[ast, leftInterval, boundRat, cfgExpr]
-  let rightCheckExpr ← mkAppM ``LeanCert.Validity.checkLowerBound
-    #[ast, rightInterval, boundRat, cfgExpr]
-
-  let leftCertTy ← mkAppM ``Eq #[leftCheckExpr, mkConst ``Bool.true]
-  let leftCertGoal ← mkFreshExprMVar leftCertTy
-  setGoals [leftCertGoal.mvarId!]
-  evalTactic (← `(tactic| native_decide))
-  let leftCertProof := leftCertGoal
-
-  let rightCertTy ← mkAppM ``Eq #[rightCheckExpr, mkConst ``Bool.true]
-  let rightCertGoal ← mkFreshExprMVar rightCertTy
-  setGoals [rightCertGoal.mvarId!]
-  evalTactic (← `(tactic| native_decide))
-  let rightCertProof := rightCertGoal
 
   trace[interval_decide] "Subdivision succeeded on both halves - combining lower bound proofs"
 
-  let proof ← mkAppM ``Validity.verify_lower_bound_general_split
-    #[ast, supportProof, loRatExpr, midExpr, hiRatExpr,
-      loLeMidExpr, midLeHiExpr, leProof, boundRat, cfgExpr,
-      leftCertProof, rightCertProof]
+  let proof ← mkAppM ``Validity.combine_lower_bound_general_split
+    #[ast, loRatExpr, midExpr, hiRatExpr, boundRat,
+      loLeMidExpr, midLeHiExpr, leftProof, rightProof]
 
   return some proof
 
@@ -211,40 +169,19 @@ private partial def proveStrictUpperBoundWithSubdiv
 
   let leftProof ← proveStrictUpperBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some _ := leftProof
+  let some leftProof := leftProof
     | trace[interval_decide] "Left half failed"; return none
 
   let rightProof ← proveStrictUpperBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some _ := rightProof
+  let some rightProof := rightProof
     | trace[interval_decide] "Right half failed"; return none
-
-  let leftInterval ← mkAppM ``IntervalRat.mk #[loRatExpr, midExpr, loLeMidExpr]
-  let rightInterval ← mkAppM ``IntervalRat.mk #[midExpr, hiRatExpr, midLeHiExpr]
-
-  let leftCheckExpr ← mkAppM ``LeanCert.Validity.checkStrictUpperBound
-    #[ast, leftInterval, boundRat, cfgExpr]
-  let rightCheckExpr ← mkAppM ``LeanCert.Validity.checkStrictUpperBound
-    #[ast, rightInterval, boundRat, cfgExpr]
-
-  let leftCertTy ← mkAppM ``Eq #[leftCheckExpr, mkConst ``Bool.true]
-  let leftCertGoal ← mkFreshExprMVar leftCertTy
-  setGoals [leftCertGoal.mvarId!]
-  evalTactic (← `(tactic| native_decide))
-  let leftCertProof := leftCertGoal
-
-  let rightCertTy ← mkAppM ``Eq #[rightCheckExpr, mkConst ``Bool.true]
-  let rightCertGoal ← mkFreshExprMVar rightCertTy
-  setGoals [rightCertGoal.mvarId!]
-  evalTactic (← `(tactic| native_decide))
-  let rightCertProof := rightCertGoal
 
   trace[interval_decide] "Subdivision succeeded on both halves - combining strict upper bound proofs"
 
-  let proof ← mkAppM ``Validity.verify_strict_upper_bound_general_split
-    #[ast, supportProof, loRatExpr, midExpr, hiRatExpr,
-      loLeMidExpr, midLeHiExpr, leProof, boundRat, cfgExpr,
-      leftCertProof, rightCertProof]
+  let proof ← mkAppM ``Validity.combine_strict_upper_bound_general_split
+    #[ast, loRatExpr, midExpr, hiRatExpr, boundRat,
+      loLeMidExpr, midLeHiExpr, leftProof, rightProof]
 
   return some proof
 
@@ -286,40 +223,19 @@ private partial def proveStrictLowerBoundWithSubdiv
 
   let leftProof ← proveStrictLowerBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some _ := leftProof
+  let some leftProof := leftProof
     | trace[interval_decide] "Left half failed"; return none
 
   let rightProof ← proveStrictLowerBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
     boundRat cfgExpr taylorDepth (maxSubdiv - 1)
-  let some _ := rightProof
+  let some rightProof := rightProof
     | trace[interval_decide] "Right half failed"; return none
-
-  let leftInterval ← mkAppM ``IntervalRat.mk #[loRatExpr, midExpr, loLeMidExpr]
-  let rightInterval ← mkAppM ``IntervalRat.mk #[midExpr, hiRatExpr, midLeHiExpr]
-
-  let leftCheckExpr ← mkAppM ``LeanCert.Validity.checkStrictLowerBound
-    #[ast, leftInterval, boundRat, cfgExpr]
-  let rightCheckExpr ← mkAppM ``LeanCert.Validity.checkStrictLowerBound
-    #[ast, rightInterval, boundRat, cfgExpr]
-
-  let leftCertTy ← mkAppM ``Eq #[leftCheckExpr, mkConst ``Bool.true]
-  let leftCertGoal ← mkFreshExprMVar leftCertTy
-  setGoals [leftCertGoal.mvarId!]
-  evalTactic (← `(tactic| native_decide))
-  let leftCertProof := leftCertGoal
-
-  let rightCertTy ← mkAppM ``Eq #[rightCheckExpr, mkConst ``Bool.true]
-  let rightCertGoal ← mkFreshExprMVar rightCertTy
-  setGoals [rightCertGoal.mvarId!]
-  evalTactic (← `(tactic| native_decide))
-  let rightCertProof := rightCertGoal
 
   trace[interval_decide] "Subdivision succeeded on both halves - combining strict lower bound proofs"
 
-  let proof ← mkAppM ``Validity.verify_strict_lower_bound_general_split
-    #[ast, supportProof, loRatExpr, midExpr, hiRatExpr,
-      loLeMidExpr, midLeHiExpr, leProof, boundRat, cfgExpr,
-      leftCertProof, rightCertProof]
+  let proof ← mkAppM ``Validity.combine_strict_lower_bound_general_split
+    #[ast, loRatExpr, midExpr, hiRatExpr, boundRat,
+      loLeMidExpr, midLeHiExpr, leftProof, rightProof]
 
   return some proof
 

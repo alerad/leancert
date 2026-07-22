@@ -461,11 +461,21 @@ def parseArgmaxGoal (goal : Lean.Expr) : MetaM (Option ArgmaxGoal) := do
                 let .forallE _ _memTy compBody _ := forallBody | return none
                 -- compBody should be f(y) ≤ f(x) (with y free, x from outer scope)
                 match_expr compBody with
-                | LE.le _ _ lhs _rhs =>
-                  -- lhs is f(y), we extract the function structure
-                  -- The function is fun z => (lhs with y replaced by z)
-                  let func ← mkLambdaFVars #[y] lhs
-                  return some (.argmax name intervalExpr func)
+                | LE.le _ _ lhs rhs =>
+                  -- Argmax means `f(y) ≤ f(x)`: the left side depends on the
+                  -- comparison point and the right side on the candidate.
+                  let lhsHasY := lhs.containsFVar y.fvarId!
+                  let lhsHasX := lhs.containsFVar x.fvarId!
+                  let rhsHasY := rhs.containsFVar y.fvarId!
+                  let rhsHasX := rhs.containsFVar x.fvarId!
+                  let sameConstant ←
+                    if !lhsHasY && !lhsHasX && !rhsHasY && !rhsHasX then
+                      isDefEq lhs rhs
+                    else pure false
+                  if (lhsHasY && !lhsHasX && rhsHasX && !rhsHasY) || sameConstant then
+                    let func ← mkLambdaFVars #[y] lhs
+                    return some (.argmax name intervalExpr func)
+                  return none
                 | _ => return none
               else return none
           else return none
@@ -514,11 +524,21 @@ def parseArgminGoal (goal : Lean.Expr) : MetaM (Option ArgminGoal) := do
                 let .forallE _ _memTy compBody _ := forallBody | return none
                 -- compBody should be f(x) ≤ f(y) (with y free, x from outer scope)
                 match_expr compBody with
-                | LE.le _ _ _lhs rhs =>
-                  -- rhs is f(y), we extract the function structure
-                  -- The function is fun z => (rhs with y replaced by z)
-                  let func ← mkLambdaFVars #[y] rhs
-                  return some (.argmin name intervalExpr func)
+                | LE.le _ _ lhs rhs =>
+                  -- Argmin means `f(x) ≤ f(y)`: the left side depends on the
+                  -- candidate and the right side on the comparison point.
+                  let lhsHasY := lhs.containsFVar y.fvarId!
+                  let lhsHasX := lhs.containsFVar x.fvarId!
+                  let rhsHasY := rhs.containsFVar y.fvarId!
+                  let rhsHasX := rhs.containsFVar x.fvarId!
+                  let sameConstant ←
+                    if !lhsHasY && !lhsHasX && !rhsHasY && !rhsHasX then
+                      isDefEq lhs rhs
+                    else pure false
+                  if (lhsHasX && !lhsHasY && rhsHasY && !rhsHasX) || sameConstant then
+                    let func ← mkLambdaFVars #[y] rhs
+                    return some (.argmin name intervalExpr func)
+                  return none
                 | _ => return none
               else return none
           else return none
