@@ -22,3 +22,4 @@ point is [Proof Templates](../proof-templates/overview.md).
 - [ConstantFactory Certificates](../certificates/constants.md)
 - [Contour-Shift Certificates](../certificates/contour-shift.md)
 - [Nonlinear-System Root Certificates](../direct/roots.md)
+- [Algebraic Root Certificates](../certificates/algebraic-roots.md)

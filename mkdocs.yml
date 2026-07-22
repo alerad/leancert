@@ -97,5 +97,6 @@ nav:
     - Imports: reference/imports.md
     - Tactics: reference/tactics.md
     - Certificate APIs: reference/certificate-apis.md
+    - Algebraic Root Certificates: certificates/algebraic-roots.md
     - Legacy Certificate Overview: certificates/overview.md
     - Legacy Tactics Reference: tactics/tactics.md

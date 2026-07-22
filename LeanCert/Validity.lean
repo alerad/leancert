@@ -16,6 +16,7 @@ import LeanCert.Validity.AffineCover
 import LeanCert.Validity.Monotonicity
 import LeanCert.Validity.DirectedLimit
 import LeanCert.Validity.Krawczyk
+import LeanCert.Validity.Algebra
 
 /-!
 # Validity Layer
@@ -44,4 +45,7 @@ The Engine computes numbers; Validity turns them into theorems.
 
 * `Validity.Krawczyk` - certified existence and uniqueness for square systems
   in the differentiable AD fragment on rational boxes.
+
+* `Validity.Algebra` - exact Bézout certificates for polynomial separability,
+  squarefreeness, and simple real roots.
 -/

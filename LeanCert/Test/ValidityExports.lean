@@ -20,5 +20,10 @@ namespace LeanCert.Test.ValidityExports
 #check LeanCert.Validity.Dyadic.verify_upper_bound_dyadic_checked
 #check LeanCert.Validity.Chebyshev.verify_psi_le_mul
 #check LeanCert.Validity.Chebyshev.verify_theta_rel_error
+#check LeanCert.Validity.Algebra.verify_separable
+#check LeanCert.Validity.Algebra.verify_squarefree
+#check LeanCert.Validity.Algebra.verify_coprime_deriv
+#check LeanCert.Validity.Algebra.verify_real_roots_simple
+#check LeanCert.Validity.Algebra.verify_toExpr_roots_simple
 
 end LeanCert.Test.ValidityExports

@@ -241,6 +241,20 @@ export LeanCert.Engine (
   toDyadicEnv
   evalIntervalDyadicChecked
   evalIntervalDyadicChecked_correct
+  QPoly
+  BezoutCert
+  bezoutLhs
+  bezoutCheck
+  bezoutCheck_identity
+  bezoutCheck_sound
+)
+
+export LeanCert.Validity.Algebra (
+  verify_separable
+  verify_squarefree
+  verify_coprime_deriv
+  verify_real_roots_simple
+  verify_toExpr_roots_simple
 )
 
 -- Re-export reflective sum evaluator (O(1) proof size for finite sums)

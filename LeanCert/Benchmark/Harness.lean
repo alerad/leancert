@@ -46,7 +46,7 @@ structure Config where
 def usage : String := "LeanCert benchmark harness\n\n\
 Usage: lake exe leancert-bench [options]\n\n\
 Options:\n\
-  --suite smoke|evaluation|ad|heavy|scaling|full|end-to-end|all\n\
+  --suite smoke|evaluation|ad|algebra|heavy|scaling|full|end-to-end|all\n\
                               Select benchmark suite (default: smoke)\n\
   --case TEXT                Run cases whose names contain TEXT\n\
   --samples N                Timed samples per case (default: 10)\n\

@@ -30,6 +30,8 @@ The larger suites are split by purpose:
   2300 cells and complete nonlinear-system root checks;
 - `krawczyk` isolates interval-Jacobian construction, rational matrix/norm
   assembly, and the complete checked certificate path;
+- `algebra` measures exact `QPoly` arithmetic and complete Bézout certificate
+  checks as polynomial degree grows;
 - `all` includes every suite, including the seconds-scale integration cases.
 
 ## Commands
@@ -59,6 +61,9 @@ lake exe leancert-bench \
 
 # Profile nonlinear-system certification phases
 lake exe leancert-bench --suite krawczyk --samples 15 --warmups 3
+
+# Profile exact algebraic certificate checking
+lake exe leancert-bench --suite algebra --samples 15 --warmups 3
 
 # Run absolutely everything
 lake exe leancert-bench --suite all
