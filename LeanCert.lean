@@ -247,6 +247,25 @@ export LeanCert.Engine (
   bezoutCheck
   bezoutCheck_identity
   bezoutCheck_sound
+  Algebra.quadraticZeroSet
+  Algebra.quadraticZeroSet_ncard_eq_zero_of_discrim_neg
+  Algebra.quadraticZeroSet_ncard_eq_one_of_discrim_eq_zero
+  Algebra.quadraticZeroSet_ncard_eq_two_of_discrim_pos
+  Algebra.cubicZeroSet
+  Algebra.cubicZeroSet_ncard_eq_one_of_discr_neg
+  Algebra.cubicZeroSet_ncard_eq_three_of_discr_pos
+  Algebra.cubic_root_gap_gt_of_discr_bound
+  Algebra.cubic_roots_pairwise_gap_gt_of_discr_bound_and_radius
+  CubicFamily
+  CubicFamily.discrExpr
+  CubicFamily.at
+  CubicRootCount
+  CubicRootCount.toNat
+  intervalCertifiesCubicCount
+  cubicCountCheckBox
+  cubicCountCheckSubdiv
+  cubicCountCheckBox_sound
+  cubicCountCheckSubdiv_sound
 )
 
 export LeanCert.Validity.Algebra (
@@ -255,6 +274,8 @@ export LeanCert.Validity.Algebra (
   verify_coprime_deriv
   verify_real_roots_simple
   verify_toExpr_roots_simple
+  verify_cubic_root_count
+  verify_cubic_root_count_subdiv
 )
 
 -- Re-export reflective sum evaluator (O(1) proof size for finite sums)

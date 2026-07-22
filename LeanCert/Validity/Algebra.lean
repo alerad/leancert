@@ -4,13 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.Algebra.Bezout
+import LeanCert.Engine.Algebra.CubicCount
 
 /-!
 # Golden theorems for algebraic root certificates
 
 Stable wrappers turn a successful executable Bézout check into the common
 semantic goal shapes: separability, squarefreeness, coprimality with the formal
-derivative, and simplicity of every real root.
+derivative, and simplicity of every real root. They also expose uniform
+real-root counts for parametric cubic families whose leading coefficient and
+discriminant signs are certified by interval arithmetic.
 -/
 
 namespace LeanCert.Validity.Algebra
@@ -52,5 +55,25 @@ theorem verify_toExpr_roots_simple (P : QPoly) (cert : BezoutCert)
   rw [QPoly.eval_toExpr] at hx
   rw [QPoly.deriv_eval_toExpr]
   exact verify_real_roots_simple P cert h x hx
+
+/-- A successful one-box discriminant check proves the requested number of
+real roots for every parameter environment in the box. -/
+theorem verify_cubic_root_count (P : CubicFamily) (B : Optimization.Box)
+    (count : CubicRootCount) (cfg : EvalConfig)
+    (h : cubicCountCheckBox P B count cfg = true) :
+    ∀ rho : Nat → ℝ, B.envMem rho →
+      (∀ i, i ≥ B.length → rho i = 0) →
+      (Engine.Algebra.cubicZeroSet (P.at rho)).ncard = count.toNat :=
+  cubicCountCheckBox_sound P B count cfg h
+
+/-- A successful adaptive discriminant check proves the requested uniform
+real-root count, including when subdivision is needed to resolve dependency. -/
+theorem verify_cubic_root_count_subdiv (P : CubicFamily) (B : Optimization.Box)
+    (count : CubicRootCount) (maxDepth : Nat) (cfg : EvalConfig)
+    (h : cubicCountCheckSubdiv P B count maxDepth cfg = true) :
+    ∀ rho : Nat → ℝ, B.envMem rho →
+      (∀ i, i ≥ B.length → rho i = 0) →
+      (Engine.Algebra.cubicZeroSet (P.at rho)).ncard = count.toNat :=
+  cubicCountCheckSubdiv_sound P B count maxDepth cfg h
 
 end LeanCert.Validity.Algebra

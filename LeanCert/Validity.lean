@@ -47,5 +47,6 @@ The Engine computes numbers; Validity turns them into theorems.
   in the differentiable AD fragment on rational boxes.
 
 * `Validity.Algebra` - exact Bézout certificates for polynomial separability,
-  squarefreeness, and simple real roots.
+  squarefreeness, and simple real roots; discriminant certificates for uniform
+  parametric cubic root counts.
 -/

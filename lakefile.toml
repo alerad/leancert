@@ -112,6 +112,7 @@ roots = [
   "LeanCert.Test.AsympEnv",
   "LeanCert.Test.AsympTransforms",
   "LeanCert.Test.BridgeTest",
+  "LeanCert.Test.CubicCount",
   "LeanCert.Test.DomainAwareAD",
   "LeanCert.Test.ChebyshevPsi",
   "LeanCert.Test.ChebyshevTheta",
