@@ -85,15 +85,10 @@ addition, multiplication, differentiation, trimming, and array equality in
 Lean. A malformed cofactor or incorrect scalar is rejected; rejection is
 inconclusive rather than unsound.
 
-The optional `scripts/bezout_cert.py` frontend uses SymPy to discover
-cofactors, clears denominators, and prints a Lean `BezoutCert` term:
-
-```sh
-python scripts/bezout_cert.py --coeffs=-2,0,0,1
-```
-
-SymPy is not in the trusted proof path. LeanCert always replays the identity
-with `bezoutCheck`.
+Certificate discovery belongs in a downstream frontend such as
+`leancert-python`, not in this pure-Lean repository. Such a frontend may use a
+CAS to discover cofactors and clear denominators, but its output remains
+untrusted: LeanCert always replays the identity with `bezoutCheck`.
 
 ## Stable theorem surface
 
