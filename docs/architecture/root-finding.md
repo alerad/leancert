@@ -11,6 +11,8 @@ LeanCert provides verified root finding with proofs of existence and uniqueness.
 | Norm-form Krawczyk | Existence + uniqueness for square differentiable systems | Interval Jacobian + Banach | certificate API |
 | Bézout derivative | Global simplicity of all roots of a rational polynomial | Exact identity `A P + B P' = c ≠ 0` | certificate API |
 | Discriminant count | Uniform 1-or-3 real-root count for cubic coefficient families | Interval sign of leading coefficient and discriminant, with adaptive subdivision | certificate API |
+| Complete cubic isolation | Three unique roots and proof that no others exist | Positive discriminant + three ordered Newton contractions | certificate API |
+| Cauchy/separation mesh | A-priori root radius and pairwise gap | Exact rational coefficient and discriminant inequalities | certificate API |
 
 The Bézout layer is algebraic rather than isolating: it proves that roots are
 simple globally. Its `QPoly.toExpr` bridge lets that fact compose with the
@@ -20,6 +22,11 @@ interval algorithms below. See
 The discriminant layer is global rather than isolating. Its coefficients may
 be `Expr` families over a parameter box, and its subdivision checker resolves
 interval dependency by proving the same strict sign on every child box.
+
+For fixed rational cubics, the complete-isolation layer joins these worlds:
+count globally, isolate locally, then use cardinality to prove exhaustion.
+The companion Cauchy-radius and separation-mesh checker can choose a certified
+search domain and a safe mesh width before local isolation starts.
 
 ## Nonlinear Systems (Krawczyk)
 

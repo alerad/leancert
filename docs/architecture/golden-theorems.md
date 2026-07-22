@@ -24,7 +24,7 @@ Golden Theorems are defined across multiple files:
 - `Validity/AffineBounds.lean` - Affine arithmetic (tight bounds)
 - `Validity/Monotonicity.lean` - Monotonicity via automatic differentiation
 - `Validity/Krawczyk.lean` - existence and uniqueness for square systems in the differentiable AD fragment
-- `Validity/Algebra.lean` - separability, squarefreeness, and simple real roots from exact Bézout identities
+- `Validity/Algebra.lean` - algebraic root counts and simplicity, complete cubic isolation, and separation meshes
 - `Engine/Chebyshev/Psi.lean` - Chebyshev `ψ` finite-range certificates
 - `Engine/Chebyshev/Theta.lean` - Chebyshev `θ` finite-range certificates
 - `Cert/Interval.lean` - shared rational interval Golden Theorem combinators

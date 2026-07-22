@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.Algebra.Bezout
-import LeanCert.Engine.Algebra.CubicCount
+import LeanCert.Engine.Algebra.CubicRadius
 
 /-!
 # Golden theorems for algebraic root certificates
@@ -75,5 +75,31 @@ theorem verify_cubic_root_count_subdiv (P : CubicFamily) (B : Optimization.Box)
       (∀ i, i ≥ B.length → rho i = 0) →
       (Engine.Algebra.cubicZeroSet (P.at rho)).ncard = count.toNat :=
   cubicCountCheckSubdiv_sound P B count maxDepth cfg h
+
+/-- A successful complete-isolation check proves one unique root in each of
+three ordered intervals and proves that those intervals contain every real
+root of the exact rational cubic. -/
+theorem verify_complete_cubic_isolation (P : QCubic) (cert : CubicIsolationCert)
+    (h : cubicIsolationCheck P cert = true) :
+    (∃! x, x ∈ cert.left ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
+    (∃! x, x ∈ cert.middle ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
+    (∃! x, x ∈ cert.right ∧ Expr.eval (fun _ => x) P.toExpr = 0) ∧
+    Engine.Algebra.cubicZeroSet P.toReal ⊆
+      intervalSet cert.left ∪ intervalSet cert.middle ∪ intervalSet cert.right :=
+  cubicIsolationCheck_sound P cert h
+
+/-- Every real root of an exact rational cubic lies in its executable Cauchy
+radius. -/
+theorem verify_cubic_root_radius (P : QCubic) (ha : P.a ≠ 0) {x : ℝ}
+    (hx : x ∈ Engine.Algebra.cubicZeroSet P.toReal) : |x| ≤ P.cauchyRadius :=
+  P.root_abs_le_cauchyRadius ha hx
+
+/-- A successful mesh check gives a strict lower bound on all three pairwise
+root gaps. -/
+theorem verify_cubic_separation_mesh (P : QCubic) {eps : ℚ} {x y z : ℝ}
+    (hcheck : P.separationMeshCheck eps = true)
+    (hroots : P.toReal.roots = {x, y, z}) :
+    (eps : ℝ) < |x - y| ∧ (eps : ℝ) < |x - z| ∧ (eps : ℝ) < |y - z| :=
+  P.separationMeshCheck_sound hcheck hroots
 
 end LeanCert.Validity.Algebra
