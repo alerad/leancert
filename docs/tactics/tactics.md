@@ -18,14 +18,22 @@ import LeanCert.Tactic
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x^2 ≤ 1 := by leancert
 example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x^2 = 2 := by leancert?
+example : (∫ x in (0 : ℝ)..1, x^2) = 1/3 := by leancert
+example : (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by leancert
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27/100 : ℚ) := by
   leancert (subdivisions := 8)
 ```
 
 Inline options are `budget`, `taylorDepth`, `subdivisions`, and
 `maxIterations`. The budget counts deterministic strategies; it does not alter
-Lean's heartbeat setting. Ordinary integral inequalities remain on the
-dedicated `interval_integrate` path pending the integral front-end.
+Lean's heartbeat setting. Integral equalities over the rational-polynomial
+fragment use the executable `QPoly.checkExactIntegral` checker. Integral
+inequalities fall back to checked rational partition search. The legacy
+`interval_integrate` tactic remains available for explicit enclosure goals.
+
+`integral_exact` is the dedicated exact-polynomial tactic reported by
+`leancert?`; it supports rational constants, `+`, `-`, `*`, natural powers,
+and division by a nonzero rational constant.
 
 ## Bound Proving
 
@@ -248,7 +256,13 @@ example : ∃! x ∈ I12, Expr.eval (fun _ => x) expr_x2_minus_2 = 0 := by
 
 ### `interval_integrate`
 
-Proves bounds on definite integrals via verified Riemann sums.
+Proves membership in an explicitly computed integral enclosure. For ordinary
+equalities and inequalities, prefer `leancert`:
+
+```lean
+example : (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 := by leancert
+example : (∫ x in (0 : ℝ)..1, Real.sin x) ≤ 1 := by leancert
+```
 
 ```lean
 import LeanCert.Tactic.Discovery

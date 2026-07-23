@@ -6,6 +6,7 @@ Authors: LeanCert Contributors
 import LeanCert.Core.Expr
 import Mathlib.Algebra.Polynomial.Derivative
 import Mathlib.Analysis.Calculus.Deriv.Polynomial
+import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
 
 /-!
 # Executable exact rational polynomials
@@ -60,6 +61,14 @@ private def derivativeCoeffs : List ℚ → List ℚ
   | [] => []
   | _ :: xs => weightedDerivativeCoeffs 1 xs
 
+private def antiderivativeCoeffs (n : Nat) : List ℚ → List ℚ
+  | [] => []
+  | x :: xs => (x / (n : ℚ)) :: antiderivativeCoeffs (n + 1) xs
+
+private def evalCoeffs (x : ℚ) : List ℚ → ℚ
+  | [] => 0
+  | c :: cs => c + x * evalCoeffs x cs
+
 private noncomputable def listToPoly : List ℚ → Polynomial ℚ
   | [] => 0
   | x :: xs => Polynomial.C x + Polynomial.X * listToPoly xs
@@ -72,6 +81,9 @@ def zero : QPoly := ⟨#[]⟩
 
 def constant (c : ℚ) : QPoly := ⟨#[c]⟩
 
+/-- The polynomial variable. -/
+def X : QPoly := ⟨#[0, 1]⟩
+
 def add (p q : QPoly) : QPoly :=
   ⟨(addCoeffs p.coeffs.toList q.coeffs.toList).toArray⟩
 
@@ -80,6 +92,18 @@ def mul (p q : QPoly) : QPoly :=
 
 def derivative (p : QPoly) : QPoly :=
   ⟨(trimCoeffs (derivativeCoeffs p.coeffs.toList)).toArray⟩
+
+/-- The exact rational antiderivative with constant coefficient zero. -/
+def antiderivative (p : QPoly) : QPoly :=
+  ⟨(0 :: antiderivativeCoeffs 1 p.coeffs.toList).toArray⟩
+
+/-- Exact Horner evaluation over the rationals. -/
+def evalRat (p : QPoly) (x : ℚ) : ℚ :=
+  evalCoeffs x p.coeffs.toList
+
+/-- Exact definite integral between rational endpoints. -/
+def integralRat (p : QPoly) (a b : ℚ) : ℚ :=
+  p.antiderivative.evalRat b - p.antiderivative.evalRat a
 
 def trim (p : QPoly) : QPoly :=
   ⟨(trimCoeffs p.coeffs.toList).toArray⟩
@@ -150,11 +174,25 @@ private theorem listToPoly_derivativeCoeffs (xs : List ℚ) :
         Polynomial.derivative_mul, Polynomial.derivative_X]
       norm_num [Polynomial.C_1]
 
+private theorem weightedDerivativeCoeffs_antiderivativeCoeffs
+    (xs : List ℚ) (n : Nat) (hn : 0 < n) :
+    weightedDerivativeCoeffs n (antiderivativeCoeffs n xs) = xs := by
+  induction xs generalizing n with
+  | nil => rfl
+  | cons x xs ih =>
+      simp only [antiderivativeCoeffs, weightedDerivativeCoeffs, List.cons.injEq]
+      constructor
+      · field_simp
+      · exact ih (n + 1) (by omega)
+
 @[simp] theorem toPoly_zero : zero.toPoly = 0 := by
   rfl
 
 @[simp] theorem toPoly_constant (c : ℚ) : (constant c).toPoly = Polynomial.C c := by
   simp [constant, toPoly, listToPoly]
+
+@[simp] theorem toPoly_X : X.toPoly = Polynomial.X := by
+  simp [X, toPoly, listToPoly]
 
 theorem toPoly_add (p q : QPoly) : (p.add q).toPoly = p.toPoly + q.toPoly := by
   simpa [add, toPoly] using listToPoly_addCoeffs p.coeffs.toList q.coeffs.toList
@@ -165,6 +203,13 @@ theorem toPoly_mul (p q : QPoly) : (p.mul q).toPoly = p.toPoly * q.toPoly := by
 theorem toPoly_derivative (p : QPoly) : p.derivative.toPoly = p.toPoly.derivative := by
   simpa [derivative, toPoly, listToPoly_trimCoeffs] using
     listToPoly_derivativeCoeffs p.coeffs.toList
+
+theorem toPoly_antiderivative_derivative (p : QPoly) :
+    p.antiderivative.toPoly.derivative = p.toPoly := by
+  rw [← toPoly_derivative]
+  simp only [derivative, antiderivative, derivativeCoeffs,
+    weightedDerivativeCoeffs_antiderivativeCoeffs _ 1 (by omega), toPoly,
+    listToPoly_trimCoeffs]
 
 theorem toPoly_trim (p : QPoly) : p.trim.toPoly = p.toPoly := by
   simpa [trim, toPoly] using listToPoly_trimCoeffs p.coeffs.toList
@@ -190,6 +235,45 @@ private theorem eval_listToExpr (xs : List ℚ) (x : ℝ) :
 theorem eval_toExpr (p : QPoly) (x : ℝ) :
     Expr.eval (fun _ => x) p.toExpr = Polynomial.aeval x p.toPoly := by
   exact eval_listToExpr p.coeffs.toList x
+
+private theorem cast_evalCoeffs (xs : List ℚ) (x : ℚ) :
+    ((evalCoeffs x xs : ℚ) : ℝ) = Expr.eval (fun _ => (x : ℝ)) (listToExpr xs) := by
+  induction xs with
+  | nil => simp [evalCoeffs, listToExpr]
+  | cons c cs ih => simp [evalCoeffs, listToExpr, Expr.eval, ih]
+
+theorem cast_evalRat (p : QPoly) (x : ℚ) :
+    ((p.evalRat x : ℚ) : ℝ) = Expr.eval (fun _ => (x : ℝ)) p.toExpr := by
+  exact cast_evalCoeffs p.coeffs.toList x
+
+/-- The executable exact integral agrees with the interval integral of the
+represented polynomial. -/
+theorem integral_eval_toExpr (p : QPoly) (a b : ℚ) :
+    (∫ x in (a : ℝ)..(b : ℝ), Expr.eval (fun _ => x) p.toExpr) =
+      (p.integralRat a b : ℝ) := by
+  let q := p.antiderivative
+  have hderiv : ∀ x : ℝ,
+      HasDerivAt (fun t => Expr.eval (fun _ => t) q.toExpr)
+        (Expr.eval (fun _ => x) p.toExpr) x := by
+    intro x
+    have hq : q.toPoly.derivative = p.toPoly :=
+      toPoly_antiderivative_derivative p
+    have h := q.toPoly.hasDerivAt_aeval x
+    rw [hq] at h
+    simpa only [eval_toExpr] using h
+  have hInt : IntervalIntegrable
+      (fun x => Expr.eval (fun _ => x) p.toExpr) MeasureTheory.volume (a : ℝ) (b : ℝ) := by
+    rw [show (fun x : ℝ => Expr.eval (fun _ => x) p.toExpr) =
+        (fun x : ℝ => Polynomial.aeval x p.toPoly) by
+      funext x
+      exact eval_toExpr p x]
+    exact p.toPoly.differentiable_aeval.continuous.intervalIntegrable _ _
+  rw [intervalIntegral.integral_eq_sub_of_hasDerivAt
+    (fun x _ => hderiv x)
+    hInt]
+  simp only [q, integralRat]
+  rw [← cast_evalRat p.antiderivative b, ← cast_evalRat p.antiderivative a]
+  norm_num
 
 /-- The analytic derivative of the Horner expression agrees with the formal
 polynomial derivative. -/

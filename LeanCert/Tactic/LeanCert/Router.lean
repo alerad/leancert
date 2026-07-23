@@ -108,7 +108,17 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig) : Arra
   | .certificateCheck => #[
       { report := report intent "native_decide" (some "closed LeanCert checker"),
         solve := do evalTactic (← `(tactic| native_decide)) }]
-  | .integralBound => #[]
+  | .integralBound => #[
+      { report := report intent "integral_exact" (some "exact rational polynomial"),
+        solve := integralExactCore },
+      { report := report intent "integral_search 16 512" (some "checked rational partitions"),
+        solve := integralSearchCore 16 512 },
+      { report := report intent s!"interval_integrate {d}" (some "explicit enclosure"),
+        solve := intervalIntegrateCore d },
+      { report := report intent "integral_search 16 4096" (some "checked rational partitions"),
+        solve := integralSearchCore 16 4096 },
+      { report := report intent "integral_search 16 16384" (some "checked rational partitions"),
+        solve := integralSearchCore 16 16384 }]
 
 private def failureSummary : AttemptFailure → String
   | .unsupportedExpression remaining _ => s!"unsupported expression: {remaining}"
@@ -129,10 +139,6 @@ unsafe def runLeanCert (cfg : LeanCertConfig) : TacticM SolverReport := do
     | throwError "leancert: unsupported goal shape.\n\nGoal:\n{goalType}\n\n\
         Try a dedicated LeanCert tactic, or use `set_option trace.LeanCert.router true` \
         while extending the semantic classifier."
-
-  if intent == .integralBound then
-    throwError "leancert: integral goals are recognized but ordinary integral inequalities \
-      are scheduled for PR3; use `interval_integrate` for the existing explicit-enclosure API."
 
   let specs := (portfolio intent cfg).toList.take cfg.budget
   let mut failures : Array (String × AttemptFailure) := #[]
