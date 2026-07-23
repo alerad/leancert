@@ -31,7 +31,9 @@ example : exists M : Rat, forall x in Set.Icc (0 : Real) 1, Real.sin x <= M := b
 
 1. Use `#find_min` / `#bounds` to inspect behavior.
 2. Pick a clean rational target bound.
-3. Prove with `certify_bound` or existential tactics (`interval_minimize`, `interval_maximize`).
+3. Prove the final mathematical statement with `leancert`. Use a dedicated
+   tactic such as `certify_bound`, `interval_minimize`, or `interval_maximize`
+   when you need explicit strategy or configuration control.
 4. Keep the proof script minimal and reproducible.
 
 ## Split Repositories

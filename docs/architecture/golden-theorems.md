@@ -644,7 +644,7 @@ theorem log_moneyness_upper :
 -- Gaussian core for vega calculation
 theorem gaussian_core_upper :
     ∀ x ∈ Set.Icc (0:ℝ) 2, Real.exp (-x * x / 2) ≤ (1 : ℚ) := by
-  certify_bound
+  leancert
 ```
 
 ### Physics: Projectile Motion (`examples/Projectile.lean`)
@@ -655,17 +655,17 @@ Proves bounds on projectile dynamics with air resistance:
 -- Drag acceleration: F_drag/m = k·v² ≤ 8.33 m/s²
 theorem drag_accel_upper :
     ∀ v ∈ Set.Icc (0:ℝ) 50, 1/300 * v * v ≤ (25/3 : ℚ) := by
-  certify_bound
+  leancert
 
 -- Net acceleration with gravity and drag
 theorem net_accel_lower :
     ∀ v ∈ Set.Icc (0:ℝ) 50, (7/5 : ℚ) ≤ 49/5 - 1/300 * v * v := by
-  certify_bound
+  leancert
 
 -- Exponential velocity decay
 theorem exp_decay_lower :
     ∀ t ∈ Set.Icc (-1:ℝ) 0, (36/100 : ℚ) ≤ Real.exp t := by
-  certify_bound
+  leancert
 ```
 
 ### Running the Examples

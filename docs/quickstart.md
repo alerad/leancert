@@ -75,7 +75,8 @@ example :
 
 ## Notes
 
-- Use `certify_bound` for direct inequality proofs.
+- Start direct inequality proofs with `leancert`; use `certify_bound` when you
+  intentionally want the dedicated interval-bound engine or explicit Taylor-depth control.
 - Use discovery commands to estimate constants before writing the final theorem.
 - Use proof templates when the proof has reusable structure: generated rows,
   main/error envelopes, perturbation observers, product-integral identities, or
