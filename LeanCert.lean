@@ -88,7 +88,7 @@ import LeanCert.Meta.ToExpr
 -- Tactics
 import LeanCert.Tactic.Interval
 import LeanCert.Tactic.Discovery
--- v1.1: fast_bound tactic (uses Dyadic backend)
+-- Dyadic kernel-verification tactics
 import LeanCert.Tactic.DyadicAuto
 -- Counter-example hunting
 import LeanCert.Tactic.Refute
@@ -418,8 +418,8 @@ export LeanCert.Engine.Optimization (
   globalMaximizeCore
 )
 
--- Re-export Discovery Mode
-export LeanCert.Discovery (
+-- Re-export proof-carrying discovery result types
+export LeanCert.Validity (
   DiscoveryConfig
   VerifiedGlobalMin
   VerifiedGlobalMax
@@ -427,6 +427,10 @@ export LeanCert.Discovery (
   VerifiedIntegral
   VerifiedUpperBound
   VerifiedLowerBound
+)
+
+-- Re-export Discovery Mode
+export LeanCert.Discovery (
   findGlobalMin
   findGlobalMax
   verifyUpperBound

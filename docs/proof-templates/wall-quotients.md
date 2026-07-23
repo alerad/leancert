@@ -50,6 +50,6 @@ Remaining extensions:
 
 * ladders for the symmetric log integrand of the Li2 development (an order-2
   wall at `t = 0`), replacing its bespoke tail lemmas;
-* engine hookup: a wall-aware partition step for `interval_integrate` that
+* engine hookup: a wall-aware partition step for integral certification that
   evaluates jets at singular endpoints and the standard interval engine
   elsewhere.

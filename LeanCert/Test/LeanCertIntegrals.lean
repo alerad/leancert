@@ -48,6 +48,10 @@ example : (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by
 example : (∫ x in (0 : ℝ)..1, Real.sin x) ≤ 1 := by
   leancert (budget := 2)
 
+-- Numerical integration respects oriented interval semantics.
+example : (∫ x in (1 : ℝ)..0, Real.exp x) ≥ -2 := by
+  leancert
+
 -- A failed exact/numerical portfolio restores the original goal.
 example (h : (∫ x in (0 : ℝ)..1, Real.exp x) = 1) :
     (∫ x in (0 : ℝ)..1, Real.exp x) = 1 := by

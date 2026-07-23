@@ -8,17 +8,17 @@ import Lean.Elab.Tactic.Config
 /-!
 # LeanCert Router Configuration
 
-Configuration for the semantic `leancert` front door.  `budget` controls how
-many deterministic solver strategies may be attempted; it never changes
-Lean's heartbeat limit.
+Configuration for the semantic `leancert` front door.  `budget` is a
+cumulative strategy-cost limit; it never changes Lean's heartbeat limit.
 -/
 
 namespace LeanCert.Tactic
 
 /-- Configuration shared by `leancert` and `leancert?`. -/
 structure LeanCertConfig where
-  /-- Maximum number of strategies tried from the intent-specific portfolio. -/
-  budget : Nat := 3
+  /-- Maximum cumulative cost spent by the intent-specific portfolio.
+  Exact normalization and semantic reductions have cost zero. -/
+  budget : Nat := 6
   /-- Initial Taylor-model depth used by numerical tactics. -/
   taylorDepth : Nat := 10
   /-- Maximum bisection depth for the subdivision strategy. -/

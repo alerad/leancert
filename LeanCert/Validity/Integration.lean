@@ -48,7 +48,7 @@ open MeasureTheory
 
 /-! ### Computable Integration Infrastructure
 
-For `interval_integrate` tactic, we need:
+For the checked integral engine, we need:
 1. A computable integration function using `LeanCert.Internal.Rational.evalTotalCore1`
 2. A theorem that `ExprSupportedCore` implies `IntervalIntegrable`
 3. A verification theorem linking the computation to the real integral

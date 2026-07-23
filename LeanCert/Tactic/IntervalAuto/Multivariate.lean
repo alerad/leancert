@@ -125,7 +125,7 @@ where
       (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
     goal.withContext do
       let boxExpr ← mkBoxExpr vars
-      let ast ← reify func
+      let ast := (← reifyWithReport func).expr
       let boundRat ← extractRatBound bound
       let supportProof ← mkSupportedProof ast
       let cfgExpr ← mkAppM ``GlobalOptConfig.mk #[toExpr maxIters, toExpr tolerance, toExpr useMonotonicity, toExpr taylorDepth]
@@ -175,7 +175,11 @@ where
           have hge' : ($varsListSyntax).length ≤ i := by
             exact not_lt.mp hnot'
           simp [List.getD, List.getElem?_eq_none hge', Option.getD]
-        exact $conclusionTerm $rhoSyntax hmem hzero
+        have hresult := $conclusionTerm $rhoSyntax hmem hzero
+        convert hresult using 1 <;>
+          simp [List.getD, LeanCert.Core.Expr.eval, Rat.divInt_eq_div,
+            sq, pow_two, sub_eq_add_neg, div_eq_mul_inv] <;>
+          ring
       )))
 
   /-- Prove ∀ x₁ ∈ I₁, ..., ∀ xₙ ∈ Iₙ, c ≤ f(x) using verify_global_lower_bound -/
@@ -183,7 +187,7 @@ where
       (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
     goal.withContext do
       let boxExpr ← mkBoxExpr vars
-      let ast ← reify func
+      let ast := (← reifyWithReport func).expr
       let boundRat ← extractRatBound bound
       let supportProof ← mkSupportedProof ast
       let cfgExpr ← mkAppM ``GlobalOptConfig.mk #[toExpr maxIters, toExpr tolerance, toExpr useMonotonicity, toExpr taylorDepth]
@@ -234,7 +238,11 @@ where
           have hge' : ($varsListSyntax).length ≤ i := by
             exact not_lt.mp hnot'
           simp [List.getD, List.getElem?_eq_none hge', Option.getD]
-        exact $conclusionTerm $rhoSyntax hmem hzero
+        have hresult := $conclusionTerm $rhoSyntax hmem hzero
+        convert hresult using 1 <;>
+          simp [List.getD, LeanCert.Core.Expr.eval, Rat.divInt_eq_div,
+            sq, pow_two, sub_eq_add_neg, div_eq_mul_inv] <;>
+          ring
       )))
 
 /-- The multivariate_bound tactic.

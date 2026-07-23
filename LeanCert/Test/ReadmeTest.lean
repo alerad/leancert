@@ -25,15 +25,15 @@ This file tests all code examples from the README to ensure they work.
 open LeanCert.Core
 
 -- Prove bounds on transcendentals using natural Set.Icc syntax
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by interval_bound 15
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by interval_bound
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, 0 ≤ Real.exp x := by interval_bound
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by certify_bound 15
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by certify_bound
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, 0 ≤ Real.exp x := by certify_bound
 
 -- Or with explicit IntervalRat for more control
 def I01 : IntervalRat := ⟨0, 1, by norm_num⟩
 def I12 : IntervalRat := ⟨1, 2, by norm_num⟩
 
-example : ∀ x ∈ I01, Real.exp x ≤ (3 : ℚ) := by interval_bound 15
+example : ∀ x ∈ I01, Real.exp x ≤ (3 : ℚ) := by certify_bound 15
 
 -- Prove root existence (√2) via sign change
 example : ∃ x ∈ I12, Expr.eval (fun _ => x)
@@ -60,7 +60,7 @@ theorem exp_bounded : ∀ x ∈ I01', Expr.eval (fun _ => x) exprExp ≤ (3 : �
 -- ============================================================================
 
 -- Find global minimum (interactive command - just test it compiles)
-#minimize (fun x => x^2 + Real.sin x) on [-2, 2]
+#find_min (fun x => x^2 + Real.sin x) on [-2, 2]
 
 -- Explore function behavior (interactive command)
 #explore (Expr.cos (Expr.var 0)) on [0, 4]

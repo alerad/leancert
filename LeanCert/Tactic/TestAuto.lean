@@ -8,7 +8,7 @@ import LeanCert.Tactic.IntervalAuto
 /-!
 # Tests for Automated Interval Bound Tactic
 
-This file tests the `interval_bound` tactic.
+This file tests the `certify_bound` tactic.
 -/
 
 namespace LeanCert.Tactic.TestAuto
@@ -21,51 +21,51 @@ def I01 : IntervalRat := ⟨0, 1, by norm_num⟩
 
 -- Test 1: Simple x² ≤ 1 on [0, 1]
 theorem test_xsq_le_one : ∀ x ∈ I01, Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 -- Test 2: 0 ≤ x² on [0, 1]
 theorem test_zero_le_xsq : ∀ x ∈ I01, (0 : ℚ) ≤ Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) := by
-  interval_bound
+  certify_bound
 
 -- Test 3: sin(x) ≤ 1 on [0, 1]
 theorem test_sin_le_one : ∀ x ∈ I01, Expr.eval (fun _ => x) (Expr.sin (Expr.var 0)) ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 -- Test 4: -1 ≤ sin(x) on [0, 1]
 theorem test_neg_one_le_sin : ∀ x ∈ I01, (-1 : ℚ) ≤ Expr.eval (fun _ => x) (Expr.sin (Expr.var 0)) := by
-  interval_bound
+  certify_bound
 
 -- Test 5: x² + sin(x) ≤ 2 on [0, 1]
 theorem test_xsq_plus_sin : ∀ x ∈ I01,
     Expr.eval (fun _ => x) (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.sin (Expr.var 0))) ≤ (2 : ℚ) := by
-  interval_bound
+  certify_bound
 
 -- Test 6: x² - 2 < 0 on [0, 1]
 theorem test_xsq_minus_two_lt_zero : ∀ x ∈ I01,
     Expr.eval (fun _ => x) (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))) < (0 : ℚ) := by
-  interval_bound
+  certify_bound
 
 -- Test 7: exp(x) ≤ 3 on [0, 1] (needs higher Taylor depth)
 theorem test_exp_le_three : ∀ x ∈ I01, Expr.eval (fun _ => x) (Expr.exp (Expr.var 0)) ≤ (3 : ℚ) := by
-  interval_bound 15
+  certify_bound 15
 
 -- Test 8: 0.9 ≤ exp(x) on [0, 1]
 -- (A weaker bound that works without monotonicity)
 theorem test_point_nine_le_exp : ∀ x ∈ I01, (9/10 : ℚ) ≤ Expr.eval (fun _ => x) (Expr.exp (Expr.var 0)) := by
-  interval_bound 15
+  certify_bound 15
 
 -- Test 9: 1 ≤ exp(x) on [0, 1] - THE BOUNDARY CASE
 -- This tests the smart bound checker with monotonicity.
 -- exp is strictly increasing on [0, 1], so min(exp(x)) = exp(0) = 1.
 -- The smart checker evaluates exp at the left endpoint to get the tight bound.
 theorem test_one_le_exp : ∀ x ∈ I01, (1 : ℚ) ≤ Expr.eval (fun _ => x) (Expr.exp (Expr.var 0)) := by
-  interval_bound 15
+  certify_bound 15
 
 -- Test 10: exp(x) ≤ e on [0, 1] - upper bound at boundary
 -- exp is strictly increasing, so max(exp(x)) = exp(1) ≈ 2.718
 -- 11/4 = 2.75 > e, so this should pass with monotonicity
 theorem test_exp_le_e_approx : ∀ x ∈ I01, Expr.eval (fun _ => x) (Expr.exp (Expr.var 0)) ≤ (11/4 : ℚ) := by
-  interval_bound 15
+  certify_bound 15
 
 /-! ## Raw Lean Expression Tests
 
@@ -76,27 +76,27 @@ The tactic should automatically reify these expressions.
 
 -- Test 11: Raw x * x ≤ 1 on [0, 1]
 theorem test_raw_xsq_le_one : ∀ x ∈ I01, x * x ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 -- Test 12: Raw 0 ≤ x * x on [0, 1]
 theorem test_raw_zero_le_xsq : ∀ x ∈ I01, (0 : ℚ) ≤ x * x := by
-  interval_bound
+  certify_bound
 
 -- Test 13: Raw sin(x) ≤ 1 on [0, 1]
 theorem test_raw_sin_le_one : ∀ x ∈ I01, Real.sin x ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 -- Test 14: Raw exp(x) ≤ 3 on [0, 1]
 theorem test_raw_exp_le_three : ∀ x ∈ I01, Real.exp x ≤ (3 : ℚ) := by
-  interval_bound 15
+  certify_bound 15
 
 -- Test 15: Raw 1 ≤ exp(x) on [0, 1] - boundary case with reification
 theorem test_raw_one_le_exp : ∀ x ∈ I01, (1 : ℚ) ≤ Real.exp x := by
-  interval_bound 15
+  certify_bound 15
 
 -- Test 16: Raw x² + sin(x) ≤ 2 on [0, 1]
 theorem test_raw_xsq_plus_sin : ∀ x ∈ I01, x * x + Real.sin x ≤ (2 : ℚ) := by
-  interval_bound
+  certify_bound
 
 /-! ## Global Optimization - Manual Usage
 

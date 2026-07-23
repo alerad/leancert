@@ -61,6 +61,7 @@ def closeReificationBridge (report : LeanCert.Meta.ReifyReport) : TacticM Unit :
         LeanCert.Core.Expr.eval_div,
         LeanCert.Core.Expr.eval_pow,
         Rat.divInt_eq_div,
+        List.getD, Option.getD,
         sq, pow_two, pow_succ, pow_zero, pow_one,
         sub_eq_add_neg, div_eq_mul_inv,
         one_mul, mul_one];

@@ -11,8 +11,8 @@ import LeanCert.Engine.IntervalEvalDyadic
 # Kernel-Verified Dyadic Bound Tactics
 
 This tactic uses the Dyadic backend to prove bounds **within the Lean kernel**.
-Unlike `interval_bound`, which uses `native_decide` (relying on the compiler/runtime),
-`fast_bound` uses `decide`, which reduces the proof term in the kernel.
+Unlike `certify_bound`, which uses `native_decide` (relying on the compiler/runtime),
+`certify_kernel` uses `decide`, which reduces the proof term in the kernel.
 
 This is made possible because Dyadic arithmetic avoids the expensive GCD computations
 of `Rat` that typically make kernel reduction infeasible for deep expressions.
@@ -27,16 +27,16 @@ of `Rat` that typically make kernel reduction infeasible for deep expressions.
 
 | Tactic | Verification | Trust |
 |--------|-------------|-------|
-| `interval_bound` | `native_decide` | Lean Compiler + Runtime |
+| `certify_bound` | `native_decide` | Lean Compiler + Runtime |
 | `certify_kernel` | `decide` | Lean Kernel only |
 | `certify_kernel_fallback` | `decide`, then `native_decide` | Lean Kernel + compiler/runtime on fallback |
 
 The kernel is the smallest trusted component of Lean. By using `decide`,
 `certify_kernel` provides proofs that are verified by this minimal trusted base.
 
-## When to use `fast_bound`
+## When to use `certify_kernel`
 
-Use `certify_kernel` instead of `interval_bound` when:
+Use `certify_kernel` instead of `certify_bound` when:
 1. **Maximum trust**: You need proofs verified by the kernel, not the compiler
 2. **Deep expressions**: Nested transcendentals like `sin(sin(sin(x)))`
 3. **Many multiplications**: Polynomials with many terms
@@ -147,11 +147,11 @@ def extractOrReifyAst (func : Lean.Expr) : TacticM (Lean.Expr × Bool) := do
         throwError "Unexpected Expr.eval application structure"
     else
       -- Raw expression - reify it
-      return (← reify func, false)
+      return ((← reifyWithReport func).expr, false)
 
-/-- Core implementation of fast_bound with kernel verification.
+/-- Core implementation of certify_kernel_fallback with kernel verification.
     Returns a result indicating success or reason for fallback. -/
-def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResult := do
+def kernelBoundCore (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResult := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -224,7 +224,7 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResul
       let goalTy ← goal.getType
       if ← isDefEq proofTy goalTy then
         goal.assign proof
-        trace[fast_bound] "Kernel verification succeeded (via decide)"
+        trace[certify_kernel_fallback] "Kernel verification succeeded (via decide)"
         return .success
       else
         return .boundsNotDefeq
@@ -284,7 +284,7 @@ def fastBoundKernel (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResul
       let goalTy ← goal.getType
       if ← isDefEq proofTy goalTy then
         goal.assign proof
-        trace[fast_bound] "Kernel verification succeeded (via decide)"
+        trace[certify_kernel_fallback] "Kernel verification succeeded (via decide)"
         return .success
       else
         return .boundsNotDefeq
@@ -355,9 +355,6 @@ Usage:
 - `certify_kernel` - Use default precision (53 bits)
 - `certify_kernel n` - Use n bits of precision
 
-Note: `fast_bound` is an alias for backward compatibility with
-`certify_kernel_fallback`, since historical `fast_bound` accepted native Lean
-goals.
 -/
 elab "certify_kernel" prec:(num)? : tactic => do
   let precision : Int := match prec with
@@ -365,7 +362,7 @@ elab "certify_kernel" prec:(num)? : tactic => do
     | none => -53
 
   -- Try kernel verification first (works for goals expressed in Core.Expr.eval)
-  let result ← fastBoundKernel precision 10
+  let result ← kernelBoundCore precision 10
 
   match result with
   | .success =>
@@ -380,15 +377,12 @@ elab "certify_kernel_fallback" prec:(num)? : tactic => do
   let precision : Int := match prec with
     | some n => -(n.getNat : Int)
     | none => -53
-  let result ← fastBoundKernel precision 10
+  let result ← kernelBoundCore precision 10
   match result with
   | .success => return
   | other =>
     logWarning m!"certify_kernel_fallback: using native fallback because kernel verification failed: {other.message}"
     evalCertifyBoundFallback prec
-
-/-- Backward-compatible alias for certify_kernel -/
-macro "fast_bound" prec:(num)? : tactic => `(tactic| certify_kernel_fallback $[$prec]?)
 
 /-! ## Convenience Variants -/
 
@@ -397,41 +391,34 @@ certify_kernel with high precision (100 bits).
 Use when you need tighter bounds at the cost of speed.
 -/
 elab "certify_kernel_precise" : tactic => do
-  let result ← fastBoundKernel (-100) 20
+  let result ← kernelBoundCore (-100) 20
   if result == .success then return
   throwError "certify_kernel_precise: kernel verification failed: {result.message}\n\
     Use `certify_kernel_precise_fallback` if native verification is acceptable."
 
 elab "certify_kernel_precise_fallback" : tactic => do
-  let result ← fastBoundKernel (-100) 20
+  let result ← kernelBoundCore (-100) 20
   if result == .success then return
   logWarning m!"certify_kernel_precise_fallback: using native fallback because kernel verification failed: {result.message}"
   evalTactic (← `(tactic| certify_bound 100))
-
-/-- Backward-compatible alias -/
-macro "fast_bound_precise" : tactic => `(tactic| certify_kernel_precise_fallback)
 
 /--
 certify_kernel with low precision (30 bits).
 Use when you need maximum speed and can tolerate wider bounds.
 -/
 elab "certify_kernel_quick" : tactic => do
-  let result ← fastBoundKernel (-30) 5
+  let result ← kernelBoundCore (-30) 5
   if result == .success then return
   throwError "certify_kernel_quick: kernel verification failed: {result.message}\n\
     Use `certify_kernel_quick_fallback` if native verification is acceptable."
 
 elab "certify_kernel_quick_fallback" : tactic => do
-  let result ← fastBoundKernel (-30) 5
+  let result ← kernelBoundCore (-30) 5
   if result == .success then return
   logWarning m!"certify_kernel_quick_fallback: using native fallback because kernel verification failed: {result.message}"
   evalTactic (← `(tactic| certify_bound 30))
 
-/-- Backward-compatible alias -/
-macro "fast_bound_quick" : tactic => `(tactic| certify_kernel_quick_fallback)
-
 -- Register trace classes
 initialize registerTraceClass `certify_kernel
-initialize registerTraceClass `fast_bound  -- backward compat alias
 
 end LeanCert.Tactic

@@ -563,7 +563,7 @@ elab "#check_continuous " t:term " on " lo:term ", " hi:term : command => do
     let t ← elabTerm t none
     let t ← instantiateMVars t
     -- Reify to AST
-    let ast ← reify t
+    let ast := (← reifyWithReport t).expr
     -- Elaborate bounds
     let loExpr ← elabTerm lo (some (mkConst ``Real))
     let hiExpr ← elabTerm hi (some (mkConst ``Real))

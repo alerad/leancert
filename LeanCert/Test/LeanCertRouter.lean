@@ -63,7 +63,7 @@ example : ∃ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1,
 example : ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 11 := by
   leancert
 
--- The direct enclosure is too wide; the third transactional strategy uses subdivision.
+-- The direct enclosure is too wide; the third isolated strategy uses subdivision.
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
   leancert? (subdivisions := 8)
 

@@ -29,7 +29,7 @@ open LeanCert.Validity.GlobalOpt
 private def proveForallLeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
     (func bound : Lean.Expr) (maxIters : Nat) : TacticM Unit := do
   goal.withContext do
-    let ast ← getAst func
+    let ast := (← getAstWithReport func).expr
     let boundRat ← extractRatBound bound
     let supportProof ← LeanCert.Meta.mkSupportedProof ast
 
@@ -117,7 +117,7 @@ private def proveForallLeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
 private def proveForallGeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
     (func bound : Lean.Expr) (maxIters : Nat) : TacticM Unit := do
   goal.withContext do
-    let ast ← getAst func
+    let ast := (← getAstWithReport func).expr
     let boundRat ← extractRatBound bound
     let supportProof ← LeanCert.Meta.mkSupportedProof ast
 

@@ -32,8 +32,6 @@ This module provides interactive commands for exploring mathematical functions:
 #bounds (fun x y => x*y + x^2) on [-1, 1] × [-1, 1]
 ```
 
-Note: `#minimize` and `#maximize` are aliases for backward compatibility.
-
 ## Implementation
 
 The commands work by:
@@ -189,7 +187,7 @@ unsafe def elabFindMin : CommandElab := fun stx => do
       let funcExpr ← instantiateMVars funcExpr
 
       -- 2. Reify to LeanCert AST
-      let ast ← reify funcExpr
+      let ast := (← reifyWithReport funcExpr).expr
 
       -- 3. Parse the domain
       let box ← parseBox dom
@@ -221,12 +219,6 @@ unsafe def elabFindMin : CommandElab := fun stx => do
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   | _ => throwUnsupportedSyntax
 
-/-- Backward-compatible alias for #find_min -/
-syntax (name := minimizeCmd) "#minimize " term " on " term (" precision " num)? : command
-macro_rules
-  | `(command| #minimize $func on $dom $[precision $prec]?) =>
-    `(command| #find_min $func on $dom $[precision $prec]?)
-
 /-! ## #find_max Command -/
 
 /-- Syntax for #find_max command -/
@@ -240,7 +232,7 @@ unsafe def elabFindMax : CommandElab := fun stx => do
     liftTermElabM do
       let funcExpr ← elabTerm func none
       let funcExpr ← instantiateMVars funcExpr
-      let ast ← reify funcExpr
+      let ast := (← reifyWithReport funcExpr).expr
       let box ← parseBox dom
       let taylorDepth := match prec with
         | some n => n.getNat
@@ -266,12 +258,6 @@ unsafe def elabFindMax : CommandElab := fun stx => do
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   | _ => throwUnsupportedSyntax
 
-/-- Backward-compatible alias for #find_max -/
-syntax (name := maximizeCmd) "#maximize " term " on " term (" precision " num)? : command
-macro_rules
-  | `(command| #maximize $func on $dom $[precision $prec]?) =>
-    `(command| #find_max $func on $dom $[precision $prec]?)
-
 /-! ## #bounds Command -/
 
 /-- Syntax for #bounds command -/
@@ -285,7 +271,7 @@ unsafe def elabBounds : CommandElab := fun stx => do
     liftTermElabM do
       let funcExpr ← elabTerm func none
       let funcExpr ← instantiateMVars funcExpr
-      let ast ← reify funcExpr
+      let ast := (← reifyWithReport funcExpr).expr
       let box ← parseBox dom
       let taylorDepth := match prec with
         | some n => n.getNat
@@ -328,7 +314,7 @@ unsafe def elabEvalInterval : CommandElab := fun stx => do
     liftTermElabM do
       let funcExpr ← elabTerm func none
       let funcExpr ← instantiateMVars funcExpr
-      let ast ← reify funcExpr
+      let ast := (← reifyWithReport funcExpr).expr
       let box ← parseBox dom
       let taylorDepth := match prec with
         | some n => n.getNat

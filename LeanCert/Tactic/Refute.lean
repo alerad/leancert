@@ -11,7 +11,7 @@ import LeanCert.Engine.Search.CounterExample
 # Counter-Example Hunting Tactic
 
 This file provides a tactic for hunting counter-examples to bound claims.
-Unlike `interval_bound` which proves bounds, `interval_refute` searches for
+Unlike `certify_bound` which proves bounds, `interval_refute` searches for
 violations.
 
 ## Main tactics
@@ -28,7 +28,7 @@ example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
 -- A true theorem (no counter-example found)
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 1 := by
   interval_refute  -- INFO: No counter-example found, theorem appears true!
-  interval_bound   -- Actually proves it
+  certify_bound   -- Actually proves it
 ```
 
 ## How it works
@@ -104,7 +104,7 @@ private def reifyFunc (func : Lean.Expr) : TacticM LBExpr := do
         throwError "interval_refute: Unexpected Expr.eval structure"
     else
       -- Raw expression - use the reifier
-      let astExpr ← LeanCert.Meta.reify func
+      let astExpr := (← LeanCert.Meta.reifyWithReport func).expr
       let astVal ← unsafe evalExpr LBExpr (mkConst ``LeanCert.Core.Expr) astExpr
       return astVal
 
@@ -172,7 +172,7 @@ where
     match result with
     | none =>
       logInfo m!"No concrete counter-example was certified for f(x) ≤ {limit} on [{lo}, {hi}].\n\
-                 This search result is inconclusive; use interval_bound to prove the claim."
+                 This search result is inconclusive; use certify_bound to prove the claim."
 
     | some ce =>
       let pointStr := ce.point.map toString |>.intersperse ", " |> String.join
@@ -209,7 +209,7 @@ where
     match result with
     | none =>
       logInfo m!"No concrete counter-example was certified for {limit} ≤ f(x) on [{lo}, {hi}].\n\
-                 This search result is inconclusive; use interval_bound to prove the claim."
+                 This search result is inconclusive; use certify_bound to prove the claim."
 
     | some ce =>
       let pointStr := ce.point.map toString |>.intersperse ", " |> String.join

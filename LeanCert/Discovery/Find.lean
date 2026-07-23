@@ -3,7 +3,7 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Discovery.Types
+import LeanCert.Validity.Types
 import LeanCert.Validity.Bounds
 import LeanCert.Engine.Integrate
 import LeanCert.Engine.RootFinding.Bisection

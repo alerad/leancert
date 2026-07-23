@@ -6,9 +6,11 @@ Complete reference for all LeanCert tactics.
 
 ### `leancert` and `leancert?`
 
-`leancert` classifies the mathematical shape of a goal and transactionally
-tries a bounded portfolio of existing proof-producing tactics. Failed attempts
-restore the complete tactic state. `leancert?` also reports the winning
+`leancert` classifies the mathematical shape of a goal and tries a bounded
+portfolio through isolated, validated proof artifacts. Failed attempts restore
+the complete tactic state; successful native computations retain generated
+declarations required by their checked proof artifacts while restoring the
+caller's goal list. `leancert?` also reports the winning
 dedicated tactic. Closed Boolean checkers whose implementation is under the
 `LeanCert` namespace are routed to `native_decide`; arbitrary closed
 propositions are not.
@@ -17,6 +19,7 @@ propositions are not.
 import LeanCert.Tactic
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x^2 ≤ 1 := by leancert
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x^2 ≤ x + 1 := by leancert
 example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x^2 = 2 := by leancert?
 example : (∫ x in (0 : ℝ)..1, x^2) = 1/3 := by leancert
 example : (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by leancert
@@ -24,12 +27,25 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27/100 : ℚ) := by
   leancert (subdivisions := 8)
 ```
 
+The semantic parser accepts interval membership and root/optimizer predicates
+in either conjunction order. Comparisons whose two operands both depend on the
+quantified variables are normalized to a difference bound and transported back
+to the theorem stated by the user. Numerical interval certificates currently
+operate over `ℝ`; another carrier is reported as an unsupported domain rather
+than an internal verifier failure.
+
+Expected checker rejection, unsupported expressions, inconclusive enclosures,
+and certified counterexamples are rendered as separate diagnostic categories.
+Raw checker propositions are available only through
+`set_option trace.LeanCert.solver true`.
+
 Inline options are `budget`, `taylorDepth`, `subdivisions`, and
-`maxIterations`. The budget counts deterministic strategies; it does not alter
+`maxIterations`. The budget limits cumulative deterministic strategy cost; exact
+normalization is free. It does not alter
 Lean's heartbeat setting. Integral equalities over the rational-polynomial
 fragment use the executable `QPoly.checkExactIntegral` checker. Integral
-inequalities fall back to checked rational partition search. The legacy
-`interval_integrate` tactic remains available for explicit enclosure goals.
+inequalities fall back to checked rational partition search. State ordinary
+integral equalities or inequalities and use `leancert`.
 
 `integral_exact` is the dedicated exact-polynomial tactic reported by
 `leancert?`; it supports rational constants, `+`, `-`, `*`, natural powers,
@@ -56,8 +72,6 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, 0 ≤ Real.exp x := by certify_bound
 -- Strict inequalities
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x < 3 := by certify_bound
 ```
-
-Note: `interval_bound` is an alias for backward compatibility.
 
 **Parameters:**
 
@@ -95,9 +109,6 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
   certify_kernel_fallback 100
 ```
-
-Note: `fast_bound` is an alias for backward compatibility with the explicit
-fallback behavior.
 
 **Trust levels:**
 
@@ -254,38 +265,19 @@ example : ∃! x ∈ I12, Expr.eval (fun _ => x) expr_x2_minus_2 = 0 := by
 
 ---
 
-### `interval_integrate`
+### Integral goals
 
-Proves membership in an explicitly computed integral enclosure. For ordinary
-equalities and inequalities, prefer `leancert`:
+State ordinary equalities and inequalities and use `leancert`:
 
 ```lean
 example : (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 := by leancert
 example : (∫ x in (0 : ℝ)..1, Real.sin x) ≤ 1 := by leancert
 ```
 
-```lean
-import LeanCert.Tactic.Discovery
-
-open LeanCert.Core LeanCert.Validity.Integration
-
-def I01 : IntervalRat := ⟨0, 1, by norm_num⟩
-
--- Prove integral is contained in computed interval
-example : ∫ x in (I01.lo : ℝ)..(I01.hi : ℝ),
-    Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ∈
-    integrateInterval1Core (Expr.mul (Expr.var 0) (Expr.var 0)) I01 {} := by
-  interval_integrate
-```
-
 **How it works:**
 1. Partitions interval into subintervals
 2. Computes interval bounds on each partition
 3. Sums (width × bound) for rigorous over/under-approximation
-
-**Note:** The tactic proves membership in the computed interval, not a direct inequality.
-
----
 
 ## Interactive Commands
 
@@ -378,7 +370,7 @@ import LeanCert.Tactic.Discovery
 | `interval_unique_root` | Prove root unique | `native_decide` | Slow |
 | `interval_minimize` | Prove min exists | `native_decide` | Slow |
 | `interval_maximize` | Prove max exists | `native_decide` | Slow |
-| `interval_integrate` | Prove integral bounds | `native_decide` | Medium |
+| `leancert` | Prove ordinary integral equalities and inequalities | checked exact/partition certificates | Medium |
 | `discover` | Auto-route min/max | `native_decide` | Slow |
 | `interval_minimize_mv` | Multivariate min | `native_decide` | Slow |
 | `interval_maximize_mv` | Multivariate max | `native_decide` | Slow |

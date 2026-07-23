@@ -171,12 +171,6 @@ noncomputable def newtonIntervalTM (e : Expr) (I : IntervalRat) (varIdx : Nat)
     (maxIter : ℕ) (degree : ℕ := 1) : IntervalRat × RootStatus :=
   newtonIntervalGo e varIdx degree I maxIter false
 
-/-- Original Newton iteration (for backwards compatibility).
-    Now uses TM-based implementation with degree 1. -/
-noncomputable def newtonInterval (e : Expr) (I : IntervalRat) (varIdx : Nat)
-    (maxIter : ℕ) : IntervalRat × RootStatus :=
-  newtonIntervalTM e I varIdx maxIter 1
-
 /-! ### Auxiliary lemmas for Newton proofs -/
 
 /-- The derivative of evalFunc1 at any point in I is contained in derivInterval.

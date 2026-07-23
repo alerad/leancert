@@ -29,7 +29,7 @@ on expressions using interval arithmetic.
 
 ## Usage
 
-These lemmas are intended to be used by tactics like `interval_bound` and
+These lemmas are intended to be used by tactics like `certify_bound` and
 `interval_decide` to close goals of the form `∀ x ∈ I, f(x) ≤ c` or similar.
 
 The core lemmas use the computable evaluator and can work with `native_decide`.
