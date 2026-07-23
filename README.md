@@ -121,11 +121,11 @@ import LeanCert.Discovery.Commands
 Then turn the discovered estimate into a Lean theorem:
 
 ```lean
-import LeanCert.Tactic.IntervalAuto
+import LeanCert.Tactic
 
 example : forall x in Set.Icc (0 : Real) 1,
     x^2 + Real.sin x <= 2 := by
-  certify_bound
+  leancert
 ```
 
 ## Root Finding
@@ -160,8 +160,9 @@ tactic selected.
 | Goal                                       | Tactic                 |
 | ------------------------------------------ | ---------------------- |
 | Any recognized semantic goal               | `leancert`             |
-| `forall x in I, f x <= c`                  | `certify_bound`        |
-| `forall x in I, c <= f x`                  | `certify_bound`        |
+| `forall x in I, f x <= c`                  | `leancert`             |
+| `forall x in I, c <= f x`                  | `leancert`             |
+| Explicit single-variable bound engine      | `certify_bound`        |
 | Kernel-oriented dyadic bound               | `certify_kernel`       |
 | Multivariate bound                         | `multivariate_bound`   |
 | Root existence                             | `interval_roots`       |

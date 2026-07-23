@@ -6,12 +6,20 @@ goal.  For the overall proof-shape chooser, start with
 
 > **Having issues?** See the [Troubleshooting Guide](troubleshooting.md) for common errors and solutions.
 
+For ordinary mathematical statements, start with `leancert`. The dedicated
+tactics below remain useful when you want to force a particular solver, select
+engine-specific parameters, or control the verification path.
+
 ## Decision Flowchart
 
 ```
 What do you want to prove?
 │
-├─► "∀ x ∈ I, f(x) ≤ c" or "∀ x ∈ I, f(x) ≥ c"
+├─► A recognized bound, root, extremum, finite-sum, or integral theorem?
+│   └─► leancert
+│       └─► Need to inspect the selected solver? ──► leancert?
+│
+├─► Need explicit control for "∀ x ∈ I, f(x) ≤ c" or "∀ x ∈ I, f(x) ≥ c"?
 │   │
 │   ├─► Single variable? ──► certify_bound
 │   │                        (or certify_kernel for kernel-only trust)
@@ -60,18 +68,18 @@ What do you want to prove?
 
 | I want to prove... | Tactic | Example |
 |-------------------|--------|---------|
-| Upper bound on interval | `certify_bound` | `∀ x ∈ Set.Icc 0 1, exp x ≤ 3` |
-| Lower bound on interval | `certify_bound` | `∀ x ∈ Set.Icc 0 1, 0 ≤ exp x` |
+| Any recognized mathematical goal | `leancert` | Bounds, roots, extrema, sums, and integrals |
+| Upper bound on interval | `leancert` | `∀ x ∈ Set.Icc 0 1, exp x ≤ 3` |
+| Lower bound on interval | `leancert` | `∀ x ∈ Set.Icc 0 1, 0 ≤ exp x` |
+| Bound with explicit Taylor depth | `certify_bound` | Same goals, direct interval-engine control |
 | Bound with kernel-only trust | `certify_kernel` | Same goals, higher trust |
-| Multivariate bound | `multivariate_bound` | `∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2` |
-| Function has no roots | `root_bound` | `∀ x ∈ I, x² + 1 ≠ 0` |
-| Root exists | `interval_roots` | `∃ x ∈ I, x² - 2 = 0` |
-| Unique root exists | `interval_unique_root` | `∃! x ∈ I, x² - 2 = 0` |
-| Minimum exists | `interval_minimize` | `∃ m, ∀ x ∈ I, f x ≥ m` |
-| Maximum exists | `interval_maximize` | `∃ M, ∀ x ∈ I, f x ≤ M` |
-| Find the minimizer | `interval_argmin` | `∃ x ∈ I, ∀ y ∈ I, f x ≤ f y` |
-| Find the maximizer | `interval_argmax` | `∃ x ∈ I, ∀ y ∈ I, f y ≤ f x` |
-| Point inequality | `interval_decide` | `π < 3.15` |
+| Multivariate bound | `leancert` | `∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2` |
+| Function has no roots | `leancert` | `∀ x ∈ I, x² + 1 ≠ 0` |
+| Root exists | `leancert` | `∃ x ∈ I, x² - 2 = 0` |
+| Unique root exists | `leancert` | `∃! x ∈ I, x² - 2 = 0` |
+| Minimum or maximum exists | `leancert` | Existential bound theorem |
+| Find the minimizer or maximizer | `leancert` | Argmin or argmax theorem |
+| Point inequality | `leancert` | `π < 3.15` |
 | Disprove a bound | `interval_refute` | Find counterexample |
 | Simplify vector indexing | `vec_simp` | `![a,b,c] ⟨1, h⟩ = b` |
 | Expand finite sums | `finsum_expand` | `∑ k ∈ Icc 1 3, f k = f 1 + f 2 + f 3` |
@@ -126,16 +134,17 @@ import LeanCert.Discovery.Commands
 Prove them separately and combine:
 
 ```lean
-theorem exp_lower : ∀ x ∈ Set.Icc (0:ℝ) 1, 1 ≤ Real.exp x := by certify_bound
-theorem exp_upper : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ 3 := by certify_bound
+theorem exp_lower : ∀ x ∈ Set.Icc (0:ℝ) 1, 1 ≤ Real.exp x := by leancert
+theorem exp_upper : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ 3 := by leancert
 
 theorem exp_bounded : ∀ x ∈ Set.Icc (0:ℝ) 1, 1 ≤ Real.exp x ∧ Real.exp x ≤ 3 :=
   fun x hx => ⟨exp_lower x hx, exp_upper x hx⟩
 ```
 
-### "Native syntax vs Expr AST"
+### "Dedicated tactic syntax vs Expr AST"
 
-Most tactics support native syntax, but some require Expr AST:
+When selecting a dedicated tactic directly, most support native syntax, but
+some also expose or require the reflected Expr AST:
 
 | Tactic | Native Syntax | Expr AST |
 |--------|---------------|----------|
@@ -179,4 +188,4 @@ example (a : Fin 3 → ℝ) :
 Common combinations:
 - `finsum_expand; ring` — expand sum, simplify arithmetic
 - `finsum_expand; vec_simp; ring` — expand sum, reduce vector indexing, simplify
-- `vec_simp; certify_bound` — simplify indexing, then prove bounds
+- `vec_simp; leancert` — simplify indexing, then prove the resulting mathematical goal
