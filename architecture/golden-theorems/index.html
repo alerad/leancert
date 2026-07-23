@@ -1,0 +1,3878 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Certified numerical computation and bound verification for Lean 4.">
+      
+      
+      
+        <link rel="canonical" href="https://docs.leancert.io/architecture/golden-theorems/">
+      
+      
+        <link rel="prev" href="../../ml/distillation/">
+      
+      
+        <link rel="next" href="../backend-selection/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Golden Theorems - LeanCert</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#golden-theorems" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="LeanCert" class="md-header__button md-logo" aria-label="LeanCert" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LeanCert
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Golden Theorems
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/alerad/leancert" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    alerad/leancert
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="LeanCert" class="md-nav__button md-logo" aria-label="LeanCert" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    LeanCert
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/alerad/leancert" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    alerad/leancert
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../choosing-proof-shape/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing A Proof Shape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Direct Automation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Direct Automation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/bounds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounds and Inequalities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/roots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roots and No-Root Proofs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/optimization-discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimization and Discovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/checked-ad/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checked Automatic Differentiation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/tactics-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tactics Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proof Templates
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Proof Templates
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/checker-to-theorem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checker-To-Theorem Pattern
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/table-certificates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table Certificates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/asymptotic-envelopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asymptotic Envelopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/pointwise-envelopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pointwise Envelopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/constant-factory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConstantFactory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/qproduct-finite-integrals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exact Product-Integral Certificates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/contour-shift/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contour Shift
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/directed-limits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Directed Limits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/wall-quotients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wall Quotients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain Libraries
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Domain Libraries
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analytic Number Theory
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analytic Number Theory
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/chebyshev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chebyshev
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/finite-ant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finite ANT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/asymptotic-ant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ANT Asymptotic
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/explicit-pnt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explicit PNT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/qproduct-prime-limits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QProduct Prime Limits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ML Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ML Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ml/neural-networks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ml/distillation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distillation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture and Trust
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture and Trust
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Golden Theorems
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Golden Theorems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concept
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-theorems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Theorems
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Theorems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bound-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bound Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#root-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root Finding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#global-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checked-automatic-differentiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checked Automatic Differentiation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qproduct-product-integrals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QProduct Product Integrals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chebyshev-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chebyshev Certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analytic-number-theory-bridges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analytic Number Theory Bridges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asymptotic-envelope-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asymptotic Envelope Certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monotonicity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monotonicity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-aware-automatic-differentiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain-aware automatic differentiation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expression-support-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expression Support Tiers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Expression Support Tiers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exprsupportedcore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ExprSupportedCore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checked-evaluation-and-domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checked evaluation and domains
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#arithmetic-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arithmetic Backends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arithmetic Backends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rational-backend-tactic-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rational Backend (Tactic Default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dyadic-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dyadic Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#affine-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Affine Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-theorems-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Theorems Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernel-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-certificate-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Certificate Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#real-world-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-World Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Real-World Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#number-theory-2-examplessqrt2lean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Number Theory: √2 (examples/Sqrt2.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ml-safety-neural-network-verification-examplesneuralnetlean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ML Safety: Neural Network Verification (examples/NeuralNet.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-theory-lyapunov-stability-exampleslyapunovlean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Theory: Lyapunov Stability (examples/Lyapunov.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#finance-black-scholes-bounds-examplesblackscholeslean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finance: Black-Scholes Bounds (examples/BlackScholes.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#physics-projectile-motion-examplesprojectilelean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Physics: Projectile Motion (examples/Projectile.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-the-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lessons Learned
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interval Backend Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../table-certificates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table Certificates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../root-finding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Root Finding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../verification-status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification Status
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark Harness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/imports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tactics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tactics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/certificate-apis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Certificate APIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/algebraic-roots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algebraic Root Certificates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy Certificate Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tactics/tactics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy Tactics Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concept
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-theorems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Theorems
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Theorems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bound-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bound Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#root-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root Finding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#global-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checked-automatic-differentiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checked Automatic Differentiation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qproduct-product-integrals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QProduct Product Integrals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chebyshev-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chebyshev Certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analytic-number-theory-bridges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analytic Number Theory Bridges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asymptotic-envelope-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asymptotic Envelope Certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monotonicity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monotonicity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-aware-automatic-differentiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain-aware automatic differentiation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expression-support-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expression Support Tiers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Expression Support Tiers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exprsupportedcore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ExprSupportedCore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checked-evaluation-and-domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checked evaluation and domains
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#arithmetic-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arithmetic Backends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arithmetic Backends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rational-backend-tactic-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rational Backend (Tactic Default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dyadic-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dyadic Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#affine-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Affine Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-theorems-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Theorems Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kernel-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-certificate-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Certificate Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#real-world-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Real-World Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Real-World Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#number-theory-2-examplessqrt2lean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Number Theory: √2 (examples/Sqrt2.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ml-safety-neural-network-verification-examplesneuralnetlean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ML Safety: Neural Network Verification (examples/NeuralNet.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-theory-lyapunov-stability-exampleslyapunovlean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control Theory: Lyapunov Stability (examples/Lyapunov.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#finance-black-scholes-bounds-examplesblackscholeslean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finance: Black-Scholes Bounds (examples/BlackScholes.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#physics-projectile-motion-examplesprojectilelean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Physics: Projectile Motion (examples/Projectile.lean)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-the-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lessons-learned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lessons Learned
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Architecture and Trust
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="golden-theorems">Golden Theorems</h1>
+<p>LeanCert operates on a <strong>certificate-driven architecture</strong> where computable
+checkers run in Lean, and Golden Theorems lift successful checks to semantic
+theorems over real numbers.</p>
+<h2 id="concept">Concept</h2>
+<p>A Golden Theorem bridges the gap between a computable boolean check (which <code>native_decide</code> can run) and a semantic proposition about real numbers.</p>
+<p>For example, to prove <span class="arithmatex">\(f(x) \le c\)</span> for all <span class="arithmatex">\(x \in I\)</span>, we use:</p>
+<div class="arithmatex">\[
+\text{checkUpperBound}(e, I, c) = \text{true} \implies \forall x \in I,\ \text{eval}(x, e) \le c
+\]</div>
+<p>The key insight is that the checker runs in the Lean kernel using computable rational arithmetic, while the conclusion is a statement about real numbers.</p>
+<h2 id="core-theorems">Core Theorems</h2>
+<p>Golden Theorems are defined across multiple files:
+- <code>Validity/Bounds.lean</code> - Rational arithmetic (the tactic-level default)
+- <code>Validity/DyadicBounds.lean</code> - Dyadic arithmetic (fast)
+- <code>Validity/AffineBounds.lean</code> - Affine arithmetic (tight bounds)
+- <code>Validity/Monotonicity.lean</code> - Monotonicity via automatic differentiation
+- <code>Validity/Krawczyk.lean</code> - existence and uniqueness for square systems in the differentiable AD fragment
+- <code>Validity/Algebra.lean</code> - algebraic root counts and simplicity, complete cubic isolation, and separation meshes
+- <code>Engine/Chebyshev/Psi.lean</code> - Chebyshev <code>ψ</code> finite-range certificates
+- <code>Engine/Chebyshev/Theta.lean</code> - Chebyshev <code>θ</code> finite-range certificates
+- <code>Cert/Interval.lean</code> - shared rational interval Golden Theorem combinators
+- <code>ANT/Step.lean</code> - finite arithmetic step-sum certificates
+- <code>ANT/Abel.lean</code> - finite Abel / partial-summation certificates
+- <code>ANT/EulerProduct.lean</code> - finite Euler-product and log-product certificates
+- <code>ANT/PrimeEuler.lean</code> - prime Euler-product presets
+- <code>ANT/Dirichlet.lean</code> - finite Dirichlet-style truncation certificates
+- <code>ANT/Mertens.lean</code> - finite Mertens-style prime-sum certificates
+- <code>ANT/Asymp/Env.lean</code> - asymptotic main-term/error envelope certificates
+- <code>ANT/Asymp/Stieltjes.lean</code> - Stieltjes-Abel envelope transform certificates
+- <code>ANT/Asymp/Hyperbola.lean</code> - Dirichlet-hyperbola envelope certificates
+- <code>ANT/Asymp/Checkers.lean</code> - dyadic domination checkers for envelope errors
+- <code>QProduct/Certificate.lean</code> - Exact finite q-product integrals
+- <code>QProduct/PrimeLambda.lean</code> - Prime-limit q-product certificates</p>
+<h3 id="bound-verification">Bound Verification</h3>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upper bound <span class="arithmatex">\(f(x) \le c\)</span></td>
+<td><code>verify_upper_bound</code></td>
+<td><code>checkUpperBound</code></td>
+</tr>
+<tr>
+<td>Lower bound <span class="arithmatex">\(c \le f(x)\)</span></td>
+<td><code>verify_lower_bound</code></td>
+<td><code>checkLowerBound</code></td>
+</tr>
+<tr>
+<td>Strict upper <span class="arithmatex">\(f(x) &lt; c\)</span></td>
+<td><code>verify_strict_upper_bound</code></td>
+<td><code>checkStrictUpperBound</code></td>
+</tr>
+<tr>
+<td>Strict lower <span class="arithmatex">\(c &lt; f(x)\)</span></td>
+<td><code>verify_strict_lower_bound</code></td>
+<td><code>checkStrictLowerBound</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_upper_bound</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hsupp</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ExprSupportedCore</span><span class="w"> </span><span class="n">e</span><span class="o">)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="o">(</span><span class="n">I</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalRat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">c</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">cfg</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EvalConfig</span><span class="o">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="o">(</span><span class="n">h_cert</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkUpperBound</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="n">cfg</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">I</span><span class="o">,</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">c</span>
+</code></pre></div>
+<h3 id="root-finding">Root Finding</h3>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Root existence</td>
+<td><code>verify_sign_change</code></td>
+<td><code>checkSignChange</code></td>
+</tr>
+<tr>
+<td>Root uniqueness</td>
+<td><code>verify_unique_root_computable</code></td>
+<td><code>checkNewtonContractsCore</code></td>
+</tr>
+<tr>
+<td>No roots</td>
+<td><code>verify_no_root</code></td>
+<td><code>checkNoRoot</code></td>
+</tr>
+<tr>
+<td>System-root existence</td>
+<td><code>verify_system_root_exists</code></td>
+<td><code>krawczykCheck</code></td>
+</tr>
+<tr>
+<td>System-root uniqueness</td>
+<td><code>verify_system_root_unique</code></td>
+<td><code>krawczykCheck</code></td>
+</tr>
+<tr>
+<td>Unique system root</td>
+<td><code>verify_unique_system_root</code></td>
+<td><code>krawczykCheck</code></td>
+</tr>
+<tr>
+<td>Polynomial separability</td>
+<td><code>verify_separable</code></td>
+<td><code>bezoutCheck</code></td>
+</tr>
+<tr>
+<td>Every real polynomial root is simple</td>
+<td><code>verify_real_roots_simple</code></td>
+<td><code>bezoutCheck</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_sign_change</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hsupp</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ExprSupportedCore</span><span class="w"> </span><span class="n">e</span><span class="o">)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="o">(</span><span class="n">I</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalRat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">cfg</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EvalConfig</span><span class="o">)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hCont</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ContinuousOn</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">Set.Icc</span><span class="w"> </span><span class="n">I.lo</span><span class="w"> </span><span class="n">I.hi</span><span class="o">))</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="o">(</span><span class="n">h_cert</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkSignChange</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">cfg</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="bp">∃</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">I</span><span class="o">,</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<h3 id="global-optimization">Global Optimization</h3>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Global lower bound</td>
+<td><code>verify_global_lower_bound</code></td>
+<td><code>checkGlobalLowerBound</code></td>
+</tr>
+<tr>
+<td>Global upper bound</td>
+<td><code>verify_global_upper_bound</code></td>
+<td><code>checkGlobalUpperBound</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_global_lower_bound</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hsupp</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ADSupported</span><span class="w"> </span><span class="n">e</span><span class="o">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="o">(</span><span class="n">B</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Box</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">c</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">cfg</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">GlobalOptConfig</span><span class="o">)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="o">(</span><span class="n">h_cert</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkGlobalLowerBound</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="n">cfg</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="o">(</span><span class="n">ρ</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">ℝ</span><span class="o">),</span><span class="w"> </span><span class="n">Box.envMem</span><span class="w"> </span><span class="n">ρ</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="o">(</span><span class="bp">∀</span><span class="w"> </span><span class="n">i</span><span class="o">,</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="bp">≥</span><span class="w"> </span><span class="n">B.length</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">ρ</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="mi">0</span><span class="o">)</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">      </span><span class="n">c</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="n">ρ</span><span class="w"> </span><span class="n">e</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Note</strong>: Global optimization uses <code>ADSupported</code> (not <code>ExprSupportedCore</code>) and multivariate environments.</p>
+</blockquote>
+<h3 id="checked-automatic-differentiation">Checked Automatic Differentiation</h3>
+<p>Checked AD combines support and box-dependent domain validation with interval
+dual-number evaluation. A successful result is therefore enough to derive the
+semantic derivative statement; callers do not separately prove that reciprocal
+arguments exclude zero or logarithm arguments are positive.</p>
+<table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th>Rational arithmetic</th>
+<th>Dyadic arithmetic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One partial</td>
+<td><code>derivIntervalChecked_correct</code></td>
+<td><code>derivIntervalDyadicChecked_correct</code></td>
+</tr>
+<tr>
+<td>Gradient</td>
+<td><code>gradientIntervalChecked_correct</code></td>
+<td><code>gradientIntervalDyadicChecked_correct</code></td>
+</tr>
+<tr>
+<td>Rational input converted to Dyadic</td>
+<td>—</td>
+<td><code>derivIntervalDyadicCheckedOfRat_correct</code>, <code>gradientIntervalDyadicCheckedOfRat_correct</code></td>
+</tr>
+<tr>
+<td>Differentiability from a successful value-and-derivative call</td>
+<td><code>evalWithDerivChecked_differentiableAt</code></td>
+<td><code>evalWithDerivDyadicChecked_differentiableAt</code></td>
+</tr>
+</tbody>
+</table>
+<p>The Dyadic <code>OfRat</code> theorems include the outward input-conversion proof. See
+<a href="../../direct/checked-ad/">Checked Automatic Differentiation</a> for a complete
+compiled example and the exact coordinate alignment of gradient results.</p>
+<h3 id="integration">Integration</h3>
+<p><strong>Rational backend:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_integral_bound</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hsupp</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ExprSupportedCore</span><span class="w"> </span><span class="n">e</span><span class="o">)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="o">(</span><span class="n">I</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalRat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">target</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">cfg</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EvalConfig</span><span class="o">)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="o">(</span><span class="n">h_cert</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkIntegralBoundsCore</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="n">cfg</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="o">(</span><span class="n">hcontdom</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">exprContinuousDomainValid</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">(</span><span class="n">Set.Icc</span><span class="w"> </span><span class="n">I.lo</span><span class="w"> </span><span class="n">I.hi</span><span class="o">))</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="bp">∫</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">I.lo</span><span class="bp">..</span><span class="n">I.hi</span><span class="o">,</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">integrateInterval1Core</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">cfg</span>
+</code></pre></div>
+<p><strong>Dyadic backend</strong> (for complex integrands like Li₂ where rational arithmetic explodes):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">integrateInterval1Dyadic_correct</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="o">(</span><span class="n">I</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalRat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">cfg</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">DyadicConfig</span><span class="o">)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hprec</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">cfg.precision</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="mi">0</span><span class="o">)</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="o">(</span><span class="n">hdom</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">evalDomainValidDyadic</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">IntervalDyadic.ofIntervalRat</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">cfg.precision</span><span class="o">)</span><span class="w"> </span><span class="n">cfg</span><span class="o">)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="o">(</span><span class="n">hInt</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalIntegrable</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="o">)</span><span class="w"> </span><span class="n">volume</span><span class="w"> </span><span class="n">I.lo</span><span class="w"> </span><span class="n">I.hi</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="bp">∫</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">(</span><span class="n">I.lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="bp">..</span><span class="o">(</span><span class="n">I.hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">),</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">∈</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="n">integrateInterval1Dyadic</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">cfg</span>
+</code></pre></div>
+<p>The theorem-level dyadic integration path accepts arbitrary expressions
+(including <code>inv</code>, <code>log</code>, <code>atanh</code>) under explicit domain-validity hypotheses.
+Public computational endpoints use checked evaluators and return a domain error
+instead of exposing finite fallback bounds.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">integratePartitionDyadic_correct</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="o">(</span><span class="n">I</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalRat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">n</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℕ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hn</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="bp">&lt;</span><span class="w"> </span><span class="n">n</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">cfg</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">DyadicConfig</span><span class="o">)</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hprec</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">cfg.precision</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="mi">0</span><span class="o">)</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="o">(</span><span class="n">hdom</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="bp">∀</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">(</span><span class="n">hk</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="bp">&lt;</span><span class="w"> </span><span class="n">n</span><span class="o">),</span><span class="w"> </span><span class="n">evalDomainValidDyadic</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">...</span><span class="o">)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="o">(</span><span class="n">hInt</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalIntegrable</span><span class="w"> </span><span class="bp">...</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="bp">∫</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">(</span><span class="n">I.lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="bp">..</span><span class="o">(</span><span class="n">I.hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">),</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">∈</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">      </span><span class="n">integratePartitionDyadic</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="n">hn</span><span class="w"> </span><span class="n">cfg</span>
+</code></pre></div>
+<h3 id="qproduct-product-integrals">QProduct Product Integrals</h3>
+<p><code>LeanCert.QProduct</code> is a specialized exact-arithmetic certificate family for
+finite products</p>
+<div class="arithmatex">\[
+F(S) = \int_0^1 \prod_{n \in S} (1 - u^n)\,du.
+\]</div>
+<p>The finite checker expands the product into a signed subset-sum polynomial and
+integrates exactly over <code>ℚ</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exact finite interval</td>
+<td><code>verify_finiteIntegral_interval</code></td>
+<td><code>checkFiniteIntegralInterval</code></td>
+</tr>
+<tr>
+<td>Finite upper bound</td>
+<td><code>verify_finiteIntegral_upper</code></td>
+<td><code>checkFiniteIntegralUpper</code></td>
+</tr>
+<tr>
+<td>Finite lower bound</td>
+<td><code>verify_finiteIntegral_lower</code></td>
+<td><code>checkFiniteIntegralLower</code></td>
+</tr>
+<tr>
+<td>Prime-limit upper bound</td>
+<td><code>verify_primeLambda_upper</code></td>
+<td><code>checkPrimeLambdaUpper</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_finiteIntegral_interval</span><span class="w"> </span><span class="o">(</span><span class="n">S</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Finset</span><span class="w"> </span><span class="n">Nat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="o">(</span><span class="n">hcheck</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkFiniteIntegralInterval</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">F</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="bp">∧</span><span class="w"> </span><span class="n">F</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_primeLambda_upper</span><span class="w"> </span><span class="o">(</span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="o">(</span><span class="n">hcheck</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkPrimeLambdaUpper</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">primeLambda</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span>
+</code></pre></div>
+<p>Prime-limit lower bounds are intentionally hybrid: the finite arithmetic is
+exact, but the lower side needs a mathematical tail proof. The bridge theorem
+is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">primeLambda_lower_of_forall</span><span class="w"> </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="o">(</span><span class="n">hlo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="bp">∀</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">,</span><span class="w"> </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">primeFRat</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">))</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">primeLambda</span>
+</code></pre></div>
+<p>The reusable odd-prime tail certificate is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">primeLambda_sandwich</span><span class="w"> </span><span class="o">{</span><span class="n">N</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">}</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="o">(</span><span class="n">hN</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">N</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hm</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Odd</span><span class="w"> </span><span class="n">m</span><span class="o">)</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="o">(</span><span class="n">htail_ge</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="bp">∀</span><span class="w"> </span><span class="n">p</span><span class="o">,</span><span class="w"> </span><span class="n">Nat.Prime</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">&lt;</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">p</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="o">(</span><span class="n">primeFRat</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">-</span><span class="w"> </span><span class="o">(</span><span class="n">primeSandwichErrorRat</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">primeLambda</span><span class="w"> </span><span class="bp">∧</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">      </span><span class="n">primeLambda</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">primeFRat</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span>
+</code></pre></div>
+<p>The initial module includes the formally proved tail certificate
+<code>primeLambda_gt_half : (1 : ℝ) / 2 &lt; primeLambda</code>.</p>
+<h3 id="chebyshev-certificates">Chebyshev Certificates</h3>
+<p>The Chebyshev engines expose specialized finite-range Golden Theorems for
+number-theoretic functions.</p>
+<p>For <code>ψ</code>, the checker bounds a computable rational envelope <code>psiUB</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One natural input</td>
+<td><code>verify_psi_le_mul</code></td>
+<td><code>checkPsiLeMulWith</code></td>
+</tr>
+<tr>
+<td>All natural inputs up to <code>bound</code></td>
+<td><code>verify_all_psi_le_mul</code></td>
+<td><code>checkAllPsiLeMulWith</code></td>
+</tr>
+<tr>
+<td>All real inputs up to <code>bound</code></td>
+<td><code>verify_all_psi_le_mul_real</code></td>
+<td><code>checkAllPsiLeMulWith</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_all_psi_le_mul</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="o">(</span><span class="n">bound</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">slope</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hcheck</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkAllPsiLeMulWith</span><span class="w"> </span><span class="n">bound</span><span class="w"> </span><span class="n">slope</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="bp">&lt;</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">bound</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">      </span><span class="n">Chebyshev.psi</span><span class="w"> </span><span class="o">(</span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">slope</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">N</span>
+</code></pre></div>
+<p>For <code>θ</code>, the checker supports upper, absolute-error, and relative-error bounds:</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upper bound</td>
+<td><code>verify_theta_le_mul</code></td>
+<td><code>checkThetaLeMulWith</code></td>
+</tr>
+<tr>
+<td>Absolute error</td>
+<td><code>verify_theta_abs_error</code></td>
+<td><code>checkThetaAbsError</code></td>
+</tr>
+<tr>
+<td>Relative error</td>
+<td><code>verify_theta_rel_error</code></td>
+<td><code>checkThetaRelError</code></td>
+</tr>
+<tr>
+<td>Range relative error</td>
+<td><code>verify_all_theta_rel_error</code></td>
+<td><code>checkAllThetaRelError</code></td>
+</tr>
+<tr>
+<td>Unit-interval real relative error</td>
+<td><code>verify_theta_rel_error_real</code></td>
+<td><code>checkThetaRelErrorReal</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_all_theta_rel_error</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span><span class="o">(</span><span class="n">start</span><span class="w"> </span><span class="n">limit</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">bound</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hcheck</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkAllThetaRelError</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="n">limit</span><span class="w"> </span><span class="n">bound</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="bp">&lt;</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">limit</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">      </span><span class="bp">|</span><span class="n">Chebyshev.theta</span><span class="w"> </span><span class="o">(</span><span class="n">N</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">-</span><span class="w"> </span><span class="n">N</span><span class="bp">|</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">bound</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">N</span>
+</code></pre></div>
+<h3 id="analytic-number-theory-bridges">Analytic Number Theory Bridges</h3>
+<p>The ANT layer exposes small bridge Golden Theorems that compose with the
+Chebyshev engines.</p>
+<p>The shared interval helper used by these APIs is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">LeanCert.Cert.verify_rat_interval</span><span class="w"> </span><span class="o">{</span><span class="n">value</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">}</span><span class="w"> </span><span class="o">{</span><span class="n">lower</span><span class="w"> </span><span class="n">upper</span><span class="w"> </span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">}</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="o">(</span><span class="n">hlower</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="o">(</span><span class="n">lower</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">value</span><span class="o">)</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hupper</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">upper</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">))</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="o">(</span><span class="n">hcheck</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkRatInterval</span><span class="w"> </span><span class="n">lower</span><span class="w"> </span><span class="n">upper</span><span class="w"> </span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="bp">∧</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker/Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Finite step-sum interval</td>
+<td><code>verify_stepSum_interval</code></td>
+<td><code>checkStepSumInterval</code></td>
+</tr>
+<tr>
+<td>Exact Abel interval</td>
+<td><code>verify_abel_interval</code></td>
+<td><code>checkAbelInterval</code></td>
+</tr>
+<tr>
+<td>Bounded Abel interval</td>
+<td><code>verify_abelBound_interval</code></td>
+<td><code>checkAbelBoundInterval</code></td>
+</tr>
+<tr>
+<td>Finite Euler product interval</td>
+<td><code>verify_eulerProduct_interval</code></td>
+<td><code>checkEulerProductInterval</code></td>
+</tr>
+<tr>
+<td>Finite log-product interval</td>
+<td><code>verify_logProduct_interval</code></td>
+<td><code>checkLogProductInterval</code></td>
+</tr>
+<tr>
+<td>Log interval to product interval</td>
+<td><code>verify_product_interval_of_log_interval</code></td>
+<td>log interval proof</td>
+</tr>
+<tr>
+<td>Log lower to product lower</td>
+<td><code>verify_product_lower_of_log_lower</code></td>
+<td>log lower proof</td>
+</tr>
+<tr>
+<td>Log upper to product upper</td>
+<td><code>verify_product_upper_of_log_upper</code></td>
+<td>log upper proof</td>
+</tr>
+<tr>
+<td>Prime product <code>∏(1 - 1/p)</code></td>
+<td><code>verify_primeEulerOneMinusInv_interval</code></td>
+<td><code>checkPrimeEulerOneMinusInvInterval</code></td>
+</tr>
+<tr>
+<td>Prime product <code>∏(1 + 1/p)</code></td>
+<td><code>verify_primeEulerOnePlusInv_interval</code></td>
+<td><code>checkPrimeEulerOnePlusInvInterval</code></td>
+</tr>
+<tr>
+<td>Finite Dirichlet sum interval</td>
+<td><code>verify_dirichletSum_interval</code></td>
+<td><code>checkDirichletSumInterval</code></td>
+</tr>
+<tr>
+<td>Harmonic truncation interval</td>
+<td><code>verify_harmonicSum_interval</code></td>
+<td><code>checkHarmonicSumInterval</code></td>
+</tr>
+<tr>
+<td>Prime harmonic truncation interval</td>
+<td><code>verify_primeHarmonicSum_interval</code></td>
+<td><code>checkPrimeHarmonicSumInterval</code></td>
+</tr>
+<tr>
+<td>Prime log-over-prime interval</td>
+<td><code>verify_logPrimeOverPrimeSum_interval</code></td>
+<td><code>checkLogPrimeOverPrimeSumInterval</code></td>
+</tr>
+<tr>
+<td>Finite Mertens log-sum interval</td>
+<td><code>verify_mertensLogSum_interval</code></td>
+<td><code>checkMertensLogSumInterval</code></td>
+</tr>
+<tr>
+<td>Abel-routed Mertens interval</td>
+<td><code>verify_mertensAbel_interval</code></td>
+<td><code>checkMertensAbelInterval</code></td>
+</tr>
+</tbody>
+</table>
+<p>The central exact identity is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">weightedSumRat_eq_abelTransformRat</span><span class="w"> </span><span class="o">{</span><span class="n">a</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">ℚ</span><span class="o">}</span><span class="w"> </span><span class="o">{</span><span class="n">m</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">}</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span><span class="o">(</span><span class="n">hmn</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="bp">&lt;</span><span class="w"> </span><span class="n">n</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="o">(</span><span class="n">weightedSumRat</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="o">(</span><span class="n">abelTransformRat</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span>
+</code></pre></div>
+<p>The first Chebyshev-to-Mertens bridge is finite:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_mertensLogSum_interval</span><span class="w"> </span><span class="o">(</span><span class="n">N</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">    </span><span class="o">(</span><span class="n">hcheck</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkMertensLogSumInterval</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">mertensLogSum</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">∧</span><span class="w"> </span><span class="n">mertensLogSum</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span>
+</code></pre></div>
+<p>Here <code>mertensLogSum N</code> is <code>∑ p ≤ N, log p / p</code>, and the checker uses the
+existing Chebyshev theta logarithm envelopes.</p>
+<p>The bounded Abel bridge has the reusable shape:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_abelBound_interval</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">    </span><span class="o">(</span><span class="n">a</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">f</span><span class="w"> </span><span class="n">ALo</span><span class="w"> </span><span class="n">AHi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">{</span><span class="n">m</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">}</span><span class="w"> </span><span class="o">(</span><span class="n">hmn</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="bp">&lt;</span><span class="w"> </span><span class="n">n</span><span class="o">)</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hA</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="bp">∀</span><span class="w"> </span><span class="n">k</span><span class="o">,</span><span class="w"> </span><span class="o">(</span><span class="n">ALo</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">prefixSum</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="bp">∧</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">      </span><span class="n">prefixSum</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">AHi</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">))</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="o">(</span><span class="n">hcheck</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkAbelBoundInterval</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="n">ALo</span><span class="w"> </span><span class="n">AHi</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">    </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">weightedSum</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="bp">∧</span><span class="w"> </span><span class="n">weightedSum</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span>
+</code></pre></div>
+<h3 id="asymptotic-envelope-certificates">Asymptotic Envelope Certificates</h3>
+<p>The asymptotic layer introduces semantic main-term/error-term envelopes for
+summatory functions:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kd">structure</span><span class="w"> </span><span class="n">AsympEnv</span><span class="w"> </span><span class="n">where</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="n">seq</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">ℝ</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span><span class="n">cutoff</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">  </span><span class="n">mainTerm</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">  </span><span class="n">errorTerm</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">  </span><span class="n">cert</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">N</span><span class="o">,</span><span class="w"> </span><span class="n">cutoff</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">      </span><span class="bp">|</span><span class="n">prefixSum</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">(</span><span class="n">N</span><span class="w"> </span><span class="bp">+</span><span class="w"> </span><span class="mi">1</span><span class="o">)</span><span class="w"> </span><span class="bp">-</span><span class="w"> </span><span class="n">evalAtNat</span><span class="w"> </span><span class="n">mainTerm</span><span class="w"> </span><span class="n">N</span><span class="bp">|</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">evalAtNat</span><span class="w"> </span><span class="n">errorTerm</span><span class="w"> </span><span class="n">N</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">  </span><span class="n">error_nonneg</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">N</span><span class="o">,</span><span class="w"> </span><span class="n">cutoff</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">evalAtNat</span><span class="w"> </span><span class="n">errorTerm</span><span class="w"> </span><span class="n">N</span>
+</code></pre></div>
+<p>The Golden Theorem families are:</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem / API</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Envelope lower/upper bounds</td>
+<td><code>AsympEnv.lower_le_summatory</code>, <code>AsympEnv.summatory_le_upper</code></td>
+</tr>
+<tr>
+<td>Stieltjes-Abel envelope</td>
+<td><code>verify_stieltjes_envelope</code></td>
+</tr>
+<tr>
+<td><code>1 / n</code> Stieltjes envelope</td>
+<td><code>verify_one_over_n_stieltjes_envelope</code></td>
+</tr>
+<tr>
+<td>Dirichlet hyperbola envelope</td>
+<td><code>verify_dirichlet_hyperbola_envelope</code></td>
+</tr>
+<tr>
+<td>Convolution via hyperbola bridge</td>
+<td><code>verify_dirichlet_convolution_envelope</code></td>
+</tr>
+<tr>
+<td>Dyadic expression domination</td>
+<td><code>verify_expr_le_on_interval_dyadic</code>, <code>verify_expr_le_with_slab_tail_dyadic</code></td>
+</tr>
+<tr>
+<td>Generated Stieltjes error domination</td>
+<td><code>verify_stieltjes_error_le_target_with_slab_tail_dyadic</code></td>
+</tr>
+<tr>
+<td>Generated hyperbola error domination</td>
+<td><code>verify_hyperbola_error_le_target_with_slab_tail_dyadic</code></td>
+</tr>
+</tbody>
+</table>
+<p>The usual workflow is to generate a transform envelope, prove that its generated
+error term is dominated by a simpler public error term, and then use
+<code>AsympEnv.weakenError</code> to expose the simpler statement.</p>
+<h3 id="monotonicity">Monotonicity</h3>
+<p>Prove monotonicity properties using automatic differentiation with interval arithmetic.</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Strictly increasing</td>
+<td><code>verify_strictly_increasing</code></td>
+<td><code>checkStrictlyIncreasing</code></td>
+</tr>
+<tr>
+<td>Strictly decreasing</td>
+<td><code>verify_strictly_decreasing</code></td>
+<td><code>checkStrictlyDecreasing</code></td>
+</tr>
+<tr>
+<td>Monotone (weak)</td>
+<td><code>verify_monotone</code></td>
+<td><code>checkStrictlyIncreasing</code></td>
+</tr>
+<tr>
+<td>Antitone (weak)</td>
+<td><code>verify_antitone</code></td>
+<td><code>checkStrictlyDecreasing</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_strictly_increasing</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hsupp</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ADSupported</span><span class="w"> </span><span class="n">e</span><span class="o">)</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span><span class="o">(</span><span class="n">I</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalRat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">cfg</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">EvalConfig</span><span class="o">)</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="o">(</span><span class="n">h_check</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkStrictlyIncreasing</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">cfg</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span><span class="n">StrictMonoOn</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">Set.Icc</span><span class="w"> </span><span class="n">I.lo</span><span class="w"> </span><span class="n">I.hi</span><span class="o">)</span>
+</code></pre></div>
+<p>The approach uses automatic differentiation to compute interval bounds on derivatives:
+1. Compute <code>dI := derivIntervalCore e I cfg</code> (interval containing all derivatives)
+2. If <code>dI.lo &gt; 0</code>, then f'(x) &gt; 0 for all x ∈ I, so f is strictly increasing
+3. If <code>dI.hi &lt; 0</code>, then f'(x) &lt; 0 for all x ∈ I, so f is strictly decreasing</p>
+<p>The mathematical foundation is the Mean Value Theorem: if f' has consistent sign, then f is monotonic.</p>
+<h3 id="domain-aware-automatic-differentiation">Domain-aware automatic differentiation</h3>
+<p><code>ADSupported</code> remains the fast, domain-free fragment.  For expressions that
+contain reciprocal or logarithm nodes, use the computable checked API instead:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">derivIntervalChecked</span><span class="w">  </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">IntervalEnv</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">EvalConfig</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="n">EvalResult</span><span class="w"> </span><span class="n">IntervalRat</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">gradientIntervalChecked</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">Box</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">EvalConfig</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">  </span><span class="n">EvalResult</span><span class="w"> </span><span class="o">(</span><span class="n">List</span><span class="w"> </span><span class="n">IntervalRat</span><span class="o">)</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">derivIntervalDyadicChecked</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">IntervalDyadicEnv</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">DyadicConfig</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">  </span><span class="n">EvalResult</span><span class="w"> </span><span class="n">IntervalDyadic</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="n">gradientIntervalDyadicChecked</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">IntervalDyadicEnv</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">DyadicConfig</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">  </span><span class="n">EvalResult</span><span class="w"> </span><span class="o">(</span><span class="n">List</span><span class="w"> </span><span class="n">IntervalDyadic</span><span class="o">)</span>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="n">derivIntervalDyadicCheckedOfRat</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">IntervalEnv</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">DyadicConfig</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="w">  </span><span class="n">EvalResult</span><span class="w"> </span><span class="n">IntervalDyadic</span>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="n">gradientIntervalDyadicCheckedOfRat</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">IntervalEnv</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">DyadicConfig</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="w">  </span><span class="n">EvalResult</span><span class="w"> </span><span class="o">(</span><span class="n">List</span><span class="w"> </span><span class="n">IntervalDyadic</span><span class="o">)</span>
+</code></pre></div>
+<p>The checker recursively validates syntax and the actual input box.  It accepts
+<code>inv e</code> only when the computed enclosure of <code>e</code> excludes zero, and <code>log e</code>
+only when that enclosure is strictly positive.  Failure is structured data
+(<code>reciprocalContainsZero</code>, <code>logNonpositive</code>, or a nested/unsupported failure),
+not a finite fallback interval.</p>
+<p>The derivative API's Golden Theorem does not require a separate syntactic
+support proof: successful checked computation carries the support and domain
+evidence.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">derivIntervalChecked_correct</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">    </span><span class="o">(</span><span class="n">hok</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">derivIntervalChecked</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">ρInt</span><span class="w"> </span><span class="n">idx</span><span class="w"> </span><span class="n">cfg</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="bp">.</span><span class="n">ok</span><span class="w"> </span><span class="n">dI</span><span class="o">)</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hx</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">ρInt</span><span class="w"> </span><span class="n">idx</span><span class="o">)</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="o">(</span><span class="n">hρ</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="bp">∀</span><span class="w"> </span><span class="n">i</span><span class="o">,</span><span class="w"> </span><span class="n">ρReal</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">ρInt</span><span class="w"> </span><span class="n">i</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span><span class="n">deriv</span><span class="w"> </span><span class="o">(</span><span class="n">Expr.evalAlong</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">ρReal</span><span class="w"> </span><span class="n">idx</span><span class="o">)</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">dI</span>
+</code></pre></div>
+<p><code>evalWithDerivChecked_differentiableAt</code> additionally extracts the analytic
+differentiability fact certified by the same successful run.  The current
+checked fragment is <code>const</code>, <code>var</code>, <code>add</code>, <code>mul</code>, <code>neg</code>, <code>sin</code>, <code>cos</code>, <code>exp</code>,
+<code>inv</code>, and <code>log</code>; other partial functions are rejected explicitly.</p>
+<p>For full gradients, <code>gradientIntervalChecked_correct</code> returns a
+<code>List.Forall₂</code> proof aligning coordinates <code>0, …, B.length - 1</code> with their
+certified derivative intervals.</p>
+<p>The Dyadic variants use the identical checked fragment and failure model while
+performing dual addition and multiplication with Dyadic endpoints and outward
+rounding at every operation. Their public success condition also certifies that
+<code>cfg.precision ≤ 0</code>. The corresponding Golden Theorems are
+<code>derivIntervalDyadicChecked_correct</code> and
+<code>gradientIntervalDyadicChecked_correct</code>.</p>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1">-- Prove exp is strictly increasing on [0, 1]</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">exp_strictly_increasing</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">    </span><span class="n">StrictMonoOn</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">Real.exp</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">Set.Icc</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">1</span><span class="o">)</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="k">have</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">verify_strictly_increasing</span><span class="w"> </span><span class="o">(</span><span class="n">Expr.exp</span><span class="w"> </span><span class="o">(</span><span class="n">Expr.var</span><span class="w"> </span><span class="mi">0</span><span class="o">))</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">    </span><span class="o">(</span><span class="n">ADSupported.exp</span><span class="w"> </span><span class="o">(</span><span class="n">ADSupported.var</span><span class="w"> </span><span class="mi">0</span><span class="o">))</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">    </span><span class="o">⟨</span><span class="mi">0</span><span class="o">,</span><span class="w"> </span><span class="mi">1</span><span class="o">,</span><span class="w"> </span><span class="kd">by</span><span class="w"> </span><span class="n">norm_num</span><span class="o">⟩</span><span class="w"> </span><span class="o">{}</span><span class="w"> </span><span class="o">(</span><span class="kd">by</span><span class="w"> </span><span class="n">native_decide</span><span class="o">)</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="n">simp</span><span class="w"> </span><span class="n">only</span><span class="w"> </span><span class="o">[</span><span class="n">Expr.eval_exp</span><span class="o">,</span><span class="w"> </span><span class="n">Expr.eval_var</span><span class="o">]</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">h</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span><span class="n">convert</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="n">using</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="bp">&lt;;&gt;</span><span class="w"> </span><span class="n">simp</span>
+</code></pre></div></p>
+<h2 id="expression-support-tiers">Expression Support Tiers</h2>
+<p>Not all expressions support all theorems.</p>
+<h3 id="exprsupportedcore">ExprSupportedCore</h3>
+<p>Fully computable subset enabling <code>native_decide</code>:</p>
+<ul>
+<li><code>const</code>, <code>var</code>, <code>add</code>, <code>mul</code>, <code>neg</code></li>
+<li><code>sin</code>, <code>cos</code>, <code>exp</code>, <code>sqrt</code> (via Taylor series)</li>
+</ul>
+<p>Trigonometric range reduction is shared through <code>LeanCert.Core.TrigReduction</code>.
+That module provides rational bounds for <code>π</code> and <code>2π</code>, computable period
+shifting, and correctness lemmas reused by both interval-rational and Taylor
+model trigonometric evaluators.</p>
+<h3 id="checked-evaluation-and-domains">Checked evaluation and domains</h3>
+<p>Checked evaluators accept arbitrary <code>Expr</code> values. Partial functions such as
+<code>inv</code>, <code>log</code>, and <code>atanh</code> are governed by runtime domain checks rather than a
+second syntactic support predicate. A successful <code>Option</code>/<code>EvalResult</code> carries
+an enclosure; an invalid domain returns <code>none</code> or a structured error.</p>
+<h2 id="arithmetic-backends">Arithmetic Backends</h2>
+<p>LeanCert provides three arithmetic backends, each with different tradeoffs:</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>File</th>
+<th>Speed</th>
+<th>Precision</th>
+<th>Best For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rational</strong></td>
+<td><code>Validity/Bounds.lean</code></td>
+<td>Slow</td>
+<td>Exact</td>
+<td>Small expressions, reproducibility</td>
+</tr>
+<tr>
+<td><strong>Dyadic</strong></td>
+<td><code>Validity/DyadicBounds.lean</code></td>
+<td>Fast</td>
+<td>Fixed-precision</td>
+<td>Deep expressions, neural networks</td>
+</tr>
+<tr>
+<td><strong>Affine</strong></td>
+<td><code>Validity/AffineBounds.lean</code></td>
+<td>Medium</td>
+<td>Correlation-aware</td>
+<td>Dependency-heavy expressions</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rational-backend-tactic-default">Rational Backend (Tactic Default)</h3>
+<p>The standard theorem/tactic backend uses arbitrary-precision rationals. It
+guarantees exact intermediate results but can suffer from denominator
+explosion on deep expressions. The unified programmatic selector defaults to
+the checked Dyadic backend for evaluation and optimization.</p>
+<h3 id="dyadic-backend">Dyadic Backend</h3>
+<p>Uses fixed-precision dyadic numbers (m · 2^e) to avoid denominator explosion:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_upper_bound_dyadic</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hsupp</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ExprSupportedCore</span><span class="w"> </span><span class="n">e</span><span class="o">)</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">    </span><span class="o">(</span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hle</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">lo</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">hi</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">c</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">    </span><span class="o">(</span><span class="n">prec</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Int</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">depth</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">h_prec</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">prec</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="mi">0</span><span class="o">)</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">    </span><span class="o">(</span><span class="n">hdom</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">evalDomainValidDyadic</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">...</span><span class="o">)</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">    </span><span class="o">(</span><span class="n">h_check</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkUpperBoundDyadic</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="w"> </span><span class="n">hle</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="n">prec</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">Set.Icc</span><span class="w"> </span><span class="n">lo</span><span class="w"> </span><span class="n">hi</span><span class="o">,</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">c</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Note</strong>: The API takes rational bounds (<code>lo</code>, <code>hi</code>, <code>c : ℚ</code>) for user convenience, but internally converts to <code>IntervalDyadic</code> and runs <code>evalIntervalDyadic</code> — the actual computation uses Dyadic arithmetic for speed.</p>
+</blockquote>
+<p>Key parameters:
+- <code>prec : Int</code> - Precision (negative = more precision, must be ≤ 0)
+- <code>depth : Nat</code> - Taylor series depth for transcendentals</p>
+<p>The <code>'</code> variant (<code>verify_upper_bound_dyadic'</code>) uses <code>ADSupported</code> and handles domain validity automatically.</p>
+<p>Essential for neural network verification and optimization loops where expression depth can be in the hundreds.</p>
+<h3 id="affine-backend">Affine Backend</h3>
+<p>Solves the "dependency problem" in interval arithmetic by tracking linear correlations:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">verify_upper_bound_affine1</span><span class="w"> </span><span class="o">(</span><span class="n">e</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">hsupp</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ExprSupportedCore</span><span class="w"> </span><span class="n">e</span><span class="o">)</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">    </span><span class="o">(</span><span class="n">I</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalRat</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">c</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">cfg</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">AffineConfig</span><span class="o">)</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">    </span><span class="o">(</span><span class="n">hdom</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">evalDomainValidAffine</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">(</span><span class="n">toAffineEnvConst</span><span class="w"> </span><span class="n">I</span><span class="o">)</span><span class="w"> </span><span class="n">cfg</span><span class="o">)</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">    </span><span class="o">(</span><span class="n">h_check</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">checkUpperBoundAffine1</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="n">I</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="n">cfg</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="n">true</span><span class="o">)</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">I</span><span class="o">,</span><span class="w"> </span><span class="n">Expr.eval</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">c</span>
+</code></pre></div>
+<p>The <code>'</code> variant (<code>verify_upper_bound_affine1'</code>) uses <code>ADSupported</code> and handles domain validity automatically.</p>
+<p>Affine arithmetic represents values as <code>x̂ = c₀ + Σᵢ cᵢ·εᵢ + [-r, r]</code> where εᵢ ∈ [-1, 1] are noise symbols. This means:</p>
+<ul>
+<li>Standard IA: <code>x - x</code> on <code>[-1, 1]</code> → <code>[-2, 2]</code> (pessimistic)</li>
+<li>Affine AA: <code>x - x</code> on <code>[-1, 1]</code> → <code>[0, 0]</code> (exact)</li>
+</ul>
+<p>Use affine when the same variable appears multiple times in an expression.</p>
+<h2 id="backend-theorems-summary">Backend Theorems Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Rational</th>
+<th>Dyadic</th>
+<th>Affine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upper bound</td>
+<td><code>verify_upper_bound</code></td>
+<td><code>verify_upper_bound_dyadic</code></td>
+<td><code>verify_upper_bound_affine1</code></td>
+</tr>
+<tr>
+<td>Lower bound</td>
+<td><code>verify_lower_bound</code></td>
+<td><code>verify_lower_bound_dyadic</code></td>
+<td><code>verify_lower_bound_affine1</code></td>
+</tr>
+</tbody>
+</table>
+<p>Each backend also provides <code>'</code> variants for <code>ADSupported</code> expressions where domain validity is automatic:
+- <code>verify_upper_bound_dyadic'</code>
+- <code>verify_lower_bound_affine1'</code>
+- etc.</p>
+<h2 id="kernel-verification">Kernel Verification</h2>
+<p>For higher trust, the dyadic backend supports verification via <code>decide</code> instead of <code>native_decide</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Theorem</th>
+<th>Verification</th>
+<th>Trust Level</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>verify_upper_bound_dyadic</code></td>
+<td><code>decide</code></td>
+<td>Kernel only</td>
+</tr>
+<tr>
+<td><code>verify_lower_bound_dyadic</code></td>
+<td><code>decide</code></td>
+<td>Kernel only</td>
+</tr>
+</tbody>
+</table>
+<p>This removes the compiler from the trusted computing base—only the Lean kernel must be trusted.</p>
+<p><strong>Note</strong>: Kernel verification requires the goal to be in <code>Core.Expr.eval</code> form with rational interval bounds.</p>
+<h2 id="the-certificate-workflow">The Certificate Workflow</h2>
+<ol>
+<li><strong>Formulate the goal in Lean</strong>: expression, domain, and target claim</li>
+<li><strong>Run the checker</strong>: evaluate <code>check... = true</code> (typically via <code>native_decide</code>)</li>
+<li><strong>Apply the Golden Theorem</strong>: lift the boolean result to a semantic theorem</li>
+<li><strong>Complete the proof script</strong>: keep the theorem statement and proof term in Lean</li>
+</ol>
+<p>Optional external orchestration now lives in separate repos:</p>
+<ul>
+<li><code>https://github.com/alerad/leancert-python</code></li>
+<li><code>https://github.com/alerad/leancert-bridge</code></li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>External tooling (optional)      Lean
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>──────                           ────
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>find_bounds(x²+sin(x), [0,1])
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    │
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>    ▼
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>{expr: &quot;...&quot;, interval: [0,1],   ──▶  checkUpperBound(...) = true
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a> upper_bound: 2, config: {...}}        │
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>                                       ▼
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>                                  verify_upper_bound(...)
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>                                       │
+<a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>                                       ▼
+<a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>                                  ∀ x ∈ [0,1], x² + sin(x) ≤ 2
+</code></pre></div>
+<h2 id="real-world-examples">Real-World Examples</h2>
+<p>The <code>examples/</code> folder contains complete working examples demonstrating LeanCert on real-world problems from various domains.</p>
+<h3 id="number-theory-2-examplessqrt2lean">Number Theory: √2 (<code>examples/Sqrt2.lean</code>)</h3>
+<p>Proves existence, uniqueness, and arbitrary-precision bounds for √2:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1">-- Existence via IVT (sign change)</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">sqrt2_exists</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="bp">∃</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">I12</span><span class="o">,</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">-</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span><span class="n">interval_roots</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="c1">-- Uniqueness via Newton contraction</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">sqrt2_unique</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="bp">∃!</span><span class="w"> </span><span class="n">x</span><span class="o">,</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">I12</span><span class="w"> </span><span class="bp">∧</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">-</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="w">  </span><span class="n">interval_unique_root</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="c1">-- 9 decimal places of precision</span>
+<a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">sqrt2_9_decimals</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="bp">∃</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="o">⟨</span><span class="mi">1414213562</span><span class="bp">/</span><span class="mi">1000000000</span><span class="o">,</span><span class="w"> </span><span class="mi">1414213563</span><span class="bp">/</span><span class="mi">1000000000</span><span class="o">,</span><span class="w"> </span><span class="n">_</span><span class="o">⟩,</span>
+<a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a><span class="w">    </span><span class="n">x</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">-</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="bp">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a><span class="w">  </span><span class="n">interval_roots</span>
+</code></pre></div>
+<h3 id="ml-safety-neural-network-verification-examplesneuralnetlean">ML Safety: Neural Network Verification (<code>examples/NeuralNet.lean</code>)</h3>
+<p>Demonstrates interval propagation through neural networks:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kd">def</span><span class="w"> </span><span class="n">simpleNet</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">TwoLayerNet</span><span class="w"> </span><span class="n">where</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span><span class="n">layer1</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">⟨[[</span><span class="mi">1</span><span class="o">,</span><span class="w"> </span><span class="mi">1</span><span class="o">],</span><span class="w"> </span><span class="o">[</span><span class="mi">1</span><span class="o">,</span><span class="w"> </span><span class="bp">-</span><span class="mi">1</span><span class="o">]],</span><span class="w"> </span><span class="o">[</span><span class="mi">0</span><span class="o">,</span><span class="w"> </span><span class="mi">0</span><span class="o">]⟩</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span><span class="n">layer2</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">⟨[[</span><span class="mi">1</span><span class="o">,</span><span class="w"> </span><span class="mi">1</span><span class="o">]],</span><span class="w"> </span><span class="o">[</span><span class="mi">0</span><span class="o">]⟩</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="c1">-- Compute certified output bounds for input region</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="kd">def</span><span class="w"> </span><span class="n">outputBounds</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">IntervalVector</span><span class="w"> </span><span class="o">:=</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="w">  </span><span class="n">TwoLayerNet.forwardInterval</span><span class="w"> </span><span class="n">simpleNet</span><span class="w"> </span><span class="n">inputRegion</span><span class="w"> </span><span class="o">(</span><span class="bp">-</span><span class="mi">53</span><span class="o">)</span>
+</code></pre></div>
+<h3 id="control-theory-lyapunov-stability-exampleslyapunovlean">Control Theory: Lyapunov Stability (<code>examples/Lyapunov.lean</code>)</h3>
+<p>Proves energy dissipation for a damped harmonic oscillator:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1">-- V̇ = -2ζωₙv² ≤ 0 proves stability</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">energy_derivative_nonpositive</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">Set.Icc</span><span class="w"> </span><span class="o">(</span><span class="bp">-</span><span class="mi">1</span><span class="o">:</span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="mi">1</span><span class="o">,</span><span class="w"> </span><span class="bp">-</span><span class="mi">2</span><span class="bp">/</span><span class="mi">5</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="mi">0</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="c1">-- Split domain to handle dependency problem</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">  </span><span class="n">intro</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">⟨</span><span class="n">hlo</span><span class="o">,</span><span class="w"> </span><span class="n">hhi</span><span class="o">⟩</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="w">  </span><span class="n">by_cases</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">≥</span><span class="w"> </span><span class="mi">0</span>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="w">  </span><span class="bp">·</span><span class="w"> </span><span class="k">have</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">energy_derivative_on_positive</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">⟨</span><span class="n">h</span><span class="o">,</span><span class="w"> </span><span class="n">hhi</span><span class="o">⟩</span><span class="bp">;</span><span class="w"> </span><span class="n">linarith</span>
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="w">  </span><span class="bp">·</span><span class="w"> </span><span class="k">have</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">energy_derivative_on_negative</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">⟨</span><span class="n">hlo</span><span class="o">,</span><span class="w"> </span><span class="n">le_of_lt</span><span class="w"> </span><span class="o">(</span><span class="n">not_le.mp</span><span class="w"> </span><span class="n">h</span><span class="o">)⟩</span><span class="bp">;</span><span class="w"> </span><span class="n">linarith</span>
+</code></pre></div>
+<p><strong>Key technique</strong>: Domain splitting to handle the dependency problem (IA computes <code>v*v</code> on <code>[-1,1]</code> as <code>[-1,1]</code> instead of <code>[0,1]</code>).</p>
+<h3 id="finance-black-scholes-bounds-examplesblackscholeslean">Finance: Black-Scholes Bounds (<code>examples/BlackScholes.lean</code>)</h3>
+<p>Proves bounds on option pricing components:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1">-- Discount factor: e^(-rT) bounds for risk-free rate</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">discount_factor_lower</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">Set.Icc</span><span class="w"> </span><span class="o">(</span><span class="bp">-</span><span class="mi">6</span><span class="bp">/</span><span class="mi">100</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="bp">-</span><span class="mi">4</span><span class="bp">/</span><span class="mi">100</span><span class="o">),</span><span class="w"> </span><span class="o">(</span><span class="mi">94</span><span class="bp">/</span><span class="mi">100</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">Real.exp</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span><span class="n">certify_bound</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="c1">-- Log-moneyness for near-ATM options</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">log_moneyness_upper</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">Set.Icc</span><span class="w"> </span><span class="o">(</span><span class="mi">9</span><span class="bp">/</span><span class="mi">10</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="mi">11</span><span class="bp">/</span><span class="mi">10</span><span class="o">),</span><span class="w"> </span><span class="n">Real.log</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="mi">10</span><span class="bp">/</span><span class="mi">100</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a><span class="w">  </span><span class="n">certify_bound</span>
+<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a>
+<a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a><span class="c1">-- Gaussian core for vega calculation</span>
+<a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">gaussian_core_upper</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-27-13" name="__codelineno-27-13" href="#__codelineno-27-13"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">Set.Icc</span><span class="w"> </span><span class="o">(</span><span class="mi">0</span><span class="o">:</span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="mi">2</span><span class="o">,</span><span class="w"> </span><span class="n">Real.exp</span><span class="w"> </span><span class="o">(</span><span class="bp">-</span><span class="n">x</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">/</span><span class="w"> </span><span class="mi">2</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="mi">1</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-27-14" name="__codelineno-27-14" href="#__codelineno-27-14"></a><span class="w">  </span><span class="n">leancert</span>
+</code></pre></div>
+<h3 id="physics-projectile-motion-examplesprojectilelean">Physics: Projectile Motion (<code>examples/Projectile.lean</code>)</h3>
+<p>Proves bounds on projectile dynamics with air resistance:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1">-- Drag acceleration: F_drag/m = k·v² ≤ 8.33 m/s²</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">drag_accel_upper</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">Set.Icc</span><span class="w"> </span><span class="o">(</span><span class="mi">0</span><span class="o">:</span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="mi">50</span><span class="o">,</span><span class="w"> </span><span class="mi">1</span><span class="bp">/</span><span class="mi">300</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="o">(</span><span class="mi">25</span><span class="bp">/</span><span class="mi">3</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">  </span><span class="n">leancert</span>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>
+<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="c1">-- Net acceleration with gravity and drag</span>
+<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">net_accel_lower</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">Set.Icc</span><span class="w"> </span><span class="o">(</span><span class="mi">0</span><span class="o">:</span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="mi">50</span><span class="o">,</span><span class="w"> </span><span class="o">(</span><span class="mi">7</span><span class="bp">/</span><span class="mi">5</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="mi">49</span><span class="bp">/</span><span class="mi">5</span><span class="w"> </span><span class="bp">-</span><span class="w"> </span><span class="mi">1</span><span class="bp">/</span><span class="mi">300</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="bp">*</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a><span class="w">  </span><span class="n">leancert</span>
+<a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a>
+<a id="__codelineno-28-11" name="__codelineno-28-11" href="#__codelineno-28-11"></a><span class="c1">-- Exponential velocity decay</span>
+<a id="__codelineno-28-12" name="__codelineno-28-12" href="#__codelineno-28-12"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">exp_decay_lower</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-28-13" name="__codelineno-28-13" href="#__codelineno-28-13"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="bp">∈</span><span class="w"> </span><span class="n">Set.Icc</span><span class="w"> </span><span class="o">(</span><span class="bp">-</span><span class="mi">1</span><span class="o">:</span><span class="n">ℝ</span><span class="o">)</span><span class="w"> </span><span class="mi">0</span><span class="o">,</span><span class="w"> </span><span class="o">(</span><span class="mi">36</span><span class="bp">/</span><span class="mi">100</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ℚ</span><span class="o">)</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">Real.exp</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-28-14" name="__codelineno-28-14" href="#__codelineno-28-14"></a><span class="w">  </span><span class="n">leancert</span>
+</code></pre></div>
+<h3 id="running-the-examples">Running the Examples</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># Test all examples</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>examples/*.lean<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>lake<span class="w"> </span>env<span class="w"> </span>lean<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="c1"># Test a specific example</span>
+<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>lake<span class="w"> </span>env<span class="w"> </span>lean<span class="w"> </span>examples/Sqrt2.lean
+</code></pre></div>
+<h3 id="lessons-learned">Lessons Learned</h3>
+<table>
+<thead>
+<tr>
+<th>Issue</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dependency problem</strong> (<code>v*v</code> gives <code>[-1,1]</code> instead of <code>[0,1]</code>)</td>
+<td>Split domain and prove separately on <code>[0,1]</code> and <code>[-1,0]</code></td>
+</tr>
+<tr>
+<td><strong>Rational cast errors</strong> (<code>(2/5 : ℚ)</code> in expressions)</td>
+<td>Use plain fractions: <code>2/5</code> without type annotation</td>
+</tr>
+<tr>
+<td><strong>Taylor overflow on wide intervals</strong> (sin/cos)</td>
+<td>Use narrower intervals or accept looser bounds</td>
+</tr>
+<tr>
+<td><strong>Division has a domain</strong> (<code>1/x</code> bounds)</td>
+<td>Use a checked evaluator/checker; intervals containing zero are rejected</td>
+</tr>
+<tr>
+<td><strong>Discovery command syntax</strong></td>
+<td>Use <code>#bounds (fun x =&gt; ...) on [a, b]</code> with integer endpoints</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
