@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.Discovery
 import LeanCert.Tactic.FinSumBound
+import LeanCert.Tactic.LeanCert.Integral
 import LeanCert.Tactic.LeanCert.Types
 
 /-!
@@ -61,6 +62,9 @@ private def isClosedLeanCertChecker (goal : Lean.Expr) : MetaM Bool := do
 
 /-- Classify a goal by mathematical intent without changing the tactic state. -/
 def classifyGoal (goal : Lean.Expr) : MetaM (Option GoalIntent) := do
+  if ← isNaturalIntegralGoal goal then
+    return some .integralBound
+
   -- Preserve `ExistsUnique`: reducing it first destroys the semantic head.
   if (← parseUniqueRootGoal goal).isSome then
     return some .uniqueRoot
@@ -96,8 +100,7 @@ def classifyGoal (goal : Lean.Expr) : MetaM (Option GoalIntent) := do
   if (← Auto.parseBoundGoal goal).isSome then
     return some .intervalBound
 
-  -- The current integration parser recognizes the legacy explicit-enclosure
-  -- form.  It is classified so the front door can give a precise PR3 message.
+  -- Preserve support for the legacy explicit-enclosure form.
   if (← parseIntegrationGoal goal).isSome then
     return some .integralBound
   if ← isPointComparison goal then

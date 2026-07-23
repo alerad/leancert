@@ -152,11 +152,14 @@ example : exists! x in Set.Icc (1 : Real) 2, x^2 - 2 = 0 := by
 
 Start with `leancert`. It recognizes point and interval inequalities,
 multivariate bounds, root existence/uniqueness/exclusion, extrema, existential
-bounds, and finite sums. Use `leancert?` to see the dedicated tactic selected.
+bounds, finite sums, and ordinary definite-integral equalities or inequalities.
+Polynomial integrals are checked exactly over the rationals; other supported
+integrands use certified partition search. Use `leancert?` to see the dedicated
+tactic selected.
 
 | Goal                                       | Tactic                 |
 | ------------------------------------------ | ---------------------- |
-| Any recognized non-integral goal           | `leancert`             |
+| Any recognized semantic goal               | `leancert`             |
 | `forall x in I, f x <= c`                  | `certify_bound`        |
 | `forall x in I, c <= f x`                  | `certify_bound`        |
 | Kernel-oriented dyadic bound               | `certify_kernel`       |
@@ -168,7 +171,8 @@ bounds, and finite sums. Use `leancert?` to see the dedicated tactic selected.
 | Counterexample search                      | `interval_refute`      |
 | Minimum certificate                        | `interval_minimize`    |
 | Maximum certificate                        | `interval_maximize`    |
-| Integral bound                             | `interval_integrate`   |
+| Natural integral equality/bound            | `leancert`             |
+| Explicit computed integral enclosure       | `interval_integrate`   |
 | Expand finite sums                         | `finsum_expand`        |
 | Simplify vector indexing                   | `vec_simp`             |
 

@@ -125,6 +125,7 @@ roots = [
   "LeanCert.Test.Krawczyk",
   "LeanCert.Test.LeanCertTransactional",
   "LeanCert.Test.LeanCertRouter",
+  "LeanCert.Test.LeanCertIntegrals",
   "LeanCert.Test.NaturalSyntaxRepairs",
   "LeanCert.Test.Numeral",
   "LeanCert.Test.Pisano",

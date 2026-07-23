@@ -29,6 +29,7 @@ import LeanCert.Engine.AD
 import LeanCert.Engine.Integrate
 import LeanCert.Engine.Optimize
 import LeanCert.Engine.RootFinding.Main
+import LeanCert.Engine.Algebra.QPolyIntegral
 import LeanCert.Engine.TaylorModel
 import LeanCert.Engine.IntervalEvalRefined
 
@@ -242,6 +243,8 @@ export LeanCert.Engine (
   evalIntervalDyadicChecked
   evalIntervalDyadicChecked_correct
   QPoly
+  QPoly.checkExactIntegral
+  QPoly.integral_eq_of_check
   BezoutCert
   bezoutLhs
   bezoutCheck

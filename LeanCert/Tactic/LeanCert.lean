@@ -7,6 +7,7 @@ import LeanCert.Tactic.LeanCert.Types
 import LeanCert.Tactic.LeanCert.Transaction
 import LeanCert.Tactic.LeanCert.Normalize
 import LeanCert.Tactic.LeanCert.Config
+import LeanCert.Tactic.LeanCert.Integral
 import LeanCert.Tactic.LeanCert.Parse
 import LeanCert.Tactic.LeanCert.Router
 

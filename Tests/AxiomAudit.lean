@@ -230,6 +230,12 @@ info: 'LeanCert.Validity.Integration.integratePartitionChecked_correct' depends 
 #guard_msgs in
 #print axioms LeanCert.Validity.Integration.integratePartitionChecked_correct
 
+/--
+info: 'LeanCert.Engine.QPoly.integral_eq_of_check' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Engine.QPoly.integral_eq_of_check
+
 /-! ### Whole-library sweep: no axioms minted inside LeanCert
 
 Every `native_decide` use inside the library mints a per-declaration axiom
