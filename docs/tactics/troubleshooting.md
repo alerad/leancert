@@ -4,6 +4,11 @@ Common issues and how to fix them.
 
 ## Tactic Failures
 
+For ordinary mathematical statements, try `leancert` first. The
+engine-specific recipes below apply when `leancert` reports that its bound
+portfolio was inconclusive or when you intentionally invoked a dedicated
+tactic for more control.
+
 ### "native_decide evaluated that the proposition is false"
 
 ```
@@ -29,7 +34,7 @@ is false
    ```lean
    -- exp(1) ≈ 2.718, so 2.72 may be too tight
    -- Try 2.75 or 3 instead
-   example : ∀ x ∈ I, Real.exp x ≤ 3 := by certify_bound
+   example : ∀ x ∈ I, Real.exp x ≤ 3 := by leancert
    ```
 
 3. **Use subdivision for tight bounds:**
@@ -65,12 +70,12 @@ with the goal
 
 **Solutions:**
 
-1. **First, just try it** - most expressions now work:
+1. **First, use the semantic front door** - most expressions now work:
    ```lean
    -- These all work now:
-   example : ∀ x ∈ I, 2 * x * x + 3 * x + 1 ≤ 6 := by certify_bound  -- ✓
-   example : ∀ x ∈ I, x * x - x + 1 ≤ 2 := by certify_bound           -- ✓
-   example : ∀ x ∈ I, 2 * Real.sin x + x * x ≤ 3 := by certify_bound  -- ✓
+   example : ∀ x ∈ I, 2 * x * x + 3 * x + 1 ≤ 6 := by leancert
+   example : ∀ x ∈ I, x * x - x + 1 ≤ 2 := by leancert
+   example : ∀ x ∈ I, 2 * Real.sin x + x * x ≤ 3 := by leancert
    ```
 
 2. **If it still fails, build the Expr AST explicitly:**
@@ -104,14 +109,18 @@ a✝ : x✝ ∈ I01
 ⊢ ∀ (y : ℝ), ↑I01.lo ≤ y → y ≤ ↑I01.hi → x✝ + y ≤ 2
 ```
 
-**Cause:** You used `certify_bound` for a multivariate goal, but it only handles single-variable bounds.
+**Cause:** You forced `certify_bound` on a multivariate goal, but that
+dedicated tactic only handles single-variable bounds.
 
-**Solution:** Use `multivariate_bound`:
+**Solution:** Use `leancert`, or select `multivariate_bound` explicitly:
 ```lean
 -- Instead of
 example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by certify_bound  -- Fails
 
--- Use
+-- Preferred
+example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by leancert
+
+-- Explicit dedicated solver
 example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by multivariate_bound
 ```
 
@@ -302,7 +311,7 @@ example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
 
 -- Step 3: Prove
 example : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x + Real.sin x ≤ 4 := by
-  certify_bound 15
+  leancert
 ```
 
 ### Let LeanCert find bounds for you

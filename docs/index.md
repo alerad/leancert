@@ -38,10 +38,10 @@ LeanCert is organized around proof intent:
 ## Quick Lean Example
 
 ```lean
-import LeanCert.Tactic.IntervalAuto
+import LeanCert.Tactic
 
 example : forall x in Set.Icc (0 : Real) 1, Real.sin x <= 1 := by
-  certify_bound
+  leancert
 ```
 
 ## Install

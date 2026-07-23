@@ -41,7 +41,7 @@ aliases instead of keeping duplicate entry points:
 
 | Removed | Canonical replacement |
 | --- | --- |
-| `interval_bound` | `certify_bound`, or `leancert` |
+| `interval_bound` | `leancert`, or `certify_bound` for explicit engine control |
 | `fast_bound`, `fast_bound_quick`, `fast_bound_precise` | `certify_kernel_fallback`, `certify_kernel_quick_fallback`, `certify_kernel_precise_fallback` |
 | `interval_integrate` | state an ordinary integral equality/inequality and use `leancert` |
 | `#minimize`, `#maximize` | `#find_min`, `#find_max` |

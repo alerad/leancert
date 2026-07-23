@@ -13,6 +13,7 @@ Typical goals:
 Main tactics and commands:
 
 ```lean
+leancert
 certify_bound
 certify_kernel
 certify_kernel_fallback
@@ -23,7 +24,9 @@ multivariate_bound
 path can close the goal. Use `certify_kernel_fallback` when an explicit
 compiler/runtime fallback is acceptable.
 
-For ergonomic raw Lean goals, start with `leancert` or `certify_bound`.
+For ergonomic raw Lean goals, start with `leancert`. Use `certify_bound` when
+you intentionally want the dedicated single-variable interval engine, including
+explicit Taylor-depth selection.
 The stricter kernel path is best for reflected `Expr.eval` goals or for goals
 whose raw expression bridge is known to be supported. When you want to try that
 kernel path first but still allow the normal raw-expression automation, use
@@ -32,10 +35,10 @@ kernel path first but still allow the normal raw-expression automation, use
 Minimal example:
 
 ```lean
-import LeanCert.Tactic.IntervalAuto
+import LeanCert.Tactic
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
-  certify_bound
+  leancert
 ```
 
 Discovery commands can help find a candidate bound before formalizing it.  See

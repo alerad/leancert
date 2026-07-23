@@ -134,7 +134,8 @@ example : Real.sin 1 + Real.cos 1 < 1.5 := by interval_decide
 example : Real.sqrt 2 < 1.42 := by interval_decide
 ```
 
-Use this for concrete values. For universally quantified bounds, use `certify_bound`.
+Use this for concrete values. For universally quantified mathematical bounds,
+start with `leancert`; use `certify_bound` for explicit interval-engine control.
 
 ---
 
@@ -701,9 +702,12 @@ certificate-generating paths. It recognizes `Finset.Icc`, `Finset.Ico`,
 ### Proving a function is bounded
 
 ```lean
--- Upper and lower bound
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, 0 ≤ Real.sin x ∧ Real.sin x ≤ 1 := by
-  constructor <;> certify_bound
+-- Upper and lower bounds with explicit interval-engine control
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, -1 ≤ Real.sin x := by
+  certify_bound
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by
+  certify_bound
 ```
 
 ### Proving a root exists and is unique
