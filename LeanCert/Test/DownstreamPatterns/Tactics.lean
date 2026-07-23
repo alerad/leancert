@@ -27,11 +27,11 @@ example : exp (20 : ℝ) ≤ 485165196 := by
 
 /-- PNT+ currently expresses point bounds as singleton interval goals. -/
 example : ∀ y ∈ Icc (8 : ℝ) 8, exp y < (3914 : ℝ) := by
-  interval_bound 20
+  certify_bound 20
 
 /-- A representative high-dynamic-range singleton interval from PNT+. -/
 example : ∀ y ∈ Icc (3914 : ℝ) 3914,
     2 * y ^ 6 * exp (-y) ≤ (1 : ℝ) / 1000000 := by
-  interval_bound 20
+  certify_bound 20
 
 end LeanCert.Test.DownstreamPatterns.Tactics

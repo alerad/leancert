@@ -47,7 +47,7 @@ What do you want to prove?
 │   └─► interval_decide
 │
 ├─► Integral bound
-│   └─► interval_integrate
+│   └─► leancert
 │
 ├─► Simplify vector/matrix indexing (![a,b,c] ⟨1,h⟩ → b)
 │   └─► vec_simp
@@ -75,7 +75,7 @@ What do you want to prove?
 | Disprove a bound | `interval_refute` | Find counterexample |
 | Simplify vector indexing | `vec_simp` | `![a,b,c] ⟨1, h⟩ = b` |
 | Expand finite sums | `finsum_expand` | `∑ k ∈ Icc 1 3, f k = f 1 + f 2 + f 3` |
-| Integral bound | `interval_integrate` | `∫ x in a..b, f x ∈ I` |
+| Integral equality or inequality | `leancert` | `(∫ x in a..b, f x) ≤ c` |
 
 ## Trust Levels
 

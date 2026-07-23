@@ -17,7 +17,7 @@ import LeanCert.Tactic.IntervalAuto.Adaptive
 
 This module re-exports the interval arithmetic tactic suite:
 
-* `interval_bound` - Prove bounds using interval arithmetic
+* `certify_bound` - Prove bounds using interval arithmetic
 * `interval_decide` - Prove point inequalities
 * `interval_auto` - Unified entry point (recommended)
 * `multivariate_bound` - Prove bounds on multivariate expressions
@@ -72,7 +72,7 @@ elab "interval_auto" depth:(num)? : tactic => do
     trace[interval_decide] "interval_auto: detected point inequality, using interval_decide"
     intervalDecideWithConnectives (depth.map (·.getNat))
   else
-    trace[interval_decide] "interval_auto: detected quantified goal, using interval_bound"
+    trace[interval_decide] "interval_auto: detected quantified goal, using certify_bound"
     match depth with
     | some n => intervalBoundCore n.getNat
     | none =>

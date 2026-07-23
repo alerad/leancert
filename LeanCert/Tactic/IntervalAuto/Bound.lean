@@ -12,7 +12,7 @@ import LeanCert.Engine.Optimization.BoundVerify
 /-!
 # Main Interval Bound Tactics
 
-Core interval bound proving: `intervalBoundCore`, `certify_bound`, `interval_bound`.
+Core interval bound proving: `intervalBoundCore`, `certify_bound`, `certify_bound`.
 Also includes shadow diagnostics for error reporting.
 -/
 
@@ -40,7 +40,7 @@ private def reifyFuncForDiag (func : Lean.Expr) : TacticM LeanCert.Core.Expr := 
       else
         throwError "Unexpected Expr.eval structure in diagnostic"
     else
-      let astExpr ← reify func
+      let astExpr := (← reifyWithReport func).expr
       let astVal ← unsafe evalExpr LeanCert.Core.Expr (mkConst ``LeanCert.Core.Expr) astExpr
       return astVal
 
@@ -91,7 +91,7 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
                       Goal: f(x) ≤ {limit}\n\
                       Computed Range (depth 30): [{result.lo}, {result.hi}]\n\n\
                       • Precision Issue: Upper bound {result.hi} > limit {limit}.\n\
-                      • Try: interval_bound 50 or subdivide the domain."
+                      • Try: certify_bound 50 or subdivide the domain."
           else
             return m!"Diagnostic Analysis:\n\
                       Computed Range: [{result.lo}, {result.hi}] ≤ {limit}\n\
@@ -109,7 +109,7 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
                       Goal: {limit} ≤ f(x)\n\
                       Computed Range (depth 30): [{result.lo}, {result.hi}]\n\n\
                       • Precision Issue: Lower bound {result.lo} < limit {limit}.\n\
-                      • Try: interval_bound 50 or subdivide the domain."
+                      • Try: certify_bound 50 or subdivide the domain."
           else
             return m!"Diagnostic Analysis:\n\
                       Computed Range: [{result.lo}, {result.hi}] ≥ {limit}\n\
@@ -172,12 +172,12 @@ private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
       return false
     | none => return false
   catch e =>
-    trace[interval_decide] "Dyadic backend failed in interval_bound: {e.toMessageData}"
+    trace[interval_decide] "Dyadic backend failed in certify_bound: {e.toMessageData}"
     return false
 
 /-! ## Main Tactic Implementation -/
 
-/-- The main interval_bound tactic implementation -/
+/-- The main certify_bound tactic implementation -/
 def intervalBoundCore (taylorDepth : Nat) : TacticM Unit := do
   intervalNormCore
   -- Pre-process: convert ≥ to ≤ and > to < for uniform handling
@@ -218,7 +218,7 @@ def intervalBoundCore (taylorDepth : Nat) : TacticM Unit := do
       catch _ => pure ()
       -- Debug: show the goal structure
       let goalWhnf ← whnf goalType
-      throwError "interval_bound: Could not parse goal as a bound. Expected:\n\
+      throwError "certify_bound: Could not parse goal as a bound. Expected:\n\
                   • ∀ x ∈ I, f x ≤ c\n\
                   • ∀ x ∈ I, c ≤ f x\n\
                   • ∀ x ∈ I, f x < c\n\
@@ -365,7 +365,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
               if ← tryClose (closeReificationBridge reified) then continue
-              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+              throwError "certify_bound: could not prove the reflected expression agrees with the user's expression.\n\
                 Remaining bridge goal: {← g.getType}"
 
         | none =>
@@ -420,7 +420,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
               if ← tryClose (closeReificationBridge reified) then continue
-              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+              throwError "certify_bound: could not prove the reflected expression agrees with the user's expression.\n\
                 Remaining bridge goal: {← g.getType}"
 
   /-- Prove ∀ x ∈ I, c ≤ f x -/
@@ -535,7 +535,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
               if ← tryClose (closeReificationBridge reified) then continue
-              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+              throwError "certify_bound: could not prove the reflected expression agrees with the user's expression.\n\
                 Remaining bridge goal: {← g.getType}"
 
         | none =>
@@ -590,7 +590,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin, LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp, LeanCert.Core.Expr.eval_sqrt, LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs, LeanCert.Meta.max_eq_half_add_abs_sub, LeanCert.Meta.min_eq_half_sub_abs_sub, div_eq_mul_inv, sub_eq_add_neg]; try (push_cast; try ring)))) then continue
               if ← tryClose (closeReificationBridge reified) then continue
-              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+              throwError "certify_bound: could not prove the reflected expression agrees with the user's expression.\n\
                 Remaining bridge goal: {← g.getType}"
 
   /-- Prove ∀ x ∈ I, f x < c -/
@@ -704,7 +704,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
               if ← tryClose (closeReificationBridge reified) then continue
-              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+              throwError "certify_bound: could not prove the reflected expression agrees with the user's expression.\n\
                 Remaining bridge goal: {← g.getType}"
 
         | none =>
@@ -836,7 +836,7 @@ where
               if ← tryClose (evalTactic (← `(tactic| push_cast; rfl))) then continue
               if ← tryClose (evalTactic (← `(tactic| simp only [Rat.cast_natCast, Rat.cast_intCast, Nat.cast_ofNat, Int.cast_ofNat, NNRat.cast_natCast]))) then continue
               if ← tryClose (closeReificationBridge reified) then continue
-              throwError "interval_bound: could not prove the reflected expression agrees with the user's expression.\n\
+              throwError "certify_bound: could not prove the reflected expression agrees with the user's expression.\n\
                 Remaining bridge goal: {← g.getType}"
 
         | none =>
@@ -873,8 +873,6 @@ where
     - `∀ x ∈ I, c ≤ f x`
     - `∀ x ∈ I, f x < c`
     - `∀ x ∈ I, c < f x`
-
-    Note: `interval_bound` is an alias for backward compatibility.
 -/
 elab "certify_bound" depth:(num)? : tactic => do
   match depth with
@@ -922,9 +920,6 @@ elab "certify_bound" depth:(num)? : tactic => do
 
       throwError m!"{e.toMessageData}\n\n{diagMsg}"
     | none => throwError "certify_bound: All precision levels failed"
-
-/-- Backward-compatible alias for certify_bound -/
-macro "interval_bound" depth:(num)? : tactic => `(tactic| certify_bound $[$depth]?)
 
 
 end LeanCert.Tactic.Auto

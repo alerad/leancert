@@ -32,7 +32,7 @@ so this theorem converts a singular enclosure problem into a regular one.
   log integrand of the Li2 development, whose wall data currently uses
   bespoke tail lemmas.
 * A left-of-wall variant and a two-sided wrapper.
-* Engine hookup: a wall-aware partition step for `interval_integrate`
+* Engine hookup: a wall-aware partition step for integral certification
   that evaluates jets at singular endpoints and the standard interval
   engine elsewhere.
 -/

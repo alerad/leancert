@@ -6,7 +6,9 @@ Authors: LeanCert Contributors
 import Mathlib.Tactic
 import LeanCert.Engine.Algebra.QPolyIntegral
 import LeanCert.Meta.Numeral
+import LeanCert.Meta.ProveContinuous
 import LeanCert.Meta.ProveSupported
+import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
 import LeanCert.Tactic.LeanCert.Config
 import LeanCert.Tactic.LeanCert.Normalize
 import LeanCert.Validity.Integration
@@ -26,7 +28,7 @@ namespace LeanCert.Tactic
 open LeanCert.Core LeanCert.Engine LeanCert.Meta
 
 inductive IntegralComparison where
-  | eq | upper | lower
+  | eq | upper | lower | upperStrict | lowerStrict
   deriving Repr, BEq
 
 structure ParsedIntegralGoal where
@@ -54,16 +56,39 @@ def parseNaturalIntegralGoal (goal : Lean.Expr) : MetaM (Option ParsedIntegralGo
     | some (fexpr, lo, hi) =>
         some ⟨comparison, integ, fexpr, lo, hi, bound⟩
     | none => none
-  match_expr goal with
-  | Eq _ lhs rhs =>
-      if let some parsed := parseSide .eq lhs rhs then return some parsed
-      if let some parsed := parseSide .eq rhs lhs then return some parsed
-      return none
-  | LE.le _ lhs rhs =>
-      if let some parsed := parseSide .upper lhs rhs then return some parsed
-      if let some parsed := parseSide .lower rhs lhs then return some parsed
-      return none
-  | _ => return none
+  let fn := goal.getAppFn
+  let args := goal.getAppArgs
+  if fn.isConstOf ``Eq && args.size >= 3 then
+    let lhs := args[args.size - 2]!
+    let rhs := args[args.size - 1]!
+    if let some parsed := parseSide .eq lhs rhs then return some parsed
+    if let some parsed := parseSide .eq rhs lhs then return some parsed
+    return none
+  if fn.isConstOf ``LE.le && args.size >= 4 then
+    let lhs := args[args.size - 2]!
+    let rhs := args[args.size - 1]!
+    if let some parsed := parseSide .upper lhs rhs then return some parsed
+    if let some parsed := parseSide .lower rhs lhs then return some parsed
+    return none
+  if fn.isConstOf ``LT.lt && args.size >= 4 then
+    let lhs := args[args.size - 2]!
+    let rhs := args[args.size - 1]!
+    if let some parsed := parseSide .upperStrict lhs rhs then return some parsed
+    if let some parsed := parseSide .lowerStrict rhs lhs then return some parsed
+    return none
+  if fn.isConstOf ``GE.ge && args.size >= 4 then
+    let lhs := args[args.size - 2]!
+    let rhs := args[args.size - 1]!
+    if let some parsed := parseSide .lower lhs rhs then return some parsed
+    if let some parsed := parseSide .upper rhs lhs then return some parsed
+    return none
+  if fn.isConstOf ``GT.gt && args.size >= 4 then
+    let lhs := args[args.size - 2]!
+    let rhs := args[args.size - 1]!
+    if let some parsed := parseSide .lowerStrict lhs rhs then return some parsed
+    if let some parsed := parseSide .upperStrict rhs lhs then return some parsed
+    return none
+  return none
 
 /-- Recognize a single natural integral comparison or a conjunction of them. -/
 partial def isNaturalIntegralGoal (goal : Lean.Expr) : MetaM Bool := do
@@ -78,32 +103,25 @@ private def exactIntegralAttempt (parsed : ParsedIntegralGoal) : TacticM Unit :=
     | throwError "exact integral: lower endpoint is not rational: {parsed.lo}"
   let some b ← LeanCert.Meta.Numeral.toRat? parsed.hi
     | throwError "exact integral: upper endpoint is not rational"
-  let reified ← reifyWithReport parsed.integrand
-  let astValue ← unsafe evalExpr LeanCert.Core.Expr (mkConst ``LeanCert.Core.Expr) reified.expr
+  let reified ← Bridge.reifyFunction parsed.integrand
+  let astValue ← unsafe evalExpr LeanCert.Core.Expr (mkConst ``LeanCert.Core.Expr) reified.ast
   let some poly := QPoly.ofExpr astValue
     | throwError "exact integral: integrand is not a rational polynomial"
   let value := poly.integralRat a b
   let checkType ← mkAppM ``Eq #[
-    ← mkAppM ``QPoly.checkExactIntegral #[reified.expr, toExpr a, toExpr b, toExpr value],
+    ← mkAppM ``QPoly.checkExactIntegral #[reified.ast, toExpr a, toExpr b, toExpr value],
     mkConst ``Bool.true]
   let checkProof ← mkDecideProof checkType
   let proof ← mkAppM ``QPoly.integral_eq_of_check
-    #[reified.expr, toExpr a, toExpr b, toExpr value, checkProof]
+    #[reified.ast, toExpr a, toExpr b, toExpr value, checkProof]
   let proofSyntax ← Term.exprToSyntax proof
-  unfoldReifiedDefinitions reified.unfolded
+  let evalEqSyntax ← Term.exprToSyntax reified.evalEq
   evalTactic (← `(tactic|
     have hIntegral := ($proofSyntax);
-    simp_all only [
-      LeanCert.Core.Expr.eval_add,
-      LeanCert.Core.Expr.eval_mul,
-      LeanCert.Core.Expr.eval_neg,
-      LeanCert.Core.Expr.eval_inv,
-      LeanCert.Core.Expr.eval_const,
-      LeanCert.Core.Expr.eval_var,
-      Rat.divInt_eq_div,
-      sq, pow_two, pow_succ, pow_zero, pow_one,
-      sub_eq_add_neg, div_eq_mul_inv, one_mul, mul_one];
-    linarith [hIntegral]))
+    have hfun := funext ($evalEqSyntax);
+    rw [← hfun];
+    norm_num [Rat.divInt_eq_div] at hIntegral ⊢ <;>
+      first | exact hIntegral | linarith [hIntegral]))
 
 private def mkIntervalRatExpr (a b : ℚ) : MetaM Lean.Expr := do
   unless a ≤ b do
@@ -112,7 +130,7 @@ private def mkIntervalRatExpr (a b : ℚ) : MetaM Lean.Expr := do
   let leProof ← mkDecideProof leType
   mkAppM ``IntervalRat.mk #[toExpr a, toExpr b, leProof]
 
-private def numericalIntegralAttempt (parsed : ParsedIntegralGoal)
+private partial def numericalIntegralAttempt (parsed : ParsedIntegralGoal)
     (startN maxN : Nat) : TacticM Unit := do
   let some a ← LeanCert.Meta.Numeral.toRat? parsed.lo
     | throwError "numerical integral: lower endpoint is not rational"
@@ -120,13 +138,58 @@ private def numericalIntegralAttempt (parsed : ParsedIntegralGoal)
     | throwError "numerical integral: upper endpoint is not rational"
   let some c ← LeanCert.Meta.Numeral.toRat? parsed.bound
     | throwError "numerical integral: comparison bound is not rational"
+  if b < a then
+    let args := parsed.targetIntegral.getAppArgs
+    unless args.size >= 4 do
+      throwError "numerical integral: malformed interval-integral application"
+    let mut swappedArgs := args
+    swappedArgs := swappedArgs.set! (args.size - 3) parsed.hi
+    swappedArgs := swappedArgs.set! (args.size - 2) parsed.lo
+    let swapped := mkAppN parsed.targetIntegral.getAppFn swappedArgs
+    let negBound ← mkAppM ``Neg.neg #[parsed.bound]
+    let swappedSyntax ← Term.exprToSyntax swapped
+    let negBoundSyntax ← Term.exprToSyntax negBound
+    evalTactic <| ← match parsed.comparison with
+      | .upper => `(tactic|
+          rw [intervalIntegral.integral_symm];
+          suffices $negBoundSyntax ≤ $swappedSyntax by linarith)
+      | .lower => `(tactic|
+          rw [intervalIntegral.integral_symm];
+          suffices $swappedSyntax ≤ $negBoundSyntax by linarith)
+      | .upperStrict => `(tactic|
+          rw [intervalIntegral.integral_symm];
+          suffices $negBoundSyntax < $swappedSyntax by linarith)
+      | .lowerStrict => `(tactic|
+          rw [intervalIntegral.integral_symm];
+          suffices $swappedSyntax < $negBoundSyntax by linarith)
+      | .eq => `(tactic|
+          rw [intervalIntegral.integral_symm];
+          suffices $swappedSyntax = $negBoundSyntax by linarith)
+    let transformedComparison := match parsed.comparison with
+      | .upper => IntegralComparison.lower
+      | .lower => .upper
+      | .upperStrict => .lowerStrict
+      | .lowerStrict => .upperStrict
+      | .eq => .eq
+    let transformed : ParsedIntegralGoal := {
+      comparison := transformedComparison
+      targetIntegral := swapped
+      integrand := parsed.integrand
+      lo := parsed.hi
+      hi := parsed.lo
+      bound := negBound
+    }
+    return ← numericalIntegralAttempt transformed startN maxN
   if parsed.comparison == .eq then
     throwError "numerical interval enclosures do not certify exact equality"
+  if parsed.comparison == .upperStrict || parsed.comparison == .lowerStrict then
+    throwError "strict numerical integral bounds require a margin certificate"
   let reified ← reifyWithReport parsed.integrand
   let supportProof ← mkSupportedCoreProof reified.expr
   let interval ← mkIntervalRatExpr a b
+  let domainProof ← mkContinuousDomainValidProof reified.expr interval
   let integrableProof ← mkAppM ``LeanCert.Validity.Integration.exprSupportedCore_intervalIntegrable
-    #[reified.expr, supportProof, interval]
+    #[reified.expr, supportProof, interval, domainProof]
   let startPositiveType ← mkAppM ``LT.lt #[toExpr 0, toExpr startN]
   let startPositive ← mkDecideProof startPositiveType
   let (theoremName, checkerName) :=
@@ -177,7 +240,9 @@ private def numericalIntegralAttempt (parsed : ParsedIntegralGoal)
       Rat.divInt_eq_div,
       sq, pow_two, pow_succ, pow_zero, pow_one,
       sub_eq_add_neg, div_eq_mul_inv, one_mul, mul_one];
-    exact hIntegral))
+    first
+    | exact hIntegral
+    | (convert hIntegral using 1 <;> norm_num [Rat.divInt_eq_div])))
 
 /-- Exact integral strategy used by the semantic router. -/
 partial def integralExactCore : TacticM Unit := do

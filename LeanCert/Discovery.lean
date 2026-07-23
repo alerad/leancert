@@ -3,7 +3,7 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Discovery.Types
+import LeanCert.Validity.Types
 import LeanCert.Discovery.Find
 import LeanCert.Discovery.Commands
 
@@ -15,7 +15,7 @@ automatically find and certify mathematical facts rather than just verify them.
 
 ## Components
 
-* `Types` - Proof-carrying result structures (`VerifiedGlobalMin`, `VerifiedRoot`, etc.)
+* `LeanCert.Validity.Types` - Proof-carrying result structures
 * `Find` - Finder functions that run algorithms and produce proofs
 * `Commands` - Elaboration commands (`#find_min`, `#find_max`, `#bounds`)
 
@@ -33,8 +33,6 @@ automatically find and certify mathematical facts rather than just verify them.
 -- Find both bounds
 #bounds (fun x => x * Real.cos x) on [0, 3]
 ```
-
-Note: `#minimize` and `#maximize` are aliases for backward compatibility.
 
 ### Programmatic API
 

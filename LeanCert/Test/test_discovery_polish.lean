@@ -19,32 +19,32 @@ section BasicPolynomials
 
 -- x² on [0, 1]
 example : ∀ x ∈ Icc (0 : ℝ) 1, x * x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 1, 0 ≤ x * x := by
-  interval_bound
+  certify_bound
 
 -- x² on [-1, 1]
 example : ∀ x ∈ Icc (-1 : ℝ) 1, x * x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 -- x³ on [0, 1]
 example : ∀ x ∈ Icc (0 : ℝ) 1, x * x * x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 -- Linear: 2x + 1 on [0, 1] → [1, 3]
 example : ∀ x ∈ Icc (0 : ℝ) 1, 2 * x + 1 ≤ 3 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 1, 1 ≤ 2 * x + 1 := by
-  interval_bound
+  certify_bound
 
 -- Quadratic: x² - x on [0, 1] - min at x=0.5 is -0.25
 example : ∀ x ∈ Icc (0 : ℝ) 1, x * x - x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 1, -1 ≤ x * x - x := by
-  interval_bound
+  certify_bound
 
 end BasicPolynomials
 
@@ -58,49 +58,49 @@ section Transcendentals
 
 -- sin(x) ∈ [-1, 1] always
 example : ∀ x ∈ Icc (0 : ℝ) 7, Real.sin x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 7, -1 ≤ Real.sin x := by
-  interval_bound
+  certify_bound
 
 -- cos(x) ∈ [-1, 1] always
 example : ∀ x ∈ Icc (0 : ℝ) 7, Real.cos x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 7, -1 ≤ Real.cos x := by
-  interval_bound
+  certify_bound
 
 -- exp(x) on [0, 1] → [1, e] ⊂ [1, 3]
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
-  interval_bound 15
+  certify_bound 15
 
 example : ∀ x ∈ Icc (0 : ℝ) 1, 1 ≤ Real.exp x := by
-  interval_bound
+  certify_bound
 
 -- exp(x) on [0, 2] → [1, e²] ⊂ [1, 8]
 example : ∀ x ∈ Icc (0 : ℝ) 2, Real.exp x ≤ 8 := by
-  interval_bound 15
+  certify_bound 15
 
 -- tanh(x) ∈ [-1, 1]
 example : ∀ x ∈ Icc (-5 : ℝ) 5, Real.tanh x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (-5 : ℝ) 5, -1 ≤ Real.tanh x := by
-  interval_bound
+  certify_bound
 
 -- sinh on [0, 2]
 example : ∀ x ∈ Icc (0 : ℝ) 2, Real.sinh x ≤ 4 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 2, 0 ≤ Real.sinh x := by
-  interval_bound
+  certify_bound
 
 -- cosh on [0, 2] - always ≥ 1
 example : ∀ x ∈ Icc (0 : ℝ) 2, Real.cosh x ≤ 4 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 2, 1 ≤ Real.cosh x := by
-  interval_bound
+  certify_bound
 
 end Transcendentals
 
@@ -173,7 +173,7 @@ example : ∃ x ∈ I34, Expr.eval (fun _ => x) (Expr.sin (Expr.var 0)) = 0 := b
 end RootFinding
 
 
-/-! ## Application 5: Dyadic Backend - fast_bound
+/-! ## Application 5: Dyadic Backend - certify_kernel_fallback
 
 For kernel-verified proofs (uses decide instead of native_decide when possible)
 -/
@@ -182,18 +182,18 @@ section DyadicBackend
 
 -- Basic polynomial
 example : ∀ x ∈ Icc (0 : ℝ) 1, x * x + x ≤ 2 := by
-  fast_bound
+  certify_kernel_fallback
 
 -- With transcendentals
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by
-  fast_bound
+  certify_kernel_fallback
 
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.cos x ≤ 1 := by
-  fast_bound
+  certify_kernel_fallback
 
 -- exp bounds
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
-  fast_bound 60
+  certify_kernel_fallback 60
 
 end DyadicBackend
 
@@ -239,21 +239,21 @@ section MLActivations
 
 -- tanh ∈ [-1, 1]
 example : ∀ x ∈ Icc (-5 : ℝ) 5, Real.tanh x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (-5 : ℝ) 5, -1 ≤ Real.tanh x := by
-  interval_bound
+  certify_bound
 
 -- sinh grows, but bounded on finite interval
 example : ∀ x ∈ Icc (-2 : ℝ) 2, Real.sinh x ≤ 4 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (-2 : ℝ) 2, -4 ≤ Real.sinh x := by
-  interval_bound
+  certify_bound
 
 -- cosh ≥ 1 always
 example : ∀ x ∈ Icc (-2 : ℝ) 2, 1 ≤ Real.cosh x := by
-  interval_bound
+  certify_bound
 
 end MLActivations
 
@@ -268,26 +268,26 @@ section ExprEvalWithSetIcc
 -- sin(x) + x² on [0, 1]
 example : ∀ x ∈ Icc (0 : ℝ) 1, Expr.eval (fun _ => x)
     (Expr.add (Expr.sin (Expr.var 0)) (Expr.mul (Expr.var 0) (Expr.var 0))) ≤ (2 : ℚ) := by
-  interval_bound
+  certify_bound
 
 -- cos(x²) on [0, 2]
 example : ∀ x ∈ Icc (0 : ℝ) 2, Expr.eval (fun _ => x)
     (Expr.cos (Expr.mul (Expr.var 0) (Expr.var 0))) ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 2, (-1 : ℚ) ≤ Expr.eval (fun _ => x)
     (Expr.cos (Expr.mul (Expr.var 0) (Expr.var 0))) := by
-  interval_bound
+  certify_bound
 
 -- exp(sin(x)) on [0, 3]
 example : ∀ x ∈ Icc (0 : ℝ) 3, Expr.eval (fun _ => x)
     (Expr.exp (Expr.sin (Expr.var 0))) ≤ (3 : ℚ) := by
-  interval_bound 15
+  certify_bound 15
 
 -- sinh(cos(x)) - nested hyperbolic and trig
 example : ∀ x ∈ Icc (0 : ℝ) 4, Expr.eval (fun _ => x)
     (Expr.sinh (Expr.cos (Expr.var 0))) ≤ (2 : ℚ) := by
-  interval_bound
+  certify_bound
 
 end ExprEvalWithSetIcc
 
@@ -301,21 +301,21 @@ section SignalProcessing
 
 -- sin(x) * cos(x) = sin(2x)/2 ∈ [-1/2, 1/2]
 example : ∀ x ∈ Icc (0 : ℝ) 7, Real.sin x * Real.cos x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 7, -1 ≤ Real.sin x * Real.cos x := by
-  interval_bound
+  certify_bound
 
 -- sin(x) + cos(x) = √2 * sin(x + π/4) ∈ [-√2, √2]
 example : ∀ x ∈ Icc (0 : ℝ) 7, Real.sin x + Real.cos x ≤ 2 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 7, -2 ≤ Real.sin x + Real.cos x := by
-  interval_bound
+  certify_bound
 
 -- sin²(x) ∈ [0, 1] - upper bound
 example : ∀ x ∈ Icc (0 : ℝ) 7, Real.sin x * Real.sin x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 end SignalProcessing
 
@@ -329,18 +329,18 @@ section StrictInequalities
 
 -- Strict upper bound
 example : ∀ x ∈ Icc (0 : ℝ) 1, x * x < 2 := by
-  interval_bound
+  certify_bound
 
 -- Strict lower bound
 example : ∀ x ∈ Icc (0 : ℝ) 1, -1 < x * x := by
-  interval_bound
+  certify_bound
 
 -- With transcendentals
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.sin x < 2 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.exp x < 4 := by
-  interval_bound 15
+  certify_bound 15
 
 end StrictInequalities
 
@@ -354,20 +354,20 @@ section ControlSystems
 
 -- Bounded control: |sin(x)| ≤ 1 means control effort bounded
 example : ∀ x ∈ Icc (-10 : ℝ) 10, Real.sin x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (-10 : ℝ) 10, -1 ≤ Real.sin x := by
-  interval_bound
+  certify_bound
 
 -- Saturated tanh control: |tanh(x)| ≤ 1
 example : ∀ x ∈ Icc (-10 : ℝ) 10, Real.tanh x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 example : ∀ x ∈ Icc (-10 : ℝ) 10, -1 ≤ Real.tanh x := by
-  interval_bound
+  certify_bound
 
 -- Quadratic on positive domain: x² ≥ 0 works fine
 example : ∀ x ∈ Icc (0 : ℝ) 5, 0 ≤ x * x := by
-  interval_bound
+  certify_bound
 
 end ControlSystems

@@ -24,6 +24,6 @@ def myRat : ℚ := 9 / 500
 
 theorem interval_bound_nat_cast :
     ∀ x ∈ Set.Icc (0 : Real) 1, x + ((1 : Nat) : Real) ≤ (2 : Rat) := by
-  interval_bound
+  certify_bound
 
 end LeanCert.Test.Numeral

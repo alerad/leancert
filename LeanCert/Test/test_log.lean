@@ -74,20 +74,20 @@ open LeanCert.Core
   dbg_trace "Expected: ~0.693"
   pure ()
 
--- Test interval_bound tactic with log
--- NOTE: Log bounds via interval_bound are not yet supported because
+-- Test certify_bound tactic with log
+-- NOTE: Log bounds via certify_bound are not yet supported because
 -- checkUpperBoundChecked is noncomputable (uses real analysis).
 -- The computational tests above (#eval) show log works for computation.
 -- Formal proofs of log bounds require manual proof or future work on
 -- computable interval evaluation for inverse functions.
 
 -- The following would work if we had computable log interval evaluation:
--- example : ∀ x ∈ Set.Icc (2 : ℝ) 2, Real.log x ≤ 1 := by interval_bound
--- example : ∀ x ∈ Set.Icc (2 : ℝ) 2, (0.693 : ℝ) ≤ Real.log x := by interval_bound
+-- example : ∀ x ∈ Set.Icc (2 : ℝ) 2, Real.log x ≤ 1 := by certify_bound
+-- example : ∀ x ∈ Set.Icc (2 : ℝ) 2, (0.693 : ℝ) ≤ Real.log x := by certify_bound
 
 -- For now, verify that non-log bounds still work:
-example : ∀ x ∈ Set.Icc (1 : ℝ) 3, x ≤ 5 := by interval_bound
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 1 := by interval_bound
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by interval_bound
+example : ∀ x ∈ Set.Icc (1 : ℝ) 3, x ≤ 5 := by certify_bound
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 1 := by certify_bound
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by certify_bound
 
 end TestLog

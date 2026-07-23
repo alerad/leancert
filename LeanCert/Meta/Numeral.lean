@@ -237,10 +237,6 @@ def toNat? (e : Lean.Expr) : MetaM (Option Nat) := do
     return some z.toNat
   return none
 
-/-- Alias for callers that are extracting rationals from real-valued literals. -/
-partial def toRealRat? (e : Lean.Expr) : MetaM (Option ℚ) :=
-  toRat? e
-
 /-- Extract a rational after instantiating metavariables and normalizing reducible wrappers. -/
 def toRealRatNormalized? (e : Lean.Expr) : MetaM (Option ℚ) := do
   let e ←
@@ -251,32 +247,12 @@ def toRealRatNormalized? (e : Lean.Expr) : MetaM (Option ℚ) := do
         pure e
     else
       instantiateMVars e
-  if let some q ← toRealRat? e then
+  if let some q ← toRat? e then
     return some q
   let e' ← whnf e
-  if let some q ← toRealRat? (← instantiateMVars e') then
+  if let some q ← toRat? (← instantiateMVars e') then
     return some q
   let e'' ← withTransparency TransparencyMode.all <| whnf e
-  toRealRat? (← instantiateMVars e'')
+  toRat? (← instantiateMVars e'')
 
 end LeanCert.Meta.Numeral
-
-namespace LeanCert.Meta
-
-/-- Compatibility alias for the canonical numeric extractor. -/
-abbrev toRat? : Lean.Expr → MetaM (Option ℚ) :=
-  LeanCert.Meta.Numeral.toRat?
-
-/-- Compatibility alias for the canonical natural-number extractor. -/
-abbrev toNat? : Lean.Expr → MetaM (Option Nat) :=
-  LeanCert.Meta.Numeral.toNat?
-
-/-- Compatibility alias for the canonical integer extractor. -/
-abbrev toInt? : Lean.Expr → MetaM (Option Int) :=
-  LeanCert.Meta.Numeral.toInt?
-
-/-- Compatibility alias for normalized real-valued rational extraction. -/
-abbrev toRealRatNormalized? : Lean.Expr → MetaM (Option ℚ) :=
-  LeanCert.Meta.Numeral.toRealRatNormalized?
-
-end LeanCert.Meta

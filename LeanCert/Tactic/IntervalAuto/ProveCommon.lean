@@ -368,10 +368,6 @@ def getAstWithReport (func : Lean.Expr) : TacticM LeanCert.Meta.ReifyReport := d
     else
       reifyWithReport func
 
-/-- Backward-compatible AST extraction entry point. -/
-def getAst (func : Lean.Expr) : TacticM Lean.Expr := do
-  return (← getAstWithReport func).expr
-
 /-- Get a core support proof when available. Checked evaluators need no support
 proof; their branch receives an unused placeholder. -/
 def getSupportProof (ast : Lean.Expr) : TacticM (Lean.Expr × Bool) := do

@@ -462,9 +462,6 @@ theorem eval_sqrt (ρ : Nat → ℝ) (e : Expr) : eval ρ (sqrt e) = Real.sqrt (
 theorem eval_namedConst (ρ : Nat → ℝ) (c : MathConst) :
     eval ρ (namedConst c) = c.toReal := rfl
 
-/-- Backward-compat alias for simp lists referencing `eval_pi`. -/
-theorem eval_pi (ρ : Nat → ℝ) : eval ρ (namedConst .pi) = Real.pi := rfl
-
 theorem eval_eulerMascheroni (ρ : Nat → ℝ) :
     eval ρ (namedConst .eulerMascheroni) = Real.eulerMascheroniConstant := rfl
 

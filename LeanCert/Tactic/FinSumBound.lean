@@ -258,7 +258,7 @@ private def reifyFinSumBody (bodyLambda : Lean.Expr) : MetaM Lean.Expr := do
       -- and `↑(2*k)`, with real expressions in x.
       let body' ← replaceNatCast body k.fvarId! x
       let realLambda ← mkLambdaFVars #[x] body'
-      reify realLambda
+      return (← reifyWithReport realLambda).expr
 
 /-! ## Tactic Kernel -/
 

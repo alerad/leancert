@@ -155,13 +155,9 @@ def getAstFromFuncWithReport (func : Lean.Expr) : TacticM LeanCert.Meta.ReifyRep
                       Supported operations: +, -, *, /, sin, cos, exp, log, sqrt, π, ...\n\
                       Tip: Unfold custom definitions with 'simp only [myDef]' first."
 
-/-- Backward-compatible AST-only extraction entry point. -/
-def getAstFromFunc (func : Lean.Expr) : TacticM Lean.Expr := do
-  return (← getAstFromFuncWithReport func).expr
-
 /-! ### Domain normalization helpers -/
 
-/-- Compatibility wrapper around the canonical numeric parser. -/
+/-- Extract a rational from a normalized real-number expression. -/
 def extractRatFromReal (e : Lean.Expr) : MetaM (Option ℚ) :=
   LeanCert.Meta.Numeral.toRealRatNormalized? e
 
@@ -258,7 +254,7 @@ unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "Function expression: {funcExpr}"
 
   -- 1. Reify the function (or extract from Expr.eval)
-  let ast ← getAstFromFunc funcExpr
+  let ast := (← getAstFromFuncWithReport funcExpr).expr
   trace[LeanCert.discovery] "Reified AST: {ast}"
 
   -- 2. Prepare for evaluation with guided optimization
@@ -315,7 +311,7 @@ unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
   evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
 
   -- 5. Now we have a goal `∀ x ∈ I, f(x) ≥ bound`
-  trace[LeanCert.discovery] "Proving universal bound with interval_bound..."
+  trace[LeanCert.discovery] "Proving universal bound with certify_bound..."
   LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
   trace[LeanCert.discovery] "✓ Proof complete"
 
@@ -355,8 +351,8 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "Parsing goal: ∃ M, ∀ x ∈ I, f(x) ≤ M"
   trace[LeanCert.discovery] "Function expression: {funcExpr}"
 
-  -- Use getAstFromFunc to handle both Expr.eval and raw expressions
-  let ast ← getAstFromFunc funcExpr
+  -- Use getAstFromFuncWithReport to handle both Expr.eval and raw expressions
+  let ast := (← getAstFromFuncWithReport funcExpr).expr
   trace[LeanCert.discovery] "Reified AST: {ast}"
 
   let cfg : GuidedOptConfig := {
@@ -408,7 +404,7 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
   evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
 
   -- Now prove the bound using intervalBoundCore
-  trace[LeanCert.discovery] "Proving universal bound with interval_bound..."
+  trace[LeanCert.discovery] "Proving universal bound with certify_bound..."
   LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
   trace[LeanCert.discovery] "✓ Proof complete"
 
@@ -579,7 +575,7 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "Using native syntax: {isNativeSyntax}"
 
   -- 1. Reify the function
-  let ast ← getAstFromFunc funcExpr
+  let ast := (← getAstFromFuncWithReport funcExpr).expr
   trace[LeanCert.discovery] "Reified AST: {ast}"
 
   -- 2. Prepare optimization config
@@ -781,7 +777,7 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "Using native syntax: {isNativeSyntax}"
 
   -- 1. Reify the function
-  let ast ← getAstFromFunc funcExpr
+  let ast := (← getAstFromFuncWithReport funcExpr).expr
   trace[LeanCert.discovery] "Reified AST: {ast}"
 
   -- 2. Prepare optimization config
@@ -1013,7 +1009,7 @@ unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "Function expression: {funcExpr}"
 
   -- 1. Reify the function
-  let ast ← getAstFromFunc funcExpr
+  let ast := (← getAstFromFuncWithReport funcExpr).expr
   trace[LeanCert.discovery] "Reified AST: {ast}"
 
   -- 2. Build the box from all variable intervals
@@ -1070,7 +1066,7 @@ unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
 
   -- 6. Now we have a multivariate goal `∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≥ bound`
-  trace[LeanCert.discovery] "Proving multivariate universal bound with interval_bound..."
+  trace[LeanCert.discovery] "Proving multivariate universal bound with certify_bound..."
   LeanCert.Tactic.Auto.multivariateBoundCore cfg.maxIterations cfg.tolerance cfg.useMonotonicity taylorDepth
   trace[LeanCert.discovery] "✓ Proof complete"
 
@@ -1079,7 +1075,7 @@ unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
 Proves multivariate goals of the form `∃ m, ∀ x ∈ I, ∀ y ∈ J, f(x,y) ≥ m` by:
 1. Running global optimization over the n-dimensional domain.
 2. Instantiating the existential with the found minimum.
-3. Proving the bound using `interval_bound`.
+3. Proving the bound using `certify_bound`.
 -/
 syntax (name := intervalMinimizeMvTac) "interval_minimize_mv" (num)? : tactic
 
@@ -1104,7 +1100,7 @@ unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "Function expression: {funcExpr}"
 
   -- 1. Reify the function
-  let ast ← getAstFromFunc funcExpr
+  let ast := (← getAstFromFuncWithReport funcExpr).expr
   trace[LeanCert.discovery] "Reified AST: {ast}"
 
   -- 2. Build the box from all variable intervals
@@ -1161,7 +1157,7 @@ unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
 
   -- 6. Prove the multivariate bound
-  trace[LeanCert.discovery] "Proving multivariate universal bound with interval_bound..."
+  trace[LeanCert.discovery] "Proving multivariate universal bound with certify_bound..."
   LeanCert.Tactic.Auto.multivariateBoundCore cfg.maxIterations cfg.tolerance cfg.useMonotonicity taylorDepth
   trace[LeanCert.discovery] "✓ Proof complete"
 
@@ -1170,7 +1166,7 @@ unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
 Proves multivariate goals of the form `∃ M, ∀ x ∈ I, ∀ y ∈ J, f(x,y) ≤ M` by:
 1. Running global optimization over the n-dimensional domain.
 2. Instantiating the existential with the found maximum.
-3. Proving the bound using `interval_bound`.
+3. Proving the bound using `certify_bound`.
 -/
 syntax (name := intervalMaximizeMvTac) "interval_maximize_mv" (num)? : tactic
 
@@ -1543,134 +1539,6 @@ unsafe def elabIntervalUniqueRoot : Tactic := fun stx => do
     | some n => n.toNat
     | none => 10
   intervalUniqueRootCore taylorDepth
-
-/-! ## Integration Tactic -/
-
-/-- Extract components from integration goal:
-    ∫ x in lo..hi, f(x) ∈ bound
-    returns (lo, hi, integral, bound) -/
-def parseIntegrationGoal (goalType : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr × Lean.Expr × Lean.Expr)) := do
-  -- Goal form: Membership.mem integral bound
-  match_expr goalType with
-  | Membership.mem _ _ _ bound integral =>
-    -- integral form: intervalIntegral f μ lo hi
-    if integral.getAppNumArgs >= 4 then
-      let args := integral.getAppArgs
-      let lo := args[2]!
-      let hi := args[3]!
-      return some (lo, hi, integral, bound)
-    else
-      return none
-  | _ =>
-    return none
-
-/-- Core implementation for interval_integrate tactic.
-
-Proves goals of the form `∫ x in (I.lo)...(I.hi), f(x) ∈ bound` by:
-1. Computing the integral bound using interval arithmetic
-2. Proving the computed bound contains the integral
-
-The goal must be exactly of the form:
-  ∫ x in (I.lo:ℝ)..(I.hi:ℝ), Expr.eval (fun _ => x) e ∈ integrateInterval1Core e I cfg
--/
-unsafe def intervalIntegrateCore (_taylorDepth : Nat) : TacticM Unit := do
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-
-  -- Parse the goal to extract the bound expression
-  let some (_lo, _hi, _integral, bound) ← parseIntegrationGoal goalType
-    | throwError "interval_integrate: Could not parse goal. Expected form: ∫ x in lo..hi, f(x) ∈ bound"
-
-  -- The bound should be: Validity.Integration.integrateInterval1Core e I cfg
-  -- Extract e, I, cfg from it
-  if !bound.isAppOfArity ``Validity.Integration.integrateInterval1Core 3 then
-    throwError "interval_integrate: Bound must be of form `Validity.Integration.integrateInterval1Core e I cfg`"
-
-  let args := bound.getAppArgs
-  let ast := args[0]!
-  let interval := args[1]!
-  let cfg := args[2]!
-
-  -- Generate ExprSupportedCore proof for the AST
-  let supportProof ← mkSupportedCoreProof ast
-
-  -- Build domain validity type: evalDomainValid1 e I cfg
-  let domValidType ← mkAppM ``LeanCert.Engine.evalDomainValid1 #[ast, interval, cfg]
-
-  -- Try to generate domain validity proof using native_decide (since it's decidable).
-  -- If that fails, try the generic supported-expression theorem.  The tactic
-  -- must fail rather than fabricating a proof hole.
-  let domValidProof ← try
-    -- evalDomainValid1 is decidable, so we can use native_decide
-    let domValidDecide ← mkAppM ``of_decide_eq_true #[domValidType]
-    let rflProof ← mkAppM ``Eq.refl #[mkConst ``Bool.true]
-    mkAppM' domValidDecide #[rflProof]
-  catch _ =>
-    -- If native_decide fails, try generating ADSupported proof and use domainValid theorem
-    try
-      let suppProof ← mkSupportedProof ast
-      mkAppM ``LeanCert.Engine.exprSupported_domainValid1 #[suppProof, interval, cfg]
-    catch err =>
-      throwError "interval_integrate: could not prove interval-domain validity for expression.\n\
-        Domain validity goal: {← ppExpr domValidType}\n\
-        {err.toMessageData}"
-
-  -- Build continuity domain validity type
-  -- We need to get the interval bounds for the Set.Icc as reals
-  -- Construct the Set.Icc (I.lo : ℝ) (I.hi : ℝ) expression
-  let loExpr ← mkAppM ``IntervalRat.lo #[interval]
-  let hiExpr ← mkAppM ``IntervalRat.hi #[interval]
-  -- Construct (lo : ℝ) and (hi : ℝ) using Rat.cast
-  -- @Rat.cast ℝ _ lo where _ is the RatCast instance
-  let loRealExpr ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, loExpr]
-  let hiRealExpr ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, hiExpr]
-  let setIccExpr ← mkAppM ``Set.Icc #[loRealExpr, hiRealExpr]
-  let contDomValidType ← mkAppM ``LeanCert.Meta.exprContinuousDomainValid #[ast, setIccExpr]
-
-  -- Try to generate continuity domain validity proof using ADSupported.
-  -- ADSupported expressions (no log) have trivial domain validity.  If this
-  -- proof cannot be generated, fail with a diagnostic rather than inserting
-  -- a synthetic proof hole.
-  let contDomValidProof ← try
-    let suppProof ← mkSupportedProof ast
-    -- Need to instantiate the implicit {s : Set ℝ} parameter with setIccExpr
-    mkAppOptM ``LeanCert.Meta.exprContinuousDomainValid_of_ExprSupported #[some ast, some suppProof, some setIccExpr]
-  catch err =>
-    throwError "interval_integrate: could not prove continuity-domain validity for expression.\n\
-      Continuity-domain goal: {← ppExpr contDomValidType}\n\
-      {err.toMessageData}"
-
-  -- Build the proof term: integrateInterval1Core_correct e supportProof I cfg hdom hcontdom
-  let proof ← mkAppM ``Validity.Integration.integrateInterval1Core_correct
-    #[ast, supportProof, interval, cfg, domValidProof, contDomValidProof]
-
-  -- Assign the proof
-  goal.assign proof
-
-/-- The interval_integrate tactic.
-
-Proves goals of the form `∫ x in (I.lo)...(I.hi), f(x) ∈ bound` by:
-1. Computing the integral bound using interval arithmetic
-2. Applying the integrateInterval1Core_correct theorem
-
-**Usage:**
-```lean
-example : ∫ x in (0:ℝ)..1, x ∈ Validity.Integration.integrateInterval1Core (Expr.var 0) ⟨0, 1, by norm_num⟩ default := by
-  interval_integrate
-```
-
-**Limitations:**
-- The bound must exactly match `integrateInterval1Core e I cfg`
-- The function must be in `ExprSupportedCore` (no log, inv)
--/
-syntax (name := intervalIntegrateTac) "interval_integrate" (num)? : tactic
-
-@[tactic intervalIntegrateTac]
-unsafe def elabIntervalIntegrate : Tactic := fun stx => do
-  let taylorDepth := match stx[1].getOptional? with
-    | some n => n.toNat
-    | none => 10
-  intervalIntegrateCore taylorDepth
 
 /-! ## Discover Tactic -/
 

@@ -20,8 +20,7 @@ namespace LeanCert.Tactic.Auto
 
 open LeanCert.Core
 
-/-- Try to extract a rational value from a Lean expression that represents a real number.
-    Compatibility wrapper around `LeanCert.Meta.Numeral.toRealRat?`. -/
+/-- Try to extract a rational value from a normalized real-number expression. -/
 def extractRatFromReal (e : Lean.Expr) : MetaM (Option ℚ) := do
   LeanCert.Meta.Numeral.toRealRatNormalized? e
 

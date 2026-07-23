@@ -19,7 +19,7 @@ expressions (e.g., `fun (x : ℝ) => x + 2`) into `LeanCert.Core.Expr` terms
 * `LeanCert.Meta.Context` - Context tracking free variables and their de Bruijn indices
 * `LeanCert.Meta.TranslateM` - The translation monad
 * `LeanCert.Meta.toLeanCertExpr` - Main recursive translation function
-* `LeanCert.Meta.reify` - Entry point that handles lambda expressions
+* `LeanCert.Meta.reifyWithReport` - Entry point that handles lambda expressions
 
 ## Usage
 
@@ -32,6 +32,8 @@ expressions (e.g., `fun (x : ℝ) => x + 2`) into `LeanCert.Core.Expr` terms
 open Lean Meta Elab Command Term
 
 namespace LeanCert.Meta
+
+open Numeral
 
 /-- Closed-form rewrite for max on reals, used for reification via existing Expr nodes. -/
 theorem max_eq_half_add_abs_sub (a b : Real) :
@@ -551,10 +553,6 @@ def reifyWithReport (e : Lean.Expr) (maxUnfoldSteps : Nat := 128) : MetaM ReifyR
       { remainingUnfoldSteps := maxUnfoldSteps }
     return { expr, unfolded := state.unfolded }
 
-/-- Backward-compatible reification entry point which discards bridge metadata. -/
-def reify (e : Lean.Expr) : MetaM Lean.Expr := do
-  return (← reifyWithReport e).expr
-
 /-! ## Testing Infrastructure -/
 
 /-- Elaborate a term and reify it to a LeanCert expression.
@@ -563,7 +561,7 @@ elab "#leancert_reflect " t:term : command => do
   let e ← liftTermElabM do
     let t ← elabTerm t none
     let t ← instantiateMVars t
-    reify t
+    return (← reifyWithReport t).expr
   logInfo m!"Reified: {e}"
 
 end LeanCert.Meta

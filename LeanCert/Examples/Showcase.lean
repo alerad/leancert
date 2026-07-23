@@ -44,20 +44,20 @@ def I_sym : IntervalRat := ⟨-1, 1, by norm_num⟩
 
 /-! ## Section 1: Basic Polynomial Bounds
 
-Simple examples showing interval_bound on polynomials.
+Simple examples showing certify_bound on polynomials.
 -/
 
 /-- x² ≤ 1 on [0, 1] -/
 theorem xsq_le_one : ∀ x ∈ I01, x * x ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 /-- 0 ≤ x² on [0, 1] -/
 theorem zero_le_xsq : ∀ x ∈ I01, (0 : ℚ) ≤ x * x := by
-  interval_bound
+  certify_bound
 
 /-- x² ≤ 1 on [-1, 1] -/
 theorem xsq_le_one_sym : ∀ x ∈ I_sym, x * x ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 /-! ## Section 2: Transcendental Functions
 
@@ -66,23 +66,23 @@ exp, sin, cos with verified Taylor series bounds.
 
 /-- sin(x) ≤ 1 on [0, 1] -/
 theorem sin_le_one : ∀ x ∈ I01, Real.sin x ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 /-- -1 ≤ sin(x) on [0, 1] -/
 theorem neg_one_le_sin : ∀ x ∈ I01, (-1 : ℚ) ≤ Real.sin x := by
-  interval_bound
+  certify_bound
 
 /-- cos(x) ≤ 1 on [0, 1] -/
 theorem cos_le_one : ∀ x ∈ I01, Real.cos x ≤ (1 : ℚ) := by
-  interval_bound
+  certify_bound
 
 /-- exp(x) ≤ 3 on [0, 1] -/
 theorem exp_le_three : ∀ x ∈ I01, Real.exp x ≤ (3 : ℚ) := by
-  interval_bound 15
+  certify_bound 15
 
 /-- 1 ≤ exp(x) on [0, 1] - boundary case with monotonicity -/
 theorem one_le_exp : ∀ x ∈ I01, (1 : ℚ) ≤ Real.exp x := by
-  interval_bound 15
+  certify_bound 15
 
 /-! ## Section 3: Combined Expressions
 
@@ -91,13 +91,13 @@ Mixing polynomials with transcendentals.
 
 /-- x² + sin(x) ≤ 2 on [0, 1] -/
 theorem xsq_plus_sin_le_two : ∀ x ∈ I01, x * x + Real.sin x ≤ (2 : ℚ) := by
-  interval_bound
+  certify_bound
 
 /-- x² - 2 < 0 on [0, 1] (since √2 > 1) -/
 theorem xsq_minus_two_neg : ∀ x ∈ I01,
     Expr.eval (fun _ => x) (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0))
                                      (Expr.neg (Expr.const 2))) < (0 : ℚ) := by
-  interval_bound
+  certify_bound
 
 /-! ## Section 4: Root Absence
 

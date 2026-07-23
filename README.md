@@ -172,7 +172,6 @@ tactic selected.
 | Minimum certificate                        | `interval_minimize`    |
 | Maximum certificate                        | `interval_maximize`    |
 | Natural integral equality/bound            | `leancert`             |
-| Explicit computed integral enclosure       | `interval_integrate`   |
 | Expand finite sums                         | `finsum_expand`        |
 | Simplify vector indexing                   | `vec_simp`             |
 

@@ -333,7 +333,7 @@ elab "#check_supported " t:term : command => do
     -- Elaborate and reify the term
     let t ← elabTerm t none
     let t ← instantiateMVars t
-    let ast ← reify t
+    let ast := (← reifyWithReport t).expr
     -- Generate the support proof
     let proof ← mkSupportedCoreProof ast
     let proofType ← inferType proof
@@ -349,7 +349,7 @@ Convenience functions that combine reification and support proof generation.
 
 /-- Reify a Lean expression and generate both the AST and its ExprSupportedCore proof. -/
 def reifyWithSupportCore (e : Lean.Expr) : MetaM (Lean.Expr × Lean.Expr) := do
-  let ast ← reify e
+  let ast := (← reifyWithReport e).expr
   let proof ← mkSupportedCoreProof ast
   return (ast, proof)
 

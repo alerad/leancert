@@ -831,49 +831,4 @@ theorem maximizeIntervalIdx_correct (e : Expr) (hsupp : ADSupported e)
   convert h using 1
   simp only [Rat.cast_neg]
 
-/-! ### Backward-compatible wrappers -/
-
-/-- Alternative single-variable minimization as a thin wrapper around `minimizeIntervalIdx`.
-    This is equivalent to the original `minimizeInterval` but uses the generalized n-variable
-    implementation. -/
-noncomputable def minimizeInterval' (e : Expr) (I : IntervalRat) (varIdx : Nat)
-    (maxDepth : ℕ) : OptResult :=
-  minimizeIntervalIdx e (fun _ => I) varIdx maxDepth
-
-/-- Correctness theorem for single-variable minimization via the idx API.
-    This doesn't require `UsesOnlyVar0` - works for any expression. -/
-theorem minimizeInterval'_correct (e : Expr) (hsupp : ADSupported e)
-    (I : IntervalRat) (varIdx : Nat) (maxDepth : ℕ) :
-    ∀ x ∈ I, (minimizeInterval' e I varIdx maxDepth).valueBound.lo
-      ≤ Expr.eval (fun _ => x) e := by
-  intro x hx
-  simp only [minimizeInterval']
-  have h := minimizeIntervalIdx_correct e hsupp (fun _ => I) varIdx maxDepth
-    (fun _ => x) (fun _ => hx) x hx
-  try simp at h
-  convert h using 2
-  funext i
-  simp only [Expr.updateVar]
-  split_ifs <;> rfl
-
-/-- Alternative maximization as a thin wrapper around `maximizeIntervalIdx`. -/
-noncomputable def maximizeInterval' (e : Expr) (I : IntervalRat) (varIdx : Nat)
-    (maxDepth : ℕ) : OptResult :=
-  maximizeIntervalIdx e (fun _ => I) varIdx maxDepth
-
-/-- Correctness theorem for single-variable maximization via the idx API. -/
-theorem maximizeInterval'_correct (e : Expr) (hsupp : ADSupported e)
-    (I : IntervalRat) (varIdx : Nat) (maxDepth : ℕ) :
-    ∀ x ∈ I, Expr.eval (fun _ => x) e
-      ≤ (maximizeInterval' e I varIdx maxDepth).valueBound.hi := by
-  intro x hx
-  simp only [maximizeInterval']
-  have h := maximizeIntervalIdx_correct e hsupp (fun _ => I) varIdx maxDepth
-    (fun _ => x) (fun _ => hx) x hx
-  try simp at h
-  convert h using 2
-  funext i
-  simp only [Expr.updateVar]
-  split_ifs <;> rfl
-
 end LeanCert.Engine

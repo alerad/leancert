@@ -11,33 +11,33 @@ open LeanCert
 
 -- Upper bound on polynomial
 theorem poly_upper : ∀ x ∈ Set.Icc (0:ℝ) 1, x^2 + x ≤ 3 := by
-  interval_bound
+  certify_bound
 
 -- Lower bound on polynomial
 theorem poly_lower : ∀ x ∈ Set.Icc (0:ℝ) 1, 0 ≤ x^2 + x := by
-  interval_bound
+  certify_bound
 
 -- Strict inequality
 theorem poly_strict : ∀ x ∈ Set.Icc (0:ℝ) 1, x^2 - 5 < 0 := by
-  interval_bound
+  certify_bound
 
 /-! ## 2. Transcendental Functions -/
 
 -- Exponential bounds
 theorem exp_bounded : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ 3 := by
-  interval_bound
+  certify_bound
 
 -- Sine bounds
 theorem sin_bounded : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.sin x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 -- Cosine bounds
 theorem cos_bounded : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.cos x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 -- Square root
 theorem sqrt_bounded : ∀ x ∈ Set.Icc (0:ℝ) 4, Real.sqrt x ≤ 2 := by
-  interval_bound
+  certify_bound
 
 /-! ## 3. Multivariate Bounds -/
 
@@ -78,21 +78,21 @@ theorem root_cos : ∃ x ∈ Set.Icc (1:ℝ) 2, Real.cos x = 0 := by
 
 -- Symmetric interval
 theorem symmetric_bound : ∀ x ∈ Set.Icc (-1:ℝ) 1, x^2 ≤ 1 := by
-  interval_bound
+  certify_bound
 
 -- Negative interval
 theorem negative_bound : ∀ x ∈ Set.Icc (-2:ℝ) (-1), x^2 ≥ 1 := by
-  interval_bound
+  certify_bound
 
 /-! ## 6. Composed Functions -/
 
 -- Exp of polynomial
 theorem exp_poly : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp (x^2) ≤ 3 := by
-  interval_bound
+  certify_bound
 
 -- Sin of polynomial
 theorem sin_poly : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.sin (x^2) ≤ 1 := by
-  interval_bound
+  certify_bound
 
 /-! ## 7. Edge Cases -/
 
@@ -104,31 +104,31 @@ theorem point_interval : ∀ x ∈ Set.Icc (1:ℝ) 1, x = 1 := by
 
 -- Very small interval
 theorem tiny_interval : ∀ x ∈ Set.Icc (0:ℝ) (1/1000), x^2 ≤ 1/100 := by
-  interval_bound
+  certify_bound
 
 -- Large coefficients
 theorem large_coeff : ∀ x ∈ Set.Icc (0:ℝ) 1, 1000 * x ≤ 1000 := by
-  interval_bound
+  certify_bound
 
 /-! ## 8. Combined Operations -/
 
 -- Addition and multiplication
 theorem combined_ops : ∀ x ∈ Set.Icc (0:ℝ) 1, (x + 1) * (x - 1) ≤ 0 := by
-  interval_bound
+  certify_bound
 
 /-! ## 9. Hyperbolic Functions -/
 
 -- Sinh bound
 theorem sinh_bound : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.sinh x ≤ 2 := by
-  interval_bound
+  certify_bound
 
 -- Cosh bound
 theorem cosh_bound : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.cosh x ≤ 2 := by
-  interval_bound
+  certify_bound
 
 -- Tanh bound
 theorem tanh_bound : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.tanh x ≤ 1 := by
-  interval_bound
+  certify_bound
 
 /-! ## 10. Global Optimization -/
 
@@ -284,7 +284,7 @@ theorem test_root_bound_native : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x + 1 ≠ 0 
 
 /-! ### `interval_bound_subdiv` - Subdivision for tight bounds -/
 
--- Subdivision can prove tighter bounds than basic interval_bound
+-- Subdivision can prove tighter bounds than basic certify_bound
 theorem test_subdiv_tight : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ (272/100 : ℚ) := by
   interval_bound_subdiv 15 3
 

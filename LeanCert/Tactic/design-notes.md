@@ -860,8 +860,8 @@ to `HDiv.hDiv (OfNat 9) (OfNat 500)` in ℚ, `extractRatFromRat` fails.
 ### Fix
 
 One-line change: in the `Rat.cast` branch of `extractRatFromReal`, replace
-`extractRatFromRat args.back!` with `LeanCert.Meta.toRat? args.back!`. The `toRat?`
-function (in `Meta/ToExpr.lean`) already handles all arithmetic patterns (`HDiv`,
+`extractRatFromRat args.back!` with `LeanCert.Meta.Numeral.toRat? args.back!`.
+The canonical extractor (in `Meta/Numeral.lean`) handles all arithmetic patterns (`HDiv`,
 `HAdd`, `HMul`, `HSub`, `Neg`, `OfScientific`, etc.), so it correctly parses
 `HDiv.hDiv (OfNat 9) (OfNat 500)` as `9/500 : ℚ`.
 

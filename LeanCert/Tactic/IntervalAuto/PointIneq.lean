@@ -77,7 +77,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
 
       trace[interval_decide] "diffExpr = {diffExpr}"
 
-      let diffAst ← reify diffExpr
+      let diffAst := (← reifyWithReport diffExpr).expr
       let supportProof ← mkSupportedCoreProof diffAst
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
@@ -117,7 +117,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       try
         evalTactic (← `(tactic| (
           have h0 := $proofStx;
-          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_pi,
+          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
@@ -163,7 +163,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
 
     trace[interval_decide] "boundRat extracted: {boundRat}"
 
-    let ast ← reify funcExpr
+    let ast := (← reifyWithReport funcExpr).expr
     trace[interval_decide] "ast reified"
 
     -- Helper: try to close the goal given a proof term for the bound
@@ -173,7 +173,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
         setGoals [goal]
         evalTactic (← `(tactic| have h0 := $proofStx))
         evalTactic (← `(tactic| (
-          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_pi,
+          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
@@ -191,7 +191,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       try
         evalTactic (← `(tactic| (
           have h0 := $proofStx;
-          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_pi,
+          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
@@ -215,7 +215,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
         )))
         evalTactic (← `(tactic| (
           have h0 := $proofStx;
-          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_pi,
+          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
@@ -236,7 +236,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
         evalTactic (← `(tactic| (
           refine ?_;
           have h0 := $proofStx;
-          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_pi,
+          simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
@@ -374,7 +374,7 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
         (some m!"Expected a point inequality of form:\n\
                  • expr ≤ bound  (or <, ≥, >)\n\
                  • e.g., Real.exp 1 ≤ 3\n\n\
-                 For universally quantified goals, use `interval_bound` instead.")
+                 For universally quantified goals, use `certify_bound` instead.")
       throwError "interval_decide: Could not parse as point inequality.\n\n{diagReport}"
 
   let lhsIsConst ← toRat? lhs
@@ -459,7 +459,7 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
 
   try
     evalTactic (← `(tactic|
-      (have h : ∀ x ∈ Set.Icc ($cStx : ℝ) $cStx, _ := by interval_bound $depthStx) <;>
+      (have h : ∀ x ∈ Set.Icc ($cStx : ℝ) $cStx, _ := by certify_bound $depthStx) <;>
       exact h $cStx ⟨le_refl $cStx, le_refl $cStx⟩
     ))
     return
@@ -478,7 +478,7 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
               • Check if the bound is mathematically correct\n\n\
               Manual workaround pattern:\n\
               ```lean\n\
-              have h : ∀ x ∈ Set.Icc ({cStr}:ℝ) {cStr}, f x ≤ bound := by interval_bound\n\
+              have h : ∀ x ∈ Set.Icc ({cStr}:ℝ) {cStr}, f x ≤ bound := by certify_bound\n\
               exact h {cStr} ⟨le_refl {cStr}, le_refl {cStr}⟩\n\
               ```\n\
               Replace `f x` with your expression (using `x` instead of `{cStr}`)."
@@ -590,7 +590,7 @@ private def rebuildSum (terms : List Lean.Expr) : MetaM Lean.Expr := do
     Returns the `.hi` of the interval as a rational number, cast to ℝ syntax. -/
 private def computeUpperBoundExpr (e : Lean.Expr) (taylorDepth : Nat) : MetaM Lean.Expr := do
   -- Reify the expression to a LeanCert.Core.Expr
-  let ast ← reify e
+  let ast := (← reifyWithReport e).expr
   let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
   let zeroRat : ℚ := 0
   let leProof ← mkAppM ``le_refl #[toExpr zeroRat]

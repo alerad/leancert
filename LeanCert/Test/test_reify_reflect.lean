@@ -27,27 +27,27 @@ import LeanCert.Tactic.IntervalAuto
 
 theorem reify_norm_sub_div :
     ∀ x ∈ Set.Icc (1 : Real) 2, x - x / 2 ≤ (2 : Rat) := by
-  interval_bound
+  certify_bound
 
 theorem reify_norm_casts :
     ∀ x ∈ Set.Icc (0 : Real) 1, x + ((1 : Nat) : Real) ≤ (2 : Rat) := by
-  interval_bound
+  certify_bound
 
 theorem reify_norm_max :
     ∀ x ∈ Set.Icc (0 : Real) 1, max x (1 / 2 : Real) ≤ (2 : Rat) := by
-  interval_bound
+  certify_bound
 
 theorem reify_norm_min :
     ∀ x ∈ Set.Icc (0 : Real) 1, (-1 : Rat) ≤ min x (1 / 2 : Real) := by
-  interval_bound
+  certify_bound
 theorem reify_rpow_thirds_bound :
     ∀ x ∈ Set.Icc (2 : Real) 3, x ^ ((1 : Real) / 3) ≤ (2 : Rat) := by
-  interval_bound
+  certify_bound
 
 theorem reify_rpow_neg_thirds_bound :
     ∀ x ∈ Set.Icc (2 : Real) 3, x ^ ((-2 : Real) / 3) ≤ (1 : Rat) := by
-  interval_bound
+  certify_bound
 
 theorem reify_named_const_pi_bound :
     ∀ x ∈ Set.Icc (0 : Real) 1, x + Real.pi ≤ (5 : Rat) := by
-  interval_bound
+  certify_bound
