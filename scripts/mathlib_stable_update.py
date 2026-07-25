@@ -23,6 +23,10 @@ SEMVER_TAG = re.compile(
     r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
 )
 TOOLCHAIN = re.compile(r"^leanprover/lean4:(v[^\s]+)$")
+EXPECTED_MATHLIB_COMMIT = re.compile(
+    r'^(def expectedMathlibCommit\s*:\s*String\s*:=\s*)"([0-9a-f]{40})"(\s*)$',
+    re.MULTILINE,
+)
 
 
 def stable_version(tag: str) -> tuple[int, int, int] | None:
@@ -120,6 +124,40 @@ def update_mathlib_pin(path: Path, tag: str) -> None:
     raise ValueError("could not locate Mathlib rev in the matching requirement")
 
 
+def resolved_mathlib_commit(path: Path) -> str:
+    """Read the resolved Mathlib commit from a Lake manifest."""
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    matches = [
+        package
+        for package in manifest.get("packages", [])
+        if package.get("name") == "mathlib"
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected exactly one Mathlib manifest entry, found {len(matches)}"
+        )
+    commit = matches[0].get("rev")
+    if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise ValueError(f"invalid resolved Mathlib commit: {commit!r}")
+    return commit
+
+
+def update_expected_mathlib_commit(path: Path, commit: str) -> None:
+    """Synchronize the public compatibility checker with the resolved pin."""
+    if re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise ValueError(f"invalid resolved Mathlib commit: {commit!r}")
+    contents = path.read_text(encoding="utf-8")
+    updated, replacements = EXPECTED_MATHLIB_COMMIT.subn(
+        rf'\g<1>"{commit}"\g<3>', contents
+    )
+    if replacements != 1:
+        raise ValueError(
+            "expected exactly one expectedMathlibCommit declaration, "
+            f"found {replacements}"
+        )
+    path.write_text(updated, encoding="utf-8")
+
+
 def write_outputs(path: Path | None, tag: str | None) -> None:
     values = {
         "is-update-available": "true" if tag else "false",
@@ -134,7 +172,12 @@ def write_outputs(path: Path | None, tag: str | None) -> None:
 
 
 def prepare_update(root: Path, tag: str, metadata_dir: Path) -> None:
-    filenames = ("lakefile.toml", "lean-toolchain", "lake-manifest.json")
+    filenames = (
+        Path("lakefile.toml"),
+        Path("lean-toolchain"),
+        Path("lake-manifest.json"),
+        Path("LeanCertMathlibPin.lean"),
+    )
     originals = {
         filename: (root / filename).read_bytes() if (root / filename).exists() else None
         for filename in filenames
@@ -150,11 +193,17 @@ def prepare_update(root: Path, tag: str, metadata_dir: Path) -> None:
             env={**os.environ, "MATHLIB_NO_CACHE_ON_UPDATE": "1"},
             check=True,
         )
+        update_expected_mathlib_commit(
+            root / "LeanCertMathlibPin.lean",
+            resolved_mathlib_commit(root / "lake-manifest.json"),
+        )
 
         destination = metadata_dir / tag
         destination.mkdir(parents=True, exist_ok=True)
         for filename in filenames:
-            shutil.copy2(root / filename, destination / filename)
+            target = destination / filename
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(root / filename, target)
     except Exception:
         for filename, contents in originals.items():
             target = root / filename

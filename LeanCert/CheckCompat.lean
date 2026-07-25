@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Lean.Data.Json
+import LeanCertMathlibPin
 
 /-!
 # Mathlib Compatibility Checker
@@ -13,12 +14,6 @@ Run with: `lake exe check-compat`
 -/
 
 open System
-
-/-- LeanCert's expected resolved Mathlib commit, matching `lakefile.toml`.
-
-The executable smoke test runs this checker in CI, so updating the Mathlib pin
-without updating this public compatibility contract fails immediately. -/
-def expectedMathlibCommit : String := "81a5d257c8e410db227a6665ed08f64fea08e997"
 
 /-- Extract mathlib rev from lake-manifest.json content -/
 def extractMathlibRev (content : String) : Option (String × String) := do

@@ -9,6 +9,7 @@ rev = "v4.32.1"
 
 [[lean_lib]]
 name = "LeanCert"
+roots = ["LeanCert", "LeanCertMathlibPin"]
 precompileModules = false
 # Note: LeanCert.Examples.Li2Bounds is the lightweight li(2) interface for
 # downstream projects (builds in seconds; its two bound statements are

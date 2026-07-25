@@ -1,3 +1,4 @@
+import json
 import subprocess
 import tempfile
 import unittest
@@ -6,9 +7,11 @@ from unittest.mock import patch
 
 from scripts.mathlib_stable_update import (
     prepare_update,
+    resolved_mathlib_commit,
     remote_tags,
     select_latest_stable,
     stable_version,
+    update_expected_mathlib_commit,
     update_mathlib_pin,
 )
 
@@ -122,6 +125,35 @@ name = "mathlib"
                 original.replace(b'"old-revision"', b'"v4.33.0"'),
             )
 
+    def test_resolved_commit_and_compatibility_pin_are_synchronized(self) -> None:
+        old_commit = "1" * 40
+        new_commit = "2" * 40
+        manifest = {
+            "packages": [
+                {"name": "other", "rev": "3" * 40},
+                {"name": "mathlib", "rev": new_commit},
+            ]
+        }
+        checker = (
+            "def unrelated : String := \"leave me\"\n"
+            f'def expectedMathlibCommit : String := "{old_commit}"\n'
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = root / "lake-manifest.json"
+            checker_path = root / "CheckCompat.lean"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            checker_path.write_text(checker, encoding="utf-8")
+
+            commit = resolved_mathlib_commit(manifest_path)
+            update_expected_mathlib_commit(checker_path, commit)
+
+            self.assertEqual(commit, new_commit)
+            self.assertEqual(
+                checker_path.read_text(encoding="utf-8"),
+                checker.replace(old_commit, new_commit),
+            )
+
     def test_prepared_artifact_contains_all_update_inputs(self) -> None:
         lakefile = '''name = "Example"
 
@@ -136,22 +168,56 @@ rev = "old-revision"
             (root / "lean-toolchain").write_text(
                 "leanprover/lean4:v4.32.0\n", encoding="utf-8"
             )
-            (root / "lake-manifest.json").write_text("{}\n", encoding="utf-8")
+            old_commit = "1" * 40
+            new_commit = "2" * 40
+            (root / "lake-manifest.json").write_text(
+                json.dumps({"packages": [{"name": "mathlib", "rev": old_commit}]}),
+                encoding="utf-8",
+            )
+            checker = root / "LeanCertMathlibPin.lean"
+            checker.write_text(
+                f'def expectedMathlibCommit : String := "{old_commit}"\n',
+                encoding="utf-8",
+            )
             metadata = root / "metadata"
 
-            with patch("scripts.mathlib_stable_update.subprocess.run") as run:
+            def update_manifest(*args, **kwargs):
+                (root / "lake-manifest.json").write_text(
+                    json.dumps(
+                        {"packages": [{"name": "mathlib", "rev": new_commit}]}
+                    ),
+                    encoding="utf-8",
+                )
+
+            with patch(
+                "scripts.mathlib_stable_update.subprocess.run",
+                side_effect=update_manifest,
+            ) as run:
                 prepare_update(root, "v4.33.0", metadata)
 
             run.assert_called_once()
             prepared = metadata / "v4.33.0"
             self.assertEqual(
-                {path.name for path in prepared.iterdir()},
-                {"lakefile.toml", "lean-toolchain", "lake-manifest.json"},
+                {
+                    path.relative_to(prepared).as_posix()
+                    for path in prepared.rglob("*")
+                    if path.is_file()
+                },
+                {
+                    "lakefile.toml",
+                    "lean-toolchain",
+                    "lake-manifest.json",
+                    "LeanCertMathlibPin.lean",
+                },
             )
             self.assertIn('rev = "v4.33.0"', (prepared / "lakefile.toml").read_text())
             self.assertEqual(
                 (prepared / "lean-toolchain").read_text(),
                 "leanprover/lean4:v4.33.0\n",
+            )
+            self.assertIn(
+                new_commit,
+                (prepared / "LeanCertMathlibPin.lean").read_text(),
             )
 
     def test_prepare_restores_metadata_after_update_failure(self) -> None:
@@ -166,9 +232,16 @@ rev = "old-revision"
                 "lakefile.toml": lakefile.encode(),
                 "lean-toolchain": b"leanprover/lean4:v4.32.0\n",
                 "lake-manifest.json": b'{"original": true}\n',
+                "LeanCertMathlibPin.lean": (
+                    b'def expectedMathlibCommit : String := "'
+                    + b"1" * 40
+                    + b'"\n'
+                ),
             }
             for filename, contents in originals.items():
-                (root / filename).write_bytes(contents)
+                target = root / filename
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(contents)
 
             failure = subprocess.CalledProcessError(1, ["lake", "update"])
             with patch(
