@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
 import LeanCert.Tactic.IntervalAuto.Bound
+import LeanCert.Tactic.Verification
 import LeanCert.Validity.Bounds
 import LeanCert.Validity.DyadicBounds
 import LeanCert.Engine.Optimization.BoundVerify
@@ -93,12 +94,8 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
-      certGoalId.withContext do
-        try
-          setGoals [certGoalId]
-          evalTactic (← `(tactic| native_decide))
-        catch _ =>
-          throwError "proveClosedExpressionBound: Certificate check failed for difference expression"
+      discard <| closeCertificateGoal (← VerificationConfig.current) certGoalId
+        (tacticName := "interval_decide")
 
       let proof ← mkAppM theoremName #[diffAst, supportProof, intervalExpr, toExpr zeroRat, cfgExpr, certGoal]
 
@@ -277,11 +274,10 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       let dyadicCertTy ← mkAppM ``Eq #[dyadicCheckExpr, mkConst ``Bool.true]
       let dyadicCertGoal ← mkFreshExprMVar dyadicCertTy
       let dyadicCertGoalId := dyadicCertGoal.mvarId!
-      dyadicCertGoalId.withContext do
-        setGoals [dyadicCertGoalId]
-        trace[interval_decide] "Running native_decide (dyadic)"
-        evalTactic (← `(tactic| native_decide))
-        trace[interval_decide] "Dyadic certificate verified"
+      trace[interval_decide] "Verifying dyadic certificate"
+      discard <| closeCertificateGoal (← VerificationConfig.current) dyadicCertGoalId
+        (tacticName := "interval_decide")
+      trace[interval_decide] "Dyadic certificate verified"
 
       let dyadicProof ← mkAppM dyadicTheoremName
         #[ast, toExpr zeroRat, toExpr zeroRat, leProof, toExpr boundRat,
@@ -330,15 +326,10 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
     let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
     let certGoal ← mkFreshExprMVar certTy
     let certGoalId := certGoal.mvarId!
-    certGoalId.withContext do
-      try
-        setGoals [certGoalId]
-        trace[interval_decide] "Running native_decide"
-        evalTactic (← `(tactic| native_decide))
-        trace[interval_decide] "Certificate verified"
-      catch e =>
-        trace[interval_decide] "native_decide failed: {e.toMessageData}"
-        throwError "proveClosedExpressionBound: Certificate check failed for closed expression"
+    trace[interval_decide] "Verifying rational certificate"
+    discard <| closeCertificateGoal (← VerificationConfig.current) certGoalId
+      (tacticName := "interval_decide")
+    trace[interval_decide] "Certificate verified"
 
     let proof ← mkAppM theoremName #[ast, supportProof, intervalExpr, toExpr boundRat, cfgExpr, certGoal]
 
@@ -874,6 +865,9 @@ partial def intervalDecideWithConnectives (depth : Option Nat) : TacticM Unit :=
     intervalDecideSingle depth
 
 elab "interval_decide" depth:(num)? : tactic => do
+  -- Validate `leancert.trust` up front so a bad value surfaces as its own
+  -- error rather than as a generic tactic failure inside the proof cascade.
+  discard <| VerificationConfig.current
   intervalDecideWithConnectives (depth.map (·.getNat))
 
 end LeanCert.Tactic.Auto

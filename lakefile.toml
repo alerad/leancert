@@ -140,6 +140,7 @@ roots = [
   "LeanCert.Test.TestPhase3",
   "LeanCert.Test.TransformerTest",
   "LeanCert.Test.TrigReduction",
+  "LeanCert.Test.TrustModes",
   "LeanCert.Test.ValidityExports",
   "LeanCert.Test.VecSimpTest",
   "LeanCert.Test.WitnessSum",
