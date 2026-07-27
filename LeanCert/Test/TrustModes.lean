@@ -99,6 +99,16 @@ theorem trustSyntaxAuto : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := 
 theorem trustSyntaxRouter : Real.log 2 < 7/10 := by
   leancert (trust := kernel)
 
+/-! ### Kernel mode: discovery Set.Icc branches (embedded certificate terms) -/
+
+set_option leancert.trust "kernel" in
+theorem trustKernelRoots : ∃ x ∈ Set.Icc (0 : ℝ) 2, x * x - 2 = 0 := by
+  interval_roots
+
+set_option leancert.trust "kernel" in
+theorem trustKernelUniqueRoot : ∃! x, x ∈ Set.Icc (1 : ℝ) 2 ∧ x * x - 2 = 0 := by
+  interval_unique_root
+
 /-! ### `#assert_trust`: the CI manifest command -/
 
 #assert_trust kernel trustSyntaxKernel
@@ -107,6 +117,8 @@ theorem trustSyntaxRouter : Real.log 2 < 7/10 := by
 #assert_trust kernel trustSyntaxAuto
 #assert_trust kernel trustSyntaxRouter
 #assert_trust kernel trustKernelLogUpper
+#assert_trust kernel trustKernelRoots
+#assert_trust kernel trustKernelUniqueRoot
 #assert_trust native trustDefaultNative
 
 -- Drift is caught in BOTH directions: pinning `native` on a kernel-clean

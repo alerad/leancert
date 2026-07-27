@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.VecUtil
+import LeanCert.Tactic.Verification
 import Mathlib.Algebra.BigOperators.Group.Finset.Basic
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Order.Interval.Finset.Nat
@@ -45,7 +46,7 @@ macro "finsum_expand" : tactic =>
     repeat (first
       | rfl
       | simp only [Finset.sum_singleton]
-      | (rw [Finset.sum_insert (by native_decide)]; try simp only [add_assoc]))
+      | (rw [Finset.sum_insert (by leancert_verify_cert)]; try simp only [add_assoc]))
   ))
 
 /-- `finsum_expand` + computed bounds (`Nat.reduceAdd/Mul/Sub`), non-literal Fin

@@ -114,7 +114,7 @@ where
         -- Use simpa to bridge Set.Icc to IntervalRat
         let proofSyntax ← Term.exprToSyntax proof
         evalTactic (← `(tactic| refine (by
-          have h := $proofSyntax (by native_decide)
+          have h := $proofSyntax (by leancert_verify_cert)
           simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
       else
         -- 5. Apply the proof - this leaves the certificate check as a goal

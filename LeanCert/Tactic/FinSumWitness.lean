@@ -265,7 +265,7 @@ private def tryAutoProveHmem (hmemMVar : MVarId) : TacticM Unit := do
     evalTactic (← `(tactic|
       intros;
       simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
-      refine ⟨?_, ?_⟩ <;> exact_mod_cast (by native_decide)))
+      refine ⟨?_, ?_⟩ <;> exact_mod_cast (by leancert_verify_cert)))
     return
   catch _ => pure ()
   -- Strategy 2: interval_cases to enumerate k, then per-case native_decide
@@ -276,7 +276,7 @@ private def tryAutoProveHmem (hmemMVar : MVarId) : TacticM Unit := do
       intro k hlo hhi;
       interval_cases k <;> {
         simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
-        refine ⟨?_, ?_⟩ <;> exact_mod_cast (by native_decide)
+        refine ⟨?_, ?_⟩ <;> exact_mod_cast (by leancert_verify_cert)
       }))
     return
   catch _ => pure ()
@@ -287,7 +287,7 @@ private def tryAutoProveHmem (hmemMVar : MVarId) : TacticM Unit := do
       intro k hk;
       fin_cases hk <;> {
         simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
-        refine ⟨?_, ?_⟩ <;> exact_mod_cast (by native_decide)
+        refine ⟨?_, ?_⟩ <;> exact_mod_cast (by leancert_verify_cert)
       }))
     return
   catch _ => pure ()

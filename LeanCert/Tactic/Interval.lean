@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.IntervalEval
+import LeanCert.Tactic.Verification
 import LeanCert.Engine.IntervalEvalReal
 
 /-!
@@ -182,32 +183,32 @@ and explicit bound computation, as `native_decide` won't work.
     Usage: `interval_le e supp I c`
     Requires `ExprSupportedCore e` for native_decide to work. -/
 macro "interval_le" e:term "," supp:term "," I:term "," c:term : tactic =>
-  `(tactic| apply proveCore_forall_le_by_interval $e $supp $I $c <;> native_decide)
+  `(tactic| apply proveCore_forall_le_by_interval $e $supp $I $c <;> leancert_verify_cert)
 
 /-- Prove `∀ x ∈ I, c ≤ f(x)` using core interval arithmetic.
     Usage: `interval_ge e supp I c` -/
 macro "interval_ge" e:term "," supp:term "," I:term "," c:term : tactic =>
-  `(tactic| apply proveCore_forall_ge_by_interval $e $supp $I $c <;> native_decide)
+  `(tactic| apply proveCore_forall_ge_by_interval $e $supp $I $c <;> leancert_verify_cert)
 
 /-- Prove `∀ x ∈ I, f(x) < c` using core interval arithmetic.
     Usage: `interval_lt e supp I c` -/
 macro "interval_lt" e:term "," supp:term "," I:term "," c:term : tactic =>
-  `(tactic| apply proveCore_forall_lt_by_interval $e $supp $I $c <;> native_decide)
+  `(tactic| apply proveCore_forall_lt_by_interval $e $supp $I $c <;> leancert_verify_cert)
 
 /-- Prove `∀ x ∈ I, c < f(x)` using core interval arithmetic.
     Usage: `interval_gt e supp I c` -/
 macro "interval_gt" e:term "," supp:term "," I:term "," c:term : tactic =>
-  `(tactic| apply proveCore_forall_gt_by_interval $e $supp $I $c <;> native_decide)
+  `(tactic| apply proveCore_forall_gt_by_interval $e $supp $I $c <;> leancert_verify_cert)
 
 /-- Prove a pointwise bound `f(x) ≤ c` given `x ∈ I`.
     Usage: `interval_le_pt e supp I c x hx` -/
 macro "interval_le_pt" e:term "," supp:term "," I:term "," c:term "," x:term "," hx:term : tactic =>
-  `(tactic| apply proveCore_le_by_interval $e $supp $I $c $x $hx <;> native_decide)
+  `(tactic| apply proveCore_le_by_interval $e $supp $I $c $x $hx <;> leancert_verify_cert)
 
 /-- Prove a pointwise bound `c ≤ f(x)` given `x ∈ I`.
     Usage: `interval_ge_pt e supp I c x hx` -/
 macro "interval_ge_pt" e:term "," supp:term "," I:term "," c:term "," x:term "," hx:term : tactic =>
-  `(tactic| apply proveCore_ge_by_interval $e $supp $I $c $x $hx <;> native_decide)
+  `(tactic| apply proveCore_ge_by_interval $e $supp $I $c $x $hx <;> leancert_verify_cert)
 
 /-! ### Extended interval tactics (noncomputable, for exp-containing expressions)
 

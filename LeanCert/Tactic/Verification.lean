@@ -183,6 +183,15 @@ def closeCertificateGoal (cfg : VerificationConfig) (certGoal : MVarId)
     setGoals savedGoals
     pruneSolvedGoals
 
+/-- Close the current goal as a LeanCert certificate check according to the
+configured verification route (`leancert.trust`, or a `(trust := …)` override
+active via `withTrustMode`). For tactic implementations that embed certificate
+obligations inside quoted proof terms — `(by leancert_verify_cert)` — where
+`closeCertificateGoal` cannot be called directly. Not intended for end users. -/
+elab "leancert_verify_cert" : tactic => do
+  discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal)
+    (tacticName := "leancert")
+
 /-! ## Public per-invocation syntax: `(trust := kernel|native|auto)`
 
 Tactics accept an optional trailing `leancertTrustItem`; when present it
