@@ -4,14 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Lean
+import LeanCert.Tactic.Verification
 
 /-!
-# Shared Bridge + native_decide Infrastructure
+# Shared Bridge + Certificate-Verification Infrastructure
 
 Common pattern for `finsum_bound`, `finsum_witness`, and `finmatrix_bound`:
-apply a bridge proof term, close the Bool/ℚ check with `native_decide`,
-and handle the case where the bridge's type isn't defEq to the goal
-via a suffices + converter fallback.
+apply a bridge proof term, close the Bool/ℚ check via the verification
+choke point (`closeCertificateGoal`, honoring `leancert.trust`), and handle
+the case where the bridge's type isn't defEq to the goal via a
+suffices + converter fallback.
 -/
 
 open Lean Meta Elab Tactic Term
@@ -48,11 +50,11 @@ def closeBridgeWithNativeDecide
     -- Close the executable certificate before assigning the main goal.  This
     -- avoids leaving the user with an assigned theorem whose checker proof
     -- failed afterward.
-    replaceMainGoal [checkMVar.mvarId!]
     try
-      evalTactic (← `(tactic| native_decide))
+      discard <| closeCertificateGoal (← VerificationConfig.current)
+        checkMVar.mvarId! (tacticName := tacticName)
     catch e =>
-      throwError "{tacticName}: native_decide failed on certificate check.\n\
+      throwError "{tacticName}: certificate check failed.\n\
         Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}\n\
         Bridge proof type: {← ppExpr proofTy}\n\
         Goal type: {← ppExpr goalType}\n\
@@ -64,12 +66,13 @@ def closeBridgeWithNativeDecide
     let converterMVar ← mkFreshExprMVar
       (some (← mkArrow proofTy goalType)) (kind := .syntheticOpaque)
 
-    -- 1. Solve checkMVar with native_decide before assigning the main goal.
-    setGoals [checkMVar.mvarId!]
+    -- 1. Solve checkMVar via the verification choke point before assigning
+    -- the main goal.
     try
-      evalTactic (← `(tactic| native_decide))
+      discard <| closeCertificateGoal (← VerificationConfig.current)
+        checkMVar.mvarId! (tacticName := tacticName)
     catch e =>
-      throwError "{tacticName}: native_decide failed on certificate check.\n\
+      throwError "{tacticName}: certificate check failed.\n\
         Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}\n\
         Bridge proof type: {← ppExpr proofTy}\n\
         Goal type: {← ppExpr goalType}\n\

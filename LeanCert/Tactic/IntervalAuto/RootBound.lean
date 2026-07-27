@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Tactic.Verification
 import LeanCert.Validity.Bounds
 import LeanCert.Engine.Optimization.BoundVerify
 
@@ -113,7 +114,7 @@ where
         -- Use simpa to bridge Set.Icc to IntervalRat
         let proofSyntax ← Term.exprToSyntax proof
         evalTactic (← `(tactic| refine (by
-          have h := $proofSyntax (by native_decide)
+          have h := $proofSyntax (by leancert_verify_cert)
           simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
       else
         -- 5. Apply the proof - this leaves the certificate check as a goal
@@ -124,7 +125,7 @@ where
         -- 6. Solve remaining goals with native_decide
         for g in newGoals do
           setGoals [g]
-          evalTactic (← `(tactic| native_decide))
+          discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "root_bound")
 
 /-- The root_bound tactic.
 

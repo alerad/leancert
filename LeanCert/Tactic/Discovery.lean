@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import Lean
 import LeanCert.Discovery.Find
+import LeanCert.Tactic.Verification
 import LeanCert.Meta.ToExpr
 import LeanCert.Meta.ProveSupported
 import LeanCert.Meta.ProveContinuous
@@ -721,7 +722,7 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
       -- Membership proof for xOpt
       evalTactic (← `(tactic|
         apply LeanCert.Validity.verify_argmax $astSyntax $suppSyntax $domainSyntax $xOptSyntax $cBoundSyntax $cfgSyntax
-          ?_ (by native_decide) (by native_decide)))
+          ?_ (by leancert_verify_cert) (by leancert_verify_cert)))
 
       -- Prove xOpt ∈ I
       if !(← getGoals).isEmpty then
@@ -919,7 +920,7 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
       -- Membership proof for xOpt
       evalTactic (← `(tactic|
         apply LeanCert.Validity.verify_argmin $astSyntax $suppSyntax $domainSyntax $xOptSyntax $cBoundSyntax $cfgSyntax
-          ?_ (by native_decide) (by native_decide)))
+          ?_ (by leancert_verify_cert) (by leancert_verify_cert)))
 
       -- Prove xOpt ∈ I
       if !(← getGoals).isEmpty then
@@ -1331,7 +1332,7 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
     if fromSetIcc then
       let proofSyntax ← Term.exprToSyntax proof
       evalTactic (← `(tactic| refine (by
-        have h := $proofSyntax (by native_decide)
+        have h := $proofSyntax (by leancert_verify_cert)
         simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
           add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
     else
@@ -1339,10 +1340,10 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
       let newGoals ← goal.apply proof
       setGoals newGoals
 
-      -- 8. Solve remaining goals with native_decide
+      -- 8. Solve remaining certificate goals via the verification choke point
       for g in newGoals do
-        setGoals [g]
-        evalTactic (← `(tactic| native_decide))
+        discard <| LeanCert.Tactic.closeCertificateGoal
+          (← LeanCert.Tactic.VerificationConfig.current) g (tacticName := "interval_roots")
 
 /-- The interval_roots tactic.
 
@@ -1354,7 +1355,7 @@ The tactic automatically:
 - Reifies the function to a LeanCert AST
 - Generates an `ExprSupportedCore` proof
 - Generates a `ContinuousOn` proof (automatic for supported expressions)
-- Verifies the sign change certificate using `native_decide`
+- Verifies the sign change certificate via the configured route (`leancert.trust`)
 
 **Usage:**
 ```lean
@@ -1446,8 +1447,9 @@ def parseUniqueRootGoal (goalType : Lean.Expr) :
     2. Applying verify_unique_root_computable theorem
 
     Uses the fully computable `verify_unique_root_computable` theorem which only
-    requires `checkNewtonContractsCore`. This allows `native_decide` to work
-    without noncomputable Real functions.
+    requires `checkNewtonContractsCore`. This allows the certificate check
+    (configured via `leancert.trust`) to work without noncomputable Real
+    functions.
 -/
 unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
   LeanCert.Tactic.Auto.intervalNormCore
@@ -1500,7 +1502,7 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
     if fromSetIcc then
       let proofSyntax ← Term.exprToSyntax proof
       evalTactic (← `(tactic| refine (by
-        have h := $proofSyntax (by native_decide)
+        have h := $proofSyntax (by leancert_verify_cert)
         simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
           add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
   else
@@ -1509,10 +1511,10 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
     setGoals newGoals
 
     -- Solve certificate check: checkNewtonContractsCore e I cfg = true
-    -- This is computable, so native_decide works
+    -- (computable; closed via the verification choke point)
     for g in newGoals do
-      setGoals [g]
-      evalTactic (← `(tactic| native_decide))
+      discard <| LeanCert.Tactic.closeCertificateGoal
+        (← LeanCert.Tactic.VerificationConfig.current) g (tacticName := "interval_unique_root")
 
 /-- The interval_unique_root tactic.
 

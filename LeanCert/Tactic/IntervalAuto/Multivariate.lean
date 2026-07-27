@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Tactic.Verification
 import LeanCert.Validity.Bounds
 import LeanCert.Engine.Optimization.BoundVerify
 
@@ -153,7 +154,7 @@ where
       let certGoalId := certGoal.mvarId!
       setGoals [certGoalId]
       try
-        evalTactic (← `(tactic| native_decide))
+        discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "multivariate_bound")
       catch e =>
         throwError "multivariate_bound: Certificate check failed. The bound may be too tight.\n{e.toMessageData}"
 
@@ -216,7 +217,7 @@ where
       let certGoalId := certGoal.mvarId!
       setGoals [certGoalId]
       try
-        evalTactic (← `(tactic| native_decide))
+        discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "multivariate_bound")
       catch e =>
         throwError "multivariate_bound: Certificate check failed. The bound may be too tight.\n{e.toMessageData}"
 

@@ -10,6 +10,7 @@ import LeanCert.Meta.Numeral
 import LeanCert.Meta.ProveSupported
 import LeanCert.Tactic.IntervalAuto.Types
 import LeanCert.Tactic.IntervalAuto.Extract
+import LeanCert.Tactic.Verification
 import LeanCert.Tactic.LeanCert.Normalize
 
 /-!
@@ -392,7 +393,7 @@ def certCheckSucceeds (checkFn : Lean.Expr) : TacticM Bool := do
   let savedState ← saveState
   try
     setGoals [certGoalId]
-    evalTactic (← `(tactic| native_decide))
+    discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "leancert")
     restoreState savedState
     return true
   catch _ =>

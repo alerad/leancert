@@ -50,9 +50,24 @@ jobs:
 
       - name: Guard - no synthetic proof holes in LeanCert
         run: |
-          hits="$(find LeanCert -name '*.lean' -print0 | xargs -0 grep -nE '\bmkSorry\b|\bsorryAx\b|\badmit\b' || true)"
+          # Allowlist (single file): LeanCert/Tactic/Verification.lean — the
+          # trust-classification module (`#assert_trust`) necessarily *names*
+          # `sorryAx` in order to detect and reject it; it constructs nothing.
+          # The sorryAx sweep in Tests/AxiomAudit.lean remains the semantic
+          # backstop covering that file like any other.
+          hits="$(find LeanCert -name '*.lean' \
+            ! -path 'LeanCert/Tactic/Verification.lean' -print0 | \
+            xargs -0 grep -nE '\bmkSorry\b|\bsorryAx\b|\badmit\b' || true)"
           if [ -n "$hits" ]; then
             echo "Found forbidden synthetic proof-hole construction(s):"
+            echo "$hits"
+            exit 1
+          fi
+          # Verification.lean itself: detection/classification only — still
+          # forbid the constructors that *create* holes.
+          hits="$(grep -nE '\bmkSorry\b|\badmit\b' LeanCert/Tactic/Verification.lean || true)"
+          if [ -n "$hits" ]; then
+            echo "Found forbidden synthetic proof-hole construction(s) in Verification.lean:"
             echo "$hits"
             exit 1
           fi

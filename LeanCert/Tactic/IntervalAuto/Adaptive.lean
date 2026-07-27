@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Tactic.Verification
 import LeanCert.Tactic.IntervalAuto.Bound
 import LeanCert.Validity.Bounds
 import LeanCert.Engine.Optimization.BoundVerify
@@ -50,7 +51,7 @@ private def proveForallLeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
     let checkGoal ← mkFreshExprMVar checkTy
     setGoals [checkGoal.mvarId!]
     try
-      evalTactic (← `(tactic| native_decide))
+      discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "interval_bound_adaptive")
     catch _ =>
       throwError "interval_bound_adaptive: Adaptive verification failed - bound not tight enough"
     let checkProof := checkGoal
@@ -138,7 +139,7 @@ private def proveForallGeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
     let checkGoal ← mkFreshExprMVar checkTy
     setGoals [checkGoal.mvarId!]
     try
-      evalTactic (← `(tactic| native_decide))
+      discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "interval_bound_adaptive")
     catch _ =>
       throwError "interval_bound_adaptive: Adaptive verification failed - bound not tight enough"
     let checkProof := checkGoal
