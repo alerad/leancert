@@ -63,6 +63,16 @@ theorem trustKernelExp : Real.exp 1 ≤ 2.72 := by interval_decide
 #guard_msgs in
 #print axioms trustKernelExp
 
+/-! ### Kernel mode: quantified bounds (`certify_bound`, Phase 2 migration) -/
+
+set_option leancert.trust "kernel" in
+theorem trustKernelBoundExp : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := by
+  certify_bound
+
+/-- info: 'trustKernelBoundExp' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in
+#print axioms trustKernelBoundExp
+
 /-! ### Auto mode: kernel-capable goals stay foundational -/
 
 set_option leancert.trust "auto" in

@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Tactic.Verification
 import LeanCert.Validity.Bounds
 import LeanCert.Engine.Optimization.BoundVerify
 
@@ -124,7 +125,7 @@ where
         -- 6. Solve remaining goals with native_decide
         for g in newGoals do
           setGoals [g]
-          evalTactic (← `(tactic| native_decide))
+          discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "root_bound")
 
 /-- The root_bound tactic.
 

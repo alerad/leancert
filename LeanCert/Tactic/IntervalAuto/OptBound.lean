@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Tactic.Verification
 import LeanCert.Validity.Bounds
 import LeanCert.Engine.Optimization.BoundVerify
 
@@ -45,7 +46,7 @@ def optBoundCore (maxIters : Nat) (useMonotonicity : Bool) (taylorDepth : Nat) :
       if gType.getAppFn.isConstOf ``ExprSupportedCore then
         proveSupport g
       else
-        evalTactic (← `(tactic| native_decide))
+        discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "opt_bound")
     return
   catch _ => pure ()
 
@@ -63,7 +64,7 @@ def optBoundCore (maxIters : Nat) (useMonotonicity : Bool) (taylorDepth : Nat) :
       if gType.getAppFn.isConstOf ``ExprSupportedCore then
         proveSupport g
       else
-        evalTactic (← `(tactic| native_decide))
+        discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "opt_bound")
     return
   catch _ => pure ()
 

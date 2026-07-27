@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import Lean
 import LeanCert.Discovery.Find
+import LeanCert.Tactic.Verification
 import LeanCert.Meta.ToExpr
 import LeanCert.Meta.ProveSupported
 import LeanCert.Meta.ProveContinuous
@@ -1339,10 +1340,10 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
       let newGoals ← goal.apply proof
       setGoals newGoals
 
-      -- 8. Solve remaining goals with native_decide
+      -- 8. Solve remaining certificate goals via the verification choke point
       for g in newGoals do
-        setGoals [g]
-        evalTactic (← `(tactic| native_decide))
+        discard <| LeanCert.Tactic.closeCertificateGoal
+          (← LeanCert.Tactic.VerificationConfig.current) g (tacticName := "interval_roots")
 
 /-- The interval_roots tactic.
 
@@ -1509,10 +1510,10 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
     setGoals newGoals
 
     -- Solve certificate check: checkNewtonContractsCore e I cfg = true
-    -- This is computable, so native_decide works
+    -- (computable; closed via the verification choke point)
     for g in newGoals do
-      setGoals [g]
-      evalTactic (← `(tactic| native_decide))
+      discard <| LeanCert.Tactic.closeCertificateGoal
+        (← LeanCert.Tactic.VerificationConfig.current) g (tacticName := "interval_unique_root")
 
 /-- The interval_unique_root tactic.
 

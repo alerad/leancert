@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Tactic.Verification
 import LeanCert.Tactic.IntervalAuto.Bound
 import LeanCert.Validity.Bounds
 import LeanCert.Engine.Optimization.BoundVerify
@@ -37,7 +38,7 @@ private partial def proveUpperBoundWithSubdiv
     let certGoal ← mkFreshExprMVar certTy
     let certGoalId := certGoal.mvarId!
     setGoals [certGoalId]
-    evalTactic (← `(tactic| native_decide))
+    discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "interval_bound_subdiv")
     let certProof := certGoal
     let proof ← mkAppM ``Validity.verify_upper_bound_Icc_core
       #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certProof]
@@ -91,7 +92,7 @@ private partial def proveLowerBoundWithSubdiv
     let certGoal ← mkFreshExprMVar certTy
     let certGoalId := certGoal.mvarId!
     setGoals [certGoalId]
-    evalTactic (← `(tactic| native_decide))
+    discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "interval_bound_subdiv")
     let certProof := certGoal
     let proof ← mkAppM ``Validity.verify_lower_bound_Icc_core
       #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certProof]
@@ -145,7 +146,7 @@ private partial def proveStrictUpperBoundWithSubdiv
     let certGoal ← mkFreshExprMVar certTy
     let certGoalId := certGoal.mvarId!
     setGoals [certGoalId]
-    evalTactic (← `(tactic| native_decide))
+    discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "interval_bound_subdiv")
     let certProof := certGoal
     let proof ← mkAppM ``Validity.verify_strict_upper_bound_Icc_core
       #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certProof]
@@ -199,7 +200,7 @@ private partial def proveStrictLowerBoundWithSubdiv
     let certGoal ← mkFreshExprMVar certTy
     let certGoalId := certGoal.mvarId!
     setGoals [certGoalId]
-    evalTactic (← `(tactic| native_decide))
+    discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "interval_bound_subdiv")
     let certProof := certGoal
     let proof ← mkAppM ``Validity.verify_strict_lower_bound_Icc_core
       #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certProof]

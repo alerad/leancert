@@ -122,8 +122,12 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig) : Arra
       { report := report intent "finsum_bound 80" (some "dyadic interval"),
         solve := finSumBoundCore (-80) 10 }]
   | .certificateCheck => #[
-      { report := report intent "native_decide" (some "closed LeanCert checker"),
-        solve := do evalTactic (← `(tactic| native_decide)), cost := 0 }]
+      { report := report intent "certificate verification" (some "closed LeanCert checker via leancert.trust route"),
+        solve := do
+          discard <| LeanCert.Tactic.closeCertificateGoal
+            (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
+            (tacticName := "leancert"),
+        cost := 0 }]
   | .integralBound => #[
       { report := report intent "integral_exact" (some "exact rational polynomial"),
         solve := integralExactCore, cost := 0 },

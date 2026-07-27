@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Tactic.Verification
 import LeanCert.Validity.Bounds
 import LeanCert.Validity.DyadicBounds
 import LeanCert.Engine.Eval.Core
@@ -153,7 +154,7 @@ private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
       let certGoalId := certGoal.mvarId!
       certGoalId.withContext do
         setGoals [certGoalId]
-        evalTactic (← `(tactic| native_decide))
+        discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
       let conclusionProof ← mkAppM' proof #[certGoal]
       setGoals [goal]
       let newGoals ← goal.apply conclusionProof
@@ -293,7 +294,7 @@ where
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
-              evalTactic (← `(tactic| native_decide))
+              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
           catch _ =>
             -- Apply failed, so we need to use convert
             setGoals [goal]
@@ -311,7 +312,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            evalTactic (← `(tactic| native_decide))
+            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
             let certProof := certGoal
 
             -- Apply the theorem with the certificate to get the conclusion
@@ -381,7 +382,7 @@ where
             setGoals newGoals
             for g in newGoals do
               setGoals [g]
-              evalTactic (← `(tactic| native_decide))
+              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -393,7 +394,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            evalTactic (← `(tactic| native_decide))
+            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
             let certProof := certGoal
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
@@ -472,7 +473,7 @@ where
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
-              evalTactic (← `(tactic| native_decide))
+              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -487,7 +488,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            evalTactic (← `(tactic| native_decide))
+            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
             let certProof := certGoal
 
             let conclusionProof ← mkAppM' proof #[certProof]
@@ -551,7 +552,7 @@ where
             setGoals newGoals
             for g in newGoals do
               setGoals [g]
-              evalTactic (← `(tactic| native_decide))
+              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -563,7 +564,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            evalTactic (← `(tactic| native_decide))
+            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
             let certProof := certGoal
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
@@ -642,7 +643,7 @@ where
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
-              evalTactic (← `(tactic| native_decide))
+              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -657,7 +658,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            evalTactic (← `(tactic| native_decide))
+            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
             let certProof := certGoal
 
             let conclusionProof ← mkAppM' proof #[certProof]
@@ -718,7 +719,7 @@ where
           for g in newGoals do
             setGoals [g]
             try
-              evalTactic (← `(tactic| native_decide))
+              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
             catch _ =>
               try
                 evalTactic (← `(tactic| norm_cast))
@@ -774,7 +775,7 @@ where
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
-              evalTactic (← `(tactic| native_decide))
+              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -789,7 +790,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            evalTactic (← `(tactic| native_decide))
+            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
             let certProof := certGoal
 
             let conclusionProof ← mkAppM' proof #[certProof]
@@ -850,7 +851,7 @@ where
           for g in newGoals do
             setGoals [g]
             try
-              evalTactic (← `(tactic| native_decide))
+              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
             catch _ =>
               try
                 evalTactic (← `(tactic| norm_cast))

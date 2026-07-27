@@ -171,6 +171,10 @@ def closeCertificateGoal (cfg : VerificationConfig) (certGoal : MVarId)
     | .auto =>
         closeAutoCore cfg certGoal tacticName
   finally
+    -- Restore the surrounding goal list, dropping anything closed in the
+    -- meantime (in particular `certGoal` itself when it was the main goal —
+    -- callers check goal-list emptiness to detect success).
     setGoals savedGoals
+    pruneSolvedGoals
 
 end LeanCert.Tactic
