@@ -92,6 +92,12 @@ def VerificationMode.ofString? : String → Option VerificationMode
   | "auto"   => some .auto
   | _        => none
 
+/-- Option-value spelling of the mode (`"kernel"` / `"native"` / `"auto"`). -/
+def VerificationMode.asString : VerificationMode → String
+  | .native => "native"
+  | .kernel => "kernel"
+  | .auto   => "auto"
+
 /-- Configuration for certificate verification. Tactics resolve this from
 options via `VerificationConfig.current`; a future public `(trust := …)`
 syntax will override it per invocation. -/
@@ -176,5 +182,104 @@ def closeCertificateGoal (cfg : VerificationConfig) (certGoal : MVarId)
     -- callers check goal-list emptiness to detect success).
     setGoals savedGoals
     pruneSolvedGoals
+
+/-! ## Public per-invocation syntax: `(trust := kernel|native|auto)`
+
+Tactics accept an optional trailing `leancertTrustItem`; when present it
+overrides the `leancert.trust` option for that invocation only (implemented
+by running the tactic core under `withOptions`, so every certificate check in
+the invocation — including nested fallback strategies — honors it). -/
+
+/-- Per-invocation verification route for LeanCert tactics:
+`(trust := kernel)`, `(trust := native)`, or `(trust := auto)`. -/
+syntax leancertTrustItem := "(" &"trust" " := " ident ")"
+
+/-- Elaborate an optional `(trust := …)` item. -/
+def elabTrustItem? : Option (TSyntax ``leancertTrustItem) →
+    TacticM (Option VerificationMode)
+  | none => pure none
+  | some stx =>
+    match stx with
+    | `(leancertTrustItem| (trust := $m:ident)) => do
+      let some mode := VerificationMode.ofString? m.getId.toString
+        | throwErrorAt m "invalid trust mode '{m.getId}'; expected kernel, native, or auto"
+      return some mode
+    | _ => throwUnsupportedSyntax
+
+/-- Run `act` with `leancert.trust` overridden to `mode?` when provided. -/
+def withTrustMode (mode? : Option VerificationMode) (act : TacticM α) : TacticM α :=
+  match mode? with
+  | none => act
+  | some m => withOptions (fun o => o.set `leancert.trust m.asString) act
+
+/-! ## `#assert_trust`: CI trust manifests
+
+`#assert_trust kernel thm` / `#assert_trust native thm` pin a theorem's trust
+class. Drift in *either* direction fails: a kernel-clean theorem acquiring
+native-compiler trust is a regression, and a native-pinned theorem losing its
+native dependency means the manifest should be tightened to `kernel`.
+`sorryAx` and unrecognized axioms always fail. -/
+
+/-- Trust classification of a single axiom. -/
+inductive TrustClass where
+  /-- `propext`, `Classical.choice`, `Quot.sound`. -/
+  | foundational
+  /-- `Lean.ofReduceBool` / `Lean.ofReduceNat` / `Lean.trustCompiler`, or a
+  per-declaration `native_decide` auxiliary (`<decl>._native.native_decide.ax_*`). -/
+  | nativeCompiler
+  /-- `sorryAx`. -/
+  | sorryAx
+  /-- Anything else. -/
+  | custom
+  deriving DecidableEq, Repr
+
+/-- Classify an axiom name into its trust class. -/
+def classifyAxiom (n : Name) : TrustClass :=
+  if n == ``propext || n == ``Classical.choice || n == ``Quot.sound then
+    .foundational
+  else if n == ``Lean.ofReduceBool || n == ``Lean.ofReduceNat
+      || n == ``Lean.trustCompiler then
+    .nativeCompiler
+  else if n == ``sorryAx then
+    .sorryAx
+  else
+    match n with
+    | .str (.str _ "native_decide") _ => .nativeCompiler
+    | _ => .custom
+
+open Elab Command in
+/-- `#assert_trust kernel thm`: `thm` depends on foundational axioms only.
+`#assert_trust native thm`: `thm` additionally depends on native-compiler
+trust (and nothing worse). Any `sorryAx` or unrecognized axiom fails both. -/
+elab "#assert_trust " cls:ident thm:ident : command => do
+  let declName ← liftCoreM <| realizeGlobalConstNoOverloadWithInfo thm
+  liftCoreM do
+    let axs ← collectAxioms declName
+    let part (c : TrustClass) : Array Name := axs.filter (classifyAxiom · == c)
+    let foundational := part .foundational
+    let native := part .nativeCompiler
+    let sorries := part .sorryAx
+    let custom := part .custom
+    let breakdown : MessageData := MessageData.joinSep
+      ([(`foundational, foundational), (`nativeCompiler, native),
+        (`sorryAx, sorries), (`custom, custom)].filterMap fun (label, group) =>
+        if group.isEmpty then none
+        else some m!"  {label}: {MessageData.joinSep (group.toList.map toMessageData) ", "}")
+      "\n"
+    unless sorries.isEmpty && custom.isEmpty do
+      throwErrorAt thm "#assert_trust: '{declName}' depends on sorry or \
+        unrecognized axioms\n{breakdown}"
+    match cls.getId with
+    | `kernel =>
+      unless native.isEmpty do
+        throwErrorAt thm "#assert_trust kernel: '{declName}' is not \
+          kernel-clean\n{breakdown}"
+    | `native =>
+      if native.isEmpty then
+        throwErrorAt thm "#assert_trust native: '{declName}' has no \
+          native-compiler dependency; tighten the manifest to `kernel`"
+    | other =>
+      throwErrorAt cls "#assert_trust: unknown trust class '{other}'; \
+        expected 'kernel' or 'native'"
 
 end LeanCert.Tactic

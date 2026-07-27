@@ -861,25 +861,12 @@ where
 
 /-! ## Tactic Syntax -/
 
-/-- The certify_bound tactic.
-
-    Automatically proves bounds on expressions using interval arithmetic.
-
-    Usage:
-    - `certify_bound` - uses adaptive precision (tries depths 10, 15, 20, 25, 30)
-    - `certify_bound 20` - uses fixed Taylor depth of 20
-
-    Supports goals of the form:
-    - `∀ x ∈ I, f x ≤ c`
-    - `∀ x ∈ I, c ≤ f x`
-    - `∀ x ∈ I, f x < c`
-    - `∀ x ∈ I, c < f x`
--/
-elab "certify_bound" depth:(num)? : tactic => do
+/-- Core of `certify_bound`: fixed depth when given, else adaptive depth search. -/
+def certifyBoundWithDepth (depth : Option Nat) : TacticM Unit := do
   match depth with
   | some n =>
     -- Fixed depth specified by user
-    intervalBoundCore n.getNat
+    intervalBoundCore n
   | none =>
     -- Adaptive: try increasing depths until success
     let depths := [10, 15, 20, 25, 30]
@@ -922,5 +909,25 @@ elab "certify_bound" depth:(num)? : tactic => do
       throwError m!"{e.toMessageData}\n\n{diagMsg}"
     | none => throwError "certify_bound: All precision levels failed"
 
+/-- The certify_bound tactic.
+
+    Automatically proves bounds on expressions using interval arithmetic.
+
+    Usage:
+    - `certify_bound` - uses adaptive precision (tries depths 10, 15, 20, 25, 30)
+    - `certify_bound 20` - uses fixed Taylor depth of 20
+    - `certify_bound (trust := kernel)` - kernel-only certificate verification
+      (likewise `native`, `auto`; defaults to the `leancert.trust` option)
+
+    Supports goals of the form:
+    - `∀ x ∈ I, f x ≤ c`
+    - `∀ x ∈ I, c ≤ f x`
+    - `∀ x ∈ I, f x < c`
+    - `∀ x ∈ I, c < f x`
+-/
+elab "certify_bound" depth:(num)? t:(leancertTrustItem)? : tactic => do
+  discard <| VerificationConfig.current
+  withTrustMode (← elabTrustItem? t) do
+    certifyBoundWithDepth (depth.map (·.getNat))
 
 end LeanCert.Tactic.Auto

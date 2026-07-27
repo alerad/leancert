@@ -82,6 +82,48 @@ theorem trustAutoLog : Real.log 2 < 7/10 := by interval_decide
 #guard_msgs in
 #print axioms trustAutoLog
 
+/-! ### Public per-invocation syntax: `(trust := …)` (Phase 3) -/
+
+theorem trustSyntaxKernel : Real.log 2 < 7/10 := by
+  interval_decide (trust := kernel)
+
+theorem trustSyntaxKernelDepth : Real.log 2 < 7/10 := by
+  interval_decide 20 (trust := kernel)
+
+theorem trustSyntaxBound : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := by
+  certify_bound (trust := kernel)
+
+theorem trustSyntaxAuto : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := by
+  interval_auto (trust := kernel)
+
+theorem trustSyntaxRouter : Real.log 2 < 7/10 := by
+  leancert (trust := kernel)
+
+/-! ### `#assert_trust`: the CI manifest command -/
+
+#assert_trust kernel trustSyntaxKernel
+#assert_trust kernel trustSyntaxKernelDepth
+#assert_trust kernel trustSyntaxBound
+#assert_trust kernel trustSyntaxAuto
+#assert_trust kernel trustSyntaxRouter
+#assert_trust kernel trustKernelLogUpper
+#assert_trust native trustDefaultNative
+
+-- Drift is caught in BOTH directions: pinning `native` on a kernel-clean
+-- theorem fails with a tighten-the-manifest hint.
+/--
+error: #assert_trust native: 'trustSyntaxKernel' has no native-compiler dependency; tighten the manifest to `kernel`
+-/
+#guard_msgs in
+#assert_trust native trustSyntaxKernel
+
+-- Invalid trust mode in the per-invocation syntax errors cleanly.
+/--
+error: invalid trust mode 'kernle'; expected kernel, native, or auto
+-/
+#guard_msgs in
+example : Real.log 2 < 7/10 := by interval_decide (trust := kernle)
+
 /-! ### Invalid option values error up front -/
 
 /--

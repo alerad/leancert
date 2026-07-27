@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Lean.Elab.Tactic.Config
+import LeanCert.Tactic.Verification
 
 /-!
 # LeanCert Router Configuration
@@ -27,6 +28,9 @@ structure LeanCertConfig where
   maxIterations : Nat := 1000
   /-- Enable monotonicity pruning in global optimization strategies. -/
   useMonotonicity : Bool := true
+  /-- Per-invocation certificate verification route; `none` defers to the
+  `leancert.trust` option. -/
+  trust : Option VerificationMode := none
   deriving Inhabited, Repr
 
 /-- Elaborate standard tactic configuration syntax for `LeanCertConfig`. -/

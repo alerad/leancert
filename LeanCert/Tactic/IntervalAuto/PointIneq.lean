@@ -864,10 +864,11 @@ partial def intervalDecideWithConnectives (depth : Option Nat) : TacticM Unit :=
   else
     intervalDecideSingle depth
 
-elab "interval_decide" depth:(num)? : tactic => do
+elab "interval_decide" depth:(num)? t:(leancertTrustItem)? : tactic => do
   -- Validate `leancert.trust` up front so a bad value surfaces as its own
   -- error rather than as a generic tactic failure inside the proof cascade.
   discard <| VerificationConfig.current
-  intervalDecideWithConnectives (depth.map (·.getNat))
+  withTrustMode (← elabTrustItem? t) do
+    intervalDecideWithConnectives (depth.map (·.getNat))
 
 end LeanCert.Tactic.Auto

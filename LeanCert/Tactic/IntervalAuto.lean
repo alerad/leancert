@@ -64,33 +64,35 @@ private partial def isPointInequality (goal : Lean.Expr) : MetaM Bool := do
 
     This is the recommended entry point for interval arithmetic proofs.
 -/
-elab "interval_auto" depth:(num)? : tactic => do
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-  let isPoint ← isPointInequality goalType
-  if isPoint then
-    trace[interval_decide] "interval_auto: detected point inequality, using interval_decide"
-    intervalDecideWithConnectives (depth.map (·.getNat))
-  else
-    trace[interval_decide] "interval_auto: detected quantified goal, using certify_bound"
-    match depth with
-    | some n => intervalBoundCore n.getNat
-    | none =>
-      let depths := [10, 15, 20, 25, 30]
-      let goalState ← saveState
-      let mut lastError : Option Exception := none
-      for d in depths do
-        try
-          restoreState goalState
-          trace[interval_decide] "Trying Taylor depth {d}..."
-          intervalBoundCore d
-          trace[interval_decide] "Success with Taylor depth {d}"
-          return
-        catch e =>
-          lastError := some e
-          continue
-      match lastError with
-      | some e => throw e
-      | none => throwError "interval_auto: All precision levels failed"
+elab "interval_auto" depth:(num)? t:(leancertTrustItem)? : tactic => do
+  discard <| VerificationConfig.current
+  withTrustMode (← elabTrustItem? t) do
+    let goal ← getMainGoal
+    let goalType ← goal.getType
+    let isPoint ← isPointInequality goalType
+    if isPoint then
+      trace[interval_decide] "interval_auto: detected point inequality, using interval_decide"
+      intervalDecideWithConnectives (depth.map (·.getNat))
+    else
+      trace[interval_decide] "interval_auto: detected quantified goal, using certify_bound"
+      match depth with
+      | some n => intervalBoundCore n.getNat
+      | none =>
+        let depths := [10, 15, 20, 25, 30]
+        let goalState ← saveState
+        let mut lastError : Option Exception := none
+        for d in depths do
+          try
+            restoreState goalState
+            trace[interval_decide] "Trying Taylor depth {d}..."
+            intervalBoundCore d
+            trace[interval_decide] "Success with Taylor depth {d}"
+            return
+          catch e =>
+            lastError := some e
+            continue
+        match lastError with
+        | some e => throw e
+        | none => throwError "interval_auto: All precision levels failed"
 
 end LeanCert.Tactic.Auto

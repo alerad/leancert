@@ -667,6 +667,7 @@ syntax "(" &"budget" " := " num ")" : leanCertConfigItem
 syntax "(" &"taylorDepth" " := " num ")" : leanCertConfigItem
 syntax "(" &"subdivisions" " := " num ")" : leanCertConfigItem
 syntax "(" &"maxIterations" " := " num ")" : leanCertConfigItem
+syntax "(" &"trust" " := " ident ")" : leanCertConfigItem
 
 private def elaborateInlineConfig (items : Array Syntax) : TacticM LeanCertConfig := do
   let mut cfg : LeanCertConfig := {}
@@ -680,6 +681,10 @@ private def elaborateInlineConfig (items : Array Syntax) : TacticM LeanCertConfi
         cfg := { cfg with subdivisions := n.getNat }
     | `(leanCertConfigItem| (maxIterations := $n:num)) =>
         cfg := { cfg with maxIterations := n.getNat }
+    | `(leanCertConfigItem| (trust := $m:ident)) =>
+        let some mode := VerificationMode.ofString? m.getId.toString
+          | throwErrorAt m "invalid trust mode '{m.getId}'; expected kernel, native, or auto"
+        cfg := { cfg with trust := some mode }
     | _ => throwUnsupportedSyntax
   return cfg
 
@@ -692,12 +697,14 @@ syntax (name := leanCertQuestionTac) "leancert?" leanCertConfigItem* : tactic
 @[tactic leanCertTac]
 unsafe def elabLeanCert : Tactic := fun stx => do
   let cfg ← elaborateInlineConfig stx[1].getArgs
-  discard <| runLeanCert cfg
+  withTrustMode cfg.trust do
+    discard <| runLeanCert cfg
 
 @[tactic leanCertQuestionTac]
 unsafe def elabLeanCertQuestion : Tactic := fun stx => do
   let cfg ← elaborateInlineConfig stx[1].getArgs
-  let result ← runLeanCert cfg
-  logInfo m!"{Diagnostic.successReport result}"
+  withTrustMode cfg.trust do
+    let result ← runLeanCert cfg
+    logInfo m!"{Diagnostic.successReport result}"
 
 end LeanCert.Tactic
