@@ -930,4 +930,12 @@ elab "certify_bound" depth:(num)? t:(leancertTrustItem)? : tactic => do
   withTrustMode (← elabTrustItem? t) do
     certifyBoundWithDepth (depth.map (·.getNat))
 
+/-- Deprecated alias for `certify_bound`, kept for downstream compatibility
+(PrimeNumberTheoremAnd's IEANTN files predate the rename). Prefer
+`certify_bound`. -/
+elab "interval_bound" depth:(num)? t:(leancertTrustItem)? : tactic => do
+  discard <| VerificationConfig.current
+  withTrustMode (← elabTrustItem? t) do
+    certifyBoundWithDepth (depth.map (·.getNat))
+
 end LeanCert.Tactic.Auto
