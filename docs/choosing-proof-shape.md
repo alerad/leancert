@@ -7,7 +7,7 @@ Start from the theorem you want to prove, not from a module name.
 Use direct automation when the target theorem is already a concrete numerical
 claim:
 
-```lean
+```text
 ∀ x ∈ I, f x ≤ c
 ∀ x ∈ I, f x ≠ 0
 ∃ x ∈ I, f x = 0
@@ -15,7 +15,6 @@ claim:
 ∃ M, ∀ x ∈ I, f x ≤ M
 ∫ x in a..b, f x ∈ B
 ```
-
 Go to [Direct Automation](direct/bounds.md).
 
 ## Structured Certificate Goals

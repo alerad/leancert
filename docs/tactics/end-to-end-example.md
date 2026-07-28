@@ -23,7 +23,7 @@ Suppose discovery reports an upper enclosure below `2`. That gives a safe theore
 ```lean
 import LeanCert.Tactic
 
-example : forall x in Set.Icc (0 : Real) 1, x^2 + Real.sin x <= 2 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ^ 2 + Real.sin x ≤ 2 := by
   leancert
 ```
 
@@ -36,7 +36,7 @@ open LeanCert.Core
 
 def I12 : IntervalRat := { lo := 1, hi := 2, le := by norm_num }
 
-example : exists x in I12, Expr.eval (fun _ => x)
+example : ∃ x ∈ I12, Expr.eval (fun _ => x)
     (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))) = 0 := by
   interval_roots
 ```

@@ -32,6 +32,8 @@ LeanCert is organized around proof intent:
 | A constant built by perturbing a reusable base object | [Proof Templates → ConstantFactory](proof-templates/constant-factory.md) |
 | A finite q-product integral | [Proof Templates → Exact Product-Integral Certificates](proof-templates/qproduct-finite-integrals.md) |
 | A contour-shift identity | [Proof Templates → Contour Shift](proof-templates/contour-shift.md) |
+| A limit enclosed by truncations and computable tails | [Proof Templates → Directed Limits](proof-templates/directed-limits.md) |
+| A removable `0/0` singularity controlled by derivative data | [Proof Templates → Wall Quotients](proof-templates/wall-quotients.md) |
 | Chebyshev, Abel, Euler-product, Dirichlet, or Mertens certificates | [Domain Libraries → Analytic Number Theory](domains/ant/overview.md) |
 | A neural-network or transformer verification problem | [ML Verification](ml/neural-networks.md) |
 
@@ -40,7 +42,7 @@ LeanCert is organized around proof intent:
 ```lean
 import LeanCert.Tactic
 
-example : forall x in Set.Icc (0 : Real) 1, Real.sin x <= 1 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by
   leancert
 ```
 
@@ -54,6 +56,9 @@ name = "leancert"
 git = "https://github.com/alerad/leancert"
 rev = "main"
 ```
+
+For reproducible proofs, pin a tested LeanCert release tag instead of `main`.
+Use `main` only when intentionally following unreleased changes.
 
 Then run:
 

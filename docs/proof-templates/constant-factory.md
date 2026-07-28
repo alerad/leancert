@@ -19,10 +19,9 @@ In the current implementation, the base object is a q-product profile.  For a
 base set `R` and a disjoint perturbation set `Q`, ConstantFactory proves finite
 identities for:
 
-```lean
+```text
 F (R ∪ Q)
 ```
-
 by reducing them to certified moments of `R`.
 
 The q-product implementation is the first instance of this template; the
@@ -31,13 +30,12 @@ perturbation verification.
 
 Core APIs:
 
-```lean
+```text
 observerIntegralRat_eq_F_union
 verify_constantFactory_interval
 KernelIntervalBank
 F_union_mem_observerInterval
 ```
-
 Taylor-model integral certificates can be used to produce kernel enclosures,
 but fully automatic Taylor-backed kernel-bank construction is a future
 constructor layer.

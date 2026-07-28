@@ -27,23 +27,21 @@ LeanCert provides:
 The core theorem is:
 
 ```lean
-TableCert.verify :
-  (∀ row, checker row = true → Claim row) →
-  T.checkAll checker = true →
-  ∀ row, row ∈ T.rows.toList → Claim row
+#check LeanCert.Engine.TableCert.verify
 ```
-
 This supports the standard workflow:
 
 ```lean
-def rows : Array Row := #[...]
-def table : TableCert Row := { rows := rows }
+def smallTable : LeanCert.Engine.TableCert Nat := { rows := #[0, 2, 4] }
 
-theorem all_rows_valid :
-    ∀ row, row ∈ table.rows.toList → RowValid row :=
-  TableCert.verify table row_checker_sound (by native_decide)
+example : ∀ row, row ∈ smallTable.rows.toList → row ≤ 4 := by
+  exact LeanCert.Engine.TableCert.verify
+    (Claim := fun row => row ≤ 4)
+    (checker := fun row => decide (row ≤ 4))
+    smallTable
+    (by intro row checked; exact of_decide_eq_true checked)
+    (by native_decide)
 ```
-
 ## Linked Rows
 
 Large numerical tables often need "next row" data. LeanCert should not ask the
@@ -51,16 +49,14 @@ kernel to discover a successor by searching a finite set or evaluating an
 `sInf`. The oracle should provide the successor witness, and Lean should verify
 local adjacency:
 
-```lean
+```text
 checkLinkedRows rows key nextKey eqKey = true
 ```
-
 Its theorem proves:
 
-```lean
+```text
 AdjacentAll (fun current following => nextKey current = key following) rows.toList
 ```
-
 The executable checker performs a single linear pass over adjacent pairs.
 
 ## Audit Data

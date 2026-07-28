@@ -1,87 +1,88 @@
 # Model Distillation Verification
 
-LeanCert allows you to formally verify that a compressed "Student" model behaves identically (within a tolerance ε) to a large "Teacher" model.
+LeanCert can certify that a student network differs from a teacher network by
+at most a rational tolerance on a specified interval box.
 
-## The Problem
+## Certified statement
 
-When deploying AI, we often compress large models via distillation, pruning, or quantization. How do we know the compressed model is safe? Testing on a dataset isn't enough—it leaves gaps where untested inputs could produce dangerous outputs.
+For every real input represented by the certified box, the theorem bounds each
+corresponding output coordinate:
 
-## The Solution: Formal Equivalence
+\[
+\left|T(x)_i-S(x)_i\right| \leq \varepsilon.
+\]
 
-We verify that:
+This is a guarantee for every input in that box, not for inputs outside the
+declared domain.
 
-\\[
-\forall x \in \text{Domain}, \quad |\text{Teacher}(x) - \text{Student}(x)| \le \epsilon
-\\]
-
-This provides a **guarantee** that holds for all possible inputs, not just test samples.
-
-## Usage
+## API shape
 
 ```lean
 import LeanCert.ML.Distillation
 
+open LeanCert.ML
 open LeanCert.ML.Distillation
 
--- 1. Define input domain (e.g., [0, 1]²)
-def domain := [IntervalDyadic.ofRat 0 1, IntervalDyadic.ofRat 0 1]
-
--- 2. Define tolerance
-def epsilon : ℚ := 0.01
-
--- 3. Verify equivalence
-theorem model_equivalence :
-    verify_equivalence teacherNet studentNet domain epsilon := by
-  native_decide
+#check SequentialNet
+#check checkEquivalence
+#check verify_equivalence
 ```
 
-## How it Works
+`checkEquivalence teacher student domain eps prec` is the executable Boolean
+certificate. `verify_equivalence` is its Golden Theorem. Applying it also
+requires:
 
-The verifier computes interval bounds for the **difference graph** D(x) = T(x) - S(x). By computing the difference directly, interval arithmetic can cancel out correlated terms (like shared inputs), resulting in much tighter bounds than bounding T(x) and S(x) separately.
+- a concrete real input;
+- nonpositive Dyadic precision;
+- well-formedness proofs for both networks;
+- equality between the input and box dimensions;
+- componentwise membership of the input in the box; and
+- a proof that `checkEquivalence ... = true`.
 
-### Difference Graph Approach
-
-```
-Standard approach (loose):
-  |T(x) - S(x)| ≤ |T(x)| + |S(x)| ≤ wide bound
-
-Difference graph approach (tight):
-  D(x) = T(x) - S(x)
-  |D(x)| ≤ tight bound (cancellation exploited)
-```
-
-## Verification Workflow
-
-1. **Define networks**: Specify Teacher and Student as `Layer` lists
-2. **Define domain**: Input intervals representing valid inputs
-3. **Set tolerance**: Maximum acceptable output difference ε
-4. **Run verification**: LeanCert propagates intervals through the difference graph
-5. **Get proof**: If successful, produces a formal Lean theorem
-
-## Example: Pruned Classifier
+The complete compiled example is
+`LeanCert/Examples/ML/Distillation.lean`. The theorem used by that example is
+part of the checked public API:
 
 ```lean
--- Teacher: Full 3-layer network
-def teacher : List Layer := [layer1, layer2, layer3]
-
--- Student: Pruned version with zeroed weights
-def student : List Layer := [layer1_pruned, layer2_pruned, layer3_pruned]
-
--- Verify pruning didn't change outputs by more than 0.1
-theorem pruning_safe :
-    ∀ x ∈ inputDomain, |teacher.forward x - student.forward x| ≤ 0.1 :=
-  verify_equivalence teacher student inputDomain 0.1
+#check LeanCert.ML.Distillation.verify_equivalence
 ```
+Use exact rational tolerances such as `(1 : ℚ) / 100`, rather than treating a
+decimal presentation as part of the API.
+
+## How the checker works
+
+The current checker:
+
+1. propagates the input box through the teacher;
+2. propagates the same box through the student;
+3. subtracts the two output interval vectors; and
+4. checks that every difference interval lies in `[-eps, eps]`.
+
+Because the two networks are enclosed independently before subtraction, the
+current implementation does not preserve cross-network correlations or perform
+symbolic cancellation between shared teacher and student computations. This
+can make its bound conservative.
+
+## Workflow
+
+1. Define each network as a `SequentialNet`.
+2. Prove that the layer dimensions are well formed.
+3. Define an `IntervalVector` input box and a rational tolerance.
+4. prove `checkEquivalence ... = true`, normally by computation.
+5. Apply `verify_equivalence` to obtain the semantic bound for an arbitrary
+   input satisfying the box-membership hypotheses.
 
 ## Limitations
 
-- **Scalability**: Very deep networks or wide input domains may require subdivision
-- **Tolerance**: The verifier may fail if ε is too tight (increase ε or refine the domain)
-- **Architecture**: Both networks must have compatible input/output dimensions
+- Wide boxes and deep networks can produce inconclusive interval bounds.
+- Teacher and student output dimensions must agree.
+- The theorem bounds corresponding output coordinates; it does not claim
+  structural or parameter equality.
+- The current checker does not exploit correlations between the two networks.
 
 ## Files
 
 | File | Description |
-|------|-------------|
-| `LeanCert/ML/Distillation.lean` | Core verification algorithm |
-| `LeanCert/Examples/ML/Distillation.lean` | Example usage |
+|---|---|
+| `LeanCert/ML/Distillation.lean` | Checker, sequential-network infrastructure, and Golden Theorem |
+| `LeanCert/Examples/ML/Distillation.lean` | Complete compiled application |

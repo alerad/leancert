@@ -8,6 +8,45 @@ import LeanCert.CertifiedBounds
 import LeanCert.ANT
 ```
 
+The stable checked programmatic imports are:
+
+```lean
+import LeanCert.API.Eval
+import LeanCert.API.Backend
+import LeanCert.API.Optimization
+import LeanCert.API.Bounds
+```
+
+`Eval` provides the backend-independent checked dispatcher and structured
+errors. `Backend` retains backend-native result types. `Optimization` provides
+checked branch-and-bound enclosures. `Bounds` provides computable,
+support-free Boolean bound certificates and their Golden Theorems.
+
+These imports are contract-tested in isolation and may not import tactic,
+ANT, ML, Chebyshev, or example modules. The tactic trust policy remains under
+`LeanCert.Tactic`; it is not re-exported by the programmatic modules.
+
+The proof-facing boundary is intentionally Boolean:
+
+```lean
+import LeanCert.API.Bounds
+
+open LeanCert LeanCert.Core
+
+def positive : IntervalRat := ⟨1, 2, by norm_num⟩
+def logarithm : Expr := .log (.var 0)
+
+example (h : API.Bounds.checkUpperBound logarithm positive 1 = true) :
+    ∀ x ∈ positive, Expr.eval (fun _ => x) logarithm ≤ 1 := by
+  simpa using (API.Bounds.verifyUpperBound h)
+```
+
+`API.Bounds` is currently and explicitly Dyadic-backed. Its checker includes
+domain and precision validity, so its Golden Theorems require no separate
+support or domain premise. Raw `check... = true` is part of the contract:
+tactic clients may close that certificate using kernel, native, or automatic
+verification without changing the numerical backend.
+
 `LeanCert.Tactic` exposes supported proof automation, including the semantic
 `leancert` / `leancert?` front door and the dedicated `interval_auto`,
 `interval_decide`, `certify_bound`, root, optimization, and finite-sum tactics.
@@ -36,13 +75,13 @@ should prefer the stable certified-bounds aliases where one exists.
 
 ## Semantic tactic API migration
 
-The semantic-router release deliberately removes tactic-era compatibility
-aliases instead of keeping duplicate entry points:
+The semantic-router release consolidated tactic-era entry points. Some
+spellings remain as deprecated compatibility aliases:
 
-| Removed | Canonical replacement |
+| Deprecated or removed | Canonical replacement |
 | --- | --- |
 | `interval_bound` | `leancert`, or `certify_bound` for explicit engine control |
-| `fast_bound`, `fast_bound_quick`, `fast_bound_precise` | `certify_kernel_fallback`, `certify_kernel_quick_fallback`, `certify_kernel_precise_fallback` |
+| `certify_kernel*`, `fast_bound*` | `certify_bound (trust := kernel)` or `certify_bound (trust := auto)`, with an explicit depth when needed |
 | `interval_integrate` | state an ordinary integral equality/inequality and use `leancert` |
 | `#minimize`, `#maximize` | `#find_min`, `#find_max` |
 | `import LeanCert.Discovery.Types` | `import LeanCert.Validity.Types` |

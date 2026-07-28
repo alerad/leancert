@@ -22,7 +22,7 @@ What do you want to prove?
 ├─► Need explicit control for "∀ x ∈ I, f(x) ≤ c" or "∀ x ∈ I, f(x) ≥ c"?
 │   │
 │   ├─► Single variable? ──► certify_bound
-│   │                        (or certify_kernel for kernel-only trust)
+│   │                        (add `(trust := kernel)` for kernel-only trust)
 │   │
 │   └─► Multiple variables? ──► multivariate_bound
 │
@@ -35,12 +35,12 @@ What do you want to prove?
 ├─► "∃! x ∈ I, f(x) = 0"
 │   └─► interval_unique_root
 │
-├─► "∃ m, ∀ x ∈ I, f(x) ≥ m" (find minimum)
+├─► "∃ m, ∀ x ∈ I, f(x) ≥ m" (certify a global lower bound)
 │   │
 │   ├─► Single variable? ──► interval_minimize
 │   └─► Multiple variables? ──► interval_minimize_mv
 │
-├─► "∃ M, ∀ x ∈ I, f(x) ≤ M" (find maximum)
+├─► "∃ M, ∀ x ∈ I, f(x) ≤ M" (certify a global upper bound)
 │   │
 │   ├─► Single variable? ──► interval_maximize
 │   └─► Multiple variables? ──► interval_maximize_mv
@@ -72,12 +72,12 @@ What do you want to prove?
 | Upper bound on interval | `leancert` | `∀ x ∈ Set.Icc 0 1, exp x ≤ 3` |
 | Lower bound on interval | `leancert` | `∀ x ∈ Set.Icc 0 1, 0 ≤ exp x` |
 | Bound with explicit Taylor depth | `certify_bound` | Same goals, direct interval-engine control |
-| Bound with kernel-only trust | `certify_kernel` | Same goals, higher trust |
+| Bound with kernel-only trust | `certify_bound (trust := kernel)` | Same solver, kernel-only certificate verification |
 | Multivariate bound | `leancert` | `∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2` |
 | Function has no roots | `leancert` | `∀ x ∈ I, x² + 1 ≠ 0` |
 | Root exists | `leancert` | `∃ x ∈ I, x² - 2 = 0` |
 | Unique root exists | `leancert` | `∃! x ∈ I, x² - 2 = 0` |
-| Minimum or maximum exists | `leancert` | Existential bound theorem |
+| Global lower or upper bound exists | `leancert` | Existential bound theorem |
 | Find the minimizer or maximizer | `leancert` | Argmin or argmax theorem |
 | Point inequality | `leancert` | `π < 3.15` |
 | Disprove a bound | `interval_refute` | Find counterexample |
@@ -87,13 +87,18 @@ What do you want to prove?
 
 ## Trust Levels
 
-| Tactic | Verification | When to use |
-|--------|--------------|-------------|
-| `certify_kernel` | `decide` (kernel-only) | Maximum trust, slower |
-| `certify_kernel_fallback` | `decide`, then `native_decide` | Explicit opt-in native fallback |
-| `certify_bound` | `native_decide` | Good balance of trust/speed |
-| `certify_kernel_quick` | `decide` (30 bits) | Fast, lower precision |
-| `certify_kernel_precise` | `decide` (100 bits) | Tight bounds needed |
+Solver choice and certificate-verification trust are independent. Most
+proof-producing tactics accept the same per-invocation trust item:
+
+| Mode | Example | Verification |
+|------|---------|--------------|
+| `native` (default) | `certify_bound (trust := native)` | `native_decide`; trusts the compiler/runtime |
+| `kernel` | `certify_bound (trust := kernel)` | `decide +kernel`; never silently falls back |
+| `auto` | `certify_bound (trust := auto)` | Kernel first for suitably sized certificates; reported native fallback |
+
+Use `set_option leancert.trust "kernel"` to select a mode for a whole section
+or file. A per-invocation `(trust := ...)` item takes precedence. The historical
+`certify_kernel*` tactics remain only as deprecated compatibility aliases.
 
 ## Common Patterns
 
@@ -101,13 +106,14 @@ What do you want to prove?
 
 ```lean
 -- Try 1: Increase Taylor depth
-example : ∀ x ∈ Set.Icc 0 1, exp x ≤ 2.72 := by certify_bound 20
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by certify_bound 20
 
 -- Try 2: Use subdivision
-example : ∀ x ∈ Set.Icc 0 1, exp x ≤ 2.72 := by interval_bound_subdiv 15 3
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by interval_bound_subdiv 15 3
 
--- Try 3: Use higher precision dyadic
-example : ∀ x ∈ Set.Icc 0 1, exp x ≤ 2.72 := by certify_kernel_precise
+-- Try 3: Increase depth while requiring kernel-only certificate verification
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
+  certify_bound 20 (trust := kernel)
 ```
 
 ### "I don't know what bound to use"
@@ -115,9 +121,11 @@ example : ∀ x ∈ Set.Icc 0 1, exp x ≤ 2.72 := by certify_kernel_precise
 Use discovery tactics to find bounds first:
 
 ```lean
--- Find the actual minimum/maximum
-example : ∃ m, ∀ x ∈ Set.Icc 0 1, x^2 + sin x ≥ m := by interval_minimize
-example : ∃ M, ∀ x ∈ Set.Icc 0 1, x^2 + sin x ≤ M := by interval_maximize
+-- Discover and certify global lower/upper bounds
+example : ∃ m : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1, x ^ 2 + Real.sin x ≥ m := by
+  interval_minimize
+example : ∃ M : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1, x ^ 2 + Real.sin x ≤ M := by
+  interval_maximize
 ```
 
 Or use interactive commands:
@@ -180,9 +188,9 @@ Chain simplification tactics to reduce structured expressions before proving bou
 ```lean
 -- Expand finite sum, simplify vector indexing, then close with ring
 example (a : Fin 3 → ℝ) :
-    ∑ k ∈ Finset.Icc 0 2, (![a 0, a 1, a 2] : Fin 3 → ℝ) ⟨k, by omega⟩ =
+    ∑ k : Fin 3, (![a 0, a 1, a 2] : Fin 3 → ℝ) k =
     a 0 + a 1 + a 2 := by
-  finsum_expand; vec_simp
+  finsum_expand
 ```
 
 Common combinations:

@@ -1,18 +1,44 @@
 # Imports Reference
 
-Use narrow imports while developing, and `import LeanCert` when you want the
-aggregate public API.
+Downstream developments should start with the stable umbrella imports:
 
-## Direct Automation
+```lean
+import LeanCert.Tactic
+import LeanCert.CertifiedBounds
+import LeanCert.ANT
+```
+
+Use `import LeanCert` when you intentionally want the full aggregate API.
+The narrower implementation-level imports below are useful for advanced
+development, but names under `LeanCert.Engine.*` do not carry the same
+downstream stability promise.
+
+## Checked Programmatic API
+
+```lean
+import LeanCert.API.Eval
+import LeanCert.API.Backend
+import LeanCert.API.Optimization
+import LeanCert.API.Bounds
+```
+
+These stable narrow imports expose checked computation, backend-native
+results, global bound search, and proof-facing Boolean certificates without
+loading tactic elaborators.
+
+## Advanced Narrow Imports
+
+### Direct Automation
 
 ```lean
 import LeanCert.Tactic.IntervalAuto
 import LeanCert.Tactic.DyadicAuto
 import LeanCert.Tactic.Bound
-import LeanCert.Discovery
+import LeanCert.Discovery.Commands
+import LeanCert.Tactic.Discovery
 ```
 
-## Proof Templates
+### Proof Templates
 
 ```lean
 import LeanCert.Engine.Table
@@ -23,7 +49,7 @@ import LeanCert.QProduct
 import LeanCert.Analysis.ContourShift
 ```
 
-## Domain Libraries
+### Domain Libraries
 
 ```lean
 import LeanCert.ANT
@@ -31,19 +57,19 @@ import LeanCert.Engine.ChebyshevPsi
 import LeanCert.Engine.ChebyshevTheta
 ```
 
-## Nonlinear System Roots
+### Nonlinear System Roots
 
 ```lean
 import LeanCert.Validity.Krawczyk
 ```
 
-## Algebraic Root Simplicity
+### Algebraic Root Simplicity
 
 ```lean
 import LeanCert.Validity.Algebra
 ```
 
-## Domain-aware automatic differentiation
+### Domain-aware automatic differentiation
 
 ```lean
 import LeanCert.Engine.AD.DomainChecked
@@ -58,7 +84,7 @@ soundness theorems. See
 [Checked Automatic Differentiation](../direct/checked-ad.md) for backend choice,
 Rational-input Dyadic wrappers, and Golden-Theorem examples.
 
-## ML Verification
+### ML Verification
 
 ```lean
 import LeanCert.ML.Network

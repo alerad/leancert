@@ -91,14 +91,12 @@ f(a) < 0                    f(b) > 0
 ### The Theorem
 
 ```lean
-theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
-    (hcont : ContinuousOn (Expr.eval e) (Set.Icc I.lo I.hi))
-    (I : IntervalRat) (cfg : EvalConfig)
-    (h_cert : checkSignChange e I cfg = true) :
-    ∃ x ∈ I, Expr.eval (fun _ => x) e = 0
+#check verify_sign_change
 ```
-
-**Key insight**: The checker `checkSignChange` is computable (runs via `native_decide`), while the conclusion is a semantic statement about real numbers.
+**Key insight**: The checker `checkSignChange` is computable, while the
+conclusion is a semantic statement about real numbers. Its successful result
+may be established through LeanCert's native, kernel, or automatic
+verification route.
 
 ### Usage
 
@@ -115,7 +113,10 @@ example : ∃ x ∈ I12, Expr.eval (fun _ => x)
   interval_roots
 ```
 
-### Algorithm Details
+### Engine Algorithm
+
+The advanced `Engine.RootFinding.Bisection` API recursively subdivides and can
+return several candidate intervals. Its shape is:
 
 ```
 bisectRoot(f, [a, b], depth):
@@ -134,11 +135,16 @@ bisectRoot(f, [a, b], depth):
   return roots
 ```
 
+The `interval_roots` tactic is intentionally simpler: it checks for a sign
+change on the interval stated in the goal and proves existence there. It does
+not expose the engine's list of recursively isolated candidates.
+
 ### Limitations
 
 - Only finds roots where sign changes (misses tangent roots like x² at 0)
 - Requires continuity (cannot handle discontinuous functions)
-- Multiple roots in interval returns multiple candidate intervals
+- The advanced bisection engine may return multiple candidate intervals; the
+  `interval_roots` tactic proves one existence statement on the supplied interval
 
 ---
 
@@ -160,21 +166,29 @@ Then Banach fixed-point theorem guarantees exactly one root in I.
 
 ### The Theorem
 
+The exact engine theorem is:
+
 ```lean
-theorem newton_contraction_unique_root (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (cfg : EvalConfig)
-    (h_maps_into : newtonInterval e I cfg ⊆ I)
-    (h_contracts : ∀ x ∈ I, |newtonDerivative e x cfg| < 1) :
-    ∃! x ∈ I, Expr.eval (fun _ => x) e = 0
+#check LeanCert.Engine.newton_contraction_unique_root
 ```
+
+It accepts an `ADSupported` expression, a `UsesOnlyVar0` proof, the original
+interval and a checked Newton image, evidence that either the Taylor-model or
+simple Newton step produced that image, strict containment, and continuity.
+The conclusion is uniqueness of a root in the original interval. Prefer
+`interval_unique_root` unless you are building an engine-level certificate.
 
 ### Usage
 
 ```lean
-import LeanCert.Tactic.Discovery
+def rootInterval : IntervalRat := ⟨1, 2, by norm_num⟩
 
--- Prove x² - 2 has exactly one root in [1, 2]
-example : ∃! x ∈ I12, Expr.eval (fun _ => x) expr_x2_minus_2 = 0 := by
+def squareMinusTwo : Expr :=
+  Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))
+
+example : ∃! x, x ∈ rootInterval ∧
+    Expr.eval (fun _ => x) squareMinusTwo = 0 := by
+  unfold squareMinusTwo
   interval_unique_root
 ```
 
@@ -190,7 +204,9 @@ Using interval arithmetic:
 1. Compute interval bounds on f(I), f'(I), f''(I)
 2. Check if |f(I) · f''(I)| / |f'(I)|² < 1
 
-### Algorithm Details
+### Checker shape
+
+The following is schematic pseudocode, not a Lean declaration:
 
 ```
 checkNewtonContracts(f, I):
@@ -217,16 +233,22 @@ checkNewtonContracts(f, I):
 
 ### Refinement
 
-Once uniqueness is established, Newton iteration refines the root location:
+The engine exposes `newtonStep`, which returns `Option IntervalRat`, and
+iteration APIs such as `newtonIntervalGo`. A simplified loop has this shape:
 
-```lean
-def newtonRefine (e : Expr) (I : IntervalRat) (n : ℕ) : IntervalRat :=
+```text
+newtonRefine(e, I, n):
   match n with
-  | 0 => I
-  | n + 1 => newtonRefine e (newtonStep e I) n
+  | 0       => I
+  | n + 1   => if newtonStep(e, I) succeeds with J
+               then newtonRefine(e, J, n)
+               else I
 ```
 
-Each iteration roughly doubles the number of correct digits.
+Once sufficiently close to a simple root, classical Newton iteration is
+quadratically convergent and often approximately doubles the number of correct
+digits per successful step. That rate is not unconditional for every interval
+Newton run.
 
 ---
 
@@ -237,36 +259,20 @@ Each iteration roughly doubles the number of correct digits.
 | Proves | Existence | Uniqueness |
 | Requires | Sign change | f' ≠ 0, contraction |
 | Convergence | Linear | Quadratic |
-| Multiple roots | Finds all (with sign change) | Finds one |
+| Multiple roots | Advanced engine can return several sign-change candidates | Certifies at most one root in the checked interval |
 | Tangent roots | Misses | Can verify if f' ≠ 0 nearby |
 
 ## Combined Workflow
 
-For full root verification:
-
-```lean
--- 1. First prove existence
-have h_exists : ∃ x ∈ I, f x = 0 := by interval_roots
-
--- 2. Then prove uniqueness (if needed)
-have h_unique : ∃! x ∈ I, f x = 0 := by interval_unique_root
-
--- 3. Optionally refine location
--- The unique root is in a very narrow interval
-```
-
+For full root verification, first prove existence with `interval_roots`, then
+prove uniqueness with `interval_unique_root`. Tighten the input interval and
+rerun the existence proof when a narrower certified location is needed. The
+complete compiled `squareMinusTwo` example above demonstrates both steps.
 ## Mean Value Theorem Bounds
 
-The `MVTBounds` module provides additional tools:
-
-```lean
--- If f' is bounded on [a,b], then f(b) - f(a) is bounded
-theorem mvt_bound (f : ℝ → ℝ) (a b : ℝ) (M : ℝ)
-    (h_diff : DifferentiableOn ℝ f (Set.Icc a b))
-    (h_bound : ∀ x ∈ Set.Icc a b, |f' x| ≤ M) :
-    |f b - f a| ≤ M * |b - a|
-```
-
+For project-specific estimates, combine the certified derivative enclosure
+with Mathlib's mean-value theorems. The exact hypotheses depend on whether the
+development uses `HasDerivAt`, `DifferentiableOn`, or a convex-set formulation.
 This is used internally for:
 - Bounding how much f can change between sample points
 - Verifying monotonicity

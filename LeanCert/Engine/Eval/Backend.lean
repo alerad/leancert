@@ -14,10 +14,12 @@ This module is the engine policy boundary between the public `LeanCert.evalInter
 façade and concrete interval implementations. Backend-aware engine clients may
 call the dispatcher directly; ordinary application code should use the façade.
 
-`auto` means "the fastest certified backend supported by this operation".
-For plain interval evaluation that is currently Dyadic. Explicit backend
-requests never silently switch implementation, and domain errors never trigger
-fallback.
+For interval evaluation, `auto` performs deterministic expression-aware
+selection: Affine for exact cancellation patterns, Rational for ordinary
+algebraic expressions, and Dyadic for nonlinear expressions or high exact-
+denominator growth risk. Other operations resolve `auto` according to their
+certified backend support. Explicit backend requests never silently switch
+implementation, and domain errors never trigger fallback.
 -/
 
 namespace LeanCert.Engine

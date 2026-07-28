@@ -6,7 +6,7 @@ Authors: LeanCert Contributors
 import LeanCert.Core.Support
 import LeanCert.Engine.Eval.Core
 import LeanCert.Engine.Eval.Extended
-import LeanCert.Tactic.Bound.Lemmas
+import LeanCert.Engine.Bounds.Lemmas
 
 /-!
 # Interval Evaluation of Expressions
@@ -26,7 +26,7 @@ The implementation is split across several files:
 * `LeanCert.Engine.Eval.Extended` - Internal noncomputable evaluator and the
   partial evaluator with inv/log support (`evalInterval?`)
 
-* `LeanCert.Tactic.Bound.Lemmas` - Tactic-facing lemmas for proving bounds
+* `LeanCert.Engine.Bounds.Lemmas` - Semantic lemmas for deriving real bounds
 
 ## Main definitions (re-exported)
 
