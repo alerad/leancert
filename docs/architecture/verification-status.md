@@ -245,12 +245,19 @@ The ML module provides verified interval propagation for neural networks:
 - `relu_relaxation_sound`: DeepPoly ReLU triangle relaxation
 - `sigmoid_relaxation_sound`: DeepPoly sigmoid monotonicity bounds
 
-**Transformer Components:**
+**Transformer and optimized components:**
 
-- `mem_scaledDotProductAttention`: Soundness of Q×K^T + Softmax + V
-- `mem_layerNormInterval`: Soundness of Layer Normalization
-- `mem_geluInterval`: Soundness of GELU activation
-- `forwardQuantized_sound`: Soundness of integer-quantized split-sign inference
+- `mem_layerNorm_forwardInterval`: Elementwise soundness of Layer Normalization
+- `mem_geluInterval`: Elementwise soundness of the GELU enclosure
+- `mem_scaledDotProductAttention`: currently proves an output-length relation;
+  the implementation explicitly omits elementwise membership hypotheses
+- `forwardQuantized_sound`: currently proves validity of the computed interval
+  endpoints (`lo ≤ hi`), not semantic enclosure of a corresponding real-valued
+  quantized inference
+
+Accordingly, the attention and quantized theorem names should not be read as
+full end-to-end semantic soundness claims. Check the exact theorem statement
+before using an optimized or composite ML component in a certification claim.
 
 See `LeanCert/ML/` for the full implementation.
 
@@ -262,7 +269,9 @@ Bridge theorems for kernel-level verification via `decide`:
 - `verify_lower_bound_dyadic`: Lower bound variant
 - `evalIntervalDyadic_correct`: Dyadic evaluation is sound w.r.t Real operations
 
-These enable the `certify_kernel` tactic to produce proofs verified purely by the Lean kernel, removing the compiler from the trusted computing base.
+These let the shared verification route produce proofs checked purely by the
+Lean kernel. Select it per invocation with `(trust := kernel)` or for a scope
+with `set_option leancert.trust "kernel"`.
 
 ### Runtime Optimization Boundary
 
@@ -304,10 +313,10 @@ for candidate generation or diagnostics.
 ## Placeholder Boundary
 
 The default LeanCert library and production import paths are intended to be
-placeholder-free. Public Li2 and BKLNW example interfaces now re-export verified
-certificate theorems rather than lightweight placeholder theorem bodies. Some
-legacy example/prototype files under `LeanCert/Examples` and top-level
-`examples` may still contain sketches; these are not production imports.
+placeholder-free. Stable results under `LeanCert.CertifiedBounds` expose the
+verified downstream interfaces. Some legacy example/prototype files under
+`LeanCert/Examples` and top-level `examples` still contain lightweight or
+placeholder interfaces; these are not production imports.
 
 For production work, prefer the verified heavy certificate files and the default
 LeanCert library imports. Do not build downstream formalizations on prototype
@@ -397,14 +406,24 @@ costs about the same, so those proofs can carry no compiler trust at all.
 
 ## What This Means
 
-**For typical use cases** (polynomials, `sin`, `cos`, `exp`, `log`, `sqrt`, `atan`, `atanh`, `erf`, optimization, root finding, integration):
+**For the listed production evaluators, checkers, and Golden Theorems**
+(polynomials, `sin`, `cos`, `exp`, `log`, `sqrt`, `atan`, `atanh`, `erf`,
+optimization, root finding, and integration):
 
-> The verification is complete. LeanCert's correctness theorems are accepted by
+> Their soundness proofs are complete. LeanCert's correctness theorems are accepted by
 > the Lean kernel with no axioms beyond standard Mathlib foundations
 > (`propext`, `Classical.choice`, `Quot.sound`) — enforced by CI. A proof you
 > generate adds at most one compiler-trust axiom, for the `native_decide`
 > certificate check you chose to run natively (none, if you use `decide`).
 
+Higher-level certificate frameworks may still require mathematical premises
+from the downstream project—for example residue computations, analytic
+continuation, decay estimates, or the correctness of supplied base data.
+
 **For the dyadic backend** (neural networks, deep expressions, integration of complex integrands):
 
-> All operations including `atanh` are now fully verified. The dyadic integration path (`IntegrationDyadic.lean`) provides sound integral bounds with 10-50x speedup over rational arithmetic for transcendental-heavy expressions.
+> All supported operations, including `atanh`, have soundness theorems. The
+> dyadic integration path (`Validity/IntegrationDyadic.lean`) provides sound
+> integral bounds while avoiding the denominator growth of exact Rational
+> arithmetic. Performance is workload-dependent and should be measured with
+> the benchmark harness.

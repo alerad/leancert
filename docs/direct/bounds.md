@@ -15,22 +15,19 @@ Main tactics and commands:
 ```lean
 leancert
 certify_bound
-certify_kernel
-certify_kernel_fallback
 multivariate_bound
 ```
 
-`certify_kernel` is strict and only succeeds when the kernel-verified dyadic
-path can close the goal. Use `certify_kernel_fallback` when an explicit
-compiler/runtime fallback is acceptable.
+These tactics use the configured certificate-verification route. For example,
+`certify_bound (trust := kernel)` is strict and never falls back to
+compiler/runtime verification, while `certify_bound (trust := auto)` tries
+kernel verification first and reports any native fallback.
 
 For ergonomic raw Lean goals, start with `leancert`. Use `certify_bound` when
 you intentionally want the dedicated single-variable interval engine, including
 explicit Taylor-depth selection.
-The stricter kernel path is best for reflected `Expr.eval` goals or for goals
-whose raw expression bridge is known to be supported. When you want to try that
-kernel path first but still allow the normal raw-expression automation, use
-`certify_kernel_fallback` explicitly.
+Verification mode is independent of the rational, dyadic, or affine backend
+chosen by the interval solver.
 
 Minimal example:
 

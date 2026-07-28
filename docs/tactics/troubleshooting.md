@@ -61,7 +61,9 @@ with the goal
 
 **Cause:** The tactic reified your expression to an `Expr` AST, but it doesn't match the goal syntactically.
 
-> **Note:** As of v1.2, most cases are now handled automatically. Expressions with numeric coefficients like `2 * x * x + 3 * x + 1` should work out of the box. If you still encounter this error, try the solutions below.
+> **Note:** Current releases handle most cases automatically. Expressions with
+> numeric coefficients like `2 * x * x + 3 * x + 1` should work out of the box.
+> If you still encounter this error, try the solutions below.
 
 **This may still happen with:**
 - Very complex nested coefficient expressions
@@ -211,12 +213,12 @@ x^(1/5)
 These are reified as `exp(log(x) * q)`. The tactic automatically proves
 `0 < x` from `Set.Icc` domain hypotheses when the lower bound is positive.
 
-### What requires Expr AST syntax?
+### When should I use Expr AST syntax?
 
-**Always use Expr AST for:**
-- `interval_roots` (root existence)
-- `root_bound` (root absence)
-- Low-level tactics (`interval_le`, `interval_ge`, etc.)
+Native syntax is supported by `interval_roots` and `root_bound`. Use an
+explicit `Expr` AST when automatic reification fails, when you already have a
+reflected expression, or when calling the low-level `interval_le` /
+`interval_ge` APIs.
 
 **Example:**
 ```lean
@@ -224,7 +226,7 @@ open LeanCert.Core
 
 def I12 : IntervalRat := ⟨1, 2, by norm_num⟩
 
--- Root existence requires Expr AST
+-- Equivalent explicit-AST form
 example : ∃ x ∈ I12, Expr.eval (fun _ => x)
     (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0))
               (Expr.neg (Expr.const 2))) = 0 := by
@@ -245,19 +247,21 @@ example : ∃ x ∈ I12, Expr.eval (fun _ => x)
 | Tight bounds (within 1% of true value) | 20-30 |
 | Very tight bounds | Use `interval_bound_subdiv` |
 
-### When to use dyadic kernel/fallback tactics
+### Choosing a certificate-verification route
 
-Use the dyadic backend when:
-- Deeply nested expressions: `sin(cos(sin(x)))`
-- Many operations: `x₁ + x₂ + ... + x₁₀₀`
-- Proofs with rational backend timeout or are slow
+Verification trust is independent of the rational, dyadic, or affine
+evaluation backend selected by the solver. Require kernel-only verification
+for small reusable facts; use `auto` when large certificates may need a
+reported native fallback.
 
 ```lean
 -- Strict kernel path: no compiler/runtime fallback.
-example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_kernel
+example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
+  certify_bound (trust := kernel)
 
--- Explicit fallback path if strict kernel verification cannot close the goal.
-example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_kernel_fallback
+-- Kernel first, with a reported native fallback when needed.
+example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
+  certify_bound (trust := auto)
 ```
 
 ---
@@ -270,8 +274,9 @@ example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_kern
 set_option trace.certify_bound true in
 example : ∀ x ∈ I, f x ≤ c := by certify_bound
 
-set_option trace.certify_kernel true in
-example : ∀ x ∈ I, f x ≤ c := by certify_kernel
+set_option trace.leancert.verification true in
+example : ∀ x ∈ I, f x ≤ c := by
+  certify_bound (trust := auto)
 ```
 
 ### Use discovery to check bounds
@@ -288,12 +293,15 @@ Before writing a theorem, verify the bound holds:
 ### Use `interval_refute` to check false bounds
 
 ```lean
--- Is this bound even true?
+-- Expected failure: interval_refute reports a certified counterexample and
+-- deliberately leaves the false goal unproved.
+#guard_msgs (error) in
 example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
-  interval_refute  -- Finds counterexample at x = ±2
-
--- The bound is false! x² = 4 > 3 at endpoints
+  interval_refute
 ```
+
+`interval_refute` is a diagnostic tactic. If it finds a violation, it reports
+the checked point as an error; it never turns a false proposition into a proof.
 
 ---
 

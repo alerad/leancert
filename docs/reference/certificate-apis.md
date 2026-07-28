@@ -11,6 +11,8 @@ point is [Proof Templates](../proof-templates/overview.md).
 - [ConstantFactory](../proof-templates/constant-factory.md)
 - [Exact Product-Integral Certificates](../proof-templates/qproduct-finite-integrals.md)
 - [Contour Shift](../proof-templates/contour-shift.md)
+- [Directed Limits](../proof-templates/directed-limits.md)
+- [Wall Quotients](../proof-templates/wall-quotients.md)
 
 ## Detailed Existing References
 

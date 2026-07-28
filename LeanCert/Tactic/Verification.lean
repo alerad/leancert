@@ -30,15 +30,15 @@ Design rules:
   caching) — never raw `Lean.Meta.mkDecideProof`, whose failures on a false or
   stuck certificate surface only at `addDecl` as an unreadable kernel error.
 
-The mode is currently selected with `set_option leancert.trust "kernel"`
-(likewise `"native"`, `"auto"`). Tactic-level `(trust := …)` syntax arrives
-with the public configuration API.
+Select the mode globally with `set_option leancert.trust "kernel"` (likewise
+`"native"`, `"auto"`), or per invocation with `(trust := kernel|native|auto)`.
+The per-invocation setting takes precedence.
 
 Caveat for `.auto`: the heartbeat budget bounds elaboration-side work, but
 kernel reduction itself is not heartbeat-interruptible; a pathologically large
-certificate can exceed the budget wall-clock. Cost-model gating (skipping the
-kernel attempt for certificates that are predictably too large) is planned on
-top of this hook.
+certificate can exceed the budget wall-clock. Calibrated cost gates therefore
+route predictably large finite sums, integrations, and optimization
+certificates directly to native verification.
 -/
 
 open Lean Meta Elab Tactic

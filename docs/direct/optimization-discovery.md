@@ -10,14 +10,23 @@ Typical goals:
 ∀ x ∈ I, m ≤ f x
 ```
 
-Main tools:
+Tactics:
 
 ```lean
 interval_minimize
 interval_maximize
+```
+
+Programmatic search APIs:
+
+```lean
 findGlobalMin
 findGlobalMax
 ```
+
+The tactic goals above certify global lower or upper bounds. They do not, by
+themselves, state that a bound is attained. Use `interval_argmin` or
+`interval_argmax` when the theorem explicitly asks for an optimizing point.
 
 Discovery mode is useful when you do not yet know the bound or extremum.  See
 the existing [Discovery Mode](../tactics/discovery.md) reference for command

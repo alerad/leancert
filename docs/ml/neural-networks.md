@@ -9,15 +9,16 @@ The ML module provides:
 - **Interval Propagation**: Sound overapproximation of neural network outputs
 - **DeepPoly Relaxations**: Tight linear bounds for ReLU and sigmoid activations
 - **Transformer Support**: Multi-Head Attention, LayerNorm, GELU, Residual connections
-- **Verified Soundness**: All propagation theorems are formally proved in Lean
+- **Verified Soundness**: The component-level soundness theorems listed below
+  are formally proved in Lean
 
 ## Supported Architectures
 
 | Architecture | Components | Status |
 |--------------|------------|--------|
-| Feedforward (MLP) | Linear, ReLU, Sigmoid | Fully verified |
-| Transformers | Attention, LayerNorm, GELU | Fully verified |
-| Residual Networks | Skip connections | Fully verified |
+| Feedforward (MLP) | Linear, ReLU, Sigmoid | Elementwise enclosure theorems |
+| Transformer primitives | LayerNorm, GELU | Elementwise enclosure theorems |
+| Attention and full transformer blocks | Attention, residual composition | Implemented; current public theorem coverage is structural rather than a full elementwise enclosure |
 
 ## Quick Example
 
@@ -34,8 +35,8 @@ def myNet : TwoLayerNet := {
 
 -- Input interval: x₁ ∈ [-1, 1], x₂ ∈ [0, 1]
 def inputBox : IntervalVector := [
-  IntervalDyadic.ofRat (-1) 1,
-  IntervalDyadic.ofRat 0 1
+  IntervalDyadic.ofIntervalRat ⟨-1, 1, by norm_num⟩ (-53),
+  IntervalDyadic.ofIntervalRat ⟨0, 1, by norm_num⟩ (-53)
 ]
 
 -- Propagate intervals through the network
@@ -56,18 +57,16 @@ structure Layer where
 
 ### Soundness Theorem
 
-The key theorem guarantees that interval propagation is sound:
+The exact theorem guarantees that interval propagation is sound:
 
 ```lean
-theorem mem_forwardInterval {l : Layer} {xs : List ℝ} {Is : IntervalVector}
-    (hwf : l.WellFormed)
-    (hdim : l.inputDim = Is.length)
-    (hxlen : xs.length = Is.length)
-    (hmem : ∀ i, xs[i] ∈ Is[i]) :
-    ∀ i, (forwardReal l xs)[i] ∈ (forwardInterval l Is)[i]
+#check Layer.mem_forwardInterval
+#check TwoLayerNet.mem_forwardInterval
 ```
 
-This says: if every real input is contained in its corresponding interval, then every real output is contained in its corresponding output interval.
+These theorems require well-formed dimensions, componentwise input membership,
+a nonpositive precision, and bounded index proofs. Their conclusions give
+componentwise membership of every real output in the computed interval output.
 
 ## Activation Functions
 
@@ -80,25 +79,17 @@ $$
 $$
 
 ```lean
-def relu (I : IntervalDyadic) : IntervalDyadic where
-  lo := Dyadic.max 0 I.lo
-  hi := Dyadic.max 0 I.hi
-
-theorem mem_relu {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
-    max 0 x ∈ relu I
+#check IntervalVector.relu
+#check IntervalVector.mem_relu
 ```
 
 ### Sigmoid
 
-Sigmoid uses the conservative bound $\sigma(x) \in (0, 1)$:
+Sigmoid uses the conservative closed enclosure $\sigma(x) \in [0, 1]$:
 
 ```lean
-def sigmoid (_I : IntervalDyadic) : IntervalDyadic where
-  lo := 0
-  hi := 1
-
-theorem mem_sigmoid {x : ℝ} {I : IntervalDyadic} (_hx : x ∈ I) :
-    Real.sigmoid x ∈ sigmoid I
+#check IntervalVector.sigmoid
+#check IntervalVector.mem_sigmoid
 ```
 
 ## DeepPoly Relaxations
@@ -113,9 +104,7 @@ For the "crossing case" where $l < 0 < u$, ReLU is bounded by:
 - **Upper**: The line through $(l, 0)$ and $(u, u)$
 
 ```lean
-theorem upper_bound_valid (l u : ℚ) (x : ℝ)
-    (hl : l < 0) (hu : 0 < u) (hx_mem : l ≤ x ∧ x ≤ u) :
-    max 0 x ≤ (crossingUpperBound l u).eval x
+#check LeanCert.ML.Symbolic.relu_relaxation_sound
 ```
 
 ### Sigmoid Monotonicity Bounds
@@ -127,34 +116,30 @@ $$
 $$
 
 ```lean
-theorem sigmoid_relaxation_sound (l u x : ℝ) (h : l ≤ x ∧ x ≤ u) :
-    sigmoid l ≤ sigmoid x ∧ sigmoid x ≤ sigmoid u
+#check LeanCert.ML.Symbolic.sigmoid_relaxation_sound
 ```
 
 ### GELU Activation
 
-GELU (Gaussian Error Linear Unit) is the standard activation for Transformers:
+LeanCert's Transformer interval path uses the common tanh approximation to
+GELU:
 
 $$
 \text{GELU}(x) = 0.5 \cdot x \cdot (1 + \tanh(\sqrt{2/\pi} \cdot (x + 0.044715 \cdot x^3)))
 $$
 
 ```lean
-def gelu (I : IntervalDyadic) : IntervalDyadic :=
-  -- Verified interval approximation
-  let inner := I.add (I.mul I.mul I.scale 0.044715)
-  let scaled := inner.scale (Real.sqrt (2 / Real.pi))
-  I.scale 0.5 |>.mul (IntervalDyadic.one.add (tanh scaled))
-
-theorem mem_geluInterval {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
-    Real.gelu x ∈ gelu I
+#check LeanCert.ML.Transformer.geluInterval
+#check LeanCert.ML.Transformer.mem_geluInterval
 ```
+
+For the erf-based formulation, use `LeanCert.ML.ErfGELU`.
 
 ## Transformer Components
 
 ### Self-Attention
 
-LeanCert verifies the scaled dot-product attention mechanism:
+LeanCert implements interval propagation for scaled dot-product attention:
 
 $$
 \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q \cdot K^T}{\sqrt{d_k}}\right) \cdot V
@@ -163,27 +148,31 @@ $$
 ```lean
 import LeanCert.ML.Attention
 
--- Verified attention output bounds
-theorem mem_scaledDotProductAttention
-    {Q K V : Matrix n d ℝ} {Q_int K_int V_int : IntervalMatrix n d}
-    (hQ : ∀ i j, Q i j ∈ Q_int i j)
-    (hK : ∀ i j, K i j ∈ K_int i j)
-    (hV : ∀ i j, V i j ∈ V_int i j) :
-    ∀ i j, (scaledDotProductAttention Q K V) i j ∈
-           (scaledDotProductAttentionInterval Q_int K_int V_int) i j
+#check LeanCert.ML.Attention.mem_scaledDotProductAttention
 ```
+
+Despite its historical name, the current
+`mem_scaledDotProductAttention` theorem proves an output-length relation; its
+elementwise membership hypotheses are explicitly omitted in the implementation.
+Do not treat it as a complete semantic enclosure theorem.
 
 ### Layer Normalization
 
 Interval bounds for LayerNorm are computed soundly:
 
 ```lean
-import LeanCert.ML.LayerNorm
+import LeanCert.ML.Transformer
 
 -- LayerNorm: y = (x - μ) / σ * γ + β
-theorem mem_layerNormInterval {x : Vector n ℝ} {I : IntervalVector n}
-    (hx : ∀ i, x i ∈ I i) :
-    ∀ i, (layerNorm x γ β) i ∈ (layerNormInterval I γ_int β_int) i
+theorem mem_layerNorm_forwardInterval {xs : List ℝ} {Is : IntervalVector}
+    (params : LayerNormParams)
+    (hlen : xs.length = Is.length)
+    (hmem : ∀ i, i < xs.length → xs[i]! ∈ Is[i]!)
+    (prec : Int) (hprec : prec ≤ 0 := by norm_num) :
+    let ys := layerNormReal xs params.gamma params.beta params.epsilon
+    let Js := params.forwardInterval Is prec
+    ys.length ≤ Js.length ∧
+      ∀ i, i < ys.length → ys[i]! ∈ Js[i]!
 ```
 
 **Note**: Standard interval arithmetic may overestimate LayerNorm bounds due to variable correlation (the mean and variance are computed from the same input).
@@ -195,44 +184,37 @@ To address the dependency problem in LayerNorm, LeanCert provides `LeanCert.ML.L
 ```lean
 import LeanCert.ML.LayerNormAffine
 
--- Tight bounds via affine forms that track variable correlations
-def layerNormAffine (x : AffineVector n) (γ β : List ℚ) : AffineVector n
+-- Affine LayerNorm is exposed through the parameter object.
+#check LeanCert.ML.Transformer.LayerNormParams.forwardAffine
+#check LeanCert.ML.Transformer.mem_forwardAffine
 
--- Used in TransformerBlock.forwardIntervalTight
-theorem layerNormAffine_sound {x_real : Vector n ℝ} {x_affine : AffineVector n}
-    (hx : x_real ∈ x_affine) :
-    layerNorm x_real γ β ∈ (layerNormAffine x_affine γ β).toIntervalVector
+-- Transformer blocks use it in the tighter interval path.
+#check LeanCert.ML.Transformer.TransformerBlock.forwardIntervalTight
 ```
 
-**Key insight**: In LayerNorm, the centering operation `x - μ` creates correlated outputs (they sum to zero). Standard interval arithmetic loses this correlation, leading to loose bounds. Affine arithmetic preserves it:
-
-| Method | LayerNorm([0.9, 1.1]) Bounds |
-|--------|------------------------------|
-| Standard Interval | [-1.5, 1.5] |
-| Affine Arithmetic | [-0.1, 0.1] |
+**Key insight**: In LayerNorm, the centering operation `x - μ` creates
+correlated outputs. Standard interval arithmetic loses some of that
+correlation; affine arithmetic retains linear correlation information. Exact
+numerical comparisons depend on the vector box, dimension, `gamma`, `beta`,
+`epsilon`, precision, and output coordinate, so no parameter-free bound is
+claimed here.
 
 Use `TransformerBlock.forwardIntervalTight` for the tightest bounds on transformer layers.
 
 ## Optimized Implementation
 
-For real-world networks, the `LeanCert.ML.Optimized` module provides:
-
-| Optimization | Speedup | Description |
-|--------------|---------|-------------|
-| Structure-of-Arrays | ~5x | Cache-efficient interval storage |
-| Split-Sign Decomposition | ~2x | Branch-free interval matrix multiply |
-| Common Exponent Alignment | ~10-50x | Pure integer (GMP) arithmetic |
+For larger networks, `LeanCert.ML.Optimized` provides structure-of-arrays
+storage, split-sign matrix operations, common-exponent aligned inputs, and
+quantized layers. Performance depends on workload and should be measured with
+the repository benchmark harness rather than inferred from fixed multipliers.
 
 ```lean
 import LeanCert.ML.Optimized
 
 open LeanCert.ML.Optimized
 
--- Create quantized network for fast propagation
-def qnet := QuantizedNet.ofLayers myLayers
-
--- Fast interval propagation
-def output := qnet.forward alignedInput
+#check QuantizedLayer.forwardQuantized
+#check QuantizedLayer.forwardQuantized_sound
 ```
 
 ## Verification Status
@@ -244,7 +226,9 @@ def output := qnet.forward alignedInput
 | `mem_sigmoid` | ✓ Fully verified |
 | `relu_relaxation_sound` (DeepPoly ReLU) | ✓ Fully verified |
 | `sigmoid_relaxation_sound` (DeepPoly Sigmoid) | ✓ Fully verified |
-| Optimized implementations | Computationally correct, proofs in progress |
+| Quantized split-sign propagation (`forwardQuantized_sound`) | Proves computed lower endpoints do not exceed computed upper endpoints |
+| Attention output | Structural length theorem; full elementwise enclosure theorem not yet exposed |
+| Other optimized representations and conversions | Check the exact component theorem before relying on a semantic guarantee |
 
 ## Use Cases
 

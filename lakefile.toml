@@ -115,6 +115,7 @@ roots = [
   "LeanCert.Test.BridgeTest",
   "LeanCert.Test.CubicCount",
   "LeanCert.Test.CubicIsolation",
+  "LeanCert.Test.DocsExamples",
   "LeanCert.Test.DomainAwareAD",
   "LeanCert.Test.ChebyshevPsi",
   "LeanCert.Test.ChebyshevTheta",

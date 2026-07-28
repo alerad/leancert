@@ -7,7 +7,9 @@ For square multivariate systems in LeanCert's differentiable AD fragment, use th
 `KrawczykCert`, `krawczykCheck`, and `verify_unique_system_root`. See the
 [system architecture and examples](../architecture/root-finding.md#nonlinear-systems-krawczyk).
 A tactic front end is not required: the intended proof is one checker theorem
-followed by `native_decide`.
+followed by a proof that its computable checker succeeds. Depending on the
+certificate API, that equality can be discharged by `decide`,
+`native_decide`, or LeanCert's configured verification route.
 
 Typical goals:
 

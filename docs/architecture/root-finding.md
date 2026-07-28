@@ -98,7 +98,10 @@ theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
     ∃ x ∈ I, Expr.eval (fun _ => x) e = 0
 ```
 
-**Key insight**: The checker `checkSignChange` is computable (runs via `native_decide`), while the conclusion is a semantic statement about real numbers.
+**Key insight**: The checker `checkSignChange` is computable, while the
+conclusion is a semantic statement about real numbers. Its successful result
+may be established through LeanCert's native, kernel, or automatic
+verification route.
 
 ### Usage
 
@@ -115,7 +118,10 @@ example : ∃ x ∈ I12, Expr.eval (fun _ => x)
   interval_roots
 ```
 
-### Algorithm Details
+### Engine Algorithm
+
+The advanced `Engine.RootFinding.Bisection` API recursively subdivides and can
+return several candidate intervals. Its shape is:
 
 ```
 bisectRoot(f, [a, b], depth):
@@ -134,11 +140,16 @@ bisectRoot(f, [a, b], depth):
   return roots
 ```
 
+The `interval_roots` tactic is intentionally simpler: it checks for a sign
+change on the interval stated in the goal and proves existence there. It does
+not expose the engine's list of recursively isolated candidates.
+
 ### Limitations
 
 - Only finds roots where sign changes (misses tangent roots like x² at 0)
 - Requires continuity (cannot handle discontinuous functions)
-- Multiple roots in interval returns multiple candidate intervals
+- The advanced bisection engine may return multiple candidate intervals; the
+  `interval_roots` tactic proves one existence statement on the supplied interval
 
 ---
 
@@ -160,13 +171,17 @@ Then Banach fixed-point theorem guarantees exactly one root in I.
 
 ### The Theorem
 
+The exact engine theorem is:
+
 ```lean
-theorem newton_contraction_unique_root (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (cfg : EvalConfig)
-    (h_maps_into : newtonInterval e I cfg ⊆ I)
-    (h_contracts : ∀ x ∈ I, |newtonDerivative e x cfg| < 1) :
-    ∃! x ∈ I, Expr.eval (fun _ => x) e = 0
+#check LeanCert.Engine.RootFinding.newton_contraction_unique_root
 ```
+
+It accepts an `ADSupported` expression, a `UsesOnlyVar0` proof, the original
+interval and a checked Newton image, evidence that either the Taylor-model or
+simple Newton step produced that image, strict containment, and continuity.
+The conclusion is uniqueness of a root in the original interval. Prefer
+`interval_unique_root` unless you are building an engine-level certificate.
 
 ### Usage
 
@@ -190,7 +205,9 @@ Using interval arithmetic:
 1. Compute interval bounds on f(I), f'(I), f''(I)
 2. Check if |f(I) · f''(I)| / |f'(I)|² < 1
 
-### Algorithm Details
+### Checker shape
+
+The following is schematic pseudocode, not a Lean declaration:
 
 ```
 checkNewtonContracts(f, I):
@@ -217,16 +234,22 @@ checkNewtonContracts(f, I):
 
 ### Refinement
 
-Once uniqueness is established, Newton iteration refines the root location:
+The engine exposes `newtonStep`, which returns `Option IntervalRat`, and
+iteration APIs such as `newtonIntervalGo`. A simplified loop has this shape:
 
-```lean
-def newtonRefine (e : Expr) (I : IntervalRat) (n : ℕ) : IntervalRat :=
+```text
+newtonRefine(e, I, n):
   match n with
-  | 0 => I
-  | n + 1 => newtonRefine e (newtonStep e I) n
+  | 0       => I
+  | n + 1   => if newtonStep(e, I) succeeds with J
+               then newtonRefine(e, J, n)
+               else I
 ```
 
-Each iteration roughly doubles the number of correct digits.
+Once sufficiently close to a simple root, classical Newton iteration is
+quadratically convergent and often approximately doubles the number of correct
+digits per successful step. That rate is not unconditional for every interval
+Newton run.
 
 ---
 
@@ -237,7 +260,7 @@ Each iteration roughly doubles the number of correct digits.
 | Proves | Existence | Uniqueness |
 | Requires | Sign change | f' ≠ 0, contraction |
 | Convergence | Linear | Quadratic |
-| Multiple roots | Finds all (with sign change) | Finds one |
+| Multiple roots | Advanced engine can return several sign-change candidates | Certifies at most one root in the checked interval |
 | Tangent roots | Misses | Can verify if f' ≠ 0 nearby |
 
 ## Combined Workflow

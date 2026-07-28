@@ -6,7 +6,9 @@ theorems over real numbers.
 
 ## Concept
 
-A Golden Theorem bridges the gap between a computable boolean check (which `native_decide` can run) and a semantic proposition about real numbers.
+A Golden Theorem bridges the gap between a computable boolean check and a
+semantic proposition about real numbers. The checker can be evaluated through
+LeanCert's native, kernel, or automatic verification route.
 
 For example, to prove $f(x) \le c$ for all $x \in I$, we use:
 
@@ -14,7 +16,10 @@ $$
 \text{checkUpperBound}(e, I, c) = \text{true} \implies \forall x \in I,\ \text{eval}(x, e) \le c
 $$
 
-The key insight is that the checker runs in the Lean kernel using computable rational arithmetic, while the conclusion is a statement about real numbers.
+The key insight is that the checker uses computable exact arithmetic, while the
+conclusion is a statement about real numbers. The Golden Theorem is
+kernel-checked in every route; the route controls how Lean proves that the
+checker returned `true`.
 
 ## Core Theorems
 
@@ -469,12 +474,17 @@ LeanCert provides three arithmetic backends, each with different tradeoffs:
 | **Dyadic** | `Validity/DyadicBounds.lean` | Fast | Fixed-precision | Deep expressions, neural networks |
 | **Affine** | `Validity/AffineBounds.lean` | Medium | Correlation-aware | Dependency-heavy expressions |
 
-### Rational Backend (Tactic Default)
+### Rational Backend
 
-The standard theorem/tactic backend uses arbitrary-precision rationals. It
-guarantees exact intermediate results but can suffer from denominator
-explosion on deep expressions. The unified programmatic selector defaults to
-the checked Dyadic backend for evaluation and optimization.
+The Rational backend uses arbitrary-precision rationals. It guarantees exact
+intermediate arithmetic but can suffer from denominator explosion on deep
+expressions. Backend defaults depend on the entry point: public interval
+evaluation uses expression-aware `auto` selection, global optimization selects
+Dyadic in `auto` mode, and integration and root finding select Rational. The
+semantic `leancert` tactic is a solver portfolio, not a single backend.
+
+See [Interval Backend Selection](backend-selection.md) for the authoritative
+operation-by-operation matrix.
 
 ### Dyadic Backend
 
@@ -532,23 +542,38 @@ Each backend also provides `'` variants for `ADSupported` expressions where doma
 - `verify_lower_bound_affine1'`
 - etc.
 
-## Kernel Verification
+## Verification Routes
 
-For higher trust, the dyadic backend supports verification via `decide` instead of `native_decide`:
+Verification route and arithmetic backend are independent choices. The same
+semantic tactic can use rational, dyadic, or affine certificates and then close
+the resulting checker equality through one of three routes:
 
-| Theorem | Verification | Trust Level |
-|---------|--------------|-------------|
-| `verify_upper_bound_dyadic` | `decide` | Kernel only |
-| `verify_lower_bound_dyadic` | `decide` | Kernel only |
+| Route | Equality proof | Trust profile |
+|---|---|---|
+| `native` | native evaluation | Includes Lean's native compiler trust |
+| `kernel` | kernel reduction | No `Lean.ofReduceBool` or `Lean.trustCompiler` |
+| `auto` | calibrated choice between the two | Uses kernel reduction only for computations within the configured gates |
 
-This removes the compiler from the trusted computing base—only the Lean kernel must be trusted.
+Select a route per invocation:
 
-**Note**: Kernel verification requires the goal to be in `Core.Expr.eval` form with rational interval bounds.
+```lean
+example : Real.log 5 < 1.61 := by
+  interval_decide (trust := kernel)
+```
+
+or set the file-level default:
+
+```lean
+set_option leancert.trust "kernel"
+```
+
+See [Verification Status](verification-status.md) for the exact option syntax,
+automatic-route gates, and audit commands.
 
 ## The Certificate Workflow
 
 1. **Formulate the goal in Lean**: expression, domain, and target claim
-2. **Run the checker**: evaluate `check... = true` (typically via `native_decide`)
+2. **Run the checker**: prove `check... = true` using the selected verification route
 3. **Apply the Golden Theorem**: lift the boolean result to a semantic theorem
 4. **Complete the proof script**: keep the theorem statement and proof term in Lean
 
@@ -624,7 +649,10 @@ theorem energy_derivative_nonpositive :
   · have := energy_derivative_on_negative v ⟨hlo, le_of_lt (not_le.mp h)⟩; linarith
 ```
 
-**Key technique**: Domain splitting to handle the dependency problem (IA computes `v*v` on `[-1,1]` as `[-1,1]` instead of `[0,1]`).
+**Key technique**: ordinary interval evaluation treats repeated occurrences
+of `v` independently, so `v * v` over `[-1,1]` encloses to `[-1,1]` rather
+than the exact range `[0,1]`. Splitting the domain restores the sign
+information needed here.
 
 ### Finance: Black-Scholes Bounds (`examples/BlackScholes.lean`)
 
@@ -682,7 +710,7 @@ lake env lean examples/Sqrt2.lean
 
 | Issue | Solution |
 |-------|----------|
-| **Dependency problem** (`v*v` gives `[-1,1]` instead of `[0,1]`) | Split domain and prove separately on `[0,1]` and `[-1,0]` |
+| **Repeated-variable dependency** (`v * v` encloses to `[-1,1]` instead of the exact `[0,1]`) | Split domain and prove separately on `[0,1]` and `[-1,0]` |
 | **Rational cast errors** (`(2/5 : ℚ)` in expressions) | Use plain fractions: `2/5` without type annotation |
 | **Taylor overflow on wide intervals** (sin/cos) | Use narrower intervals or accept looser bounds |
 | **Division has a domain** (`1/x` bounds) | Use a checked evaluator/checker; intervals containing zero are rejected |

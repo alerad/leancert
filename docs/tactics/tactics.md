@@ -4,8 +4,10 @@ Complete reference for all LeanCert tactics.
 
 ## Trust Modes
 
-Every LeanCert tactic closes its Boolean certificate through a single
-verification choke point with an explicit trust choice:
+LeanCert proof-producing certificate tactics close their Boolean certificates
+through a single verification choke point with an explicit trust choice.
+Diagnostic and simplification tactics do not necessarily produce a Boolean
+certificate:
 
 ```lean
 example : Real.log 2 < 7/10 := by interval_decide (trust := kernel)
@@ -26,9 +28,10 @@ theorem log2 : Real.log 2 < 7/10 := by interval_decide
 
 Per-invocation `(trust := …)` overrides `set_option leancert.trust`, which
 overrides the native default. `interval_decide`, `certify_bound`,
-`interval_auto`, and `leancert` accept the syntax directly; every other
-tactic (subdivision, adaptive, multivariate, optimization, roots, discovery,
-finite sums) honors the option.
+`interval_auto`, and `leancert` accept the syntax directly. Other
+proof-producing certificate tactics—including subdivision, multivariate
+bounds, optimization, roots, discovery, and finite-sum expansion—honor the
+scoped option.
 
 Guidance from the calibration data (`scripts/bench-trust/README.md`): kernel
 verification is essentially free for point inequalities and quantified
@@ -120,39 +123,35 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x < 3 := by certify_bound
 
 ---
 
-### `certify_kernel`
+### Verification routes
 
-Proves bounds using dyadic arithmetic with kernel-only verification (`decide`).
-It does not silently fall back to native verification.
+`certify_bound`, `interval_decide`, `interval_auto`, and `leancert` accept an
+independent certificate-verification route. Kernel mode uses `decide +kernel`
+and never silently falls back.
 
 ```lean
-import LeanCert.Tactic.DyadicAuto
+import LeanCert.Tactic
 
--- Default precision (53 bits)
-open LeanCert.Core
-
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
-    Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ≤ 2 := by
-  certify_kernel
-
--- Custom precision (bits)
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
-    Expr.eval (fun _ => x) (Expr.exp (Expr.var 0)) ≤ 3 := by
-  certify_kernel 100
-
--- Explicit native fallback for raw Lean expressions
+-- Kernel-only certificate verification.
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
-  certify_kernel_fallback 100
+  certify_bound (trust := kernel)
+
+-- Kernel first, with a reported native fallback when appropriate.
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
+  certify_bound (trust := auto)
 ```
 
 **Trust levels:**
 
-| Tactic | Verification | Trusted Components |
+| Mode | Verification | Trusted Components |
 |---|---|---|
-| `certify_kernel` | `decide` | Lean kernel only |
-| `certify_kernel_fallback` | `decide`, then `native_decide` | Lean kernel + compiler/runtime on fallback |
+| `kernel` | `decide +kernel` | Lean kernel only |
+| `native` (default) | `native_decide` | Lean kernel + compiler/runtime |
+| `auto` | Kernel first, with calibrated gates and reported fallback | Depends on the route used |
 
-**Diagnostics:** Enable `set_option trace.certify_kernel true` to see why kernel verification fails.
+**Diagnostics:** Enable `set_option trace.leancert.verification true` to see
+the selected verification route. The historical `certify_kernel*` tactics are
+deprecated compatibility aliases.
 
 ---
 
@@ -184,10 +183,13 @@ Searches for counter-examples to disprove false bounds.
 import LeanCert.Tactic.Refute
 
 -- This bound is false (x² can reach 4 on [-2, 2])
+#guard_msgs (error) in
 example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
   interval_refute
-  -- Output: Counter-example found at x ≈ ±2, where x² = 4 > 3
 ```
+
+This is an expected-failure example: the tactic reports a checked violating
+point and intentionally leaves the false theorem unproved.
 
 **Output types:**
 
@@ -199,9 +201,9 @@ example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
 **Configuration:**
 
 ```lean
--- With custom settings
-example : ... := by
-  interval_refute (config := { maxIterations := 100, tolerance := 1e-6 })
+-- In a development scratch theorem:
+-- interval_refute (config := { maxIterations := 100,
+--                              tolerance := 1 / 1000000 })
 ```
 
 ---
@@ -395,28 +397,26 @@ import LeanCert.Tactic.Discovery
 
 ## Comparison Table
 
-| Tactic | Purpose | Trust | Speed |
+| Tactic | Purpose | Verification route | Speed |
 |--------|---------|-------|-------|
-| `certify_bound` | Prove bounds | `native_decide` | Medium |
-| `certify_kernel` | Prove bounds | `decide` | Fast when supported |
-| `certify_kernel_fallback` | Prove bounds | `decide`, then explicit native fallback | Fast |
-| `interval_decide` | Point inequalities | `native_decide` | Fast |
+| `certify_bound` | Prove bounds | `native`, `kernel`, or `auto` | Medium |
+| `interval_decide` | Point inequalities | `native`, `kernel`, or `auto` | Fast |
 | `interval_refute` | Find diagnostic counter-example data | checker-dependent diagnostic | Slow |
-| `interval_roots` | Prove root exists | `native_decide` | Medium |
-| `interval_unique_root` | Prove root unique | `native_decide` | Slow |
-| `interval_minimize` | Prove min exists | `native_decide` | Slow |
-| `interval_maximize` | Prove max exists | `native_decide` | Slow |
+| `interval_roots` | Prove root exists | Configured `leancert.trust` route | Medium |
+| `interval_unique_root` | Prove root unique | Configured `leancert.trust` route | Slow |
+| `interval_minimize` | Prove min exists | Configured `leancert.trust` route | Slow |
+| `interval_maximize` | Prove max exists | Configured `leancert.trust` route | Slow |
 | `leancert` | Prove ordinary integral equalities and inequalities | checked exact/partition certificates | Medium |
-| `discover` | Auto-route min/max | `native_decide` | Slow |
-| `interval_minimize_mv` | Multivariate min | `native_decide` | Slow |
-| `interval_maximize_mv` | Multivariate max | `native_decide` | Slow |
-| `multivariate_bound` | N-dim bounds | `native_decide` | Medium |
-| `root_bound` | Prove f(x) ≠ 0 | `native_decide` | Medium |
-| `interval_bound_subdiv` | Tight bounds via subdivision | `native_decide` | Slow |
-| `interval_argmax` | Find maximizer point | `native_decide` | Slow |
-| `interval_argmin` | Find minimizer point | `native_decide` | Slow |
+| `discover` | Auto-route min/max | Configured `leancert.trust` route | Slow |
+| `interval_minimize_mv` | Multivariate min | Configured `leancert.trust` route | Slow |
+| `interval_maximize_mv` | Multivariate max | Configured `leancert.trust` route | Slow |
+| `multivariate_bound` | N-dim bounds | Configured `leancert.trust` route | Medium |
+| `root_bound` | Prove f(x) ≠ 0 | Configured `leancert.trust` route | Medium |
+| `interval_bound_subdiv` | Tight bounds via subdivision | Configured `leancert.trust` route | Slow |
+| `interval_argmax` | Prove an attained maximizer | Configured `leancert.trust` route | Slow |
+| `interval_argmin` | Prove an attained minimizer | Configured `leancert.trust` route | Slow |
 | `vec_simp` | Simplify vector indexing | `dsimp` | Fast |
-| `finsum_expand` | Expand finite sums | `native_decide` | Fast |
+| `finsum_expand` | Expand finite sums | Configured `leancert.trust` route for generated side conditions | Fast |
 
 ---
 
@@ -757,10 +757,10 @@ example : ∃! x ∈ I, f x = 0 := by interval_unique_root
 
 ```lean
 set_option trace.certify_bound true    -- See computation details
-set_option trace.certify_kernel true   -- See kernel verification status
+set_option trace.leancert.verification true -- See verification route
 
 -- If bound too tight, try:
 -- 1. Increase Taylor depth: certify_bound 20
--- 2. Use certify_kernel_precise for more bits
+-- 2. Use subdivision: interval_bound_subdiv 20 4
 -- 3. Use interval_refute to check if bound is actually false
 ```
