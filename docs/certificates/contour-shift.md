@@ -29,14 +29,13 @@ import LeanCert
 
 For rectangle corners `z w : ℂ`, the named side integrals are:
 
-```lean
+```text
 bottomIntegral
 topIntegral
 rightIntegral
 leftIntegral
 rectBoundary
 ```
-
 The boundary convention is:
 
 ```text
@@ -45,43 +44,38 @@ bottom - top + I * right - I * left
 
 The holomorphic rectangle theorem is exposed in this notation:
 
-```lean
+```text
 rectBoundary_eq_zero_of_continuousOn_of_differentiableOn
 ```
-
 This is a wrapper around mathlib's rectangle Cauchy-Goursat theorem.
 
 ## Finite Vertical Shift Certificates
 
 `VerticalShiftCert` stores a boundary identity:
 
-```lean
+```text
 rectBoundary f z w = (2 * Real.pi * Complex.I) * residueSum
 ```
-
 Its soundness theorem rearranges this into the vertical-shift identity:
 
 ```lean
-VerticalShiftCert.vertical_shift
+#check LeanCert.Analysis.ContourShift.VerticalShiftCert.vertical_shift
 ```
-
 For holomorphic rectangles with no residue contribution, use:
 
 ```lean
-VerticalShiftCert.ofHolomorphicRectangle
+#check LeanCert.Analysis.ContourShift.VerticalShiftCert.ofHolomorphicRectangle
 ```
-
 ## Shift-Oriented Segment Integrals
 
 For analytic-number-theory contour shifts, the symmetric vertical-line notation
 is often more convenient:
 
-```lean
+```text
 verticalIntegral F σ T
 topHorizontalIntegral F σ₀ σ₁ T
 bottomHorizontalIntegral F σ₀ σ₁ T
 ```
-
 Here `verticalIntegral F σ T` is the upward integral over
 `σ + it`, `-T <= t <= T`.
 
@@ -89,14 +83,13 @@ Here `verticalIntegral F σ T` is the upward integral over
 
 `RectangleShiftCert F σ₀ σ₁ T` stores the finite identity:
 
-```lean
+```text
 verticalIntegral F σ₀ T =
   verticalIntegral F σ₁ T
     - topHorizontalIntegral F σ₀ σ₁ T
     - bottomHorizontalIntegral F σ₀ σ₁ T
     + (2 * Real.pi * Complex.I) * residueSum
 ```
-
 The residue theorem is not baked into this structure.  Projects can supply the
 finite rectangle identity from a residue theorem, from a specialized local
 calculation, or from a future LeanCert residue constructor.
@@ -110,17 +103,15 @@ term, so a constructor for that case must negate the residues it stores.
 
 For limit-passing shifts, horizontal sides can be supplied directly:
 
-```lean
+```text
 HorizontalVanishCert
 ```
-
 or derived from explicit norm bounds:
 
-```lean
+```text
 HorizontalBoundCert
 HorizontalBoundCert.toVanishCert
 ```
-
 The bound certificate stores a nonnegative bound tending to zero and proves both
 horizontal side norms are bounded by it.
 
@@ -137,17 +128,15 @@ horizontal side norms are bounded by it.
 The chosen outputs are:
 
 ```lean
-ContourShiftCert.leftValue
-ContourShiftCert.rightValue
-ContourShiftCert.residueSum
+#check LeanCert.Analysis.ContourShift.ContourShiftCert.leftValue
+#check LeanCert.Analysis.ContourShift.ContourShiftCert.rightValue
+#check LeanCert.Analysis.ContourShift.ContourShiftCert.residueSum
 ```
-
 The main soundness theorem is:
 
-```lean
+```text
 ContourShiftCert.shift_identity'
 ```
-
 which proves:
 
 ```text
@@ -158,9 +147,8 @@ leftValue =
 There is also an existential version:
 
 ```lean
-ContourShiftCert.shift_identity
+#check LeanCert.Analysis.ContourShift.ContourShiftCert.shift_identity
 ```
-
 ## Intended Workflow
 
 Use this layer when the analytic proof has already been decomposed as:

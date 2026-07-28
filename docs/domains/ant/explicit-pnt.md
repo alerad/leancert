@@ -8,12 +8,11 @@ Explicit-PNT transfer schemas package the reusable inequality algebra behind:
 
 Core theorem schemas:
 
-```lean
+```text
 psi_to_theta_bound
 theta_to_pi_bound_of_decomposition
 theta_to_pi_bound
 ```
-
 These theorems are project-agnostic.  They do not define `ψ`, `θ`, `π`, or
 `Li`; project files supply those definitions and the partial-summation
 decomposition identities.

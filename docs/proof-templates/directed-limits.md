@@ -15,14 +15,8 @@ Given these two inequality families (supplied once, as mathematics), any
 two-sided rational enclosure of `x` becomes a single boolean evaluation:
 
 ```lean
-theorem verify_limit_interval {x : ℝ} {approx tail : ℕ → ℚ}
-    (hupper : ∀ N, x ≤ (approx N : ℝ))
-    (hlower : ∀ N, (approx N : ℝ) - (tail N : ℝ) ≤ x)
-    (N : ℕ) (lo hi : ℚ)
-    (hcheck : checkLimitInterval approx tail N lo hi = true) :
-    (lo : ℝ) ≤ x ∧ x ≤ (hi : ℝ)
+#check LeanCert.Validity.verify_limit_interval
 ```
-
 Tightening a bound is a change of the index `N` and the endpoints — no new
 mathematics at the use site.
 
@@ -42,8 +36,8 @@ uniformly. Bounds then read:
 ```lean
 example : ((19 / 36 : ℚ) : ℝ) ≤ primeLambda ∧ primeLambda ≤ ((7 / 12 : ℚ) : ℝ) :=
   LeanCert.Validity.verify_limit_interval
-    primeLambda_le_shiftedTrunc
-    shiftedTrunc_sub_tail_le_primeLambda
+    LeanCert.QProduct.primeLambda_le_shiftedTrunc
+    LeanCert.QProduct.shiftedTrunc_sub_tail_le_primeLambda
     1 (19 / 36) (7 / 12)
     (by native_decide)
 ```

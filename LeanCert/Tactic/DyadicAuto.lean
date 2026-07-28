@@ -8,51 +8,21 @@ import LeanCert.Tactic.IntervalAuto
 import LeanCert.Engine.IntervalEvalDyadic
 
 /-!
-# Kernel-Verified Dyadic Bound Tactics
+# Legacy Dyadic Bound Tactic Names
 
-This tactic uses the Dyadic backend to prove bounds **within the Lean kernel**.
-Unlike `certify_bound`, which uses `native_decide` (relying on the compiler/runtime),
-`certify_kernel` uses `decide`, which reduces the proof term in the kernel.
-
-This is made possible because Dyadic arithmetic avoids the expensive GCD computations
-of `Rat` that typically make kernel reduction infeasible for deep expressions.
-
-## Main tactics
-
-* `certify_kernel` - Prove bounds using Dyadic arithmetic with kernel verification
-* `certify_kernel n` - Specify precision in bits (default: 53)
-* `certify_kernel_fallback` - Opt in to falling back to `certify_bound`
-
-## Verification Trust Level
-
-| Tactic | Verification | Trust |
-|--------|-------------|-------|
-| `certify_bound` | `native_decide` | Lean Compiler + Runtime |
-| `certify_kernel` | `decide` | Lean Kernel only |
-| `certify_kernel_fallback` | `decide`, then `native_decide` | Lean Kernel + compiler/runtime on fallback |
-
-The kernel is the smallest trusted component of Lean. By using `decide`,
-`certify_kernel` provides proofs that are verified by this minimal trusted base.
-
-## When to use `certify_kernel`
-
-Use `certify_kernel` instead of `certify_bound` when:
-1. **Maximum trust**: You need proofs verified by the kernel, not the compiler
-2. **Deep expressions**: Nested transcendentals like `sin(sin(sin(x)))`
-3. **Many multiplications**: Polynomials with many terms
-4. **Audit requirements**: Security-critical code that needs minimal TCB
-
-## Example
+This module retains the historical `certify_kernel*` spellings for source
+compatibility and contains the dyadic bridge theorems they originally used.
+New code should use the shared trust-aware entry point:
 
 ```lean
--- Proves using only kernel reduction (no compiler trust)
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x + Real.sin x ≤ 2 := by
-  certify_kernel
-
--- Higher precision for tight bounds
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := by
-  certify_kernel 100
+  certify_bound (trust := kernel)
 ```
+
+Verification route is independent of arithmetic backend. Use
+`(trust := native)`, `(trust := kernel)`, or `(trust := auto)` per invocation,
+or set `leancert.trust` for a scope. The deprecated aliases and their exact
+replacements are documented below.
 -/
 
 open Lean Meta Elab Tactic Term

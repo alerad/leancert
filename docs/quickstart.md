@@ -14,6 +14,10 @@ git = "https://github.com/alerad/leancert"
 rev = "main"
 ```
 
+For a reproducible formal development, replace `main` with a tested LeanCert
+release tag. This checkout is pinned to the Lean/Mathlib `v4.32.1` toolchain;
+use `main` only when intentionally testing unreleased changes.
+
 Then run:
 
 ```bash
@@ -25,7 +29,7 @@ lake update
 ```lean
 import LeanCert.Tactic
 
-example : forall x in Set.Icc (0 : Real) 1, Real.exp x <= 3 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
   leancert
 ```
 
@@ -34,7 +38,7 @@ example : forall x in Set.Icc (0 : Real) 1, Real.exp x <= 3 := by
 ```lean
 import LeanCert.Tactic
 
-example : exists x in Set.Icc (1 : Real) 2, x^2 = 2 := by
+example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x ^ 2 = 2 := by
   leancert
 ```
 

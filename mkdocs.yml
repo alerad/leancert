@@ -94,6 +94,7 @@ nav:
     - Verification Status: architecture/verification-status.md
     - Benchmark Harness: architecture/benchmarks.md
   - Reference:
+    - Supported Public API: reference/public-api.md
     - Imports: reference/imports.md
     - Tactics: reference/tactics.md
     - Certificate APIs: reference/certificate-apis.md

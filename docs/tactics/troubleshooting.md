@@ -61,7 +61,9 @@ with the goal
 
 **Cause:** The tactic reified your expression to an `Expr` AST, but it doesn't match the goal syntactically.
 
-> **Note:** As of v1.2, most cases are now handled automatically. Expressions with numeric coefficients like `2 * x * x + 3 * x + 1` should work out of the box. If you still encounter this error, try the solutions below.
+> **Note:** Current releases handle most cases automatically. Expressions with
+> numeric coefficients like `2 * x * x + 3 * x + 1` should work out of the box.
+> If you still encounter this error, try the solutions below.
 
 **This may still happen with:**
 - Very complex nested coefficient expressions
@@ -114,14 +116,13 @@ dedicated tactic only handles single-variable bounds.
 
 **Solution:** Use `leancert`, or select `multivariate_bound` explicitly:
 ```lean
--- Instead of
-example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by certify_bound  -- Fails
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1,
+    x + y ≤ 2 := by
+  leancert
 
--- Preferred
-example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by leancert
-
--- Explicit dedicated solver
-example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by multivariate_bound
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1,
+    x + y ≤ 2 := by
+  multivariate_bound
 ```
 
 ---
@@ -140,7 +141,7 @@ numeric extraction is more permissive: tactics use the shared
 rationals, decimals, negations, and divisions.
 
 **Solution:** Use rational approximations:
-```lean
+```text
 -- Instead of
 #bounds (fun x => Real.sin x) on [0, 3.14159]  -- Fails
 
@@ -167,7 +168,7 @@ Consider increasing maxIterations or taylorDepth.
 **When to worry:** Only if you need tighter bounds. The proof is still correct.
 
 **Solutions:**
-```lean
+```text
 -- Increase Taylor depth
 example : ∃ m, ∀ x ∈ I, f x ≥ m := by interval_minimize 20
 
@@ -181,7 +182,7 @@ example : ∃ m, ∀ x ∈ I, f x ≥ m := by interval_minimize 20
 ### What works with raw Lean syntax?
 
 **Works well:**
-```lean
+```text
 -- Basic arithmetic
 x * x + 1
 x^3
@@ -199,24 +200,22 @@ Real.exp x
 Real.sin x + Real.cos x
 Real.exp (Real.sin x)
 ```
-
 **Requires positive base (lowered via exp/log):**
-```lean
+```text
 -- General rational exponents (base must be provably > 0)
 x^(1/3)
 x^(2/3)
 x^(1/5)
 ```
-
 These are reified as `exp(log(x) * q)`. The tactic automatically proves
 `0 < x` from `Set.Icc` domain hypotheses when the lower bound is positive.
 
-### What requires Expr AST syntax?
+### When should I use Expr AST syntax?
 
-**Always use Expr AST for:**
-- `interval_roots` (root existence)
-- `root_bound` (root absence)
-- Low-level tactics (`interval_le`, `interval_ge`, etc.)
+Native syntax is supported by `interval_roots` and `root_bound`. Use an
+explicit `Expr` AST when automatic reification fails, when you already have a
+reflected expression, or when calling the low-level `interval_le` /
+`interval_ge` APIs.
 
 **Example:**
 ```lean
@@ -224,7 +223,7 @@ open LeanCert.Core
 
 def I12 : IntervalRat := ⟨1, 2, by norm_num⟩
 
--- Root existence requires Expr AST
+-- Equivalent explicit-AST form
 example : ∃ x ∈ I12, Expr.eval (fun _ => x)
     (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0))
               (Expr.neg (Expr.const 2))) = 0 := by
@@ -245,19 +244,21 @@ example : ∃ x ∈ I12, Expr.eval (fun _ => x)
 | Tight bounds (within 1% of true value) | 20-30 |
 | Very tight bounds | Use `interval_bound_subdiv` |
 
-### When to use dyadic kernel/fallback tactics
+### Choosing a certificate-verification route
 
-Use the dyadic backend when:
-- Deeply nested expressions: `sin(cos(sin(x)))`
-- Many operations: `x₁ + x₂ + ... + x₁₀₀`
-- Proofs with rational backend timeout or are slow
+Verification trust is independent of the rational, dyadic, or affine
+evaluation backend selected by the solver. Require kernel-only verification
+for small reusable facts; use `auto` when large certificates may need a
+reported native fallback.
 
 ```lean
--- Strict kernel path: no compiler/runtime fallback.
-example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_kernel
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
+  certify_bound (trust := kernel)
 
--- Explicit fallback path if strict kernel verification cannot close the goal.
-example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_kernel_fallback
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
+  certify_bound (trust := auto)
 ```
 
 ---
@@ -267,17 +268,18 @@ example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by certify_kern
 ### Enable tracing
 
 ```lean
-set_option trace.certify_bound true in
-example : ∀ x ∈ I, f x ≤ c := by certify_bound
+set_option trace.LeanCert.router true in
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ 1 := by leancert
 
-set_option trace.certify_kernel true in
-example : ∀ x ∈ I, f x ≤ c := by certify_kernel
+set_option trace.leancert.verification true in
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ 1 := by
+  certify_bound (trust := auto)
 ```
 
 ### Use discovery to check bounds
 
 Before writing a theorem, verify the bound holds:
-```lean
+```text
 -- See what bounds actually hold
 #bounds (fun x => your_expression) on [lo, hi]
 
@@ -287,13 +289,13 @@ Before writing a theorem, verify the bound holds:
 
 ### Use `interval_refute` to check false bounds
 
-```lean
--- Is this bound even true?
+```lean expect-error: Counter-example FOUND
 example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
-  interval_refute  -- Finds counterexample at x = ±2
-
--- The bound is false! x² = 4 > 3 at endpoints
+  interval_refute
 ```
+
+`interval_refute` is a diagnostic tactic. If it finds a violation, it reports
+the checked point as an error; it never turns a false proposition into a proof.
 
 ---
 

@@ -12,7 +12,7 @@ sequence
 
 Core API:
 
-```lean
+```text
 AsympEnv
 AsympEnv.lower
 AsympEnv.upper
@@ -22,7 +22,6 @@ AsympEnv.neg
 AsympEnv.sub
 AsympEnv.constMul
 ```
-
 The lower and upper endpoint theorems turn the absolute-error certificate into
 usable inequalities.
 

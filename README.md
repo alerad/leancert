@@ -77,10 +77,13 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
   certify_bound (trust := kernel)
 ```
 
-Programmatic interval evaluation uses a single backend selector. `auto` is
-Dyadic-first for evaluation and global optimization, while operations that do
-not yet have a certified Dyadic implementation (root finding and integration)
-use Rational. See [Interval Backend Selection](docs/architecture/backend-selection.md).
+Programmatic interval evaluation uses a single backend selector. For interval
+evaluation, `auto` is expression-aware: it selects Affine for exact
+cancellation, Rational for ordinary algebraic expressions, and Dyadic for
+nonlinear expressions or high exact-denominator growth risk. Global
+optimization currently resolves `auto` to Dyadic, while operations without a
+certified Dyadic implementation (root finding and integration) use Rational.
+See [Interval Backend Selection](docs/architecture/backend-selection.md).
 
 ```lean
 import LeanCert

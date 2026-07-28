@@ -13,14 +13,13 @@ finite rectangle identity
 
 Core APIs:
 
-```lean
+```text
 RectangleShiftCert
 HorizontalVanishCert
 HorizontalBoundCert
 ContourShiftCert
 ContourShiftCert.shift_identity'
 ```
-
 Important scope note: this template centralizes orientation and limit-passing
 algebra.  It does not yet automate residue calculation, meromorphic-region
 construction, or infinite pole exhaustion.

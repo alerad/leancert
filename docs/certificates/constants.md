@@ -25,27 +25,22 @@ import LeanCert
 
 The base q-product moment is already provided by `LeanCert.QProduct`:
 
-```lean
+```text
 moment R m = ∫ u in (0 : ℝ)..1, qProd R u * u ^ m
 momentRat R m
 ```
-
 `ConstantFactory` adds a finite perturbation compiler. For a base set `R` and
 a disjoint perturbation set `Q`, it computes:
 
-```lean
+```text
 observerIntegralRat R Q =
   ∑ A ∈ Q.powerset, subsetSign A * momentRat R (subsetWeight A)
 ```
-
 The Golden Theorem is:
 
 ```lean
-theorem observerIntegralRat_eq_F_union
-    (R Q : Finset Nat) (hdisj : Disjoint R Q) :
-    (observerIntegralRat R Q : ℝ) = F (R ∪ Q)
+#check observerIntegralRat_eq_F_union
 ```
-
 This is the finite observer identity:
 
 \[
@@ -60,21 +55,16 @@ where \(K_R(m)\) is the `m`th q-product moment of `R`.
 
 The checker is exact rational arithmetic:
 
-```lean
+```text
 checkConstantFactoryInterval
 checkConstantFactoryUpper
 checkConstantFactoryLower
 ```
-
 The public interval bridge is:
 
 ```lean
-theorem verify_constantFactory_interval
-    (R Q : Finset Nat) (lo hi : ℚ)
-    (hcheck : checkConstantFactoryInterval R Q lo hi = true) :
-    (lo : ℝ) ≤ F (R ∪ Q) ∧ F (R ∪ Q) ≤ (hi : ℝ)
+#check verify_constantFactory_interval
 ```
-
 The checker includes the disjointness condition, so a successful certificate
 proves both the finite observer algebra side condition and the rational bound.
 
@@ -93,19 +83,14 @@ structure KernelIntervalBank (R : Finset Nat) where
 Given a certified bank for the base profile `R`, the interval observer sums the
 signed perturbation terms:
 
-```lean
+```text
 observerInterval Q bank
 ```
-
 The Golden Theorem is:
 
 ```lean
-theorem F_union_mem_observerInterval
-    {R Q : Finset Nat} (hdisj : Disjoint R Q)
-    (bank : KernelIntervalBank R) :
-    F (R ∪ Q) ∈ observerInterval Q bank
+#check F_union_mem_observerInterval
 ```
-
 This is the interval analogue of the exact observer identity:
 
 \[
@@ -123,10 +108,9 @@ without changing the trust boundary.
 
 There is also a degenerate exact bank:
 
-```lean
+```text
 exactKernelIntervalBank R
 ```
-
 which wraps `momentRat R m` in singleton intervals.
 
 ## Taylor Integration Bridge
@@ -140,13 +124,12 @@ import LeanCert.Engine.TaylorModel.Integral
 and exposes:
 
 ```lean
-TaylorModel.integrateShiftedPoly
-TaylorModel.integralBoundPolyExact
-TaylorModel.integralBoundCoarse
-TaylorModel.integral_mem_bound_polyExact_of_poly_integral
-TaylorModel.integral_mem_bound_coarse
+#check LeanCert.Engine.TaylorModel.integrateShiftedPoly
+#check LeanCert.Engine.TaylorModel.integralBoundPolyExact
+#check LeanCert.Engine.TaylorModel.integralBoundCoarse
+#check LeanCert.Engine.TaylorModel.integral_mem_bound_polyExact_of_poly_integral
+#check LeanCert.Engine.TaylorModel.integral_mem_bound_coarse
 ```
-
 If a Taylor model semantically encloses `f` on `tm.domain`, then
 `integral_mem_bound_coarse` certifies the definite integral of `f` over that
 domain using the global Taylor-model range bound. This is deliberately
@@ -163,9 +146,8 @@ and scales only the Taylor remainder interval by the domain width.  Its
 soundness theorem is:
 
 ```lean
-TaylorModel.integral_mem_bound_polyExact_of_poly_integral
+#check LeanCert.Engine.TaylorModel.integral_mem_bound_polyExact_of_poly_integral
 ```
-
 The theorem intentionally takes the polynomial integral equality as a
 hypothesis.  This keeps the trusted reusable theorem focused on the interval
 and remainder enclosure logic, while callers can discharge the polynomial

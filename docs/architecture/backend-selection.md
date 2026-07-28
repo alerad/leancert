@@ -13,6 +13,18 @@ through the checked `LeanCert.Backend.Rational`, `.Dyadic`, and `.Affine` APIs.
 
 Supported selector values are `auto`, `rational`, `dyadic`, and `affine`.
 
+Backend selection and certificate verification are independent axes:
+
+| Axis | `auto` means | Configured by |
+| --- | --- | --- |
+| Evaluation backend | Inspect the operation/expression and select a certified numerical backend | `EvalOptions.backend` |
+| Verification route | Try kernel verification, then report and use native verification if required | `leancert.trust` or `(trust := auto)` |
+
+Changing the verification route does not change the numerical backend, and
+changing the numerical backend does not grant permission to use compiler
+trust. Programmatic `evalInterval` does not import or expose tactic-side trust
+configuration.
+
 | Operation | `auto` backend | Explicit alternatives |
 |---|---|---|
 | Interval evaluation and bound checks | Expression-aware Rational/Dyadic/Affine | Rational, Dyadic, Affine |
@@ -70,6 +82,8 @@ optimization uses `LeanCert.GlobalOptOptions`, which composes the same
 `EvalOptions` with independent `SearchOptions`:
 
 ```lean
+def unit : IntervalRat := ⟨0, 1, by norm_num⟩
+
 def optimizationOptions : GlobalOptOptions := {
   evaluation := { backend := .affine }
   search := { maxIterations := 2000, tolerance := 1 / 10000,
@@ -82,6 +96,10 @@ def optimizationOptions : GlobalOptOptions := {
 The public `GlobalResult` contains only stable summary data: lower and upper
 bounds, the best box, and the iteration count. Resumable priority-queue state
 remains part of the advanced engine API.
+
+Despite the historical `globalMinimize` and `globalMaximize` names, their
+Golden Theorems certify global lower and upper bounds respectively; they do
+not claim that `bestBox` contains an attained optimizer.
 
 At the Lean API level, division-capable guided optimization and
 counterexample search now return `EvalResult`: `globalMinimizeGuidedDiv`,

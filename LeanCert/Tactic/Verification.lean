@@ -30,15 +30,15 @@ Design rules:
   caching) — never raw `Lean.Meta.mkDecideProof`, whose failures on a false or
   stuck certificate surface only at `addDecl` as an unreadable kernel error.
 
-The mode is currently selected with `set_option leancert.trust "kernel"`
-(likewise `"native"`, `"auto"`). Tactic-level `(trust := …)` syntax arrives
-with the public configuration API.
+Select the mode globally with `set_option leancert.trust "kernel"` (likewise
+`"native"`, `"auto"`), or per invocation with `(trust := kernel|native|auto)`.
+The per-invocation setting takes precedence.
 
 Caveat for `.auto`: the heartbeat budget bounds elaboration-side work, but
 kernel reduction itself is not heartbeat-interruptible; a pathologically large
-certificate can exceed the budget wall-clock. Cost-model gating (skipping the
-kernel attempt for certificates that are predictably too large) is planned on
-top of this hook.
+certificate can exceed the budget wall-clock. Calibrated cost gates therefore
+route predictably large finite sums, integrations, and optimization
+certificates directly to native verification.
 -/
 
 open Lean Meta Elab Tactic
@@ -302,9 +302,15 @@ overrides the `leancert.trust` option for that invocation only (implemented
 by running the tactic core under `withOptions`, so every certificate check in
 the invocation — including nested fallback strategies — honors it). -/
 
+/-- Parser category for verification modes. `auto` needs an explicit branch
+because it is a reserved Lean token rather than an `ident`. -/
+declare_syntax_cat leancertTrustMode
+syntax ident : leancertTrustMode
+syntax &"auto" : leancertTrustMode
+
 /-- Per-invocation verification route for LeanCert tactics:
 `(trust := kernel)`, `(trust := native)`, or `(trust := auto)`. -/
-syntax leancertTrustItem := "(" &"trust" " := " ident ")"
+syntax leancertTrustItem := "(" &"trust" " := " leancertTrustMode ")"
 
 /-- Elaborate an optional `(trust := …)` item. -/
 def elabTrustItem? : Option (TSyntax ``leancertTrustItem) →
@@ -312,9 +318,10 @@ def elabTrustItem? : Option (TSyntax ``leancertTrustItem) →
   | none => pure none
   | some stx =>
     match stx with
-    | `(leancertTrustItem| (trust := $m:ident)) => do
-      let some mode := VerificationMode.ofString? m.getId.toString
-        | throwErrorAt m "invalid trust mode '{m.getId}'; expected kernel, native, or auto"
+    | `(leancertTrustItem| (trust := $m:leancertTrustMode)) => do
+      let raw := m.raw.reprint.getD ""
+      let some mode := VerificationMode.ofString? raw
+        | throwErrorAt m "invalid trust mode '{raw}'; expected kernel, native, or auto"
       return some mode
     | _ => throwUnsupportedSyntax
 

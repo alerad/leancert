@@ -2,10 +2,9 @@
 
 `LeanCert.QProduct` certifies finite product-integral invariants of the form
 
-```lean
+```text
 F S = ∫ u in (0 : ℝ)..1, ∏ n ∈ S, (1 - u ^ n)
 ```
-
 for finite exponent sets `S : Finset Nat`.  The finite checker does not perform
 numerical integration. It expands the product into a signed subset-sum
 polynomial and integrates each monomial exactly over `[0, 1]`.
@@ -27,20 +26,17 @@ import LeanCert.Examples.QProduct.PrimeLambda
 
 The core definitions are:
 
-```lean
+```text
 qProd (S : Finset Nat) (u : ℝ)
 F (S : Finset Nat)
 finiteIntegralRat (S : Finset Nat)
 ```
-
 The theorem `finiteIntegralRat_correct` connects the computable rational value
 to the semantic real integral:
 
 ```lean
-theorem finiteIntegralRat_correct (S : Finset Nat) :
-    F S = (finiteIntegralRat S : ℝ)
+#check finiteIntegralRat_correct
 ```
-
 For example, the exact integral for `{2, 3}` is `7 / 12`:
 
 ```lean
@@ -52,7 +48,7 @@ example : finiteIntegralRat ({2, 3} : Finset Nat) = 7 / 12 := by
   native_decide
 
 example : F ({2, 3} : Finset Nat) = ((7 / 12 : ℚ) : ℝ) := by
-  rw [finiteIntegralRat_correct]
+  rw [← finiteIntegralRat_correct]
   have h : finiteIntegralRat ({2, 3} : Finset Nat) = 7 / 12 := by
     native_decide
   exact_mod_cast h
@@ -62,7 +58,7 @@ example : F ({2, 3} : Finset Nat) = ((7 / 12 : ℚ) : ℝ) := by
 
 The finite certificate API follows the usual LeanCert pattern:
 
-```lean
+```text
 checkFiniteIntegralInterval
 verify_finiteIntegral_interval
 checkFiniteIntegralUpper
@@ -70,7 +66,6 @@ verify_finiteIntegral_upper
 checkFiniteIntegralLower
 verify_finiteIntegral_lower
 ```
-
 The checker is boolean and exact over `ℚ`; the verifier lifts a successful
 check to a real statement about the integral.
 
@@ -86,23 +81,20 @@ example :
 
 `momentRat` and `moment` certify weighted integrals:
 
-```lean
+```text
 moment S k = ∫ u in (0 : ℝ)..1, qProd S u * u ^ k
 ```
-
 The bridge theorem is:
 
 ```lean
-theorem momentRat_correct (S : Finset Nat) (k : Nat) :
-    moment S k = (momentRat S k : ℝ)
+#check momentRat_correct
 ```
-
 ## Stability Lemmas
 
 `LeanCert.QProduct.Stability` proves the elementary finite inequalities used by
 tail certificates:
 
-```lean
+```text
 qProd_nonneg
 qProd_le_one
 F_nonneg
@@ -112,7 +104,6 @@ qProd_sub_le_commonPrefix_sum
 odd_tail_telescope_bound
 odd_tail_sum_le_geom
 ```
-
 These are not boolean checkers. They are reusable analytic lemmas for building
 certificates from finite truncations and explicit tail estimates.
 
@@ -121,20 +112,16 @@ certificates from finite truncations and explicit tail estimates.
 `LeanCert.QProduct.PrimeLambda` defines prime truncations and the directed
 prime limit:
 
-```lean
+```text
 primesLE (N : Nat)
 primeFRat (N : Nat)
 primeLambda
 ```
-
 The upper side is a standard checker-to-theorem bridge:
 
 ```lean
-theorem verify_primeLambda_upper (N : Nat) (hi : ℚ)
-    (hcheck : checkPrimeLambdaUpper N hi = true) :
-    primeLambda ≤ (hi : ℝ)
+#check verify_primeLambda_upper
 ```
-
 For example:
 
 ```lean
@@ -147,40 +134,21 @@ The lower side of a prime interval needs mathematical tail control.  The helper
 finite prime truncations is also valid for the directed limit:
 
 ```lean
-theorem primeLambda_lower_of_forall (lo : ℚ)
-    (hlo : ∀ N : Nat, (lo : ℝ) ≤ (primeFRat N : ℝ)) :
-    (lo : ℝ) ≤ primeLambda
+#check primeLambda_lower_of_forall
 ```
-
 The reusable odd-prime tail theorem is `primeLambda_sandwich`:
 
 ```lean
-theorem primeLambda_sandwich {N m : Nat}
-    (hN : 2 ≤ N) (hm : Odd m)
-    (htail_ge : ∀ p, Nat.Prime p → N < p → m ≤ p) :
-    (primeFRat N : ℝ) - (primeSandwichErrorRat N m : ℝ) ≤ primeLambda ∧
-      primeLambda ≤ (primeFRat N : ℝ)
+#check primeLambda_sandwich
 ```
-
 The rational endpoint form is `primeLambda_rational_sandwich`, where
 `primeSandwichLowerRat N m = primeFRat N - primeSandwichErrorRat N m`.
 
 The module includes the elementary odd-tail certificate:
 
 ```lean
-theorem primeSandwichLowerRat_three_five :
-    primeSandwichLowerRat 3 5 = 19 / 36
-
-theorem primeSandwichLowerRat_three_five_le_lambda :
-    (primeSandwichLowerRat 3 5 : ℝ) ≤ primeLambda
-
-theorem primeLambda_lower_nineteen_thirtysix :
-    ((19 / 36 : ℚ) : ℝ) ≤ primeLambda
-
-theorem primeLambda_gt_half :
-    (1 : ℝ) / 2 < primeLambda
+#check primeSandwichLowerRat_three_five
 ```
-
 So the qualitative bound is available directly:
 
 ```lean

@@ -13,14 +13,17 @@ import LeanCert.Examples.BKLNW_a2_bounds
 import LeanCert.ANT.PNTCompilers
 import LeanCert.ANT.Asymp.Pointwise
 import LeanCert.ANT.Asymp.Inequality
+import LeanCert.API.Eval
+import LeanCert.API.Backend
+import LeanCert.API.Optimization
+import LeanCert.API.Bounds
 
 /-!
 # Downstream interface guard
 
-Every module imported here, and every declaration pinned below, is referenced
-by name in PrimeNumberTheoremAnd. Removing or renaming any of them is a
-breaking change for the pinned downstream release: this file must fail to
-build before such a change can merge.
+This file pins both the declarations referenced by PrimeNumberTheoremAnd and
+the declared stable programmatic API. Removing or renaming any of them is a
+breaking change: this file must fail to build before such a change can merge.
 
 Regenerate the list against a PrimeNumberTheoremAnd checkout with:
 
@@ -29,6 +32,25 @@ Regenerate the list against a PrimeNumberTheoremAnd checkout with:
 This inventory cannot see unqualified declarations brought into scope with
 `open`; the behavioral pattern suite must cover those downstream call shapes.
 -/
+
+-- Stable checked programmatic API
+#check @LeanCert.evalInterval
+#check @LeanCert.evalInterval_correct
+#check @LeanCert.evalInterval1
+#check @LeanCert.evalInterval1_correct
+#check @LeanCert.Backend.Rational.eval
+#check @LeanCert.Backend.Dyadic.eval
+#check @LeanCert.Backend.Affine.eval
+#check @LeanCert.globalMinimize
+#check @LeanCert.globalMinimize_correct
+#check @LeanCert.globalMaximize
+#check @LeanCert.globalMaximize_correct
+#check @LeanCert.API.Bounds.checkUpperBound
+#check @LeanCert.API.Bounds.checkLowerBound
+#check @LeanCert.API.Bounds.checkBounds
+#check @LeanCert.API.Bounds.verifyUpperBound
+#check @LeanCert.API.Bounds.verifyLowerBound
+#check @LeanCert.API.Bounds.verifyBounds
 
 -- Engine.ChebyshevTheta
 #check @LeanCert.Engine.ChebyshevTheta.abs_theta_sub_le_mul_of_checkThetaRelErrorReal
