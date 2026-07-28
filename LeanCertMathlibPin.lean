@@ -12,4 +12,4 @@ revision by `scripts/mathlib_stable_update.py`.
 -/
 
 /-- LeanCert's expected resolved Mathlib commit, matching `lakefile.toml`. -/
-def expectedMathlibCommit : String := "520045ab14e26149ee970e2e617ca04b09bde5d6"
+def expectedMathlibCommit : String := "905b95818eb32af7874a58b427f50c1711a5e96c"
