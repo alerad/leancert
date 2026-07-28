@@ -69,9 +69,10 @@ This enables robust handling of expressions like 1/x near x = 0.
 The core Taylor remainder bounds are fully proved:
 
 ```lean
-theorem taylor_remainder_bound (f : ℝ → ℝ) (n : ℕ) (a x : ℝ) ...
-```
+import LeanCert.Core.Taylor
 
+#check LeanCert.Core.taylor_remainder_bound
+```
 This is the foundation for all transcendental function bounds.
 
 ### Taylor Models
@@ -286,10 +287,9 @@ certificate checks execute the same `mul` definitions that the kernel proofs
 reason about. The retained safety-net theorems:
 
 ```lean
-IntervalRat.mem_mulFast
-IntervalDyadic.mem_mulFast
+#check IntervalRat.mem_mulFast
+#check IntervalDyadic.mem_mulFast
 ```
-
 prove that the optimized implementations preserve interval containment if they
 are used by a future explicitly-audited backend.
 
@@ -302,10 +302,9 @@ terms are still produced through the relevant certificate soundness theorems.
 
 The shared numeral parser exposes this boundary explicitly:
 
-```lean
+```text
 LeanCert.Meta.Numeral.unsafeToRatByEval?
 ```
-
 New proof-producing code should prefer structural parsers such as
 `toRatLeaf?`, `toRatFolded?`, and `peelCast?`, and reserve meta-level evaluation
 for candidate generation or diagnostics.
@@ -390,7 +389,7 @@ iterations) are calibrated in `scripts/bench-trust/` and tunable via the
 
 CI can pin a theorem's trust class with the manifest command:
 
-```lean
+```text
 #assert_trust kernel my_bound     -- foundational axioms only
 #assert_trust native my_big_table -- native trust allowed AND required
 ```

@@ -168,11 +168,7 @@ evaluation and differentiation. Thus the same certificate can discharge the
 simple-root condition in the analytic layer:
 
 ```lean
-example (x : ℝ)
-    (hx : LeanCert.Core.Expr.eval (fun _ => x) cubic.toExpr = 0) :
-    deriv (fun t : ℝ =>
-      LeanCert.Core.Expr.eval (fun _ => t) cubic.toExpr) x ≠ 0 := by
-  exact verify_toExpr_roots_simple cubic cubicCert (by native_decide) x hx
+#check LeanCert.Validity.Algebra.verify_toExpr_roots_simple
 ```
 
 ## Trust and certificate generation

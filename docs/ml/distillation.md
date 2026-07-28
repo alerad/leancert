@@ -40,15 +40,12 @@ requires:
 - a proof that `checkEquivalence ... = true`.
 
 The complete compiled example is
-`LeanCert/Examples/ML/Distillation.lean`. Its final application has the
-following shape:
+`LeanCert/Examples/ML/Distillation.lean`. The theorem used by that example is
+part of the checked public API:
 
 ```lean
-exact verify_equivalence teacherNet studentNet inputDomain epsilon (-53)
-  [x, y] (by norm_num) teacherNet_wf studentNet_wf
-  hdom hmem distillationCheck_passes
+#check LeanCert.ML.Distillation.verify_equivalence
 ```
-
 Use exact rational tolerances such as `(1 : ℚ) / 100`, rather than treating a
 decimal presentation as part of the API.
 

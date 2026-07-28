@@ -56,12 +56,8 @@ Golden Theorems are defined across multiple files:
 | Strict lower $c < f(x)$ | `verify_strict_lower_bound` | `checkStrictLowerBound` |
 
 ```lean
-theorem verify_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (c : ℚ) (cfg : EvalConfig)
-    (h_cert : checkUpperBound e I c cfg = true) :
-    ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c
+#check verify_upper_bound
 ```
-
 ### Root Finding
 
 | Goal | Theorem | Checker |
@@ -76,13 +72,8 @@ theorem verify_upper_bound (e : Expr) (hsupp : ExprSupportedCore e)
 | Every real polynomial root is simple | `verify_real_roots_simple` | `bezoutCheck` |
 
 ```lean
-theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (cfg : EvalConfig)
-    (hCont : ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi))
-    (h_cert : checkSignChange e I cfg = true) :
-    ∃ x ∈ I, Expr.eval (fun _ => x) e = 0
+#check verify_sign_change
 ```
-
 ### Global Optimization
 
 | Goal | Theorem | Checker |
@@ -91,13 +82,8 @@ theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
 | Global upper bound | `verify_global_upper_bound` | `checkGlobalUpperBound` |
 
 ```lean
-theorem verify_global_lower_bound (e : Expr) (hsupp : ADSupported e)
-    (B : Box) (c : ℚ) (cfg : GlobalOptConfig)
-    (h_cert : checkGlobalLowerBound e B c cfg = true) :
-    ∀ (ρ : Nat → ℝ), Box.envMem ρ B → (∀ i, i ≥ B.length → ρ i = 0) →
-      c ≤ Expr.eval ρ e
+#check LeanCert.Validity.GlobalOpt.verify_global_lower_bound
 ```
-
 > **Note**: Global optimization uses `ADSupported` (not `ExprSupportedCore`) and multivariate environments.
 
 ### Checked Automatic Differentiation
@@ -123,40 +109,23 @@ compiled example and the exact coordinate alignment of gradient results.
 **Rational backend:**
 
 ```lean
-theorem verify_integral_bound (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (target : ℚ) (cfg : EvalConfig)
-    (h_cert : checkIntegralBoundsCore e I target cfg = true)
-    (hcontdom : exprContinuousDomainValid e (Set.Icc I.lo I.hi)) :
-    ∫ x in I.lo..I.hi, Expr.eval (fun _ => x) e ∈ integrateInterval1Core e I cfg
+#check LeanCert.Validity.Integration.verify_integral_bound
 ```
-
 **Dyadic backend** (for complex integrands like Li₂ where rational arithmetic explodes):
 
 ```lean
-theorem integrateInterval1Dyadic_correct (e : Expr)
-    (I : IntervalRat) (cfg : DyadicConfig)
-    (hprec : cfg.precision ≤ 0)
-    (hdom : evalDomainValidDyadic e (fun _ => IntervalDyadic.ofIntervalRat I cfg.precision) cfg)
-    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
-    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
-      integrateInterval1Dyadic e I cfg
+#check LeanCert.Validity.IntegrationDyadic.integrateInterval1Dyadic_correct
 ```
-
 The theorem-level dyadic integration path accepts arbitrary expressions
 (including `inv`, `log`, `atanh`) under explicit domain-validity hypotheses.
 Public computational endpoints use checked evaluators and return a domain error
 instead of exposing finite fallback bounds.
 
 ```lean
-theorem integratePartitionDyadic_correct (e : Expr)
-    (I : IntervalRat) (n : ℕ) (hn : 0 < n) (cfg : DyadicConfig)
-    (hprec : cfg.precision ≤ 0)
-    (hdom : ∀ k (hk : k < n), evalDomainValidDyadic e ...)
-    (hInt : IntervalIntegrable ...) :
-    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈
-      integratePartitionDyadic e I n hn cfg
+#check LeanCert.Validity.IntegrationDyadic.integratePartitionDyadic
+#check LeanCert.Validity.IntegrationDyadic.integratePartitionDyadicChecked_fst
+#check LeanCert.Validity.IntegrationDyadic.integratePartitionDyadicChecked_snd
 ```
-
 ### QProduct Product Integrals
 
 `LeanCert.QProduct` is a specialized exact-arithmetic certificate family for
@@ -177,37 +146,23 @@ integrates exactly over `ℚ`.
 | Prime-limit upper bound | `verify_primeLambda_upper` | `checkPrimeLambdaUpper` |
 
 ```lean
-theorem verify_finiteIntegral_interval (S : Finset Nat) (lo hi : ℚ)
-    (hcheck : checkFiniteIntegralInterval S lo hi = true) :
-    (lo : ℝ) ≤ F S ∧ F S ≤ (hi : ℝ)
+#check verify_finiteIntegral_interval
 ```
-
 ```lean
-theorem verify_primeLambda_upper (N : Nat) (hi : ℚ)
-    (hcheck : checkPrimeLambdaUpper N hi = true) :
-    primeLambda ≤ (hi : ℝ)
+#check verify_primeLambda_upper
 ```
-
 Prime-limit lower bounds are intentionally hybrid: the finite arithmetic is
 exact, but the lower side needs a mathematical tail proof. The bridge theorem
 is:
 
 ```lean
-theorem primeLambda_lower_of_forall (lo : ℚ)
-    (hlo : ∀ N : Nat, (lo : ℝ) ≤ (primeFRat N : ℝ)) :
-    (lo : ℝ) ≤ primeLambda
+#check primeLambda_lower_of_forall
 ```
-
 The reusable odd-prime tail certificate is:
 
 ```lean
-theorem primeLambda_sandwich {N m : Nat}
-    (hN : 2 ≤ N) (hm : Odd m)
-    (htail_ge : ∀ p, Nat.Prime p → N < p → m ≤ p) :
-    (primeFRat N : ℝ) - (primeSandwichErrorRat N m : ℝ) ≤ primeLambda ∧
-      primeLambda ≤ (primeFRat N : ℝ)
+#check primeLambda_sandwich
 ```
-
 The initial module includes the formally proved tail certificate
 `primeLambda_gt_half : (1 : ℝ) / 2 < primeLambda`.
 
@@ -225,13 +180,8 @@ For `ψ`, the checker bounds a computable rational envelope `psiUB`:
 | All real inputs up to `bound` | `verify_all_psi_le_mul_real` | `checkAllPsiLeMulWith` |
 
 ```lean
-theorem verify_all_psi_le_mul
-    (bound depth : Nat) (slope : ℚ)
-    (hcheck : checkAllPsiLeMulWith bound slope depth = true) :
-    ∀ N : Nat, 0 < N → N ≤ bound →
-      Chebyshev.psi (N : ℝ) ≤ (slope : ℝ) * N
+#check verify_all_psi_le_mul
 ```
-
 For `θ`, the checker supports upper, absolute-error, and relative-error bounds:
 
 | Goal | Theorem | Checker |
@@ -243,13 +193,8 @@ For `θ`, the checker supports upper, absolute-error, and relative-error bounds:
 | Unit-interval real relative error | `verify_theta_rel_error_real` | `checkThetaRelErrorReal` |
 
 ```lean
-theorem verify_all_theta_rel_error
-    (start limit depth : Nat) (bound : ℚ)
-    (hcheck : checkAllThetaRelError start limit bound depth = true) :
-    ∀ N : Nat, 0 < N → start ≤ N → N ≤ limit →
-      |Chebyshev.theta (N : ℝ) - N| ≤ (bound : ℝ) * N
+#check verify_all_theta_rel_error
 ```
-
 ### Analytic Number Theory Bridges
 
 The ANT layer exposes small bridge Golden Theorems that compose with the
@@ -258,13 +203,8 @@ Chebyshev engines.
 The shared interval helper used by these APIs is:
 
 ```lean
-theorem LeanCert.Cert.verify_rat_interval {value : ℝ} {lower upper lo hi : ℚ}
-    (hlower : (lower : ℝ) ≤ value)
-    (hupper : value ≤ (upper : ℝ))
-    (hcheck : checkRatInterval lower upper lo hi = true) :
-    (lo : ℝ) ≤ value ∧ value ≤ (hi : ℝ)
+#check LeanCert.Cert.verify_rat_interval
 ```
-
 | Goal | Theorem | Checker/Data |
 |------|---------|--------------|
 | Finite step-sum interval | `verify_stepSum_interval` | `checkStepSumInterval` |
@@ -287,34 +227,21 @@ theorem LeanCert.Cert.verify_rat_interval {value : ℝ} {lower upper lo hi : ℚ
 The central exact identity is:
 
 ```lean
-theorem weightedSumRat_eq_abelTransformRat {a f : Nat → ℚ} {m n : Nat}
-    (hmn : m < n) :
-    (weightedSumRat a f m n : ℝ) = (abelTransformRat a f m n : ℝ)
+#check weightedSumRat_eq_abelTransformRat
 ```
-
 The first Chebyshev-to-Mertens bridge is finite:
 
 ```lean
-theorem verify_mertensLogSum_interval (N depth : Nat) (lo hi : ℚ)
-    (hcheck : checkMertensLogSumInterval N depth lo hi = true) :
-    (lo : ℝ) ≤ mertensLogSum N ∧ mertensLogSum N ≤ (hi : ℝ)
+#check verify_mertensLogSum_interval
 ```
-
 Here `mertensLogSum N` is `∑ p ≤ N, log p / p`, and the checker uses the
 existing Chebyshev theta logarithm envelopes.
 
 The bounded Abel bridge has the reusable shape:
 
 ```lean
-theorem verify_abelBound_interval
-    (a : Nat → ℝ) (f ALo AHi : Nat → ℚ) {m n : Nat} (hmn : m < n)
-    (hA : ∀ k, (ALo k : ℝ) ≤ prefixSum a k ∧
-      prefixSum a k ≤ (AHi k : ℝ))
-    (lo hi : ℚ)
-    (hcheck : checkAbelBoundInterval f ALo AHi m n lo hi = true) :
-    (lo : ℝ) ≤ weightedSum a f m n ∧ weightedSum a f m n ≤ (hi : ℝ)
+#check verify_abelBound_interval
 ```
-
 ### Asymptotic Envelope Certificates
 
 The asymptotic layer introduces semantic main-term/error-term envelopes for
@@ -362,12 +289,8 @@ Prove monotonicity properties using automatic differentiation with interval arit
 | Antitone (weak) | `verify_antitone` | `checkStrictlyDecreasing` |
 
 ```lean
-theorem verify_strictly_increasing (e : Expr) (hsupp : ADSupported e)
-    (I : IntervalRat) (cfg : EvalConfig)
-    (h_check : checkStrictlyIncreasing e I cfg = true) :
-    StrictMonoOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc I.lo I.hi)
+#check LeanCert.Validity.verify_strictly_increasing
 ```
-
 The approach uses automatic differentiation to compute interval bounds on derivatives:
 1. Compute `dI := derivIntervalCore e I cfg` (interval containing all derivatives)
 2. If `dI.lo > 0`, then f'(x) > 0 for all x ∈ I, so f is strictly increasing
@@ -380,7 +303,7 @@ The mathematical foundation is the Mean Value Theorem: if f' has consistent sign
 `ADSupported` remains the fast, domain-free fragment.  For expressions that
 contain reciprocal or logarithm nodes, use the computable checked API instead:
 
-```lean
+```text
 derivIntervalChecked  : Expr → IntervalEnv → Nat → EvalConfig →
   EvalResult IntervalRat
 gradientIntervalChecked : Expr → Box → EvalConfig →
@@ -394,7 +317,6 @@ derivIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConfig 
 gradientIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConfig →
   EvalResult (List IntervalDyadic)
 ```
-
 The checker recursively validates syntax and the actual input box.  It accepts
 `inv e` only when the computed enclosure of `e` excludes zero, and `log e`
 only when that enclosure is strictly positive.  Failure is structured data
@@ -406,13 +328,8 @@ support proof: successful checked computation carries the support and domain
 evidence.
 
 ```lean
-theorem derivIntervalChecked_correct
-    (hok : derivIntervalChecked e ρInt idx cfg = .ok dI)
-    (hx : x ∈ ρInt idx)
-    (hρ : ∀ i, ρReal i ∈ ρInt i) :
-    deriv (Expr.evalAlong e ρReal idx) x ∈ dI
+#check derivIntervalChecked_correct
 ```
-
 `evalWithDerivChecked_differentiableAt` additionally extracts the analytic
 differentiability fact certified by the same successful run.  The current
 checked fragment is `const`, `var`, `add`, `mul`, `neg`, `sin`, `cos`, `exp`,
@@ -434,7 +351,7 @@ rounding at every operation. Their public success condition also certifies that
 -- Prove exp is strictly increasing on [0, 1]
 theorem exp_strictly_increasing :
     StrictMonoOn (fun x => Real.exp x) (Set.Icc 0 1) := by
-  have h := verify_strictly_increasing (Expr.exp (Expr.var 0))
+  have h := LeanCert.Validity.verify_strictly_increasing (Expr.exp (Expr.var 0))
     (ADSupported.exp (ADSupported.var 0))
     ⟨0, 1, by norm_num⟩ {} (by native_decide)
   simp only [Expr.eval_exp, Expr.eval_var] at h
@@ -491,14 +408,8 @@ operation-by-operation matrix.
 Uses fixed-precision dyadic numbers (m · 2^e) to avoid denominator explosion:
 
 ```lean
-theorem verify_upper_bound_dyadic (e : Expr) (hsupp : ExprSupportedCore e)
-    (lo hi : ℚ) (hle : lo ≤ hi) (c : ℚ)
-    (prec : Int) (depth : Nat) (h_prec : prec ≤ 0)
-    (hdom : evalDomainValidDyadic e ...)
-    (h_check : checkUpperBoundDyadic e lo hi hle c prec depth = true) :
-    ∀ x ∈ Set.Icc lo hi, Expr.eval (fun _ => x) e ≤ c
+#check LeanCert.Validity.verify_upper_bound_dyadic
 ```
-
 > **Note**: The API takes rational bounds (`lo`, `hi`, `c : ℚ`) for user convenience, but internally converts to `IntervalDyadic` and runs `evalIntervalDyadic` — the actual computation uses Dyadic arithmetic for speed.
 
 Key parameters:
@@ -514,13 +425,8 @@ Essential for neural network verification and optimization loops where expressio
 Solves the "dependency problem" in interval arithmetic by tracking linear correlations:
 
 ```lean
-theorem verify_upper_bound_affine1 (e : Expr) (hsupp : ExprSupportedCore e)
-    (I : IntervalRat) (c : ℚ) (cfg : AffineConfig)
-    (hdom : evalDomainValidAffine e (toAffineEnvConst I) cfg)
-    (h_check : checkUpperBoundAffine1 e I c cfg = true) :
-    ∀ x ∈ I, Expr.eval (fun _ => x) e ≤ c
+#check verify_upper_bound_affine1
 ```
-
 The `'` variant (`verify_upper_bound_affine1'`) uses `ADSupported` and handles domain validity automatically.
 
 Affine arithmetic represents values as `x̂ = c₀ + Σᵢ cᵢ·εᵢ + [-r, r]` where εᵢ ∈ [-1, 1] are noise symbols. This means:
@@ -606,18 +512,20 @@ The `examples/` folder contains complete working examples demonstrating LeanCert
 Proves existence, uniqueness, and arbitrary-precision bounds for √2:
 
 ```lean
--- Existence via IVT (sign change)
-theorem sqrt2_exists : ∃ x ∈ I12, x * x - 2 = 0 := by
+def sqrtTwoInterval : IntervalRat := ⟨1, 2, by norm_num⟩
+
+def sqrtTwoExpr : Expr :=
+  Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))
+
+example : ∃ x ∈ sqrtTwoInterval,
+    Expr.eval (fun _ => x) sqrtTwoExpr = 0 := by
+  unfold sqrtTwoExpr
   interval_roots
 
--- Uniqueness via Newton contraction
-theorem sqrt2_unique : ∃! x, x ∈ I12 ∧ x * x - 2 = 0 := by
+example : ∃! x, x ∈ sqrtTwoInterval ∧
+    Expr.eval (fun _ => x) sqrtTwoExpr = 0 := by
+  unfold sqrtTwoExpr
   interval_unique_root
-
--- 9 decimal places of precision
-theorem sqrt2_9_decimals : ∃ x ∈ ⟨1414213562/1000000000, 1414213563/1000000000, _⟩,
-    x * x - 2 = 0 := by
-  interval_roots
 ```
 
 ### ML Safety: Neural Network Verification (`examples/NeuralNet.lean`)
@@ -625,13 +533,8 @@ theorem sqrt2_9_decimals : ∃ x ∈ ⟨1414213562/1000000000, 1414213563/100000
 Demonstrates interval propagation through neural networks:
 
 ```lean
-def simpleNet : TwoLayerNet where
-  layer1 := ⟨[[1, 1], [1, -1]], [0, 0]⟩
-  layer2 := ⟨[[1, 1]], [0]⟩
-
--- Compute certified output bounds for input region
-def outputBounds : IntervalVector :=
-  TwoLayerNet.forwardInterval simpleNet inputRegion (-53)
+#check LeanCert.ML.Distillation.SequentialNet.forwardInterval
+#check LeanCert.ML.Distillation.verify_equivalence
 ```
 
 ### Control Theory: Lyapunov Stability (`examples/Lyapunov.lean`)
@@ -639,14 +542,10 @@ def outputBounds : IntervalVector :=
 Proves energy dissipation for a damped harmonic oscillator:
 
 ```lean
--- V̇ = -2ζωₙv² ≤ 0 proves stability
-theorem energy_derivative_nonpositive :
+example :
     ∀ v ∈ Set.Icc (-1:ℝ) 1, -2/5 * v * v ≤ (0 : ℝ) := by
-  -- Split domain to handle dependency problem
   intro v ⟨hlo, hhi⟩
-  by_cases h : v ≥ 0
-  · have := energy_derivative_on_positive v ⟨h, hhi⟩; linarith
-  · have := energy_derivative_on_negative v ⟨hlo, le_of_lt (not_le.mp h)⟩; linarith
+  nlinarith [sq_nonneg v]
 ```
 
 **Key technique**: ordinary interval evaluation treats repeated occurrences

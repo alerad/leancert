@@ -20,10 +20,10 @@ These commands print rigorous enclosures and diagnostics inside the editor.
 ```lean
 import LeanCert.Tactic.Discovery
 
-example : exists m : Rat, forall x in Set.Icc (0 : Real) 1, x^2 >= m := by
+example : ∃ m : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1, x ^ 2 ≥ m := by
   interval_minimize
 
-example : exists M : Rat, forall x in Set.Icc (0 : Real) 1, Real.sin x <= M := by
+example : ∃ M : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ M := by
   interval_maximize
 ```
 

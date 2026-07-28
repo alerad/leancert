@@ -12,31 +12,28 @@ generated rows
 
 Core API:
 
-```lean
+```text
 TableCert
 TableCert.checkAll
 TableCert.verify
 TableCert.failingIndices
 ```
-
 For linked or sorted rows:
 
-```lean
+```text
 checkLinkedRows
 checkStrictlyIncreasingBy
 AdjacentAll
 ```
-
 `TableCert` is a generic trust pattern, not a domain-specific API.  Domain
 projects provide the row type and row checker.  LeanCert provides the finite
 row traversal and soundness theorem.
 
 For numerical inequality rows, see:
 
-```lean
+```text
 InequalityTableRow
 InequalityTableCert
 InequalityTableCert.verify
 ```
-
 Architecture deep dive: [Table Certificates](../architecture/table-certificates.md).

@@ -25,36 +25,20 @@ function `ψ`.
 
 Core checkers:
 
-```lean
+```text
 checkPsiLeMulWith (N : Nat) (slope : ℚ) (depth : Nat)
 checkAllPsiLeMulWith (bound : Nat) (slope : ℚ) (depth : Nat)
 ```
-
 Golden Theorems:
 
 ```lean
-theorem verify_psi_le_mul (N depth : Nat) (slope : ℚ)
-    (hcheck : checkPsiLeMulWith N slope depth = true) :
-    Chebyshev.psi (N : ℝ) ≤ (slope : ℝ) * N
-
-theorem verify_all_psi_le_mul
-    (bound depth : Nat) (slope : ℚ)
-    (hcheck : checkAllPsiLeMulWith bound slope depth = true) :
-    ∀ N : Nat, 0 < N → N ≤ bound →
-      Chebyshev.psi (N : ℝ) ≤ (slope : ℝ) * N
+#check verify_psi_le_mul
 ```
-
 Real-variable form:
 
 ```lean
-theorem verify_all_psi_le_mul_real
-    (bound depth : Nat) (slope : ℚ)
-    (hslope : 0 ≤ slope)
-    (hcheck : checkAllPsiLeMulWith bound slope depth = true) :
-    ∀ x : ℝ, 0 < x → x ≤ (bound : ℝ) →
-      Chebyshev.psi x ≤ (slope : ℝ) * x
+#check verify_all_psi_le_mul_real
 ```
-
 ## Theta Bounds
 
 `LeanCert.Engine.ChebyshevTheta` certifies upper, absolute-error, and
@@ -62,7 +46,7 @@ relative-error bounds for the first Chebyshev function `θ`.
 
 Core checkers:
 
-```lean
+```text
 checkThetaLeMulWith
 checkAllThetaLeMulWith
 checkThetaAbsError
@@ -72,41 +56,21 @@ checkAllThetaRelError
 checkThetaRelErrorReal
 checkAllThetaRelErrorReal
 ```
-
 Golden Theorems:
 
 ```lean
-theorem verify_theta_le_mul (N depth : Nat) (slope : ℚ)
-    (hcheck : checkThetaLeMulWith N slope depth = true) :
-    Chebyshev.theta (N : ℝ) ≤ (slope : ℝ) * N
-
-theorem verify_theta_abs_error (N depth : Nat) (bound : ℚ)
-    (hcheck : checkThetaAbsError N bound depth = true) :
-    |Chebyshev.theta (N : ℝ) - N| ≤ (bound : ℝ)
-
-theorem verify_theta_rel_error (N depth : Nat) (bound : ℚ)
-    (hcheck : checkThetaRelError N bound depth = true) :
-    |Chebyshev.theta (N : ℝ) - N| ≤ (bound : ℝ) * N
+#check verify_theta_le_mul
 ```
-
 Range checkers have corresponding range Golden Theorems:
 
 ```lean
-theorem verify_all_theta_le_mul
-theorem verify_all_theta_abs_error
-theorem verify_all_theta_rel_error
+#check verify_all_theta_le_mul
 ```
-
 For real `x ∈ [N, N+1)`, use the strengthened interval certificate:
 
 ```lean
-theorem verify_theta_rel_error_real (N depth : Nat) (bound : ℚ)
-    (hbound : 0 ≤ bound) (hbound1 : bound ≤ 1)
-    (hcheck : checkThetaRelErrorReal N bound depth = true)
-    (x : ℝ) (hxlo : (N : ℝ) ≤ x) (hxhi : x < (N : ℝ) + 1) :
-    |Chebyshev.theta x - x| ≤ (bound : ℝ) * x
+#check verify_theta_rel_error_real
 ```
-
 ## Example
 
 ```lean

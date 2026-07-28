@@ -29,7 +29,7 @@ lake update
 ```lean
 import LeanCert.Tactic
 
-example : forall x in Set.Icc (0 : Real) 1, Real.exp x <= 3 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
   leancert
 ```
 
@@ -38,7 +38,7 @@ example : forall x in Set.Icc (0 : Real) 1, Real.exp x <= 3 := by
 ```lean
 import LeanCert.Tactic
 
-example : exists x in Set.Icc (1 : Real) 2, x^2 = 2 := by
+example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x ^ 2 = 2 := by
   leancert
 ```
 

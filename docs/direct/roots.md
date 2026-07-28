@@ -13,20 +13,18 @@ certificate API, that equality can be discharged by `decide`,
 
 Typical goals:
 
-```lean
+```text
 ∃ x ∈ I, f x = 0
 ∃! x ∈ I, f x = 0
 ∀ x ∈ I, f x ≠ 0
 ```
-
 Main tools:
 
-```lean
+```text
 interval_roots
 interval_unique_root
 root_bound
 ```
-
 ## Global algebraic simplicity and counts
 
 For an exact rational polynomial, `BezoutCert` checks an identity

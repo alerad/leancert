@@ -302,9 +302,15 @@ overrides the `leancert.trust` option for that invocation only (implemented
 by running the tactic core under `withOptions`, so every certificate check in
 the invocation — including nested fallback strategies — honors it). -/
 
+/-- Parser category for verification modes. `auto` needs an explicit branch
+because it is a reserved Lean token rather than an `ident`. -/
+declare_syntax_cat leancertTrustMode
+syntax ident : leancertTrustMode
+syntax &"auto" : leancertTrustMode
+
 /-- Per-invocation verification route for LeanCert tactics:
 `(trust := kernel)`, `(trust := native)`, or `(trust := auto)`. -/
-syntax leancertTrustItem := "(" &"trust" " := " ident ")"
+syntax leancertTrustItem := "(" &"trust" " := " leancertTrustMode ")"
 
 /-- Elaborate an optional `(trust := …)` item. -/
 def elabTrustItem? : Option (TSyntax ``leancertTrustItem) →
@@ -312,9 +318,10 @@ def elabTrustItem? : Option (TSyntax ``leancertTrustItem) →
   | none => pure none
   | some stx =>
     match stx with
-    | `(leancertTrustItem| (trust := $m:ident)) => do
-      let some mode := VerificationMode.ofString? m.getId.toString
-        | throwErrorAt m "invalid trust mode '{m.getId}'; expected kernel, native, or auto"
+    | `(leancertTrustItem| (trust := $m:leancertTrustMode)) => do
+      let raw := m.raw.reprint.getD ""
+      let some mode := VerificationMode.ofString? raw
+        | throwErrorAt m "invalid trust mode '{raw}'; expected kernel, native, or auto"
       return some mode
     | _ => throwUnsupportedSyntax
 

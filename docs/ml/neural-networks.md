@@ -163,16 +163,7 @@ Interval bounds for LayerNorm are computed soundly:
 ```lean
 import LeanCert.ML.Transformer
 
--- LayerNorm: y = (x - μ) / σ * γ + β
-theorem mem_layerNorm_forwardInterval {xs : List ℝ} {Is : IntervalVector}
-    (params : LayerNormParams)
-    (hlen : xs.length = Is.length)
-    (hmem : ∀ i, i < xs.length → xs[i]! ∈ Is[i]!)
-    (prec : Int) (hprec : prec ≤ 0 := by norm_num) :
-    let ys := layerNormReal xs params.gamma params.beta params.epsilon
-    let Js := params.forwardInterval Is prec
-    ys.length ≤ Js.length ∧
-      ∀ i, i < ys.length → ys[i]! ∈ Js[i]!
+#check LeanCert.ML.Transformer.mem_layerNorm_forwardInterval
 ```
 
 **Note**: Standard interval arithmetic may overestimate LayerNorm bounds due to variable correlation (the mean and variance are computed from the same input).

@@ -70,6 +70,8 @@ optimization uses `LeanCert.GlobalOptOptions`, which composes the same
 `EvalOptions` with independent `SearchOptions`:
 
 ```lean
+def unit : IntervalRat := ⟨0, 1, by norm_num⟩
+
 def optimizationOptions : GlobalOptOptions := {
   evaluation := { backend := .affine }
   search := { maxIterations := 2000, tolerance := 1 / 10000,

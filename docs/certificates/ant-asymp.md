@@ -63,12 +63,11 @@ The semantic core lives in `LeanCert.ANT.Asymp.Env`.
 The lower and upper endpoint theorems are:
 
 ```lean
-AsympEnv.lower_le_summatory
-AsympEnv.summatory_le_upper
-AsympEnv.lowerReal_le_summatoryReal
-AsympEnv.summatoryReal_le_upperReal
+#check LeanCert.ANT.Asymp.AsympEnv.lower_le_summatory
+#check LeanCert.ANT.Asymp.AsympEnv.summatory_le_upper
+#check LeanCert.ANT.Asymp.AsympEnv.lowerReal_le_summatoryReal
+#check LeanCert.ANT.Asymp.AsympEnv.summatoryReal_le_upperReal
 ```
-
 ## Pointwise Error Envelopes
 
 `PointwiseEnvelope` is the real-variable sibling of `AsympEnv`.  It certifies:
@@ -83,22 +82,20 @@ domain.
 Core API:
 
 ```lean
-PointwiseEnvelope.lower
-PointwiseEnvelope.upper
-PointwiseEnvelope.lower_le_value
-PointwiseEnvelope.value_le_upper
-PointwiseEnvelope.weakenError
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.lower
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.upper
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.lower_le_value
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.value_le_upper
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.weakenError
 ```
-
 Algebra:
 
 ```lean
-PointwiseEnvelope.add
-PointwiseEnvelope.neg
-PointwiseEnvelope.sub
-PointwiseEnvelope.constMul
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.add
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.neg
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.sub
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.constMul
 ```
-
 The algebra keeps the common-domain and nonnegative-error obligations inside
 the certificate object.  This is the preferred target for explicit real-variable
 estimates that are not naturally discrete summatory functions.
@@ -107,23 +104,21 @@ To turn a summatory `AsympEnv` into a real-variable pointwise envelope using the
 existing floor semantics, use:
 
 ```lean
-AsympEnv.toPointwiseFloorEnvelope
-AsympEnv.toPointwiseFloorEnvelope_cert
+#check LeanCert.ANT.Asymp.AsympEnv.toPointwiseFloorEnvelope
+#check LeanCert.ANT.Asymp.AsympEnv.toPointwiseFloorEnvelope_cert
 ```
-
 ## Stieltjes-Abel Transforms
 
 The Stieltjes-Abel kernel certifies weighted summatory transforms.
 
-```lean
+```text
 weightedPrefixSumReal
 abelTransformOfPrefixReal
 weightedPrefixSumReal_eq_abelTransformOfPrefixReal
 ```
-
 The generic payload is:
 
-```lean
+```text
 structure StieltjesCert (A : AsympEnv) where
   weight : Nat → ℝ
   cutoff : Nat
@@ -139,28 +134,26 @@ structure StieltjesCert (A : AsympEnv) where
 
 The common analytic-number-theory weight `1 / n` has a specialized API:
 
-```lean
+```text
 oneOverNWeight
 oneOverNExpr
 OneOverNStieltjesCert
 verify_one_over_n_stieltjes_envelope
 ```
-
 `OneOverNStieltjesCert` requires `1 ≤ cutoff`, so certified endpoints avoid
 treating the `n = 0` convention as part of the analytic statement.
 
 Golden theorem:
 
-```lean
+```text
 verify_stieltjes_envelope
 ```
-
 ## Dirichlet Hyperbola Transforms
 
 The hyperbola layer provides an exact finite pair-sum specification and a
 certificate bridge for Dirichlet-convolution-style summatory functions.
 
-```lean
+```text
 hyperbolaPairs
 hyperbolaPairSum
 hyperbolaLeft
@@ -168,32 +161,28 @@ hyperbolaBottom
 hyperbolaOverlap
 hyperbolaPairSum_eq_left_add_bottom_sub_overlap
 ```
-
 `hyperbolaPairs` is specification-level, not an execution-level evaluator: it
 enumerates an `N × N` rectangle before filtering.
 
 Transform certificates use:
 
-```lean
+```text
 HyperbolaCert
 verify_dirichlet_hyperbola_envelope
 ```
-
 To expose a conventional convolution sequence, provide the finite divisor-pair
 identity through:
 
-```lean
+```text
 DirichletConvolutionBridge
 verify_dirichlet_convolution_envelope
 ```
-
 The reusable discrete derivative helper is:
 
-```lean
+```text
 discreteDerivative
 prefixSum_discreteDerivative
 ```
-
 ## Dyadic Error-Domination Checkers
 
 Generated transform certificates often produce a detailed error expression that
@@ -202,29 +191,26 @@ expression domination on intervals, slabs, and slab-plus-tail covers.
 
 Raw computable checkers:
 
-```lean
+```text
 checkExprLeOnIntervalDyadic
 checkExprLeOnSlabsDyadic
 ```
-
 Soundness-facing certificate packages:
 
-```lean
+```text
 ExprLeOnIntervalDyadicCert
 ExprLeOnSlabsDyadicCert
 ```
-
 Coverage structures:
 
-```lean
+```text
 NatSlabCover
 SlabTailCert
 SlabTailCert.covered_or_tail
 ```
-
 Verifier bridges:
 
-```lean
+```text
 verify_expr_le_on_interval_dyadic
 verify_expr_le_on_slabs_dyadic
 verify_expr_le_on_nat_slab_cover_dyadic
@@ -232,34 +218,30 @@ verify_expr_le_with_slab_tail_dyadic
 verify_stieltjes_error_le_target_with_slab_tail_dyadic
 verify_hyperbola_error_le_target_with_slab_tail_dyadic
 ```
-
 ## Slab And Table Inequality Certificates
 
 For explicit PNT estimates and generated numerical tables, the dyadic slab
 checker is packaged as a small certificate API:
 
-```lean
+```text
 SlabInequalityCert
 SlabInequalityCert.verify
 ```
-
 `SlabInequalityCert` proves:
 
-```lean
+```text
 ∀ I ∈ slabs, ∀ x ∈ Set.Icc (I.lo : ℝ) I.hi,
   Expr.eval (fun _ => x) lhs ≤ Expr.eval (fun _ => x) rhs
 ```
-
 The table-oriented wrapper uses the generic `TableCert` traversal:
 
-```lean
+```text
 InequalityTableRow
 checkInequalityTableRow
 InequalityTableCert
 InequalityTableCert.verify
 InequalityTableCert.failingIndices
 ```
-
 Rows remain proof-free data.  The table certificate carries the support and
 precision side conditions once over row membership, while `native_decide` checks
 the row booleans.
@@ -278,38 +260,22 @@ and the resulting envelope can be weakened to the public error term.
 
 ## Toy Examples
 
-A sequence concentrated at `1` has exact `1 / n` weighted sum equal to `1` from
-cutoff `1` onward:
+The repository contains two complete, compiled toy developments:
 
-```text
-noncomputable def deltaOne : Nat → ℝ :=
-  fun n => if n = 1 then 1 else 0
+- `LeanCert/Test/AsympTransforms.lean` constructs the sequence concentrated at
+  `1`, its exact `1 / n` weighted-sum certificate, and the weakened envelope.
+- `LeanCert/Test/AsympCheckers.lean` constructs a slab-plus-tail certificate
+  proving that the generated error `0` is dominated by the public error `1`.
 
-deltaOneOverNCert : OneOverNStieltjesCert deltaOneEnv
-  cutoff := 1
-  cutoff_pos := proof that 1 ≤ cutoff
-  mainTerm := Expr.const 1
-  errorTerm := Expr.const 0
-  cert := proof that weightedPrefixSumReal deltaOne oneOverNWeight N = 1
-  error_nonneg := proof that 0 ≤ 0
+The concrete certificate types used by those examples are checked here:
+
+```lean
+#check LeanCert.ANT.Asymp.OneOverNStieltjesCert
+#check LeanCert.ANT.Asymp.SlabTailCert
 ```
 
-A minimal slab-plus-tail certificate can prove the generated error `0` is
-dominated by the public error `1`:
-
-```text
-def slab05 : IntervalRat := ⟨0, 5, by norm_num⟩
-
-zeroLeOne : SlabTailCert (Expr.const 0) (Expr.const 1)
-  cutoff := 0
-  tailStart := 5
-  slabs := [slab05]
-  coversSlabs := proof that pre-tail endpoints lie in [0, 5]
-  tailBound := proof that 0 ≤ 1 on the tail
-```
-
-These examples are intentionally small.  Production certificates usually
-generate the transform payload and slab coverage mechanically.
+Production certificates usually generate the transform payload and slab
+coverage mechanically.
 
 ## Current Scope
 

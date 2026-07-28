@@ -4,19 +4,17 @@ Use this path when the goal is a certified definite-integral enclosure.
 
 Typical goals:
 
-```lean
+```text
 ∫ x in a..b, f x ∈ B
 lo ≤ ∫ x in a..b, f x
 ∫ x in a..b, f x ≤ hi
 ```
-
 Main tools:
 
-```lean
+```text
 leancert
 integrateInterval
 ```
-
 For ordinary mathematical syntax, start with `leancert`:
 
 ```lean

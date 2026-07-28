@@ -5,25 +5,22 @@ candidate bound found by search.
 
 Typical goals:
 
-```lean
+```text
 ∃ M, ∀ x ∈ I, f x ≤ M
 ∀ x ∈ I, m ≤ f x
 ```
-
 Tactics:
 
-```lean
+```text
 interval_minimize
 interval_maximize
 ```
-
 Programmatic search APIs:
 
-```lean
+```text
 findGlobalMin
 findGlobalMax
 ```
-
 The tactic goals above certify global lower or upper bounds. They do not, by
 themselves, state that a bound is attained. Use `interval_argmin` or
 `interval_argmax` when the theorem explicitly asks for an optimizing point.

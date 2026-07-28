@@ -33,6 +33,12 @@ def docsInputBox : IntervalVector := [
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by
   leancert
 
+example : Real.log 2 < 7 / 10 := by
+  interval_decide (trust := auto)
+
+example : Real.log 2 < 7 / 10 := by
+  leancert (trust := auto)
+
 example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x ^ 2 = 2 := by
   interval_roots
 

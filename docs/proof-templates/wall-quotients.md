@@ -8,16 +8,8 @@ enclosure is vacuous. The information lives one jet order up. The order-1
 enclosure is the Cauchy mean value theorem in certificate form:
 
 ```lean
-theorem quotient_mem_of_deriv_ratio_bounds
-    {num den num' den' : ℝ → ℝ} {w b lo hi : ℝ}
-    (hnum0 : num w = 0) (hden0 : den w = 0)
-    -- continuity on [w, b], HasDerivAt on (w, b), den' > 0 on (w, b)
-    (hlo : ∀ x ∈ Ioo w b, lo * den' x ≤ num' x)
-    (hhi : ∀ x ∈ Ioo w b, num' x ≤ hi * den' x)
-    {t : ℝ} (ht : t ∈ Ioo w b) :
-    num t / den t ∈ Icc lo hi
+#check LeanCert.Analysis.WallQuotient.quotient_mem_of_deriv_ratio_bounds
 ```
-
 The derivative-ratio bounds `lo · den′ ≤ num′ ≤ hi · den′` are ordinary,
 wall-free interval-evaluation targets, so the theorem converts a singular
 enclosure problem into a regular one.

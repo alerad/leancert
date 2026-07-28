@@ -13,7 +13,7 @@ function on a domain
 
 Core API:
 
-```lean
+```text
 PointwiseEnvelope
 PointwiseEnvelope.lower
 PointwiseEnvelope.upper
@@ -21,14 +21,12 @@ PointwiseEnvelope.lower_le_value
 PointwiseEnvelope.value_le_upper
 PointwiseEnvelope.weakenError
 ```
-
 The basic theorem shape is:
 
 ```lean
-PointwiseEnvelope.lower_le_value
-PointwiseEnvelope.value_le_upper
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.lower_le_value
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.value_le_upper
 ```
-
 If an envelope proves `|f x - main x| ≤ err x` on a domain, these theorems give:
 
 ```text
@@ -39,18 +37,16 @@ f x ≤ main x + err x
 Algebra:
 
 ```lean
-PointwiseEnvelope.add
-PointwiseEnvelope.neg
-PointwiseEnvelope.sub
-PointwiseEnvelope.constMul
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.add
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.neg
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.sub
+#check LeanCert.ANT.Asymp.PointwiseEnvelope.constMul
 ```
-
 To convert a discrete summatory `AsympEnv` into a real-variable floor envelope:
 
 ```lean
-AsympEnv.toPointwiseFloorEnvelope
+#check LeanCert.ANT.Asymp.AsympEnv.toPointwiseFloorEnvelope
 ```
-
 Detailed API reference: [Asymptotic Envelope Certificates](../certificates/ant-asymp.md).
 
 Next:

@@ -11,7 +11,8 @@ certificate:
 
 ```lean
 example : Real.log 2 < 7/10 := by interval_decide (trust := kernel)
-example : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ 2.72 := by certify_bound (trust := auto)
+example : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ 3 := by
+  certify_bound (trust := auto)
 
 set_option leancert.trust "kernel" in   -- or file/project-wide
 theorem log2 : Real.log 2 < 7/10 := by interval_decide
@@ -179,11 +180,10 @@ start with `leancert`; use `certify_bound` for explicit interval-engine control.
 
 Searches for counter-examples to disprove false bounds.
 
-```lean
-import LeanCert.Tactic.Refute
+The following is a compiled expected-failure test: the bound is false because
+`x²` reaches `4` on `[-2, 2]`.
 
--- This bound is false (x² can reach 4 on [-2, 2])
-#guard_msgs (error) in
+```lean expect-error
 example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
   interval_refute
 ```
@@ -200,12 +200,11 @@ point and intentionally leaves the false theorem unproved.
 
 **Configuration:**
 
-```lean
+```text
 -- In a development scratch theorem:
 -- interval_refute (config := { maxIterations := 100,
 --                              tolerance := 1 / 1000000 })
 ```
-
 ---
 
 ## Discovery Tactics
@@ -292,6 +291,7 @@ def I12 : IntervalRat := ⟨1, 2, by norm_num⟩
 def expr_x2_minus_2 : Expr := Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))
 
 example : ∃! x ∈ I12, Expr.eval (fun _ => x) expr_x2_minus_2 = 0 := by
+  unfold expr_x2_minus_2
   interval_unique_root
 ```
 
@@ -427,13 +427,17 @@ import LeanCert.Tactic.Discovery
 Meta-tactic that analyzes the goal and automatically routes to `interval_minimize` or `interval_maximize`.
 
 ```lean
-import LeanCert.Tactic.Discovery
+def discoveryInterval : IntervalRat := ⟨-1, 1, by norm_num⟩
 
--- Automatically detects ≥ m and calls interval_minimize
-example : ∃ m : ℚ, ∀ x ∈ I, f(x) ≥ m := by discover
+def squareExpr : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
--- Automatically detects ≤ M and calls interval_maximize
-example : ∃ M : ℚ, ∀ x ∈ I, f(x) ≤ M := by discover
+example : ∃ m : ℚ, ∀ x ∈ discoveryInterval,
+    Expr.eval (fun _ => x) squareExpr ≥ m := by
+  discover
+
+example : ∃ M : ℚ, ∀ x ∈ discoveryInterval,
+    Expr.eval (fun _ => x) squareExpr ≤ M := by
+  discover
 ```
 
 ---
@@ -604,6 +608,8 @@ def xSq : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 def xSq_supp : ExprSupportedCore xSq :=
   ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0)
 
+def I01 : IntervalRat := ⟨0, 1, by norm_num⟩
+
 -- Manual bounds with explicit AST and support proof
 example : ∀ x ∈ I01, Expr.eval (fun _ => x) xSq ≤ (1 : ℚ) := by
   interval_le xSq, xSq_supp, I01, 1
@@ -748,19 +754,31 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by
 ### Proving a root exists and is unique
 
 ```lean
--- First existence, then uniqueness
-example : ∃ x ∈ I, f x = 0 := by interval_roots
-example : ∃! x ∈ I, f x = 0 := by interval_unique_root
+def rootsInterval : IntervalRat := ⟨1, 2, by norm_num⟩
+
+def rootsExpr : Expr :=
+  Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))
+
+example : ∃ x ∈ rootsInterval, Expr.eval (fun _ => x) rootsExpr = 0 := by
+  unfold rootsExpr
+  interval_roots
+
+example : ∃! x, x ∈ rootsInterval ∧
+    Expr.eval (fun _ => x) rootsExpr = 0 := by
+  unfold rootsExpr
+  interval_unique_root
 ```
 
 ### Debugging failed proofs
 
 ```lean
-set_option trace.certify_bound true    -- See computation details
-set_option trace.leancert.verification true -- See verification route
+set_option trace.LeanCert.router true in
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ 1 := by leancert
 
--- If bound too tight, try:
--- 1. Increase Taylor depth: certify_bound 20
--- 2. Use subdivision: interval_bound_subdiv 20 4
--- 3. Use interval_refute to check if bound is actually false
+set_option trace.leancert.verification true in
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ 1 := by
+  certify_bound (trust := auto)
 ```
+
+If a bound is too tight, increase Taylor depth, use subdivision, or run
+`interval_refute` to determine whether the proposed bound is false.

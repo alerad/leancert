@@ -116,14 +116,13 @@ dedicated tactic only handles single-variable bounds.
 
 **Solution:** Use `leancert`, or select `multivariate_bound` explicitly:
 ```lean
--- Instead of
-example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by certify_bound  -- Fails
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1,
+    x + y ≤ 2 := by
+  leancert
 
--- Preferred
-example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by leancert
-
--- Explicit dedicated solver
-example : ∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2 := by multivariate_bound
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1,
+    x + y ≤ 2 := by
+  multivariate_bound
 ```
 
 ---
@@ -142,7 +141,7 @@ numeric extraction is more permissive: tactics use the shared
 rationals, decimals, negations, and divisions.
 
 **Solution:** Use rational approximations:
-```lean
+```text
 -- Instead of
 #bounds (fun x => Real.sin x) on [0, 3.14159]  -- Fails
 
@@ -169,7 +168,7 @@ Consider increasing maxIterations or taylorDepth.
 **When to worry:** Only if you need tighter bounds. The proof is still correct.
 
 **Solutions:**
-```lean
+```text
 -- Increase Taylor depth
 example : ∃ m, ∀ x ∈ I, f x ≥ m := by interval_minimize 20
 
@@ -183,7 +182,7 @@ example : ∃ m, ∀ x ∈ I, f x ≥ m := by interval_minimize 20
 ### What works with raw Lean syntax?
 
 **Works well:**
-```lean
+```text
 -- Basic arithmetic
 x * x + 1
 x^3
@@ -201,15 +200,13 @@ Real.exp x
 Real.sin x + Real.cos x
 Real.exp (Real.sin x)
 ```
-
 **Requires positive base (lowered via exp/log):**
-```lean
+```text
 -- General rational exponents (base must be provably > 0)
 x^(1/3)
 x^(2/3)
 x^(1/5)
 ```
-
 These are reified as `exp(log(x) * q)`. The tactic automatically proves
 `0 < x` from `Set.Icc` domain hypotheses when the lower bound is positive.
 
@@ -255,12 +252,12 @@ for small reusable facts; use `auto` when large certificates may need a
 reported native fallback.
 
 ```lean
--- Strict kernel path: no compiler/runtime fallback.
-example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
   certify_bound (trust := kernel)
 
--- Kernel first, with a reported native fallback when needed.
-example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
   certify_bound (trust := auto)
 ```
 
@@ -271,18 +268,18 @@ example : ∀ x ∈ I, Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
 ### Enable tracing
 
 ```lean
-set_option trace.certify_bound true in
-example : ∀ x ∈ I, f x ≤ c := by certify_bound
+set_option trace.LeanCert.router true in
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ 1 := by leancert
 
 set_option trace.leancert.verification true in
-example : ∀ x ∈ I, f x ≤ c := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ 1 := by
   certify_bound (trust := auto)
 ```
 
 ### Use discovery to check bounds
 
 Before writing a theorem, verify the bound holds:
-```lean
+```text
 -- See what bounds actually hold
 #bounds (fun x => your_expression) on [lo, hi]
 
@@ -292,10 +289,7 @@ Before writing a theorem, verify the bound holds:
 
 ### Use `interval_refute` to check false bounds
 
-```lean
--- Expected failure: interval_refute reports a certified counterexample and
--- deliberately leaves the false goal unproved.
-#guard_msgs (error) in
+```lean expect-error
 example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
   interval_refute
 ```

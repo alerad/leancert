@@ -663,11 +663,14 @@ unsafe def runLeanCert (cfg : LeanCertConfig) : TacticM SolverReport := do
 
 /-- One inline configuration item accepted by `leancert`. -/
 declare_syntax_cat leanCertConfigItem
+declare_syntax_cat leanCertTrustMode
+syntax ident : leanCertTrustMode
+syntax &"auto" : leanCertTrustMode
 syntax "(" &"budget" " := " num ")" : leanCertConfigItem
 syntax "(" &"taylorDepth" " := " num ")" : leanCertConfigItem
 syntax "(" &"subdivisions" " := " num ")" : leanCertConfigItem
 syntax "(" &"maxIterations" " := " num ")" : leanCertConfigItem
-syntax "(" &"trust" " := " ident ")" : leanCertConfigItem
+syntax "(" &"trust" " := " leanCertTrustMode ")" : leanCertConfigItem
 
 private def elaborateInlineConfig (items : Array Syntax) : TacticM LeanCertConfig := do
   let mut cfg : LeanCertConfig := {}
@@ -681,9 +684,10 @@ private def elaborateInlineConfig (items : Array Syntax) : TacticM LeanCertConfi
         cfg := { cfg with subdivisions := n.getNat }
     | `(leanCertConfigItem| (maxIterations := $n:num)) =>
         cfg := { cfg with maxIterations := n.getNat }
-    | `(leanCertConfigItem| (trust := $m:ident)) =>
-        let some mode := VerificationMode.ofString? m.getId.toString
-          | throwErrorAt m "invalid trust mode '{m.getId}'; expected kernel, native, or auto"
+    | `(leanCertConfigItem| (trust := $m:leanCertTrustMode)) =>
+        let raw := m.raw.reprint.getD ""
+        let some mode := VerificationMode.ofString? raw
+          | throwErrorAt m "invalid trust mode '{raw}'; expected kernel, native, or auto"
         cfg := { cfg with trust := some mode }
     | _ => throwUnsupportedSyntax
   return cfg

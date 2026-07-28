@@ -91,13 +91,8 @@ f(a) < 0                    f(b) > 0
 ### The Theorem
 
 ```lean
-theorem verify_sign_change (e : Expr) (hsupp : ExprSupportedCore e)
-    (hcont : ContinuousOn (Expr.eval e) (Set.Icc I.lo I.hi))
-    (I : IntervalRat) (cfg : EvalConfig)
-    (h_cert : checkSignChange e I cfg = true) :
-    ∃ x ∈ I, Expr.eval (fun _ => x) e = 0
+#check verify_sign_change
 ```
-
 **Key insight**: The checker `checkSignChange` is computable, while the
 conclusion is a semantic statement about real numbers. Its successful result
 may be established through LeanCert's native, kernel, or automatic
@@ -174,7 +169,7 @@ Then Banach fixed-point theorem guarantees exactly one root in I.
 The exact engine theorem is:
 
 ```lean
-#check LeanCert.Engine.RootFinding.newton_contraction_unique_root
+#check LeanCert.Engine.newton_contraction_unique_root
 ```
 
 It accepts an `ADSupported` expression, a `UsesOnlyVar0` proof, the original
@@ -186,10 +181,14 @@ The conclusion is uniqueness of a root in the original interval. Prefer
 ### Usage
 
 ```lean
-import LeanCert.Tactic.Discovery
+def rootInterval : IntervalRat := ⟨1, 2, by norm_num⟩
 
--- Prove x² - 2 has exactly one root in [1, 2]
-example : ∃! x ∈ I12, Expr.eval (fun _ => x) expr_x2_minus_2 = 0 := by
+def squareMinusTwo : Expr :=
+  Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))
+
+example : ∃! x, x ∈ rootInterval ∧
+    Expr.eval (fun _ => x) squareMinusTwo = 0 := by
+  unfold squareMinusTwo
   interval_unique_root
 ```
 
@@ -265,31 +264,15 @@ Newton run.
 
 ## Combined Workflow
 
-For full root verification:
-
-```lean
--- 1. First prove existence
-have h_exists : ∃ x ∈ I, f x = 0 := by interval_roots
-
--- 2. Then prove uniqueness (if needed)
-have h_unique : ∃! x ∈ I, f x = 0 := by interval_unique_root
-
--- 3. Optionally refine location
--- The unique root is in a very narrow interval
-```
-
+For full root verification, first prove existence with `interval_roots`, then
+prove uniqueness with `interval_unique_root`. Tighten the input interval and
+rerun the existence proof when a narrower certified location is needed. The
+complete compiled `squareMinusTwo` example above demonstrates both steps.
 ## Mean Value Theorem Bounds
 
-The `MVTBounds` module provides additional tools:
-
-```lean
--- If f' is bounded on [a,b], then f(b) - f(a) is bounded
-theorem mvt_bound (f : ℝ → ℝ) (a b : ℝ) (M : ℝ)
-    (h_diff : DifferentiableOn ℝ f (Set.Icc a b))
-    (h_bound : ∀ x ∈ Set.Icc a b, |f' x| ≤ M) :
-    |f b - f a| ≤ M * |b - a|
-```
-
+For project-specific estimates, combine the certified derivative enclosure
+with Mathlib's mean-value theorems. The exact hypotheses depend on whether the
+development uses `HasDerivAt`, `DifferentiableOn`, or a convex-set formulation.
 This is used internally for:
 - Bounding how much f can change between sample points
 - Verifying monotonicity

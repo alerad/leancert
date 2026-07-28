@@ -106,13 +106,13 @@ or file. A per-invocation `(trust := ...)` item takes precedence. The historical
 
 ```lean
 -- Try 1: Increase Taylor depth
-example : ∀ x ∈ Set.Icc 0 1, exp x ≤ 2.72 := by certify_bound 20
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by certify_bound 20
 
 -- Try 2: Use subdivision
-example : ∀ x ∈ Set.Icc 0 1, exp x ≤ 2.72 := by interval_bound_subdiv 15 3
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by interval_bound_subdiv 15 3
 
 -- Try 3: Increase depth while requiring kernel-only certificate verification
-example : ∀ x ∈ Set.Icc 0 1, exp x ≤ 2.72 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
   certify_bound 20 (trust := kernel)
 ```
 
@@ -122,8 +122,10 @@ Use discovery tactics to find bounds first:
 
 ```lean
 -- Discover and certify global lower/upper bounds
-example : ∃ m, ∀ x ∈ Set.Icc 0 1, x^2 + sin x ≥ m := by interval_minimize
-example : ∃ M, ∀ x ∈ Set.Icc 0 1, x^2 + sin x ≤ M := by interval_maximize
+example : ∃ m : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1, x ^ 2 + Real.sin x ≥ m := by
+  interval_minimize
+example : ∃ M : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1, x ^ 2 + Real.sin x ≤ M := by
+  interval_maximize
 ```
 
 Or use interactive commands:
@@ -186,9 +188,9 @@ Chain simplification tactics to reduce structured expressions before proving bou
 ```lean
 -- Expand finite sum, simplify vector indexing, then close with ring
 example (a : Fin 3 → ℝ) :
-    ∑ k ∈ Finset.Icc 0 2, (![a 0, a 1, a 2] : Fin 3 → ℝ) ⟨k, by omega⟩ =
+    ∑ k : Fin 3, (![a 0, a 1, a 2] : Fin 3 → ℝ) k =
     a 0 + a 1 + a 2 := by
-  finsum_expand; vec_simp
+  finsum_expand
 ```
 
 Common combinations:
