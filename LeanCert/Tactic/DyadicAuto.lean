@@ -121,304 +121,54 @@ theorem verify_lower_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
       ≤ ((LeanCert.Internal.Dyadic.evalUnchecked e ρ_dyad { precision := prec, taylorDepth := depth }).lo.toRat : ℝ) := by exact_mod_cast h_check
     _ ≤ Core.Expr.eval (fun _ => x) e := h_eval.1
 
-/-! ## Tactic Implementation -/
+/-! ## Deprecated tactics
 
-/-- Reasons why kernel verification might not be used. -/
-inductive KernelVerifyResult
-  | success : KernelVerifyResult
-  | nativeExpression : KernelVerifyResult  -- Goal uses native Lean expression, not Expr.eval
-  | boundsNotDefeq : KernelVerifyResult    -- Interval bounds aren't definitionally equal
-  | boundCheckFailed : KernelVerifyResult  -- Computed bound doesn't satisfy goal
-  | parseError : KernelVerifyResult        -- Couldn't parse goal structure
-  | unsupportedGoal : KernelVerifyResult   -- Goal type not supported (e.g., strict inequality)
-  deriving DecidableEq
+The original `certify_kernel` family predates the trust choke point
+(`LeanCert.Tactic.closeCertificateGoal`) and its strict kernel path had
+rotted: it required a `Decidable` instance for `evalDomainValidDyadic` that
+no longer exists, so every invocation failed. The spellings below are kept
+as deprecated aliases over `certify_bound`'s trust modes, which subsume them:
 
-/-- Try to extract AST from a function that may be Core.Expr.eval or a raw expression.
-    Returns (ast, isExprEval) where isExprEval indicates if goal was in Expr.eval form. -/
-def extractOrReifyAst (func : Lean.Expr) : TacticM (Lean.Expr × Bool) := do
-  lambdaTelescope func fun _vars body => do
-    let fn := body.getAppFn
-    if fn.isConstOf ``LeanCert.Core.Expr.eval then
-      -- It's Expr.eval env ast - extract the ast directly
-      let args := body.getAppArgs
-      if args.size ≥ 2 then
-        return (args[1]!, true)
-      else
-        throwError "Unexpected Expr.eval application structure"
-    else
-      -- Raw expression - reify it
-      return ((← reifyWithReport func).expr, false)
+| Old | Use instead |
+|-----|-------------|
+| `certify_kernel [prec]` | `certify_bound (trust := kernel)` |
+| `certify_kernel_fallback [prec]` | `certify_bound (trust := auto)` |
+| `certify_kernel_precise[_fallback]` | same, with an explicit depth |
+| `certify_kernel_quick[_fallback]` | same, with an explicit depth |
 
-/-- Core implementation of certify_kernel_fallback with kernel verification.
-    Returns a result indicating success or reason for fallback. -/
-def kernelBoundCore (prec : Int) (taylorDepth : Nat) : TacticM KernelVerifyResult := do
-  let goal ← getMainGoal
-  let goalType ← goal.getType
+The old precision argument (dyadic bits) is accepted but ignored: the
+certificate route selects precision internally and the depth search is
+adaptive. Kernel mode never silently falls back; auto reports fallbacks. -/
 
-  -- 1. Parse the goal
-  let some boundGoal ← Auto.parseBoundGoal goalType
-    | return .parseError
+private def deprecatedCertifyKernel (repl : String)
+    (mode : VerificationMode) (depth : Option Nat) : TacticM Unit := do
+  logWarning m!"this tactic is deprecated: use `{repl}` \
+    (the old precision argument, if any, is ignored)"
+  withTrustMode (some mode) do
+    Auto.certifyBoundWithDepth depth
 
-  goal.withContext do
-    match boundGoal with
-    | .forallLe _name interval func boundExpr =>
-      -- 2. Extract interval bounds
-      let some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _loRealExpr, _hiRealExpr) := interval.fromSetIcc
-        | return .parseError
+/-- Deprecated: use `certify_bound (trust := kernel)`. -/
+elab "certify_kernel" (num)? : tactic =>
+  deprecatedCertifyKernel "certify_bound (trust := kernel)" .kernel none
 
-      -- 3. Extract bound as rational
-      let some c ← Auto.extractRatFromReal boundExpr
-        | return .parseError
-      let cExpr := toExpr c
+/-- Deprecated: use `certify_bound (trust := auto)`. -/
+elab "certify_kernel_fallback" (num)? : tactic =>
+  deprecatedCertifyKernel "certify_bound (trust := auto)" .auto none
 
-      -- 4. Extract AST (from Expr.eval) or reify (from raw expression)
-      let (ast, isExprEval) ← extractOrReifyAst func
-      let supportProof ← mkSupportedCoreProof ast
+/-- Deprecated: use `certify_bound 20 (trust := kernel)`. -/
+elab "certify_kernel_precise" : tactic =>
+  deprecatedCertifyKernel "certify_bound 20 (trust := kernel)" .kernel (some 20)
 
-      -- For non-Expr.eval goals, kernel verification won't type-match, so skip
-      if !isExprEval then
-        return .nativeExpression
+/-- Deprecated: use `certify_bound 20 (trust := auto)`. -/
+elab "certify_kernel_precise_fallback" : tactic =>
+  deprecatedCertifyKernel "certify_bound 20 (trust := auto)" .auto (some 20)
 
-      -- 5. Build configuration expressions
-      let precExpr := toExpr prec
-      let depthExpr := toExpr taylorDepth
+/-- Deprecated: use `certify_bound 5 (trust := kernel)`. -/
+elab "certify_kernel_quick" : tactic =>
+  deprecatedCertifyKernel "certify_bound 5 (trust := kernel)" .kernel (some 5)
 
-      -- 6. Build the proof that prec ≤ 0
-      let precLeZeroTy ← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)]
-      let precLeZeroProof ← mkDecideProof precLeZeroTy
-
-      -- 7. Build the interval and environment
-      let intervalRatExpr ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-
-      -- 8. Build the certificate check expression
-      let natTy := Lean.mkConst ``Nat
-      let envExpr ← withLocalDeclD `i natTy fun i => do
-        let body ← mkAppM ``IntervalDyadic.ofIntervalRat #[intervalRatExpr, precExpr]
-        mkLambdaFVars #[i] body
-
-      let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr]
-      let evalExpr ← mkAppM ``LeanCert.Internal.Dyadic.evalUnchecked #[ast, envExpr, cfgExpr]
-      let checkExpr ← mkAppM ``IntervalDyadic.upperBoundedBy #[evalExpr, cExpr]
-
-      -- 9. Build proof that check = true using KERNEL REDUCTION (decide)
-      let checkEqTrueTy ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
-      let checkProof ← try
-        mkDecideProof checkEqTrueTy
-      catch _ =>
-        return .boundCheckFailed
-
-      -- 9b. Build domain validity proof (trivial for expressions without log)
-      let domTy ← mkAppM ``evalDomainValidDyadic #[ast, envExpr, cfgExpr]
-      let domProof ← try
-        mkDecideProof domTy  -- Works because evalDomainValidDyadic is decidable (True for non-log)
-      catch _ =>
-        return .boundCheckFailed  -- Log expressions not supported in kernel mode
-
-      -- 10. Apply the bridge theorem
-      let proof ← mkAppM ``verify_upper_bound_dyadic
-        #[ast, supportProof, loRatExpr, hiRatExpr, leProof, cExpr,
-          precExpr, depthExpr, precLeZeroProof, domProof, checkProof]
-
-      -- 11. Check if proof type matches goal type
-      let proofTy ← inferType proof
-      let goalTy ← goal.getType
-      if ← isDefEq proofTy goalTy then
-        goal.assign proof
-        trace[certify_kernel_fallback] "Kernel verification succeeded (via decide)"
-        return .success
-      else
-        return .boundsNotDefeq
-
-    | .forallGe _name interval func boundExpr =>
-      -- Similar for lower bound
-      let some (_lo, _hi, loRatExpr, hiRatExpr, leProof, _loRealExpr, _hiRealExpr) := interval.fromSetIcc
-        | return .parseError
-
-      let some c ← Auto.extractRatFromReal boundExpr
-        | return .parseError
-      let cExpr := toExpr c
-
-      -- Extract AST (from Expr.eval) or reify (from raw expression)
-      let (ast, isExprEval) ← extractOrReifyAst func
-      let supportProof ← mkSupportedCoreProof ast
-
-      -- For non-Expr.eval goals, kernel verification won't type-match, so skip
-      if !isExprEval then
-        return .nativeExpression
-
-      let precExpr := toExpr prec
-      let depthExpr := toExpr taylorDepth
-
-      let precLeZeroTy ← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)]
-      let precLeZeroProof ← mkDecideProof precLeZeroTy
-
-      let intervalRatExpr ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-
-      let natTy := Lean.mkConst ``Nat
-      let envExpr ← withLocalDeclD `i natTy fun i => do
-        let body ← mkAppM ``IntervalDyadic.ofIntervalRat #[intervalRatExpr, precExpr]
-        mkLambdaFVars #[i] body
-
-      let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr]
-      let evalExpr ← mkAppM ``LeanCert.Internal.Dyadic.evalUnchecked #[ast, envExpr, cfgExpr]
-      let checkExpr ← mkAppM ``IntervalDyadic.lowerBoundedBy #[evalExpr, cExpr]
-
-      let checkEqTrueTy ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
-      let checkProof ← try
-        mkDecideProof checkEqTrueTy
-      catch _ =>
-        return .boundCheckFailed
-
-      -- Build domain validity proof (trivial for expressions without log)
-      let domTy ← mkAppM ``evalDomainValidDyadic #[ast, envExpr, cfgExpr]
-      let domProof ← try
-        mkDecideProof domTy
-      catch _ =>
-        return .boundCheckFailed
-
-      let proof ← mkAppM ``verify_lower_bound_dyadic
-        #[ast, supportProof, loRatExpr, hiRatExpr, leProof, cExpr,
-          precExpr, depthExpr, precLeZeroProof, domProof, checkProof]
-
-      let proofTy ← inferType proof
-      let goalTy ← goal.getType
-      if ← isDefEq proofTy goalTy then
-        goal.assign proof
-        trace[certify_kernel_fallback] "Kernel verification succeeded (via decide)"
-        return .success
-      else
-        return .boundsNotDefeq
-
-    | _ =>
-      -- Strict inequalities not yet supported in kernel mode
-      return .unsupportedGoal
-
-/-! ## Main Tactics -/
-
-def KernelVerifyResult.message : KernelVerifyResult → MessageData
-  | .success => "kernel verification succeeded"
-  | .nativeExpression =>
-      "goal uses native Lean expressions, not `Core.Expr.eval`; express the goal with `Expr.eval` for kernel-only verification"
-  | .boundsNotDefeq =>
-      "interval bounds are not definitionally equal to rational casts"
-  | .boundCheckFailed =>
-      "kernel bound check failed; try increasing precision"
-  | .parseError =>
-      "could not parse goal structure"
-  | .unsupportedGoal =>
-      "goal form is not supported by kernel mode"
-
-def evalCertifyBoundFallback (precSyntax : Option (TSyntax `num)) : TacticM Unit := do
-  match precSyntax with
-  | some n => evalTactic (← `(tactic| certify_bound $n))
-  | none => evalTactic (← `(tactic| certify_bound))
-
-/--
-The certify_kernel tactic. Proves bounds using Dyadic arithmetic with kernel
-verification when possible.
-
-## Trust Levels
-
-| Mode | Verification | When Used |
-|------|-------------|-----------|
-| Kernel | `decide` | Goal in `Core.Expr.eval` form |
-`certify_kernel` is strict: if kernel verification cannot close the goal, it
-fails with a diagnostic.  Use `certify_kernel_fallback` to explicitly allow the
-native `certify_bound` path.
-
-## Kernel Verification
-
-For goals expressed using `Core.Expr.eval`, the tactic uses kernel-verified
-arithmetic via `decide`. This requires the goal's interval bounds to be
-definitionally equal to rational casts:
-
-```lean
-open LeanCert.Core
-
--- This uses kernel verification (Expr.eval form)
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
-    Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ≤ 2 := by
-  certify_kernel
-```
-
-## General Usage
-
-For native Lean expressions, use the explicit fallback tactic:
-
-```lean
--- This may fall back to native_decide
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 2 := by
-  certify_kernel_fallback
-```
-
-Usage:
-- `certify_kernel` - Use default precision (53 bits)
-- `certify_kernel n` - Use n bits of precision
-
--/
-elab "certify_kernel" prec:(num)? : tactic => do
-  let precision : Int := match prec with
-    | some n => -(n.getNat : Int)
-    | none => -53
-
-  -- Try kernel verification first (works for goals expressed in Core.Expr.eval)
-  let result ← kernelBoundCore precision 10
-
-  match result with
-  | .success =>
-    return  -- Kernel verification succeeded
-  | other =>
-    throwError "certify_kernel: kernel verification failed: {other.message}\n\
-      This tactic no longer silently falls back to native verification.\n\
-      Use `certify_kernel_fallback` if the compiler/runtime fallback is acceptable."
-
-/-- Explicit opt-in wrapper: try kernel verification, then use `certify_bound`. -/
-elab "certify_kernel_fallback" prec:(num)? : tactic => do
-  let precision : Int := match prec with
-    | some n => -(n.getNat : Int)
-    | none => -53
-  let result ← kernelBoundCore precision 10
-  match result with
-  | .success => return
-  | other =>
-    logWarning m!"certify_kernel_fallback: using native fallback because kernel verification failed: {other.message}"
-    evalCertifyBoundFallback prec
-
-/-! ## Convenience Variants -/
-
-/--
-certify_kernel with high precision (100 bits).
-Use when you need tighter bounds at the cost of speed.
--/
-elab "certify_kernel_precise" : tactic => do
-  let result ← kernelBoundCore (-100) 20
-  if result == .success then return
-  throwError "certify_kernel_precise: kernel verification failed: {result.message}\n\
-    Use `certify_kernel_precise_fallback` if native verification is acceptable."
-
-elab "certify_kernel_precise_fallback" : tactic => do
-  let result ← kernelBoundCore (-100) 20
-  if result == .success then return
-  logWarning m!"certify_kernel_precise_fallback: using native fallback because kernel verification failed: {result.message}"
-  evalTactic (← `(tactic| certify_bound 100))
-
-/--
-certify_kernel with low precision (30 bits).
-Use when you need maximum speed and can tolerate wider bounds.
--/
-elab "certify_kernel_quick" : tactic => do
-  let result ← kernelBoundCore (-30) 5
-  if result == .success then return
-  throwError "certify_kernel_quick: kernel verification failed: {result.message}\n\
-    Use `certify_kernel_quick_fallback` if native verification is acceptable."
-
-elab "certify_kernel_quick_fallback" : tactic => do
-  let result ← kernelBoundCore (-30) 5
-  if result == .success then return
-  logWarning m!"certify_kernel_quick_fallback: using native fallback because kernel verification failed: {result.message}"
-  evalTactic (← `(tactic| certify_bound 30))
-
--- Register trace classes
-initialize registerTraceClass `certify_kernel
+/-- Deprecated: use `certify_bound 5 (trust := auto)`. -/
+elab "certify_kernel_quick_fallback" : tactic =>
+  deprecatedCertifyKernel "certify_bound 5 (trust := auto)" .auto (some 5)
 
 end LeanCert.Tactic

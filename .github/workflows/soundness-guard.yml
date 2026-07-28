@@ -92,3 +92,6 @@ jobs:
 
       - name: Guard - core axiom/sorry audit
         run: lake env lean Tests/AxiomAudit.lean
+
+      - name: Guard - trust manifest for exported declarations
+        run: lake env lean Tests/TrustManifest.lean
