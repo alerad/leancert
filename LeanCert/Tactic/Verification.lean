@@ -57,6 +57,34 @@ register_option leancert.trust.kernelHeartbeats : Nat := {
     leancert.trust = \"auto\" mode (same units as maxHeartbeats)"
 }
 
+register_option leancert.trust.autoGate : Bool := {
+  defValue := true
+  descr := "in leancert.trust = \"auto\" mode, skip the kernel attempt for \
+    certificates whose size predictably exceeds the calibrated kernel/native \
+    crossover (finite-sum term count, integration partition count, \
+    optimization iterations) and go straight to native_decide; see \
+    scripts/bench-trust/README.md for the calibration data"
+}
+
+register_option leancert.trust.autoMaxSumTerms : Nat := {
+  defValue := 2000
+  descr := "auto-mode gate: maximum finite-sum term count for which the \
+    kernel attempt is made (crossover ≈ 10^4 terms at ~35s/+1.5 GiB; \
+    ≤2×10^3 costs under a second)"
+}
+
+register_option leancert.trust.autoMaxPartitions : Nat := {
+  defValue := 500
+  descr := "auto-mode gate: maximum integration partition count for which \
+    the kernel attempt is made (500 partitions ≈ +2.5s)"
+}
+
+register_option leancert.trust.autoMaxOptIterations : Nat := {
+  defValue := 100
+  descr := "auto-mode gate: maximum branch-and-bound iteration limit for \
+    which the kernel attempt is made (25 iterations ≈ +2s)"
+}
+
 namespace LeanCert.Tactic
 
 initialize registerTraceClass `leancert.verification
@@ -137,8 +165,83 @@ private def closeKernelCore (certGoal : MVarId) (tacticName : String) :
       `set_option leancert.trust \"native\"` (or \"auto\") to allow \
       `native_decide`, which additionally trusts the compiler."
 
+/-! ### Auto-mode cost gate
+
+Thresholds come from `scripts/bench-trust/baselines/` (see the README there):
+kernel reduction is essentially free for point/bound/Newton certificates,
+cheap for moderate partition/subdivision counts, and crosses over to
+"markedly worse than native" around 10^4 finite-sum terms (superlinear time,
++1.5 GiB RSS). The gate reads scale parameters syntactically off the
+certificate goal; anything it does not recognize is attempted normally.
+
+The checker names below are unresolved `Name` literals because this module
+deliberately imports only `Lean` (everything in LeanCert imports it back).
+`LeanCert/Test/TrustModes.lean` builds these applications with *resolved*
+names and asserts the gate fires, so a checker rename breaks CI rather than
+silently disabling the gate. -/
+
+/-- First subterm that is a (full enough) application of any of `names`. -/
+private def findAppOfAny? (e : Expr) (names : List Name) (minArgs : Nat) :
+    Option Expr :=
+  e.find? fun sub => names.any (sub.isAppOf ·) && sub.getAppNumArgs ≥ minArgs
+
+/-- Length of a syntactic `List` literal (`List.cons` chain). -/
+private partial def listLitLength (e : Expr) (acc : Nat := 0) : Nat :=
+  if e.isAppOfArity ``List.cons 3 then listLitLength e.appArg! (acc + 1) else acc
+
+/-- If the certificate is predictably past the kernel/native crossover,
+return a human-readable reason to skip the kernel attempt in auto mode.
+`none` means "attempt the kernel". -/
+def autoGateReason? (opts : Options) (certType : Expr) : Option String := Id.run do
+  unless leancert.trust.autoGate.get opts do return none
+  let maxSum := leancert.trust.autoMaxSumTerms.get opts
+  let maxParts := leancert.trust.autoMaxPartitions.get opts
+  let maxIters := leancert.trust.autoMaxOptIterations.get opts
+  -- Finite sums over `Finset.Icc a b`: terms = b + 1 - a.
+  let sumChecks : List Name :=
+    [`LeanCert.Engine.checkFinSumUpperBoundFull, `LeanCert.Engine.checkFinSumLowerBoundFull,
+     `LeanCert.Engine.checkFinSumUpperBound, `LeanCert.Engine.checkFinSumLowerBound]
+  if let some app := findAppOfAny? certType sumChecks 3 then
+    let args := app.getAppArgs
+    if let (some a, some b) := (args[1]!.nat?, args[2]!.nat?) then
+      let terms := b + 1 - a
+      if terms > maxSum then
+        return some s!"finite sum with {terms} terms exceeds autoMaxSumTerms={maxSum}"
+  -- List-indexed finite sums: term count is the index-list literal length.
+  let listChecks : List Name :=
+    [`LeanCert.Engine.checkFinSumUpperBoundListFull,
+     `LeanCert.Engine.checkFinSumLowerBoundListFull]
+  if let some app := findAppOfAny? certType listChecks 3 then
+    if listLitLength app.getAppArgs[2]! > maxSum then
+      return some s!"list-indexed sum with {listLitLength app.getAppArgs[2]!} \
+        terms exceeds autoMaxSumTerms={maxSum}"
+  -- Partitioned integration: third argument is the partition count.
+  if let some app := findAppOfAny? certType
+      [`LeanCert.Validity.Integration.integratePartitionChecked] 3 then
+    if let some n := app.getAppArgs[2]!.nat? then
+      if n > maxParts then
+        return some s!"{n} integration partitions exceed autoMaxPartitions={maxParts}"
+  -- Global optimization: read maxIterations off a GlobalOptConfig literal.
+  let optChecks : List Name :=
+    [`LeanCert.Validity.GlobalOpt.checkGlobalUpperBound,
+     `LeanCert.Validity.GlobalOpt.checkGlobalLowerBound,
+     `LeanCert.Validity.GlobalOpt.checkGlobalBounds]
+  if (findAppOfAny? certType optChecks 4).isSome then
+    if let some cfgApp := findAppOfAny? certType
+        [`LeanCert.Engine.Optimization.GlobalOptConfig.mk] 1 then
+      if let some iters := cfgApp.getAppArgs[0]!.nat? then
+        if iters > maxIters then
+          return some s!"{iters} optimization iterations exceed autoMaxOptIterations={maxIters}"
+  return none
+
 private def closeAutoCore (cfg : VerificationConfig) (certGoal : MVarId)
     (tacticName : String) : TacticM VerificationUsed := do
+  let certType ← instantiateMVars (← certGoal.getType)
+  if let some reason := autoGateReason? (← getOptions) certType then
+    trace[leancert.verification] "{tacticName}: auto gate routed certificate to \
+      native_decide ({reason})"
+    closeNativeCore certGoal tacticName
+    return .native
   let s ← saveState
   try
     withOptions (fun o => o.set `maxHeartbeats cfg.kernelHeartbeats) do

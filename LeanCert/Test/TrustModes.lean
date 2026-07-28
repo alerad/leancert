@@ -109,6 +109,49 @@ set_option leancert.trust "kernel" in
 theorem trustKernelUniqueRoot : ∃! x, x ∈ Set.Icc (1 : ℝ) 2 ∧ x * x - 2 = 0 := by
   interval_unique_root
 
+/-! ### Auto-mode cost gate (calibrated thresholds; see scripts/bench-trust) -/
+
+-- Unit test with *resolved* checker names: if a checker is renamed, this
+-- breaks CI instead of silently disabling the gate (whose own references
+-- are unresolved Name literals to keep Verification.lean import-free).
+open Lean Meta LeanCert.Tactic in
+run_meta do
+  let body ← mkAppM ``LeanCert.Core.Expr.var #[toExpr (0 : Nat)]
+  let mkSumCheck (a b : Nat) : MetaM Lean.Expr := do
+    let app ← mkAppM ``LeanCert.Engine.checkFinSumUpperBoundFull
+      #[body, toExpr a, toExpr b, toExpr (0 : ℚ)]
+    mkEq app (toExpr true)
+  let opts ← getOptions
+  let bigTy ← mkSumCheck 1 5000
+  unless (autoGateReason? opts bigTy).isSome do
+    throwError "auto gate did not fire on a 5000-term finite sum"
+  let smallTy ← mkSumCheck 1 100
+  unless (autoGateReason? opts smallTy).isNone do
+    throwError "auto gate wrongly fired on a 100-term finite sum"
+  -- disabling the gate must disable the skip
+  let noGate := leancert.trust.autoGate.set opts false
+  unless (autoGateReason? noGate bigTy).isNone do
+    throwError "auto gate fired despite leancert.trust.autoGate=false"
+
+-- End-to-end: past the crossover, auto routes to native (the `native` pin
+-- would fail with a tighten-to-kernel hint if the gate stopped working).
+-- The body must use the index: constant-body sums are closed by a
+-- non-certificate arithmetic strategy and never reach the gate.
+set_option leancert.trust "auto" in
+theorem trustAutoGatedSum :
+    ∑ k ∈ Finset.Icc (1 : ℕ) 5000, (↑k : ℝ) ≤ 12502500 := by
+  finsum_bound
+
+#assert_trust native trustAutoGatedSum
+
+-- …while small sums still get kernel verification.
+set_option leancert.trust "auto" in
+theorem trustAutoSmallSum :
+    ∑ k ∈ Finset.Icc (1 : ℕ) 100, (↑k : ℝ) ≤ 5050 := by
+  finsum_bound
+
+#assert_trust kernel trustAutoSmallSum
+
 /-! ### `#assert_trust`: the CI manifest command -/
 
 #assert_trust kernel trustSyntaxKernel

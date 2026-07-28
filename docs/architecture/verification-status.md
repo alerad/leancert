@@ -349,7 +349,7 @@ To inspect legacy example placeholders as well, run a repo-wide textual search
 over Lean files and review hits manually; documentation comments can mention the
 word without introducing a proof placeholder.
 
-## Trust Model: Where `native_decide` Is Allowed
+## Trust Model: Explicit Verification Modes
 
 A LeanCert proof has two components with different trust jobs:
 
@@ -357,21 +357,43 @@ A LeanCert proof has two components with different trust jobs:
 user's theorem
   = golden_theorem            -- the lift: check = true → semantic Prop
     applied to
-    h_check : check ... = true  -- usually by native_decide
+    h_check : check ... = true  -- closed by the *verification route*
 ```
 
 - **Library theorems (the lifts) are axiom-free.** Every golden theorem and
   every `mem_*`/`*_correct` theorem is proved from the three standard axioms
   only. This is enforced by the audits above; a regression is a CI failure.
 - **The certificate check is the one place compiler trust may enter — by the
-  user's choice.** Discharging `h_check` with `native_decide` adds exactly one
-  per-declaration compiler-trust axiom to *that* proof, visible in its
-  `#print axioms`. Users who want a compiler-free proof can discharge the same
-  boolean with kernel `decide` where feasible, or re-check it externally; the
-  golden theorem applies unchanged.
+  user's explicit, auditable choice.** Every tactic closes `h_check` through a
+  single choke point (`LeanCert.Tactic.closeCertificateGoal`), selected by:
 
-In short: `native_decide` is the supported engine for *running* certificates,
-never a dependency of the theorems that give certificates their *meaning*.
+| Mode | Closes with | Trusted base |
+|------|-------------|--------------|
+| `native` (default) | `native_decide` | kernel + compiler/runtime (`Lean.ofReduceBool`, one per-declaration axiom) |
+| `kernel` | `decide +kernel` | kernel only — foundational axioms; **never** silently falls back |
+| `auto` | kernel first, native past the calibrated cost gates | fallback is reported |
+
+Selection precedence: per-invocation `(trust := kernel)` syntax
+> `set_option leancert.trust "kernel"` > native default. The auto-mode cost
+gates (finite-sum term count, integration partitions, optimization
+iterations) are calibrated in `scripts/bench-trust/` and tunable via the
+`leancert.trust.auto*` options.
+
+CI can pin a theorem's trust class with the manifest command:
+
+```lean
+#assert_trust kernel my_bound     -- foundational axioms only
+#assert_trust native my_big_table -- native trust allowed AND required
+```
+
+Drift fails in both directions: a kernel-pinned theorem acquiring compiler
+trust is a regression, and a native-pinned theorem losing its native
+dependency means the manifest should be tightened to `kernel`.
+
+In short: native evaluation is the supported engine for *running* large
+certificates, never a dependency of the theorems that give certificates
+their *meaning* — and for point/bound-scale goals, kernel verification now
+costs about the same, so those proofs can carry no compiler trust at all.
 
 ## What This Means
 

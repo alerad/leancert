@@ -2,6 +2,41 @@
 
 Complete reference for all LeanCert tactics.
 
+## Trust Modes
+
+Every LeanCert tactic closes its Boolean certificate through a single
+verification choke point with an explicit trust choice:
+
+```lean
+example : Real.log 2 < 7/10 := by interval_decide (trust := kernel)
+example : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ 2.72 := by certify_bound (trust := auto)
+
+set_option leancert.trust "kernel" in   -- or file/project-wide
+theorem log2 : Real.log 2 < 7/10 := by interval_decide
+
+#print axioms log2
+-- [propext, Classical.choice, Quot.sound]  ← no compiler trust
+```
+
+| Mode | Certificate closed by | Trusted base | Behavior on failure |
+|------|----------------------|--------------|---------------------|
+| `native` (default) | `native_decide` | kernel + compiler (`Lean.ofReduceBool`) | error |
+| `kernel` | `decide +kernel` | kernel only | hard error — **never** falls back to native |
+| `auto` | kernel, then native | kernel where it succeeds | fallback reported once per process; details under `trace[leancert.verification]` |
+
+Per-invocation `(trust := …)` overrides `set_option leancert.trust`, which
+overrides the native default. `interval_decide`, `certify_bound`,
+`interval_auto`, and `leancert` accept the syntax directly; every other
+tactic (subdivision, adaptive, multivariate, optimization, roots, discovery,
+finite sums) honors the option.
+
+Guidance from the calibration data (`scripts/bench-trust/README.md`): kernel
+verification is essentially free for point inequalities and quantified
+bounds, cheap for moderate partition/subdivision counts, and crosses over
+around 10⁴ finite-sum terms. `auto` encodes exactly this policy — its cost
+gates are tunable via the `leancert.trust.auto*` options. Pin the result in
+CI with `#assert_trust kernel thm` / `#assert_trust native thm`.
+
 ## Semantic Front Door
 
 ### `leancert` and `leancert?`
