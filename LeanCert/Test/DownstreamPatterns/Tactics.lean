@@ -34,4 +34,10 @@ example : ∀ y ∈ Icc (3914 : ℝ) 3914,
     2 * y ^ 6 * exp (-y) ≤ (1 : ℝ) / 1000000 := by
   certify_bound 20
 
+/-- PNT+ (e.g. `RamanujanCalculations.lean`) still uses the pre-rename
+`interval_bound` spelling; the deprecated alias must keep parsing. -/
+example : ∀ y ∈ Icc (3914 : ℝ) 3914,
+    2 * y ^ 6 * exp (-y) ≤ (1 : ℝ) / 1000000 := by
+  interval_bound 20
+
 end LeanCert.Test.DownstreamPatterns.Tactics
