@@ -54,7 +54,7 @@ Prove a simple bound over an interval:
 ```lean
 import LeanCert.Tactic
 
-example : forall x in Set.Icc (0 : Real) 1, Real.exp x <= 3 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
   leancert
 ```
 
@@ -63,7 +63,7 @@ Use a larger Taylor depth for tighter transcendental bounds:
 ```lean
 import LeanCert.Tactic.IntervalAuto
 
-example : forall x in Set.Icc (0 : Real) 1, Real.exp x <= 2.72 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := by
   certify_bound 20
 ```
 
@@ -72,9 +72,9 @@ Use the dyadic backend for faster verification on deeper expressions:
 ```lean
 import LeanCert.Tactic.DyadicAuto
 
-example : forall x in Set.Icc (0 : Real) 1,
-    Real.cos (Real.sin (Real.cos x)) <= 1 := by
-  certify_kernel
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
+  certify_bound (trust := kernel)
 ```
 
 Programmatic interval evaluation uses a single backend selector. `auto` is
@@ -123,8 +123,8 @@ Then turn the discovered estimate into a Lean theorem:
 ```lean
 import LeanCert.Tactic
 
-example : forall x in Set.Icc (0 : Real) 1,
-    x^2 + Real.sin x <= 2 := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    x^2 + Real.sin x ≤ 2 := by
   leancert
 ```
 
@@ -135,7 +135,7 @@ Prove that a root exists:
 ```lean
 import LeanCert.Tactic.Discovery
 
-example : exists x in Set.Icc (1 : Real) 2, x^2 - 2 = 0 := by
+example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x^2 - 2 = 0 := by
   interval_roots
 ```
 
@@ -144,7 +144,7 @@ Prove uniqueness using Newton contraction:
 ```lean
 import LeanCert.Tactic.Discovery
 
-example : exists! x in Set.Icc (1 : Real) 2, x^2 - 2 = 0 := by
+example : ∃! x, x ∈ Set.Icc (1 : ℝ) 2 ∧ x^2 - 2 = 0 := by
   interval_unique_root
 ```
 
@@ -160,10 +160,10 @@ tactic selected.
 | Goal                                       | Tactic                 |
 | ------------------------------------------ | ---------------------- |
 | Any recognized semantic goal               | `leancert`             |
-| `forall x in I, f x <= c`                  | `leancert`             |
-| `forall x in I, c <= f x`                  | `leancert`             |
+| `∀ x ∈ I, f x ≤ c`                         | `leancert`             |
+| `∀ x ∈ I, c ≤ f x`                         | `leancert`             |
 | Explicit single-variable bound engine      | `certify_bound`        |
-| Kernel-oriented dyadic bound               | `certify_kernel`       |
+| Kernel-verified bound                      | `certify_bound (trust := kernel)` |
 | Multivariate bound                         | `multivariate_bound`   |
 | Root existence                             | `interval_roots`       |
 | Root uniqueness                            | `interval_unique_root` |
@@ -200,8 +200,8 @@ open Chebyshev (psi)
 open LeanCert.Engine.ChebyshevPsi
 
 example :
-    forall N : Nat, 0 < N -> N <= 20 ->
-      psi (N : Real) <= (3 : Real) * N := by
+    ∀ N : Nat, 0 < N → N ≤ 20 →
+      psi (N : Real) ≤ (3 : Real) * N := by
   exact verify_all_psi_le_mul 20 20 3 (by native_decide)
 ```
 
