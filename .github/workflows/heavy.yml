@@ -1,0 +1,43 @@
+name: Heavy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  certificates:
+    name: Expensive certificate targets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: leanprover/lean-action@v1
+      - run: |
+          lake build \
+            Li2Verified \
+            BKLNW_a2_reflective \
+            ChebyshevPsiTest \
+            ChebyshevThetaTest \
+            TableTest
+
+  benchmark-smoke:
+    name: Benchmark harness smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: leanprover/lean-action@v1
+      - name: Build benchmark surfaces
+        run: lake build Benchmarks leancert-bench
+      - name: Run stable smoke suite
+        run: |
+          mkdir -p benchmark-artifacts
+          lake exe leancert-bench \
+            --suite smoke --samples 3 --warmups 1 --format jsonl \
+            > benchmark-artifacts/smoke.jsonl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-smoke-${{ github.sha }}
+          path: benchmark-artifacts/smoke.jsonl

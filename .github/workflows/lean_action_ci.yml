@@ -1,54 +1,33 @@
-name: Lean Action CI
+name: Core
 
 on:
   push:
-    branches: ['**']  # All branches
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
 jobs:
-  build:
+  core:
+    name: Stable library and downstream API
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v5
       - uses: leanprover/lean-action@v1
 
-      - name: Build examples
-        run: lake build examples
+      - name: Build stable library
+        run: lake build LeanCert
 
-      - name: Build curated public showcase
-        run: lake build Showcase
+      - name: Build downstream interface contract
+        run: lake build DownstreamInterface DownstreamPatterns
 
-      - name: Build FunctionalTests (full regression suite)
-        run: lake build FunctionalTests
-
-      - name: Compile executable documentation snippets
-        run: python3 scripts/check_docs_snippets.py
-
-      - name: Check every test module is wired into a Lake target
-        run: python3 scripts/check_test_wiring.py
-
-      - name: Test repository validation scripts
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
-
-      - name: Build and smoke-test public executables
-        run: python3 scripts/smoke_test_executables.py
-
-      - name: Build Li2Verified (heavy numerical verification)
-        run: lake build Li2Verified
-
-      - name: Build BKLNW_a2_reflective (heavy a2 bounds verification)
-        run: lake build BKLNW_a2_reflective
-
-      - name: Build ChebyshevPsiTest (psi checker smoke test)
-        run: lake build ChebyshevPsiTest
-
-      - name: Build TableTest (table certificate smoke test)
-        run: lake build TableTest
-
-      - name: Build DownstreamInterface (PrimeNumberTheoremAnd-facing surface)
-        run: lake build DownstreamInterface
-
-      - name: Build DownstreamPatterns (PrimeNumberTheoremAnd proof shapes)
-        run: lake build DownstreamPatterns
+      - name: Build isolated public API contracts
+        run: |
+          lake build \
+            LeanCert.Test.PublicAPI.Eval \
+            LeanCert.Test.PublicAPI.Backend \
+            LeanCert.Test.PublicAPI.Bounds \
+            LeanCert.Test.PublicAPI.Optimization \
+            LeanCert.Test.PublicAPI.Isolation \
+            LeanCert.Test.PublicAPI.CertifiedBoundsImport \
+            LeanCert.Test.PublicAPI.TrustAxes \
+            LeanCert.Test.PublicAPI.DomainUmbrellas

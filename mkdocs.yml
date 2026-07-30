@@ -106,10 +106,15 @@ nav:
     - Table Certificates: architecture/table-certificates.md
     - Root Finding: architecture/root-finding.md
     - Verification Status: architecture/verification-status.md
+    - CI Promises: architecture/ci-promises.md
     - Benchmark Harness: architecture/benchmarks.md
+  - Contributing:
+    - Architecture Guide: contributing/architecture.md
+    - Roadmap: roadmap.md
   - Reference:
     - Supported Public API: reference/public-api.md
     - Imports: reference/imports.md
+    - Compatibility Surfaces: reference/compatibility.md
     - Tactics: reference/tactics.md
     - Certificate APIs: reference/certificate-apis.md
     - Algebraic Root Certificates: certificates/algebraic-roots.md

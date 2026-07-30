@@ -18,8 +18,15 @@ precompileModules = false
 # arithmetic on a typical development machine), built in LeanCert CI, which
 # ends with a statement-identity check against the interface.
 
-# Examples and tests - not part of default build
-# Build with: lake build examples
+# Supported demonstration modules - not part of the default build.
+# Build with: lake build Examples
+[[lean_lib]]
+name = "Examples"
+roots = ["LeanCert.Examples"]
+precompileModules = false
+
+# Compatibility target retained for existing scripts and downstream automation.
+# New documentation uses `Examples`, but `lake build examples` remains supported.
 [[lean_lib]]
 name = "examples"
 roots = ["LeanCert.Examples"]
@@ -153,6 +160,8 @@ roots = [
   "LeanCert.Test.ShowcaseFailures",
   "LeanCert.Test.SqrtTest",
   "LeanCert.Test.Support",
+  "LeanCert.Test.TacticAuto",
+  "LeanCert.Test.TacticDiscovery",
   "LeanCert.Test.TestDyadicEval",
   "LeanCert.Test.TestPhase3",
   "LeanCert.Test.TransformerTest",

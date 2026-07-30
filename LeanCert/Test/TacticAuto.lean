@@ -11,7 +11,7 @@ import LeanCert.Tactic.IntervalAuto
 This file tests the `certify_bound` tactic.
 -/
 
-namespace LeanCert.Tactic.TestAuto
+namespace LeanCert.Test.TacticAuto
 
 open LeanCert.Core
 open LeanCert.Engine
@@ -190,4 +190,4 @@ already in the `Box.envMem` form.
 -- Tests using opt_bound (the working approach for Box.envMem form)
 -- See test_opt_2d_sum_sq above for example usage
 
-end LeanCert.Tactic.TestAuto
+end LeanCert.Test.TacticAuto

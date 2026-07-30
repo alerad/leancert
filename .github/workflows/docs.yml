@@ -1,15 +1,9 @@
-name: Deploy Docs
+name: Docs
 
 on:
   pull_request:
-    paths:
-      - docs/**
-      - mkdocs.yml
   push:
     branches: [main]
-    paths:
-      - docs/**
-      - mkdocs.yml
   workflow_dispatch:
 
 permissions:
@@ -19,7 +13,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+      - uses: leanprover/lean-action@v1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,14 +28,20 @@ jobs:
       - name: Build documentation strictly
         run: mkdocs build --strict
 
+      - name: Build documented Lean import surfaces
+        run: lake build LeanCert LeanCert.Tactic
+
+      - name: Compile every executable documentation snippet
+        run: python3 scripts/check_docs_snippets.py
+
   deploy:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
