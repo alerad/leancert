@@ -157,9 +157,8 @@ private def pointAttemptTyped (depth : Nat) :
       }
   | .error (.rejected detail) =>
       trace[LeanCert.router] "point certificate rejected:\n{detail}"
-      return .error <| .inconclusive {
-        detail := "The backend could not construct a complete certificate with \
-          the current settings."
+      return .error <| .rejected {
+        detail := "The candidate certificate was rejected by its checker."
       }
   | .error (.inconclusive detail) =>
       return .error <| .inconclusive { detail }
