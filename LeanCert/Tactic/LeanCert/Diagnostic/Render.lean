@@ -257,6 +257,28 @@ private def renderOptimization (statistics : Option OptimizationStatistics) : St
       s!"\n\nOptimization:\n  Configured iteration limit: {statistics.configuredLimit}\n  \
         Tolerance: {statistics.tolerance}{actual}{gap}{converged}{remaining}{termination}"
 
+private def renderCertificates
+    (certificates : Array CertificateObservation) : String :=
+  if certificates.isEmpty then ""
+  else
+    let rows := certificates.toList.map fun certificate =>
+      let verifier := certificate.verifier.map
+        (fun value => s!"\n    Verifier: {value}") |>.getD ""
+      let enclosure := certificate.enclosure.map
+        (fun value => s!"\n    Enclosure: [{value.lo}, {value.hi}]") |>.getD ""
+      let usage := certificate.verificationUsage
+      let verification :=
+        if usage.kernelChecks > 0 && usage.nativeChecks > 0 then
+          s!"mixed ({usage.kernelChecks} kernel, {usage.nativeChecks} native)"
+        else if usage.kernelChecks > 0 then
+          s!"kernel ({usage.kernelChecks})"
+        else if usage.nativeChecks > 0 then
+          s!"native ({usage.nativeChecks})"
+        else "not observed"
+      s!"  {certificate.role}:\n    Checker: {certificate.checker}{verifier}\n    \
+        Verification: {verification}{enclosure}"
+    s!"\n\nRetained certificates:\n{String.intercalate "\n" rows}"
+
 def successReport (report : SolverReport) : String :=
   let plan := report.plan
   let detail := plan.strategyDetail.map (fun value => s!"\n  {value}") |>.getD ""
@@ -279,12 +301,13 @@ def successReport (report : SolverReport) : String :=
     (report.execution.verifier <|> plan.verifier).map
       (fun value => s!"\nVerifier: {value}") |>.getD ""
   let optimization := renderOptimization report.execution.optimization
+  let certificates := renderCertificates report.execution.certificates
   let advanced :=
     plan.dedicatedProof.map (fun proof =>
       s!"\n\nAdvanced control:\n  {renderProof proof}") |>.getD ""
   s!"LeanCert recognized: {intentLabel plan.intent}\n\n\
     Selected strategy:\n  {plan.strategy}{detail}{executionNotes}{backend}{verification}\
-    {checker}{verifier}{optimization}\n\nSuggested proof:\n  {renderProof plan.primaryProof}\
+    {checker}{verifier}{optimization}{certificates}\n\nSuggested proof:\n  {renderProof plan.primaryProof}\
     {advanced}{renderChildren report.execution.children}"
 
 end LeanCert.Tactic.Diagnostic

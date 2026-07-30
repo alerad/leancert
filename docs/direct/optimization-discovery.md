@@ -64,3 +64,21 @@ tactic state and contribute no execution telemetry.
 Discovery mode is useful when you do not yet know the bound or extremum.  See
 the existing [Discovery Mode](../tactics/discovery.md) reference for command
 syntax and examples.
+# Attained extrema
+
+`interval_argmin` and `interval_argmax` retain the candidate search and the
+certificate evidence used to prove that the candidate is attained.  The
+reflective route closes two Boolean certificates exactly once: a global bound
+and a point-value bound.  Reports list both checker identities, their actual
+verification routes, the final `verify_argmin` or `verify_argmax` Golden
+Theorem, the discovered witness, and the search termination facts.
+
+Failed speculative proof routes are transactional.  Their goals, messages,
+environment extensions, and verification events are discarded before a
+fallback is attempted.
+
+The `leancert` front door normally proves existence-only extrema with the
+compact extreme-value theorem, which requires no numerical certificate and
+does not choose a reportable rational witness. Use the dedicated
+`interval_argmin` or `interval_argmax` tactic when you specifically want
+guided rational-witness discovery and its detailed certificate report.

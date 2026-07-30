@@ -933,3 +933,15 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ 1 := by
 
 If a bound is too tight, increase Taylor depth, use subdivision, or run
 `interval_refute` to determine whether the proposed bound is false.
+### `interval_argmin` and `interval_argmax`
+
+These tactics discover a rational candidate and certify that its value is
+attained on the requested interval.  For `Expr.eval` goals the proof retains a
+global-bound certificate and a point-value certificate, combined by
+`LeanCert.Validity.verify_argmin` or `LeanCert.Validity.verify_argmax`.
+Certificate rejection is distinct from verification infrastructure failure,
+and failed proof branches do not contribute verification telemetry.
+
+For existence-only extrema, `leancert` prefers the non-numerical compact
+extreme-value theorem. Invoke these dedicated tactics when a discovered
+rational witness and constituent-certificate telemetry are desired.

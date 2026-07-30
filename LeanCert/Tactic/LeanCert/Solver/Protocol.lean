@@ -65,6 +65,17 @@ structure VerificationUsage where
   kernelFallbacks : Nat := 0
   deriving Inhabited, Repr
 
+/-- One checker proof retained by the final artifact.  Unlike the aggregate
+`VerificationUsage`, this preserves which Boolean checker was closed and what
+role it played in a composite Golden-Theorem application. -/
+structure CertificateObservation where
+  role : String
+  checker : Name
+  verifier : Option Name := none
+  verificationUsage : VerificationUsage := {}
+  enclosure : Option LeanCert.Core.IntervalRat := none
+  deriving Inhabited, Repr
+
 def VerificationUsage.combine (left right : VerificationUsage) :
     VerificationUsage := {
   kernelChecks := left.kernelChecks + right.kernelChecks
@@ -163,6 +174,10 @@ structure SolverExecution where
   verifier : Option Name := none
   enclosure : Option LeanCert.Core.IntervalRat := none
   optimization : Option OptimizationStatistics := none
+  /-- Constituent checker proofs retained by composite artifacts.  The
+  singular `checker`/`verifier` fields remain the compatibility presentation
+  for one-certificate solvers. -/
+  certificates : Array CertificateObservation := #[]
   notes : Array String := #[]
   children : Array ChildReport := #[]
   deriving Inhabited
