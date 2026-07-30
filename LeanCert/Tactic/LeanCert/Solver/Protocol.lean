@@ -155,6 +155,20 @@ structure ProofArtifact where
   report : SolverReport
   deriving Inhabited
 
+/-- A typed non-success returned by a reporting-aware solver core. Keeping
+proof success out of this type ensures that every proof still passes through
+artifact validation before it can become an `AttemptOutcome.proved`. -/
+inductive AttemptFailure where
+  | notApplicable
+  | unsupported (evidence : UnsupportedEvidence)
+  | domainObstruction (evidence : DomainObstruction)
+  | inconclusive (evidence : NumericalEvidence)
+  | rejected (evidence : CandidateEvidence)
+  | refuted (evidence : RefutationEvidence)
+  | routerFailure (failure : RouterFailure)
+  | internalError (solver : Name) (detail : String)
+  deriving Inhabited
+
 inductive AttemptOutcome where
   | proved (artifact : ProofArtifact)
   | notApplicable
@@ -166,6 +180,17 @@ inductive AttemptOutcome where
   | routerFailure (failure : RouterFailure)
   | internalError (solver : Name) (detail : String)
   deriving Inhabited
+
+/-- Embed a core-level non-success into the portfolio outcome taxonomy. -/
+def AttemptFailure.toOutcome : AttemptFailure → AttemptOutcome
+  | .notApplicable => .notApplicable
+  | .unsupported evidence => .unsupported evidence
+  | .domainObstruction evidence => .domainObstruction evidence
+  | .inconclusive evidence => .inconclusive evidence
+  | .rejected evidence => .rejected evidence
+  | .refuted evidence => .refuted evidence
+  | .routerFailure failure => .routerFailure failure
+  | .internalError solver detail => .internalError solver detail
 
 /-- Portfolio control is centralized so individual loops cannot accidentally
 assign different meanings to the same typed outcome. -/
@@ -242,7 +267,7 @@ def validateProofArtifact (preparedProposition : Lean.Expr)
 a complete proof into a validated artifact. The execution metadata is retained
 only if the proof and all transport goals succeed. -/
 def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
-    (solver : Elab.Tactic.TacticM (Except RouterFailure SolverExecution))
+    (solver : Elab.Tactic.TacticM (Except AttemptFailure SolverExecution))
     (exceptionPolicy : ExceptionPolicy := .internalError) :
     Elab.Tactic.TacticM AttemptOutcome := do
   let originalGoals ← Elab.Tactic.getGoals
@@ -276,7 +301,7 @@ def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
       | .ok execution => pure execution
       | .error failure =>
         saved.restore
-        return .routerFailure failure
+        return failure.toOutcome
     let remaining ← Elab.Tactic.getGoals
     unless remaining.isEmpty do
       let rendered ← remaining.mapM fun goal => goal.withContext do

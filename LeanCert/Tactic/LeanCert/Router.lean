@@ -45,7 +45,7 @@ structure SolverSpec where
   /-- Recursive routes can return a typed public failure without converting it
   into an implementation exception inside speculative execution. -/
   solveReportedResult :
-    Option (TacticM (Except Diagnostic.RouterFailure SolverExecution)) := none
+    Option (TacticM (Except AttemptFailure SolverExecution)) := none
   /-- Existing engine adapters still signal ordinary numerical rejection by
   throwing. They remain explicitly quarantined behind the compatibility
   exception policy until their PR2 migration returns typed outcomes directly. -/
@@ -603,7 +603,7 @@ semantic parser. The numerical engine sees `lhs - rhs ⋚ 0`; the resulting proo
 is transported back with the ordinary ordered-ring equivalence. -/
 private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) :
     TacticM AttemptOutcome := do
-  let runSpec : TacticM (Except Diagnostic.RouterFailure SolverExecution) :=
+  let runSpec : TacticM (Except AttemptFailure SolverExecution) :=
     match spec.solveReportedResult, spec.solveReported with
     | some solve, _ => solve
     | none, some solve => do return .ok (← solve)
@@ -863,7 +863,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
               runLeanCert cfg verbosity
             catch exception =>
               let detail ← exception.toMessageData.toString
-              return .error <| Diagnostic.RouterFailure.childFailure
+              return .error <| .routerFailure <| Diagnostic.RouterFailure.childFailure
                 (index + 1) childGoals.length childIntent? detail
           children := children.push {
             intent := child.plan.intent

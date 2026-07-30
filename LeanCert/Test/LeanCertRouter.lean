@@ -49,7 +49,7 @@ private def expectTypedAdapterFailure : TacticM Unit := do
     solve := throwError "legacy Unit adapter ran"
     solveReported := some (throwError "legacy reported adapter ran")
     solveReportedResult := some <| pure <|
-      .error (.internalError "typed result survived semantic transport")
+      .error (.routerFailure (.internalError "typed result survived semantic transport"))
   }
   match ← spec.toSemanticSolver.attempt prepared {} with
   | AttemptOutcome.routerFailure (Diagnostic.RouterFailure.internalError detail) =>
