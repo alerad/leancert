@@ -161,6 +161,45 @@ unsafe def elabExpectLooseDiscoverySuccess : Tactic := fun _ => do
   | .error failure =>
       throwError "a loose search with a certifiable endpoint failed: {repr failure}"
 
+syntax (name := expectAttainedReport)
+  "expect_attained_report" ident : tactic
+
+@[tactic expectAttainedReport]
+unsafe def elabExpectAttainedReport : Tactic := fun stx => do
+  let direction := stx[1].getId
+  let outcome ←
+    if direction == `minimum then
+      match ← Discovery.intervalArgminCoreTyped 10 with
+      | .ok outcome => pure outcome
+      | .error failure => throwError "typed argmin failed: {repr failure}"
+    else
+      match ← Discovery.intervalArgmaxCoreTyped 10 with
+      | .ok outcome => pure outcome
+      | .error failure => throwError "typed argmax failed: {repr failure}"
+  let expectedVerifier :=
+    if direction == `minimum then ``LeanCert.Validity.verify_argmin
+    else ``LeanCert.Validity.verify_argmax
+  unless outcome.verifier == expectedVerifier do
+    throwError "attained-extremum report retained the wrong Golden Theorem"
+  unless outcome.certificates.size == 2 do
+    throwError "attained proof retained {outcome.certificates.size} \
+      certificates instead of two"
+  let first := outcome.certificates[0]!
+  let second := outcome.certificates[1]!
+  let expectedFirst :=
+    if direction == `minimum then ``LeanCert.Validity.checkLowerBound
+    else ``LeanCert.Validity.checkUpperBound
+  let expectedSecond :=
+    if direction == `minimum then ``LeanCert.Validity.checkPointUpperBound
+    else ``LeanCert.Validity.checkPointLowerBound
+  unless first.checker == expectedFirst && second.checker == expectedSecond do
+    throwError "attained proof retained the wrong constituent checkers"
+  let usage : LeanCert.Tactic.VerificationUsage :=
+    outcome.certificates.foldl
+      (fun total certificate => total.combine certificate.verification) {}
+  unless usage.kernelChecks + usage.nativeChecks == 2 do
+    throwError "attained proof did not retain exactly two successful checks"
+
 syntax (name := expectTypedOptimizationRollback)
   "expect_typed_optimization_rollback" : tactic
 
@@ -217,6 +256,16 @@ example : ∃ M : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1,
 
 example : ∃ m : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 7, Real.sin x ≥ m := by
   expect_loose_discovery_success
+
+example : ∃ x ∈ checkerInterval, ∀ y ∈ checkerInterval,
+    LeanCert.Core.Expr.eval (fun _ => y) (.var 0) ≤
+      LeanCert.Core.Expr.eval (fun _ => x) (.var 0) := by
+  expect_attained_report maximum
+
+example : ∃ x ∈ checkerInterval, ∀ y ∈ checkerInterval,
+    LeanCert.Core.Expr.eval (fun _ => x) (.var 0) ≤
+      LeanCert.Core.Expr.eval (fun _ => y) (.var 0) := by
+  expect_attained_report minimum
 
 example : True := by
   expect_typed_optimization_rollback

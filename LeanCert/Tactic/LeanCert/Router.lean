@@ -273,6 +273,89 @@ private unsafe def maximizeMvAttemptTyped (depth : Nat) :
       return .error (discoveryFailure
         `LeanCert.Tactic.Discovery.interval_maximize_mv failure)
 
+private def attainedFailure (solver : Name) :
+    AttainedExtremumFailure → AttemptFailure
+  | .unsupported expression detail =>
+      .unsupported { expression, detail := some detail }
+  | .domainObstruction domain operation detail =>
+      .domainObstruction {
+        source := { original := domain, kind := .intervalRat }
+        reason := detail
+        operation := some operation
+      }
+  | .rejectedCandidate witness checker detail =>
+      .rejected {
+        candidate := some (toString witness)
+        checker := some checker
+        detail
+      }
+  | .inconclusive detail => .inconclusive { detail }
+  | .transportFailure detail => .internalError solver detail
+  | .internalFailure detail => .internalError solver detail
+
+private def attainedExecution
+    (outcome : AttainedExtremumOutcome) : SolverExecution := Id.run do
+  let mut usage : Solver.VerificationUsage := {}
+  let mut certificates : Array Solver.CertificateObservation := #[]
+  for certificate in outcome.certificates do
+    let observed := Solver.VerificationUsage.ofEvents certificate.verification
+    usage := usage.combine observed
+    certificates := certificates.push {
+      role := certificate.role
+      checker := certificate.checker
+      verifier := some outcome.verifier
+      verificationUsage := observed
+      enclosure := certificate.enclosure
+    }
+  return {
+    verificationUsage := usage
+    verifier := some outcome.verifier
+    optimization := some {
+      iterations := some outcome.iterations
+      configuredLimit := outcome.configuredLimit
+      tolerance := outcome.tolerance
+      gap := some (outcome.globalEnclosure.hi - outcome.globalEnclosure.lo)
+      converged :=
+        some (outcome.globalEnclosure.hi - outcome.globalEnclosure.lo ≤
+          outcome.tolerance)
+      remainingBoxes := some outcome.remainingBoxes
+      termination := some <|
+        match outcome.termination with
+        | .toleranceReached => .toleranceReached
+        | .iterationLimit => .iterationLimit
+        | .queueExhausted => .queueExhausted
+        | .stopped => .stopped
+    }
+    certificates
+    enclosure := some outcome.globalEnclosure
+    notes := #[
+      s!"attained witness: {outcome.witness}",
+      s!"witness origin: {
+        match outcome.witnessOrigin with
+        | .discovered => "guided search"
+        | .endpoint => "domain endpoint"}",
+      s!"point enclosure: [{outcome.pointEnclosure.lo}, {outcome.pointEnclosure.hi}]",
+      s!"bridge bound: {outcome.bridgeBound}",
+      s!"Taylor depth: {outcome.taylorDepth}"
+    ]
+  }
+
+private unsafe def argminAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← intervalArgminCoreTyped depth with
+  | .ok outcome => return .ok (attainedExecution outcome)
+  | .error failure =>
+      return .error (attainedFailure
+        `LeanCert.Tactic.Discovery.interval_argmin failure)
+
+private unsafe def argmaxAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← intervalArgmaxCoreTyped depth with
+  | .ok outcome => return .ok (attainedExecution outcome)
+  | .error failure =>
+      return .error (attainedFailure
+        `LeanCert.Tactic.Discovery.interval_argmax failure)
+
 private def finSumAttemptReported (precision : Int) (depth : Nat) :
     TacticM SolverExecution := do
   let outcome ← finSumBoundCoreReported precision depth
@@ -569,17 +652,25 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
   | .argmin => #[
       { report := report intent "attained minimum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
-          (some (suggestion "interval_argmin" #[toString d])), solve := intervalArgminCore d },
+          (some (suggestion "interval_argmin" #[toString d]))
+        solve := intervalArgminCore d
+        solveReportedResult := some (argminAttemptTyped d) },
       { report := report intent "attained minimum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
-          (some (suggestion "interval_argmin" #[toString d2])), solve := intervalArgminCore d2 }]
+          (some (suggestion "interval_argmin" #[toString d2]))
+        solve := intervalArgminCore d2
+        solveReportedResult := some (argminAttemptTyped d2) }]
   | .argmax => #[
       { report := report intent "attained maximum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
-          (some (suggestion "interval_argmax" #[toString d])), solve := intervalArgmaxCore d },
+          (some (suggestion "interval_argmax" #[toString d]))
+        solve := intervalArgmaxCore d
+        solveReportedResult := some (argmaxAttemptTyped d) },
       { report := report intent "attained maximum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
-          (some (suggestion "interval_argmax" #[toString d2])), solve := intervalArgmaxCore d2 }]
+          (some (suggestion "interval_argmax" #[toString d2]))
+        solve := intervalArgmaxCore d2
+        solveReportedResult := some (argmaxAttemptTyped d2) }]
   | .finiteSum => #[
       { report := report intent "reflective finite-sum certificate" cfg mode
           (.fixed .dyadicInterval) (some (suggestion "finsum_bound")),

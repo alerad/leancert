@@ -307,7 +307,7 @@ theorem test_manual_interval_ge : ∀ x ∈ I01r, (0 : ℚ) ≤ Expr.eval (fun _
 |--------|--------|---------|
 | `discover` | ✓ Works | Auto-routes to minimize/maximize |
 | `interval_argmax` | ✓ Works | Finds maximizer point (native + AST syntax) |
-| `interval_argmin` | ⚠ Stub | Directs to use negated function |
+| `interval_argmin` | ✓ Works | Finds and certifies a minimizer point |
 | `interval_minimize_mv` | ✓ Works | Multivariate minimize |
 | `interval_maximize_mv` | ✓ Works | Multivariate maximize |
 | `multivariate_bound` | ✓ Works | Multivariate bounds |

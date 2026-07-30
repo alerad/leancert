@@ -743,8 +743,76 @@ def isExprEvalFunc (func : Lean.Expr) : MetaM Bool := do
     let fn := body.getAppFn
     return fn.isConstOf ``LeanCert.Core.Expr.eval
 
+/-! ## Attained-extremum reporting -/
+
+/-- Whether an attained-extremum proof certifies a minimum or maximum. -/
+inductive AttainedExtremumKind where
+  | minimum
+  | maximum
+  deriving DecidableEq, Repr, Inhabited
+
+/-- How the rational witness retained by an attained-extremum proof arose. -/
+inductive AttainedWitnessOrigin where
+  | discovered
+  | endpoint
+  deriving DecidableEq, Repr, Inhabited
+
+/-- One of the two Boolean certificates retained by `verify_argmin` or
+`verify_argmax`. -/
+structure AttainedCertificate where
+  role : String
+  checker : Name
+  verification : LeanCert.Tactic.VerificationUsage
+  enclosure : Option IntervalRat := none
+  deriving Repr, Inhabited
+
+/-- Runtime evidence from one successful attained-extremum construction. -/
+structure AttainedExtremumOutcome where
+  kind : AttainedExtremumKind
+  witness : ℚ
+  witnessOrigin : AttainedWitnessOrigin
+  pointEnclosure : IntervalRat
+  globalEnclosure : IntervalRat
+  bridgeBound : ℚ
+  iterations : Nat
+  configuredLimit : Nat
+  remainingBoxes : Nat
+  tolerance : ℚ
+  termination : DiscoveryTermination
+  taylorDepth : Nat
+  certificates : Array AttainedCertificate
+  verifier : Name
+  deriving Repr, Inhabited
+
+/-- Expected non-successes at the attained-extremum boundary. -/
+inductive AttainedExtremumFailure where
+  | unsupported (expression detail : String)
+  | domainObstruction (domain : Lean.Expr) (operation detail : String)
+  | rejectedCandidate (witness : ℚ) (checker : Name) (detail : String)
+  | inconclusive (detail : String)
+  | transportFailure (detail : String)
+  | internalFailure (detail : String)
+  deriving Repr, Inhabited
+
+private def throwAttainedExtremumFailure (tacticName : String) :
+    AttainedExtremumFailure → TacticM α
+  | .unsupported expression detail =>
+      throwError "{tacticName}: unsupported expression {expression}:\n{detail}"
+  | .domainObstruction _ operation detail =>
+      throwError "{tacticName}: domain obstruction while checking {operation}:\n{detail}"
+  | .rejectedCandidate witness checker detail =>
+      throwError "{tacticName}: candidate {witness} was rejected by {checker}:\n{detail}"
+  | .inconclusive detail =>
+      throwError "{tacticName}: {detail}"
+  | .transportFailure detail =>
+      throwError "{tacticName}: proof transport failed:\n{detail}"
+  | .internalFailure detail =>
+      throwError "{tacticName}: internal certificate failure:\n{detail}"
+
 /-- The interval_argmax tactic implementation -/
-unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
+private unsafe def intervalArgmaxCoreReported
+    (taylorDepth : Nat) :
+    TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
   LeanCert.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
@@ -811,21 +879,8 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "f(xOpt) ∈ [{fAtXOpt.lo}, {fAtXOpt.hi}]"
   trace[LeanCert.discovery] "Using bound c = {cBound} for transitivity"
 
-  -- 6. Check that ∀ y ∈ I, f(y) ≤ c (upper bound check)
-  let upperOk := LeanCert.Validity.checkUpperBound astVal domainVal cBound evalCfg
-  trace[LeanCert.discovery] "checkUpperBound: {upperOk}"
-
-  -- 7. Check that c ≤ f(xOpt) (point lower bound check)
-  let pointOk := LeanCert.Validity.checkPointLowerBound astVal xOpt cBound evalCfg
-  trace[LeanCert.discovery] "checkPointLowerBound: {pointOk}"
-
-  if !upperOk || !pointOk then
-    throwError "interval_argmax: Bound verification failed.\n\
-      • checkUpperBound (∀ y ∈ I, f(y) ≤ {cBound}): {upperOk}\n\
-      • checkPointLowerBound ({cBound} ≤ f({xOpt})): {pointOk}\n\
-      Try increasing Taylor depth or using a different witness."
-
-  -- 8. Generate support proof
+  -- 6. Generate support proof. The Boolean checks are closed below exactly
+  -- once through the typed verification boundary.
   let suppProof ← LeanCert.Meta.mkSupportedCoreProof ast
 
   -- 9. Provide witness: refine ⟨xOpt, ?memProof, ?boundProof⟩
@@ -865,13 +920,13 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
     try
       evalTactic (← `(tactic| decide))
     catch _ =>
-      logWarning m!"Could not automatically prove {xOpt} ∈ [{domainVal.lo}, {domainVal.hi}]. Goal left open."
-      return
+      throwError "could not prove witness membership"
 
   -- 11. Prove the bound: ∀ y ∈ I, f(y) ≤ f(xOpt)
   trace[LeanCert.discovery] "Proving universal bound..."
 
-  if isNativeSyntax then
+  let certificatesResult : Except AttainedExtremumFailure
+      (Array AttainedCertificate) ← if isNativeSyntax then
     -- For native syntax, simplify and use intervalBoundCore directly
     trace[LeanCert.discovery] "Using native syntax path with intervalBoundCore"
     try
@@ -886,9 +941,24 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
 
       -- norm_num may already close trivial bounds outright (constant or
       -- identity objectives); only invoke the interval engine on a live goal.
-      if !(← getGoals).isEmpty then
-        LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
+      let retained ← if !(← getGoals).isEmpty then
+        match ← LeanCert.Tactic.Auto.intervalBoundCoreTyped taylorDepth with
+        | .ok outcome =>
+            let checker := outcome.checker.getD Name.anonymous
+            if checker == Name.anonymous then
+              throwError "native attained-extremum proof returned no checker identity"
+            pure <| .ok #[{
+              role := "global attained-maximum bound"
+              checker
+              verification := outcome.verification
+            }]
+        | .error failure =>
+            pure <| .error <| .inconclusive
+              s!"native attained-extremum bound failed: {repr failure}"
+      else
+        pure (.ok #[])
       trace[LeanCert.discovery] "✓ Proof complete (native syntax)"
+      pure retained
     catch e =>
       throwError "interval_argmax: Could not prove universal bound.\n\
         Error: {e.toMessageData}\n\
@@ -896,6 +966,7 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
   else
     -- For Expr.eval syntax, use verify_argmax
     trace[LeanCert.discovery] "Using verify_argmax path"
+    let reflective ← saveState
     try
       -- Build the proof term using verify_argmax
       let astSyntax ← Term.exprToSyntax ast
@@ -908,25 +979,92 @@ unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
 
       -- Membership proof for xOpt
       evalTactic (← `(tactic|
-        apply LeanCert.Validity.verify_argmax $astSyntax $suppSyntax $domainSyntax $xOptSyntax $cBoundSyntax $cfgSyntax
-          ?_ (by leancert_verify_cert) (by leancert_verify_cert)))
+        apply LeanCert.Validity.verify_argmax $astSyntax $suppSyntax $domainSyntax
+          $xOptSyntax $cBoundSyntax $cfgSyntax))
+      evalTactic (← `(tactic| constructor <;> norm_cast))
 
-      -- Prove xOpt ∈ I
-      if !(← getGoals).isEmpty then
-        evalTactic (← `(tactic| constructor <;> norm_cast))
-
-      trace[LeanCert.discovery] "✓ Proof complete"
+      let close (role : String) (checker : Name) :
+          TacticM (Except AttainedExtremumFailure AttainedCertificate) := do
+        let certGoal ← getMainGoal
+        match ← LeanCert.Tactic.closeCertificateGoalTyped
+            (← LeanCert.Tactic.VerificationConfig.current) certGoal
+            (tacticName := "interval_argmax") with
+        | .accepted event =>
+            return .ok { role, checker, verification := event.toUsage }
+        | .rejected =>
+            return .error <| .rejectedCandidate xOpt checker
+              "the Boolean certificate evaluated to false"
+        | .failed failure =>
+            return .error <| .internalFailure
+              (failure.message "interval_argmax")
+      match ← close "global upper bound" ``LeanCert.Validity.checkUpperBound with
+      | .error failure => pure (.error failure)
+      | .ok upper =>
+        match ← close "candidate point lower bound"
+            ``LeanCert.Validity.checkPointLowerBound with
+        | .error failure => pure (.error failure)
+        | .ok point =>
+          trace[LeanCert.discovery] "✓ Proof complete"
+          pure (.ok #[upper, point])
     catch e =>
       -- Fallback to intervalBoundCore
+      reflective.restore
       trace[LeanCert.discovery] "verify_argmax failed, trying intervalBoundCore fallback..."
-      try
-        LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
+      match ← LeanCert.Tactic.Auto.intervalBoundCoreTyped taylorDepth with
+      | .ok outcome =>
+        let checker := outcome.checker.getD Name.anonymous
+        if checker == Name.anonymous then
+          throwError "fallback attained-extremum proof returned no checker identity"
         trace[LeanCert.discovery] "✓ Proof complete (via fallback)"
-      catch e2 =>
-        throwError "interval_argmax: Could not prove universal bound.\n\
-          Primary method (verify_argmax): {e.toMessageData}\n\
-          Fallback method (intervalBoundCore): {e2.toMessageData}\n\
-          The witness x = {xOpt} may need higher precision."
+        pure <| .ok #[{
+          role := "fallback universal bound"
+          checker
+          verification := outcome.verification
+        }]
+      | .error e2 =>
+        pure <| .error <| .transportFailure
+          s!"primary verify_argmax failed: {← e.toMessageData.toString}\n\
+            fallback interval bound failed: {repr e2}"
+  let certificates ←
+    match certificatesResult with
+    | .ok certificates => pure certificates
+    | .error failure => return .error failure
+  let globalEnclosure : IntervalRat :=
+    if h : result.bound.lo ≤ result.bound.hi then
+      ⟨result.bound.lo, result.bound.hi, h⟩
+    else fAtXOpt
+  return .ok {
+    kind := .maximum
+    witness := xOpt
+    witnessOrigin := .discovered
+    pointEnclosure := fAtXOpt
+    globalEnclosure
+    bridgeBound := cBound
+    iterations := result.bound.iterations
+    configuredLimit := cfg.maxIterations
+    remainingBoxes := result.remainingBoxes.length
+    tolerance := cfg.tolerance
+    termination := discoveryTermination result cfg.maxIterations cfg.tolerance
+    taylorDepth
+    certificates
+    verifier := ``LeanCert.Validity.verify_argmax
+  }
+
+/-- Reporting-aware attained-maximum core. -/
+unsafe def intervalArgmaxCoreTyped (taylorDepth : Nat) :
+    TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
+  let original ← saveState
+  try
+    return ← intervalArgmaxCoreReported taylorDepth
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Compatibility wrapper preserving the historical throwing API. -/
+unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
+  match ← intervalArgmaxCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwAttainedExtremumFailure "interval_argmax" failure
 
 /-- The interval_argmax tactic.
 
@@ -948,7 +1086,9 @@ unsafe def elabIntervalArgmax : Tactic := fun stx => do
     intervalArgmaxCore depth
 
 /-- The interval_argmin tactic implementation -/
-unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
+private unsafe def intervalArgminCoreReported
+    (taylorDepth : Nat) :
+    TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
   LeanCert.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
@@ -1015,21 +1155,7 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "f(xOpt) ∈ [{fAtXOpt.lo}, {fAtXOpt.hi}]"
   trace[LeanCert.discovery] "Using bound c = {cBound} for transitivity"
 
-  -- 6. Check that ∀ y ∈ I, c ≤ f(y) (lower bound check)
-  let lowerOk := LeanCert.Validity.checkLowerBound astVal domainVal cBound evalCfg
-  trace[LeanCert.discovery] "checkLowerBound: {lowerOk}"
-
-  -- 7. Check that f(xOpt) ≤ c (point upper bound check)
-  let pointOk := LeanCert.Validity.checkPointUpperBound astVal xOpt cBound evalCfg
-  trace[LeanCert.discovery] "checkPointUpperBound: {pointOk}"
-
-  if !lowerOk || !pointOk then
-    throwError "interval_argmin: Bound verification failed.\n\
-      • checkLowerBound (∀ y ∈ I, {cBound} ≤ f(y)): {lowerOk}\n\
-      • checkPointUpperBound (f({xOpt}) ≤ {cBound}): {pointOk}\n\
-      Try increasing Taylor depth or using a different witness."
-
-  -- 8. Generate support proof
+  -- 6. Generate support proof. Certificate checks are performed once below.
   let suppProof ← LeanCert.Meta.mkSupportedCoreProof ast
 
   -- 9. Provide witness: refine ⟨xOpt, ?memProof, ?boundProof⟩
@@ -1069,13 +1195,13 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
     try
       evalTactic (← `(tactic| decide))
     catch _ =>
-      logWarning m!"Could not automatically prove {xOpt} ∈ [{domainVal.lo}, {domainVal.hi}]. Goal left open."
-      return
+      throwError "could not prove witness membership"
 
   -- 11. Prove the bound: ∀ y ∈ I, f(xOpt) ≤ f(y)
   trace[LeanCert.discovery] "Proving universal bound..."
 
-  if isNativeSyntax then
+  let certificatesResult : Except AttainedExtremumFailure
+      (Array AttainedCertificate) ← if isNativeSyntax then
     -- For native syntax, simplify and use intervalBoundCore directly
     trace[LeanCert.discovery] "Using native syntax path with intervalBoundCore"
     try
@@ -1086,9 +1212,24 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
 
       -- norm_num may already close trivial bounds outright (constant or
       -- identity objectives); only invoke the interval engine on a live goal.
-      if !(← getGoals).isEmpty then
-        LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
+      let retained ← if !(← getGoals).isEmpty then
+        match ← LeanCert.Tactic.Auto.intervalBoundCoreTyped taylorDepth with
+        | .ok outcome =>
+            let checker := outcome.checker.getD Name.anonymous
+            if checker == Name.anonymous then
+              throwError "native attained-extremum proof returned no checker identity"
+            pure <| .ok #[{
+              role := "global attained-minimum bound"
+              checker
+              verification := outcome.verification
+            }]
+        | .error failure =>
+            pure <| .error <| .inconclusive
+              s!"native attained-extremum bound failed: {repr failure}"
+      else
+        pure (.ok #[])
       trace[LeanCert.discovery] "✓ Proof complete (native syntax)"
+      pure retained
     catch e =>
       throwError "interval_argmin: Could not prove universal bound.\n\
         Error: {e.toMessageData}\n\
@@ -1096,6 +1237,7 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
   else
     -- For Expr.eval syntax, use verify_argmin
     trace[LeanCert.discovery] "Using verify_argmin path"
+    let reflective ← saveState
     try
       -- Build the proof term using verify_argmin
       let astSyntax ← Term.exprToSyntax ast
@@ -1108,25 +1250,92 @@ unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
 
       -- Membership proof for xOpt
       evalTactic (← `(tactic|
-        apply LeanCert.Validity.verify_argmin $astSyntax $suppSyntax $domainSyntax $xOptSyntax $cBoundSyntax $cfgSyntax
-          ?_ (by leancert_verify_cert) (by leancert_verify_cert)))
+        apply LeanCert.Validity.verify_argmin $astSyntax $suppSyntax $domainSyntax
+          $xOptSyntax $cBoundSyntax $cfgSyntax))
+      evalTactic (← `(tactic| constructor <;> norm_cast))
 
-      -- Prove xOpt ∈ I
-      if !(← getGoals).isEmpty then
-        evalTactic (← `(tactic| constructor <;> norm_cast))
-
-      trace[LeanCert.discovery] "✓ Proof complete"
+      let close (role : String) (checker : Name) :
+          TacticM (Except AttainedExtremumFailure AttainedCertificate) := do
+        let certGoal ← getMainGoal
+        match ← LeanCert.Tactic.closeCertificateGoalTyped
+            (← LeanCert.Tactic.VerificationConfig.current) certGoal
+            (tacticName := "interval_argmin") with
+        | .accepted event =>
+            return .ok { role, checker, verification := event.toUsage }
+        | .rejected =>
+            return .error <| .rejectedCandidate xOpt checker
+              "the Boolean certificate evaluated to false"
+        | .failed failure =>
+            return .error <| .internalFailure
+              (failure.message "interval_argmin")
+      match ← close "global lower bound" ``LeanCert.Validity.checkLowerBound with
+      | .error failure => pure (.error failure)
+      | .ok lower =>
+        match ← close "candidate point upper bound"
+            ``LeanCert.Validity.checkPointUpperBound with
+        | .error failure => pure (.error failure)
+        | .ok point =>
+          trace[LeanCert.discovery] "✓ Proof complete"
+          pure (.ok #[lower, point])
     catch e =>
       -- Fallback to intervalBoundCore
+      reflective.restore
       trace[LeanCert.discovery] "verify_argmin failed, trying intervalBoundCore fallback..."
-      try
-        LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
+      match ← LeanCert.Tactic.Auto.intervalBoundCoreTyped taylorDepth with
+      | .ok outcome =>
+        let checker := outcome.checker.getD Name.anonymous
+        if checker == Name.anonymous then
+          throwError "fallback attained-extremum proof returned no checker identity"
         trace[LeanCert.discovery] "✓ Proof complete (via fallback)"
-      catch e2 =>
-        throwError "interval_argmin: Could not prove universal bound.\n\
-          Primary method (verify_argmin): {e.toMessageData}\n\
-          Fallback method (intervalBoundCore): {e2.toMessageData}\n\
-          The witness x = {xOpt} may need higher precision."
+        pure <| .ok #[{
+          role := "fallback universal bound"
+          checker
+          verification := outcome.verification
+        }]
+      | .error e2 =>
+        pure <| .error <| .transportFailure
+          s!"primary verify_argmin failed: {← e.toMessageData.toString}\n\
+            fallback interval bound failed: {repr e2}"
+  let certificates ←
+    match certificatesResult with
+    | .ok certificates => pure certificates
+    | .error failure => return .error failure
+  let globalEnclosure : IntervalRat :=
+    if h : result.bound.lo ≤ result.bound.hi then
+      ⟨result.bound.lo, result.bound.hi, h⟩
+    else fAtXOpt
+  return .ok {
+    kind := .minimum
+    witness := xOpt
+    witnessOrigin := .discovered
+    pointEnclosure := fAtXOpt
+    globalEnclosure
+    bridgeBound := cBound
+    iterations := result.bound.iterations
+    configuredLimit := cfg.maxIterations
+    remainingBoxes := result.remainingBoxes.length
+    tolerance := cfg.tolerance
+    termination := discoveryTermination result cfg.maxIterations cfg.tolerance
+    taylorDepth
+    certificates
+    verifier := ``LeanCert.Validity.verify_argmin
+  }
+
+/-- Reporting-aware attained-minimum core. -/
+unsafe def intervalArgminCoreTyped (taylorDepth : Nat) :
+    TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
+  let original ← saveState
+  try
+    return ← intervalArgminCoreReported taylorDepth
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Compatibility wrapper preserving the historical throwing API. -/
+unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
+  match ← intervalArgminCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwAttainedExtremumFailure "interval_argmin" failure
 
 /-- The interval_argmin tactic.
 
