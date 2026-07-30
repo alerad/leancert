@@ -483,6 +483,12 @@ automatic-route gates, and audit commands.
 3. **Apply the Golden Theorem**: lift the boolean result to a semantic theorem
 4. **Complete the proof script**: keep the theorem statement and proof term in Lean
 
+The shared verification choke point returns three structured outcomes:
+accepted with route telemetry, rejected because the Boolean checker evaluated
+to `false`, or failed because verification infrastructure could not produce a
+result. Only accepted verification retains generated declarations; rejection
+and failure restore the complete speculative state.
+
 Optional external orchestration now lives in separate repos:
 
 - `https://github.com/alerad/leancert-python`

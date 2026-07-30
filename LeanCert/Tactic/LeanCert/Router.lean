@@ -164,6 +164,8 @@ private def pointAttemptTyped (depth : Nat) :
       return .error <| .inconclusive { detail }
   | .error (.transportFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
+  | .error (.internalFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
 
 private def directBoundExecution (outcome : Auto.IntervalBoundOutcome) :
     SolverExecution := Id.run do
@@ -192,6 +194,8 @@ private unsafe def directBoundAttemptTyped (depth : Nat) :
   | .error (.inconclusive detail) =>
       return .error <| .inconclusive { detail }
   | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.certify_bound detail
+  | .error (.internalFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.certify_bound detail
 
 private def discoveryExecution (outcome : DiscoveryOutcome) : SolverExecution := {
@@ -223,6 +227,8 @@ private def discoveryFailure (solver : Name) :
   | .inconclusive detail =>
       .inconclusive { detail }
   | .transportFailure detail =>
+      .internalError solver detail
+  | .internalFailure detail =>
       .internalError solver detail
 
 private unsafe def minimizeAttemptTyped (depth : Nat) :
@@ -326,6 +332,8 @@ private unsafe def optimizationAttemptTyped (maxIterations : Nat)
         expression
         detail := some detail
       }
+  | .error (.rejected detail) =>
+      return .error <| .rejected { detail }
   | .error (.transportFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.opt_bound detail
   | .error (.internalFailure detail) =>
@@ -355,6 +363,8 @@ private unsafe def multivariateAttemptTyped (maxIterations : Nat)
         expression
         detail := some detail
       }
+  | .error (.rejected detail) =>
+      return .error <| .rejected { detail }
   | .error (.transportFailure detail) =>
       return .error <| .internalError
         `LeanCert.Tactic.Auto.multivariate_bound detail

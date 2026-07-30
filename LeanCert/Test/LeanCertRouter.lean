@@ -176,6 +176,65 @@ example : True := by
   expect_typed_multivariate_rollback
   trivial
 
+syntax (name := expectTypedOptimizationRejection)
+  "expect_typed_optimization_rejection" : tactic
+
+@[tactic expectTypedOptimizationRejection]
+unsafe def elabExpectTypedOptimizationRejection : Tactic := fun _ => do
+  let callerGoals ← getGoals
+  let falseType ← Term.elabTerm
+    (← `(∀ ρ, LeanCert.Engine.Optimization.Box.envMem ρ
+        ([⟨0, 2, by norm_num⟩] : LeanCert.Engine.Optimization.Box) →
+      (∀ i, i ≥
+        ([⟨0, 2, by norm_num⟩] : LeanCert.Engine.Optimization.Box).length →
+        ρ i = 0) →
+      LeanCert.Core.Expr.eval ρ
+        (.mul (.var 0) (.var 0)) ≤ (1 : ℚ))) none
+  Term.synthesizeSyntheticMVarsNoPostponing
+  let falseType ← instantiateMVars falseType
+  let falseGoal ← mkFreshExprMVar falseType
+  setGoals [falseGoal.mvarId!]
+  match ← Auto.optBoundCoreTyped 8 false 10 with
+  | .error (.rejected _) =>
+      unless !(← falseGoal.mvarId!.isAssigned) do
+        throwError "rejected opt_bound mutated the caller's goal"
+      setGoals callerGoals
+      evalTactic (← `(tactic| trivial))
+  | .error failure =>
+      throwError "false opt_bound certificate had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "false opt_bound certificate unexpectedly succeeded"
+
+example : True := by
+  expect_typed_optimization_rejection
+
+syntax (name := expectTypedMultivariateRejection)
+  "expect_typed_multivariate_rejection" : tactic
+
+@[tactic expectTypedMultivariateRejection]
+unsafe def elabExpectTypedMultivariateRejection : Tactic := fun _ => do
+  let callerGoals ← getGoals
+  let falseType ← Term.elabTerm
+    (← `(∀ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1,
+      x + y ≤ (-1 : ℚ))) none
+  Term.synthesizeSyntheticMVarsNoPostponing
+  let falseType ← instantiateMVars falseType
+  let falseGoal ← mkFreshExprMVar falseType
+  setGoals [falseGoal.mvarId!]
+  match ← Auto.multivariateBoundCoreTyped 8 (1 / 1000) false 10 with
+  | .error (.rejected _) =>
+      unless !(← falseGoal.mvarId!.isAssigned) do
+        throwError "rejected multivariate bound mutated the caller's goal"
+      setGoals callerGoals
+      evalTactic (← `(tactic| trivial))
+  | .error failure =>
+      throwError "false multivariate certificate had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "false multivariate certificate unexpectedly succeeded"
+
+example : True := by
+  expect_typed_multivariate_rejection
+
 syntax (name := expectKernelBoundReport) "expect_kernel_bound_report" : tactic
 
 @[tactic expectKernelBoundReport]

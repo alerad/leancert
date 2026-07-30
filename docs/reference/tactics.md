@@ -60,6 +60,13 @@ Per-invocation `(trust := …)` overrides `set_option leancert.trust`, which
 overrides the native default. The syntax index above identifies tactics with
 an inline override. `discover` and `finsum_witness` use the scoped option.
 
+The verification boundary distinguishes a checker that evaluates to `false`
+from an inability to run the checker. The former is ordinary certificate
+rejection and may allow another solver strategy to run; kernel reduction,
+native compilation, evaluation, or protocol failures are terminal. Automatic
+mode falls back from an unfinished kernel attempt, never from a conclusive
+`false` result.
+
 Guidance from the calibration data (`scripts/bench-trust/README.md`): kernel
 verification is essentially free for point inequalities and quantified
 bounds, cheap for moderate partition/subdivision counts, and crosses over

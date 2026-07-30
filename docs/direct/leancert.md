@@ -110,6 +110,12 @@ LeanCert keeps three ideas separate:
 3. **Certificate verification** is how a successful executable check is
    discharged: `kernel`, `native`, or the `auto` policy.
 
+Certificate rejection and verification failure are different outcomes. A
+checker that conclusively evaluates to `false` is an expected, resumable
+solver result. Failure to reduce, compile, or evaluate the checker is an
+infrastructure error and stops routing. In `auto` mode, a conclusive `false`
+kernel result never falls back to native verification.
+
 In particular, subdivision and optimization are strategies, not numerical
 backends. Selecting `(trust := kernel)` does not select Rational, Dyadic, or
 Affine arithmetic.

@@ -44,6 +44,7 @@ structure MultivariateBoundOutcome where
 
 inductive MultivariateBoundFailure where
   | unsupported (expression detail : String)
+  | rejected (detail : String)
   | transportFailure (detail : String)
   | internalFailure (detail : String)
   deriving Inhabited, Repr
@@ -231,13 +232,19 @@ where
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
       setGoals [certGoalId]
-      let event ← try
-        LeanCert.Tactic.closeCertificateGoalReported
-          (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-          (tacticName := "multivariate_bound")
-      catch e =>
-        saved.restore
-        return .error <| .internalFailure (← e.toMessageData.toString)
+      let event ←
+        match ← LeanCert.Tactic.closeCertificateGoalTyped
+            (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
+            (tacticName := "multivariate_bound") with
+        | .accepted event => pure event
+        | .rejected =>
+            saved.restore
+            return .error <| .rejected
+              "the multivariate upper-bound checker evaluated to false"
+        | .failed failure =>
+            saved.restore
+            return .error <| .internalFailure
+              (failure.message "multivariate_bound")
 
       let conclusionProof ← mkAppM' proof #[certGoal]
       let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
@@ -328,13 +335,19 @@ where
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
       setGoals [certGoalId]
-      let event ← try
-        LeanCert.Tactic.closeCertificateGoalReported
-          (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-          (tacticName := "multivariate_bound")
-      catch e =>
-        saved.restore
-        return .error <| .internalFailure (← e.toMessageData.toString)
+      let event ←
+        match ← LeanCert.Tactic.closeCertificateGoalTyped
+            (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
+            (tacticName := "multivariate_bound") with
+        | .accepted event => pure event
+        | .rejected =>
+            saved.restore
+            return .error <| .rejected
+              "the multivariate lower-bound checker evaluated to false"
+        | .failed failure =>
+            saved.restore
+            return .error <| .internalFailure
+              (failure.message "multivariate_bound")
 
       let conclusionProof ← mkAppM' proof #[certGoal]
       let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
@@ -375,6 +388,8 @@ unsafe def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
   | .ok outcome => return outcome
   | .error (.unsupported expression detail) =>
       throwError "multivariate_bound: unsupported expression {expression}:\n{detail}"
+  | .error (.rejected detail) =>
+      throwError "multivariate_bound: certificate rejected:\n{detail}"
   | .error (.transportFailure detail) =>
       throwError "multivariate_bound: proof transport failed:\n{detail}"
   | .error (.internalFailure detail) =>
