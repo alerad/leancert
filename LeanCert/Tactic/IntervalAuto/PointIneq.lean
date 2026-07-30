@@ -43,6 +43,7 @@ inductive PointInequalityFailure where
   | rejected (detail : String)
   | inconclusive (detail : String)
   | transportFailure (detail : String)
+  | internalFailure (detail : String)
   deriving Inhabited
 
 /-- Try to prove a closed expression bound directly using certificate verification. -/
@@ -127,11 +128,15 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
       let event ←
-        try
-          closeCertificateGoalReported (← VerificationConfig.current) certGoalId
-            (tacticName := "interval_decide")
-        catch e =>
-          return .error <| .rejected (← e.toMessageData.toString)
+        match ← closeCertificateGoalTyped (← VerificationConfig.current) certGoalId
+            (tacticName := "interval_decide") with
+        | .accepted event => pure event
+        | .rejected =>
+            return .error <| .rejected
+              "the Rational point checker evaluated to false"
+        | .failed failure =>
+            return .error <| .internalFailure
+              (failure.message "interval_decide")
 
       let proof ← mkAppM theoremName #[diffAst, supportProof, intervalExpr, toExpr zeroRat, cfgExpr, certGoal]
 
@@ -303,7 +308,8 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
     -- Rational; construction and transport exceptions remain implementation
     -- errors and escape this typed core.
     let dyadicSaved ← saveState
-    let dyadicOutcome? ← do
+    let tryDyadic : TacticM (Except PointInequalityFailure
+        (Option PointInequalityOutcome)) := do
       let prec : Int := -80
       let precExpr := toExpr prec
       let depthExpr := toExpr taylorDepth
@@ -327,16 +333,18 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
       let dyadicCertGoal ← mkFreshExprMVar dyadicCertTy
       let dyadicCertGoalId := dyadicCertGoal.mvarId!
       trace[interval_decide] "Verifying dyadic certificate"
-      let event? ←
-        try
-          some <$> closeCertificateGoalReported (← VerificationConfig.current)
-            dyadicCertGoalId (tacticName := "interval_decide")
-        catch e =>
-          trace[interval_decide] "Dyadic certificate rejected: {e.toMessageData}"
-          pure none
-      let some event := event?
-        | dyadicSaved.restore
-          pure none
+      let event ←
+        match ← closeCertificateGoalTyped (← VerificationConfig.current)
+            dyadicCertGoalId (tacticName := "interval_decide") with
+        | .accepted event => pure event
+        | .rejected =>
+            trace[interval_decide] "Dyadic certificate rejected"
+            dyadicSaved.restore
+            return .ok none
+        | .failed failure =>
+            dyadicSaved.restore
+            return .error <| .internalFailure
+              (failure.message "interval_decide")
       trace[interval_decide] "Dyadic certificate verified"
 
       let dyadicProof ← mkAppM dyadicTheoremName
@@ -353,7 +361,7 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
       let dyadicProofStx : TSyntax `term := ⟨dyadicProofStxRaw⟩
       let closed ← tryCloseWith dyadicProofStx
       if closed then
-        pure <| some {
+        pure <| .ok <| some {
           checker := dyadicCheckName
           verifier := dyadicTheoremName
           verification := event.toUsage
@@ -363,9 +371,13 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
         }
       else
         dyadicSaved.restore
-        pure none
-    if let some outcome := dyadicOutcome? then
-      return .ok outcome
+        pure <| .error <| .transportFailure
+          "certified Dyadic proof did not close the original point inequality"
+    let dyadicResult ← tryDyadic
+    match dyadicResult with
+    | .ok (some outcome) => return .ok outcome
+    | .ok none => pure ()
+    | .error failure => return .error failure
 
     let supportProof ←
       try mkSupportedCoreProof ast
@@ -402,11 +414,15 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
     let certGoalId := certGoal.mvarId!
     trace[interval_decide] "Verifying rational certificate"
     let event ←
-      try
-        closeCertificateGoalReported (← VerificationConfig.current) certGoalId
-          (tacticName := "interval_decide")
-      catch e =>
-        return .error <| .rejected (← e.toMessageData.toString)
+      match ← closeCertificateGoalTyped (← VerificationConfig.current) certGoalId
+          (tacticName := "interval_decide") with
+      | .accepted event => pure event
+      | .rejected =>
+          return .error <| .rejected
+            "the Rational point checker evaluated to false"
+      | .failed failure =>
+          return .error <| .internalFailure
+            (failure.message "interval_decide")
     trace[interval_decide] "Certificate verified"
 
     let proof ← mkAppM theoremName #[ast, supportProof, intervalExpr, toExpr boundRat, cfgExpr, certGoal]
@@ -452,6 +468,8 @@ def proveClosedExpressionBoundReported (goal : MVarId) (goalType : Lean.Expr)
       throwError "proveClosedExpressionBound: inconclusive:\n{detail}"
   | .error (.transportFailure detail) =>
       throwError "proveClosedExpressionBound: proof transport failed:\n{detail}"
+  | .error (.internalFailure detail) =>
+      throwError "proveClosedExpressionBound: certificate verification failed:\n{detail}"
 
 /-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
 def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr)

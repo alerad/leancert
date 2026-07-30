@@ -23,7 +23,7 @@ silently used native verification). These pins are the guard against a
 repeat.
 -/
 
-open Lean Elab Tactic
+open Lean Meta Elab Tactic
 
 private def closeAndExpectVerificationEvent
     (cfg : LeanCert.Tactic.VerificationConfig)
@@ -52,9 +52,127 @@ elab "close_expect_auto_kernel_event" : tactic =>
   closeAndExpectVerificationEvent { mode := .auto }
     .auto .kernel .autoKernel
 
-example : True := by close_expect_native_event
-example : True := by close_expect_kernel_event
-example : True := by close_expect_auto_kernel_event
+example : true = true := by close_expect_native_event
+example : true = true := by close_expect_kernel_event
+example : true = true := by close_expect_auto_kernel_event
+example : 0 < 1 := by close_expect_kernel_event
+
+private def expectTypedRejection
+    (cfg : LeanCert.Tactic.VerificationConfig) : TacticM Unit := do
+  let callerGoals ← getGoals
+  let envSizeBefore := (← getEnv).constants.toList.length
+  let certType ← mkEq (toExpr false) (toExpr true)
+  let certGoal ← mkFreshExprMVar certType
+  match ← LeanCert.Tactic.closeCertificateGoalTyped cfg certGoal.mvarId!
+      "typed rejection test" with
+  | .rejected => pure ()
+  | result => throwError "expected typed certificate rejection, got {repr result}"
+  unless (← getGoals) == callerGoals do
+    throwError "typed certificate rejection changed the caller's goal list"
+  unless (← getEnv).constants.toList.length == envSizeBefore do
+    throwError "typed certificate rejection leaked an environment declaration"
+  unless !(← certGoal.mvarId!.isAssigned) do
+    throwError "typed certificate rejection assigned the certificate goal"
+  evalTactic (← `(tactic| trivial))
+
+elab "expect_native_rejection" : tactic =>
+  expectTypedRejection { mode := .native }
+
+elab "expect_kernel_rejection" : tactic =>
+  expectTypedRejection { mode := .kernel }
+
+elab "expect_auto_rejection" : tactic =>
+  expectTypedRejection { mode := .auto }
+
+example : True := by expect_native_rejection
+example : True := by expect_kernel_rejection
+example : True := by expect_auto_rejection
+
+elab "expect_malformed_certificate_failure" : tactic => do
+  let callerGoals ← getGoals
+  let malformed ← mkFreshExprMVar (mkConst ``Bool)
+  match ← LeanCert.Tactic.closeCertificateGoalTyped { mode := .native }
+      malformed.mvarId! "malformed certificate test" with
+  | .failed (.malformedCertificateGoal _) => pure ()
+  | result => throwError "expected malformed-certificate failure, got {repr result}"
+  unless (← getGoals) == callerGoals do
+    throwError "malformed certificate failure changed the caller's goal list"
+  evalTactic (← `(tactic| trivial))
+
+example : True := by expect_malformed_certificate_failure
+
+elab "expect_free_variable_certificate_failure" : tactic => do
+  let callerGoals ← getGoals
+  let mainGoal ← getMainGoal
+  mainGoal.withContext do
+    let some fvar := (← getLCtx).getFVarIds.back?
+      | throwError "expected a local Boolean variable"
+    let certType ← mkEq (mkFVar fvar) (toExpr true)
+    let certGoal ← mkFreshExprMVar certType
+    match ← LeanCert.Tactic.closeCertificateGoalTyped { mode := .native }
+        certGoal.mvarId! "free-variable certificate test" with
+    | .failed (.malformedCertificateGoal _) => pure ()
+    | result => throwError "expected malformed free-variable certificate, got {repr result}"
+    unless (← getGoals) == callerGoals do
+      throwError "free-variable certificate failure changed the caller's goal list"
+    unless !(← certGoal.mvarId!.isAssigned) do
+      throwError "free-variable certificate failure assigned the certificate goal"
+  evalTactic (← `(tactic| trivial))
+
+example (_b : Bool) : True := by expect_free_variable_certificate_failure
+
+elab "expect_outer_boundary_failure" : tactic => do
+  let callerGoals ← getGoals
+  let invalidGoal := MVarId.mk `LeanCert.Test.missingCertificateGoal
+  match ← LeanCert.Tactic.closeCertificateGoalTyped { mode := .native }
+      invalidGoal "outer boundary failure test" with
+  | .failed (.internalError _) => pure ()
+  | result => throwError "expected internal boundary failure, got {repr result}"
+  unless (← getGoals) == callerGoals do
+    throwError "outer verification failure changed the caller's goal list"
+  evalTactic (← `(tactic| trivial))
+
+example : True := by expect_outer_boundary_failure
+
+noncomputable def verificationOpaqueBool : Bool :=
+  Classical.choice ⟨true⟩
+
+def verificationExpensiveBool : Bool :=
+  (List.range 10000).length == 10000
+
+elab "expect_failed_auto_fallback_is_silent" : tactic => do
+  let callerGoals ← getGoals
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  let certType ← mkEq (mkConst ``verificationOpaqueBool) (toExpr true)
+  let certGoal ← mkFreshExprMVar certType
+  match ← LeanCert.Tactic.closeCertificateGoalTyped
+      { mode := .auto, kernelHeartbeats := 1 } certGoal.mvarId!
+      "failed auto fallback test" with
+  | .failed (.nativeFailure _) => pure ()
+  | result => throwError "expected failed native fallback, got {repr result}"
+  unless (← Core.getMessageLog).toList.length == messagesBefore do
+    throwError "failed auto fallback emitted a successful-verification notice"
+  unless (← getGoals) == callerGoals do
+    throwError "failed auto fallback changed the caller's goal list"
+  unless !(← certGoal.mvarId!.isAssigned) do
+    throwError "failed auto fallback assigned the certificate goal"
+  evalTactic (← `(tactic| trivial))
+
+example : True := by expect_failed_auto_fallback_is_silent
+
+elab "expect_successful_auto_fallback_notice" : tactic => do
+  let certType ← mkEq (mkConst ``verificationExpensiveBool) (toExpr true)
+  let certGoal ← mkFreshExprMVar certType
+  match ← LeanCert.Tactic.closeCertificateGoalTyped
+      { mode := .auto, kernelHeartbeats := 1 } certGoal.mvarId!
+      "successful auto fallback test" with
+  | .accepted event =>
+      unless event.used == .native && event.cause == .autoNativeFallback do
+        throwError "expected native auto fallback, got {repr event}"
+  | result => throwError "expected successful auto fallback, got {repr result}"
+  evalTactic (← `(tactic| trivial))
+
+example : True := by expect_successful_auto_fallback_notice
 
 /-! ### Default mode: native (behavior preserved) -/
 

@@ -264,6 +264,7 @@ inductive DiscoveryFailure where
   | unsupported (expression detail : String)
   | inconclusive (detail : String)
   | transportFailure (detail : String)
+  | internalFailure (detail : String)
   deriving Inhabited, Repr
 
 private def discoveryFailureOfBound :
@@ -271,6 +272,7 @@ private def discoveryFailureOfBound :
   | .unsupported expression detail => .unsupported expression detail
   | .inconclusive detail => .inconclusive detail
   | .transportFailure detail => .transportFailure detail
+  | .internalFailure detail => .internalFailure detail
 
 private def throwDiscoveryFailure (tacticName : String) : DiscoveryFailure → TacticM α
   | .unsupported expression detail =>
@@ -279,6 +281,8 @@ private def throwDiscoveryFailure (tacticName : String) : DiscoveryFailure → T
       throwError "{tacticName}: {detail}"
   | .transportFailure detail =>
       throwError "{tacticName}: proof transport failed:\n{detail}"
+  | .internalFailure detail =>
+      throwError "{tacticName}: certificate verification failed:\n{detail}"
 
 /-- Reporting-aware implementation of `interval_minimize`.
 
