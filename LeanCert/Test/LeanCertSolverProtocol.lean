@@ -36,6 +36,11 @@ private def runSynthetic (solver : TacticM Unit) : TacticM AttemptOutcome := do
   let goal ← getMainGoal
   proveWithTactic testPlan (← goal.getType) solver
 
+private def runSyntheticWithPlan (plan : SolverPlan) (solver : TacticM Unit) :
+    TacticM AttemptOutcome := do
+  let goal ← getMainGoal
+  proveWithTactic plan (← goal.getType) solver
+
 private def runSyntheticReported (solver : TacticM SolverExecution) :
     TacticM AttemptOutcome := do
   let goal ← getMainGoal
@@ -63,6 +68,23 @@ elab "expect_throwing_attempt" : tactic => do
       unless evidence.detail.contains "could not construct a complete certificate" do
         throwError "expected a sanitized backend failure"
   | _ => throwError "expected an inconclusive outcome"
+  assertOriginalGoals before
+
+elab "expect_subdivision_failure_detail" : tactic => do
+  let before ← getGoals
+  let plan := {
+    testPlan with
+    strategyKind := StrategyKind.subdivision
+    -- Deliberately unrelated display text: diagnostics must use the stable kind.
+    strategy := "polished user-facing name"
+  }
+  let result ← runSyntheticWithPlan plan do
+    throwError "synthetic subdivision failure"
+  match result with
+  | .inconclusive evidence =>
+      unless evidence.detail.contains "configured depth" do
+        throwError "expected subdivision-specific guidance, got: {evidence.detail}"
+  | _ => throwError "expected an inconclusive subdivision outcome"
   assertOriginalGoals before
 
 elab "expect_quiet_partial_attempt" : tactic => do
@@ -238,6 +260,10 @@ example : True ∧ True := by
 example : True ∧ True := by
   expect_throwing_attempt
   constructor <;> trivial
+
+example : True := by
+  expect_subdivision_failure_detail
+  trivial
 
 example : True ∧ True := by
   expect_quiet_partial_attempt

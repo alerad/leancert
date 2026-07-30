@@ -73,7 +73,8 @@ private def report (intent : GoalIntent) (strategy : String)
     (cfg : LeanCertConfig) (mode : VerificationMode)
     (backend : BackendReport := .unknown)
     (dedicatedProof : Option ProofSuggestion := none)
-    (strategyDetail : Option String := none) : SolverPlan :=
+    (strategyDetail : Option String := none)
+    (strategyKind : StrategyKind := .legacy) : SolverPlan :=
   let dedicatedProof := dedicatedProof.map fun proof =>
     if proof.tactic == "norm_num" || proof.tactic == "integral_exact" then proof
     else {
@@ -83,6 +84,7 @@ private def report (intent : GoalIntent) (strategy : String)
   {
     intent
     solver := `LeanCert.Tactic.leancert
+    strategyKind
     strategy
     strategyDetail
     cost := 1
@@ -241,7 +243,8 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (.used .rationalInterval)
           (some (suggestion "interval_bound_subdiv"
             #[toString d, toString cfg.subdivisions]))
-          (some s!"Taylor depth {d}; maximum recursive depth {cfg.subdivisions}"),
+          (some s!"Taylor depth {d}; maximum recursive depth {cfg.subdivisions}")
+          .subdivision,
         solve := subdivisionAttempt cfg
         solveReported := some (subdivisionAttemptReported cfg) },
       { report := report intent
@@ -252,7 +255,8 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
             some (suggestion "opt_bound"
               (if cfg.useMonotonicity then #[toString cfg.maxIterations, "mono"]
                else #[toString cfg.maxIterations]))
-           else none),
+           else none)
+          (strategyKind := .globalOptimization),
         solve := Auto.optBoundCore cfg.maxIterations cfg.useMonotonicity d
         solveReported := some
           (optimizationAttemptReported cfg.maxIterations cfg.useMonotonicity d)
@@ -262,7 +266,8 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           cfg mode (.policy "legacy checked global-optimization certificate")
           (if !cfg.useMonotonicity && d == 10 then
             some (suggestion "multivariate_bound" #[toString cfg.maxIterations])
-           else none),
+           else none)
+          (strategyKind := .globalOptimization),
         solve := Auto.multivariateBoundCore cfg.maxIterations (1 / 1000)
           cfg.useMonotonicity d
         solveReported := some <|
@@ -271,7 +276,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         cost := 3 },
       { report := report intent s!"multivariate_bound {2 * cfg.maxIterations}"
           cfg mode (.policy "legacy checked global-optimization certificate")
-          none,
+          none (strategyKind := .globalOptimization),
         solve := Auto.multivariateBoundCore (2 * cfg.maxIterations) (1 / 10000)
           cfg.useMonotonicity d2
         solveReported := some <|
@@ -387,26 +392,26 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         cost := 0 }]
   | .integralBound => #[
       { report := report intent "integral_exact" cfg mode (.used .exactRational)
-          (some (suggestion "integral_exact")),
+          (some (suggestion "integral_exact")) (strategyKind := .exactIntegral),
         solve := integralExactCore
         solveReported := some do
           return integralExecution (.used .exactRational)
             (← integralExactCoreReported)
         cost := 0 },
       { report := report intent "integral_search 16 512" cfg mode
-          (.used .checkedRationalPartitions),
+          (.used .checkedRationalPartitions) (strategyKind := .partitionIntegral),
         solve := integralSearchCore 16 512
         solveReported := some do
           return integralExecution (.used .checkedRationalPartitions)
             (← integralSearchCoreReported 16 512) },
       { report := report intent "integral_search 16 4096" cfg mode
-          (.used .checkedRationalPartitions),
+          (.used .checkedRationalPartitions) (strategyKind := .partitionIntegral),
         solve := integralSearchCore 16 4096
         solveReported := some do
           return integralExecution (.used .checkedRationalPartitions)
             (← integralSearchCoreReported 16 4096) },
       { report := report intent "integral_search 16 16384" cfg mode
-          (.used .checkedRationalPartitions),
+          (.used .checkedRationalPartitions) (strategyKind := .partitionIntegral),
         solve := integralSearchCore 16 16384
         solveReported := some do
           return integralExecution (.used .checkedRationalPartitions)

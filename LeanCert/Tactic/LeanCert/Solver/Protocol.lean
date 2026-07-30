@@ -96,11 +96,22 @@ structure ChildReport where
   verificationUsage : VerificationUsage := {}
   deriving Inhabited
 
+/-- Stable algorithm identity for reporting and failure classification.
+User-facing `strategy` text may be polished without changing control flow. -/
+inductive StrategyKind where
+  | legacy
+  | exactIntegral
+  | partitionIntegral
+  | subdivision
+  | globalOptimization
+  deriving DecidableEq, Repr, Inhabited
+
 /-- Static solver intent.  It may state a backend policy, but cannot claim a
 runtime winner. -/
 structure SolverPlan where
   intent : GoalIntent
   solver : Name
+  strategyKind : StrategyKind := .legacy
   strategy : String
   strategyDetail : Option String := none
   cost : Nat
@@ -165,18 +176,18 @@ structure SemanticSolver where
     Elab.Tactic.TacticM AttemptOutcome
 
 private def backendInconclusiveDetail (plan : SolverPlan) : String :=
-  if plan.strategy == "integral_exact" then
-    "Exact integration did not recognize the integrand as a rational polynomial \
-      with supported constant divisions."
-  else if plan.strategy.startsWith "integral_search" then
-    "Checked partition enclosures did not establish the requested integral comparison."
-  else if plan.strategy.startsWith "interval_bound_subdiv" then
-    "Subdivision reached its configured depth without obtaining a decisive enclosure."
-  else if plan.strategy.startsWith "opt_bound" ||
-      plan.strategy.startsWith "multivariate_bound" then
-    "Global optimization did not produce a verifier-ready bound within its iteration limit."
-  else
-    "The backend could not construct a complete certificate with the current settings."
+  match plan.strategyKind with
+  | .exactIntegral =>
+      "Exact integration did not recognize the integrand as a rational polynomial \
+        with supported constant divisions."
+  | .partitionIntegral =>
+      "Checked partition enclosures did not establish the requested integral comparison."
+  | .subdivision =>
+      "Subdivision reached its configured depth without obtaining a decisive enclosure."
+  | .globalOptimization =>
+      "Global optimization did not produce a verifier-ready bound within its iteration limit."
+  | .legacy =>
+      "The backend could not construct a complete certificate with the current settings."
 
 /-- Validate a proof before it can be committed to the user's goal. -/
 def validateProofArtifact (artifact : ProofArtifact) : MetaM (Except String Unit) := do
