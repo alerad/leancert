@@ -536,6 +536,10 @@ example : ∃ M : ℚ, ∀ x ∈ Set.Icc (0:ℝ) 1, ∀ y ∈ Set.Icc (0:ℝ) 1,
 ```
 
 Uses more samples (300) and iterations (2000) than univariate versions.
+Both tactics expose typed discovery results to `leancert`: reports retain the
+actual search termination, gap, checker, Golden Theorem, and verification
+route. A loose search remains a valid success only when the selected endpoint
+is independently certified.
 
 ---
 

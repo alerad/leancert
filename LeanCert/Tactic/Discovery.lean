@@ -242,6 +242,15 @@ inductive DiscoveryDirection where
   | maximum
   deriving DecidableEq, Repr, Inhabited
 
+/-- Why the search phase stopped. A non-converged search may still provide a
+sound witness when the separate certificate phase validates the theorem. -/
+inductive DiscoveryTermination where
+  | toleranceReached
+  | iterationLimit
+  | queueExhausted
+  | stopped
+  deriving DecidableEq, Repr, Inhabited
+
 /-- Runtime facts retained from the single successful discovery/certification run. -/
 structure DiscoveryOutcome where
   direction : DiscoveryDirection
@@ -252,6 +261,7 @@ structure DiscoveryOutcome where
   configuredLimit : Nat
   remainingBoxes : Nat
   tolerance : ℚ
+  termination : DiscoveryTermination
   checker : Option Name
   verifier : Option Name
   verification : LeanCert.Tactic.VerificationUsage
@@ -263,6 +273,7 @@ structure DiscoveryOutcome where
 inductive DiscoveryFailure where
   | unsupported (expression detail : String)
   | inconclusive (detail : String)
+  | domainObstruction (domain : Lean.Expr) (operation detail : String)
   | transportFailure (detail : String)
   | internalFailure (detail : String)
   deriving Inhabited, Repr
@@ -279,10 +290,31 @@ private def throwDiscoveryFailure (tacticName : String) : DiscoveryFailure → T
       throwError "{tacticName}: unsupported expression {expression}:\n{detail}"
   | .inconclusive detail =>
       throwError "{tacticName}: {detail}"
+  | .domainObstruction _ operation detail =>
+      throwError "{tacticName}: domain obstruction while checking {operation}:\n{detail}"
   | .transportFailure detail =>
       throwError "{tacticName}: proof transport failed:\n{detail}"
   | .internalFailure detail =>
       throwError "{tacticName}: certificate verification failed:\n{detail}"
+
+private def discoveryTermination (result : GlobalResult)
+    (configuredLimit : Nat) (tolerance : ℚ) : DiscoveryTermination :=
+  if result.bound.hi - result.bound.lo ≤ tolerance then .toleranceReached
+  else if result.remainingBoxes.isEmpty then .queueExhausted
+  else if result.bound.iterations ≥ configuredLimit then .iterationLimit
+  else .stopped
+
+private partial def evalErrorIsDomain : EvalError → Bool
+  | .reciprocalContainsZero _ | .logNonpositive _ | .atanhOutsideUnitBall _ => true
+  | .nestedFailure _ cause => evalErrorIsDomain cause
+  | _ => false
+
+private def discoveryFailureOfEval (domain : Lean.Expr) (error : EvalError) :
+    DiscoveryFailure :=
+  if evalErrorIsDomain error then
+    .domainObstruction domain "the optimization search domain" (reprStr error)
+  else
+    .unsupported (toString domain) (reprStr error)
 
 /-- Reporting-aware implementation of `interval_minimize`.
 
@@ -346,6 +378,11 @@ unsafe def intervalMinimizeCoreTyped (taylorDepth : Nat) :
     catch e =>
       original.restore
       return .error <| .unsupported (toString funcExpr) (← e.toMessageData.toString)
+  match evalIntervalChecked astVal boxVal.toEnv with
+  | .error error =>
+      original.restore
+      return .error (discoveryFailureOfEval domainExpr error)
+  | .ok _ => pure ()
   let result := globalMinimizeGuided astVal boxVal cfg
   let boundVal := result.bound.lo
 
@@ -398,6 +435,7 @@ unsafe def intervalMinimizeCoreTyped (taylorDepth : Nat) :
     configuredLimit := cfg.maxIterations
     remainingBoxes := result.remainingBoxes.length
     tolerance := cfg.tolerance
+    termination := discoveryTermination result cfg.maxIterations cfg.tolerance
     checker := certification.checker
     verifier := certification.verifier
     verification := certification.verification
@@ -487,6 +525,11 @@ unsafe def intervalMaximizeCoreTyped (taylorDepth : Nat) :
     catch e =>
       original.restore
       return .error <| .unsupported (toString funcExpr) (← e.toMessageData.toString)
+  match evalIntervalChecked astVal boxVal.toEnv with
+  | .error error =>
+      original.restore
+      return .error (discoveryFailureOfEval domainExpr error)
+  | .ok _ => pure ()
   let result := globalMaximizeGuided astVal boxVal cfg
   let boundVal := result.bound.hi
 
@@ -537,6 +580,7 @@ unsafe def intervalMaximizeCoreTyped (taylorDepth : Nat) :
     configuredLimit := cfg.maxIterations
     remainingBoxes := result.remainingBoxes.length
     tolerance := cfg.tolerance
+    termination := discoveryTermination result cfg.maxIterations cfg.tolerance
     checker := certification.checker
     verifier := certification.verifier
     verification := certification.verification
@@ -1143,8 +1187,134 @@ def parseMultivariateExistentialGoal (goalType : Lean.Expr) :
     else return none
   else return none
 
-/-- The interval_minimize_mv tactic implementation for multivariate goals -/
-unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
+/-- Reporting-aware multivariate existential discovery. Search quality is
+reported independently from the final checked bound: a loose search interval
+may still yield a valid theorem when its selected endpoint is certified. -/
+private unsafe def intervalMvCoreTyped (direction : DiscoveryDirection)
+    (taylorDepth : Nat) : TacticM (Except DiscoveryFailure DiscoveryOutcome) := do
+  let original ← saveState
+  try LeanCert.Tactic.Auto.intervalNormCore
+  catch e =>
+    original.restore
+    return .error <| .unsupported "goal normalization" (← e.toMessageData.toString)
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let parsed ← parseMultivariateExistentialGoal goalType
+  let some parsed := parsed
+    | original.restore
+      return .error <| .unsupported (toString goalType)
+        "expected a multivariate existential minimum or maximum"
+  let (varType, vars, funcExpr) ←
+    match direction, parsed with
+    | .minimum, .minimize varType vars func => pure (varType, vars, func)
+    | .maximum, .maximize varType vars func => pure (varType, vars, func)
+    | _, _ =>
+        original.restore
+        return .error <| .unsupported (toString goalType)
+          "the existential extremum direction does not match this strategy"
+  let ast ←
+    try pure (← getAstFromFuncWithReport funcExpr).expr
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString funcExpr) (← e.toMessageData.toString)
+  let mut boxVals : Array IntervalRat := #[]
+  for v in vars do
+    let intervalVal ←
+      try evalExpr IntervalRat (mkConst ``IntervalRat) v.intervalRat
+      catch e =>
+        original.restore
+        return .error <| .unsupported (toString v.intervalRat)
+          (← e.toMessageData.toString)
+    boxVals := boxVals.push intervalVal
+  let boxVal : Box := boxVals.toList
+  let cfg : GuidedOptConfig := {
+    maxIterations := 2000
+    tolerance := 1/1000
+    taylorDepth := taylorDepth
+    useMonotonicity := true
+    heuristicSamples := 300
+    seed := 12345
+    useGridSearch := true
+    gridPointsPerDim := 5
+  }
+  let astVal ←
+    try evalExpr LExpr (mkConst ``LeanCert.Core.Expr) ast
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString funcExpr) (← e.toMessageData.toString)
+  match evalIntervalChecked astVal boxVal.toEnv with
+  | .error error =>
+      original.restore
+      let domain := vars[0]?.map (·.intervalRat) |>.getD goalType
+      return .error (discoveryFailureOfEval domain error)
+  | .ok _ => pure ()
+  let result :=
+    match direction with
+    | .minimum => globalMinimizeGuided astVal boxVal cfg
+    | .maximum => globalMaximizeGuided astVal boxVal cfg
+  let boundVal :=
+    match direction with
+    | .minimum => result.bound.lo
+    | .maximum => result.bound.hi
+  let boundRatExpr := toExpr boundVal
+  let boundTerm ←
+    match (← whnf varType) with
+    | ty =>
+        if ty.isConstOf ``Rat then pure boundRatExpr
+        else if ty.isConstOf ``Real then
+          mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
+        else
+          original.restore
+          return .error <| .unsupported (toString varType)
+            "bound type must be ℚ or ℝ"
+  let boundSyntax ← Term.exprToSyntax boundTerm
+  try evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
+  catch e =>
+    original.restore
+    return .error <| .transportFailure (← e.toMessageData.toString)
+  let certification ←
+    match ← LeanCert.Tactic.Auto.multivariateBoundCoreTyped cfg.maxIterations
+        cfg.tolerance cfg.useMonotonicity taylorDepth with
+    | .ok certification => pure certification
+    | .error (.unsupported expression detail) =>
+        original.restore
+        return .error (.unsupported expression detail)
+    | .error (.rejected detail) =>
+        original.restore
+        return .error (.inconclusive detail)
+    | .error (.transportFailure detail) =>
+        original.restore
+        return .error (.transportFailure detail)
+    | .error (.internalFailure detail) =>
+        original.restore
+        return .error (.internalFailure detail)
+  return .ok {
+    direction
+    witness := boundVal
+    lowerBound := result.bound.lo
+    upperBound := result.bound.hi
+    iterations := result.bound.iterations
+    configuredLimit := cfg.maxIterations
+    remainingBoxes := result.remainingBoxes.length
+    tolerance := cfg.tolerance
+    termination := discoveryTermination result cfg.maxIterations cfg.tolerance
+    checker := some certification.checker
+    verifier := some certification.verifier
+    verification := certification.verification
+    dyadic := none
+    taylorDepth
+  }
+
+unsafe def intervalMinimizeMvCoreTyped (taylorDepth : Nat) :
+    TacticM (Except DiscoveryFailure DiscoveryOutcome) :=
+  intervalMvCoreTyped .minimum taylorDepth
+
+unsafe def intervalMaximizeMvCoreTyped (taylorDepth : Nat) :
+    TacticM (Except DiscoveryFailure DiscoveryOutcome) :=
+  intervalMvCoreTyped .maximum taylorDepth
+
+/-- Legacy implementation retained temporarily for source comparison. -/
+private unsafe def intervalMinimizeMvCoreLegacy (taylorDepth : Nat) : TacticM Unit := do
   LeanCert.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
@@ -1218,6 +1388,12 @@ unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   LeanCert.Tactic.Auto.multivariateBoundCore cfg.maxIterations cfg.tolerance cfg.useMonotonicity taylorDepth
   trace[LeanCert.discovery] "✓ Proof complete"
 
+/-- Compatibility entry point preserving the dedicated tactic's throwing API. -/
+unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
+  match ← intervalMinimizeMvCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwDiscoveryFailure "interval_minimize_mv" failure
+
 /-- The interval_minimize_mv tactic.
 
 Proves multivariate goals of the form `∃ m, ∀ x ∈ I, ∀ y ∈ J, f(x,y) ≥ m` by:
@@ -1236,8 +1412,8 @@ unsafe def elabIntervalMinimizeMv : Tactic := fun stx => do
   withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
     intervalMinimizeMvCore depth
 
-/-- The interval_maximize_mv tactic implementation for multivariate goals -/
-unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
+/-- Legacy implementation retained temporarily for source comparison. -/
+private unsafe def intervalMaximizeMvCoreLegacy (taylorDepth : Nat) : TacticM Unit := do
   LeanCert.Tactic.Auto.intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
@@ -1310,6 +1486,12 @@ unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
   trace[LeanCert.discovery] "Proving multivariate universal bound with certify_bound..."
   LeanCert.Tactic.Auto.multivariateBoundCore cfg.maxIterations cfg.tolerance cfg.useMonotonicity taylorDepth
   trace[LeanCert.discovery] "✓ Proof complete"
+
+/-- Compatibility entry point preserving the dedicated tactic's throwing API. -/
+unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
+  match ← intervalMaximizeMvCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwDiscoveryFailure "interval_maximize_mv" failure
 
 /-- The interval_maximize_mv tactic.
 

@@ -41,7 +41,9 @@ rather than infer one.
 
 `leancert?` reports discovery and certification separately. Discovery reports
 the iterations actually used, final certified gap, tolerance, and remaining
-boxes from the retained optimizer run. Certification reports the checker,
+boxes from the retained optimizer run. It also reports whether search stopped
+because the requested tolerance was reached, the iteration limit was reached,
+or the search queue was exhausted. Certification reports the checker,
 Golden Theorem, and verification route used to close the bound. The optimizer
 and checker are not rerun to produce this report. For a direct `opt_bound`
 certificate, only configured limits are reported because that checked API does
@@ -52,6 +54,12 @@ A gap larger than the configured tolerance is reported as
 bound: the discovered witness is still accepted only after its bound is
 independently certified. The tolerance measures discovery quality, not proof
 soundness or tactic success.
+
+Univariate and multivariate existential discovery use the same typed routing
+contract. Unsupported syntax may allow another strategy to run, while a
+recognized expression with an invalid numerical domain is reported as a
+terminal domain obstruction. Failed discovery branches restore their complete
+tactic state and contribute no execution telemetry.
 
 Discovery mode is useful when you do not yet know the bound or extremum.  See
 the existing [Discovery Mode](../tactics/discovery.md) reference for command
