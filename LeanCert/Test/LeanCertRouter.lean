@@ -91,6 +91,42 @@ unsafe def elabExpectRationalPointReport : Tactic := fun _ => do
     throwError "point Rational checker/Golden-Theorem identity was not retained: \
       checker={result.execution.checker}, verifier={result.execution.verifier}"
 
+elab "expect_optimization_report" : tactic => do
+  let outcome ←
+    match ← Auto.optBoundCoreTyped 64 false 10 with
+    | .ok outcome => pure outcome
+    | .error failure =>
+        throwError "typed optimization route unexpectedly failed: {repr failure}"
+  unless outcome.maxIterations == 64 do
+    throwError "optimization outcome lost its configured iteration limit"
+  unless outcome.checker != Name.anonymous && outcome.verifier != Name.anonymous do
+    throwError "optimization report lost checker/Golden-Theorem identity"
+
+syntax (name := expectDiscoveryReport) "expect_discovery_report" : tactic
+
+@[tactic expectDiscoveryReport]
+unsafe def elabExpectDiscoveryReport : Tactic := fun _ => do
+  let result ← runLeanCert {} .compact
+  let some statistics := result.execution.optimization
+    | throwError "discovery route returned no structured statistics"
+  unless statistics.iterations.isSome && statistics.gap.isSome &&
+      statistics.remainingBoxes.isSome do
+    throwError "discovery report did not retain actual optimizer results"
+  unless result.execution.checker.isSome && result.execution.verifier.isSome do
+    throwError "discovery report lost certification identity"
+
+private def optimizationTestBox : LeanCert.Engine.Optimization.Box :=
+  [⟨0, 1, by norm_num⟩]
+
+example : ∀ ρ, LeanCert.Engine.Optimization.Box.envMem ρ optimizationTestBox →
+    (∀ i, i ≥ optimizationTestBox.length → ρ i = 0) →
+    LeanCert.Core.Expr.eval ρ
+      (.mul (.var 0) (.var 0)) ≤ (1 : ℚ) := by
+  expect_optimization_report
+
+example : ∃ m : ℚ, ∀ x ∈ Set.Icc (-1 : ℝ) 1, x * x ≥ m := by
+  expect_discovery_report
+
 syntax (name := expectKernelBoundReport) "expect_kernel_bound_report" : tactic
 
 @[tactic expectKernelBoundReport]

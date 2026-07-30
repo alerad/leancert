@@ -26,7 +26,13 @@ open LeanCert.Validity.GlobalOpt
 open LeanCert.Engine.Optimization
 
 /-- Runtime facts from the retained multivariate global-bound certificate. -/
+inductive MultivariateBoundDirection where
+  | upper
+  | lower
+  deriving DecidableEq, Repr, Inhabited
+
 structure MultivariateBoundOutcome where
+  direction : MultivariateBoundDirection
   checker : Name
   verifier : Name
   verification : LeanCert.Tactic.VerificationUsage
@@ -36,10 +42,16 @@ structure MultivariateBoundOutcome where
   taylorDepth : Nat
   deriving Inhabited
 
-/-- Reporting-aware multivariate-bound implementation. -/
-def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
+inductive MultivariateBoundFailure where
+  | unsupported (expression detail : String)
+  | rejected (checker : Name) (detail : String)
+  | transportFailure (detail : String)
+  deriving Inhabited, Repr
+
+/-- Typed multivariate-bound implementation. -/
+def multivariateBoundCoreTyped (maxIters : Nat) (tolerance : ℚ)
     (useMonotonicity : Bool) (taylorDepth : Nat) :
-    TacticM MultivariateBoundOutcome := do
+    TacticM (Except MultivariateBoundFailure MultivariateBoundOutcome) := do
   intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
@@ -48,21 +60,16 @@ def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
   -- Parse the multivariate goal
   let parsed ← parseMultivariateBoundGoal goalType
   let some boundGoal := parsed
-    | let diagReport ← mkDiagnosticReport "multivariate_bound" goalType "parse"
-        (some m!"Expected forms:\n\
-                 • ∀ x ∈ I, ∀ y ∈ J, ... f(x,y,...) ≤ c\n\
-                 • ∀ x ∈ I, ∀ y ∈ J, ... c ≤ f(x,y,...)\n\n\
-                 Domain formats accepted:\n\
-                 • x ∈ Set.Icc a b\n\
-                 • a ≤ x ∧ x ≤ b\n\
-                 • a ≤ x → x ≤ b → ...")
-      throwError "multivariate_bound: Could not parse goal as multivariate bound.\n\n{diagReport}"
+    | return .error <| .unsupported (toString goalType)
+        "expected a quantified multivariate upper or lower bound"
 
   match boundGoal with
   | .forallLe vars func bound =>
-    let event ← proveMultivariateLe goal vars func bound maxIters tolerance
-      useMonotonicity taylorDepth
-    return {
+    match ← proveMultivariateLe goal vars func bound maxIters tolerance
+        useMonotonicity taylorDepth with
+    | .error failure => return .error failure
+    | .ok event => return .ok {
+      direction := .upper
       checker := ``checkGlobalUpperBound
       verifier := ``verify_global_upper_bound
       verification := event.toUsage
@@ -72,9 +79,11 @@ def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
       taylorDepth := taylorDepth
     }
   | .forallGe vars func bound =>
-    let event ← proveMultivariateGe goal vars func bound maxIters tolerance
-      useMonotonicity taylorDepth
-    return {
+    match ← proveMultivariateGe goal vars func bound maxIters tolerance
+        useMonotonicity taylorDepth with
+    | .error failure => return .error failure
+    | .ok event => return .ok {
+      direction := .lower
       checker := ``checkGlobalLowerBound
       verifier := ``verify_global_lower_bound
       verification := event.toUsage
@@ -157,14 +166,30 @@ where
   /-- Prove ∀ x₁ ∈ I₁, ..., ∀ xₙ ∈ Iₙ, f(x) ≤ c using verify_global_upper_bound -/
   proveMultivariateLe (goal : MVarId) (vars : Array VarIntervalInfo) (func bound : Lean.Expr)
       (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool)
-      (taylorDepth : Nat) : TacticM LeanCert.Tactic.VerificationEvent := do
+      (taylorDepth : Nat) :
+      TacticM (Except MultivariateBoundFailure LeanCert.Tactic.VerificationEvent) := do
+    let saved ← saveState
     goal.withContext do
-      let boxExpr ← mkBoxExpr vars
-      let ast := (← reifyWithReport func).expr
-      let boundRat ← extractRatBound bound
-      let supportProof ← mkSupportedProof ast
-      let cfgExpr ← mkAppM ``GlobalOptConfig.mk #[toExpr maxIters, toExpr tolerance, toExpr useMonotonicity, toExpr taylorDepth]
-      let proof ← mkAppM ``verify_global_upper_bound #[ast, supportProof, boxExpr, boundRat, cfgExpr]
+      let prepared ←
+        try
+          let boxExpr ← mkBoxExpr vars
+          let ast := (← reifyWithReport func).expr
+          let boundRat ← extractRatBound bound
+          let supportProof ← mkSupportedProof ast
+          let cfgExpr ← mkAppM ``GlobalOptConfig.mk
+            #[toExpr maxIters, toExpr tolerance, toExpr useMonotonicity,
+              toExpr taylorDepth]
+          let proof ← mkAppM ``verify_global_upper_bound
+            #[ast, supportProof, boxExpr, boundRat, cfgExpr]
+          pure <| some (boxExpr, ast, boundRat, cfgExpr, proof)
+        catch e =>
+          saved.restore
+          return .error <| .unsupported (toString func)
+            (← e.toMessageData.toString)
+      let some (boxExpr, ast, boundRat, cfgExpr, proof) := prepared
+        | saved.restore
+          return .error <| .unsupported (toString func)
+            "multivariate preparation produced no expression"
 
       setGoals [goal]
       try
@@ -173,14 +198,24 @@ where
 
       let mainGoalAfterIntro ← getMainGoal
 
-      let (rhoSyntax, varsListSyntax, boxSyntax) ← withMainContext do
-        let varExprs ← getVarExprs vars
-        let varsListExpr ← mkListLit (Lean.mkConst ``Real) varExprs.toList
-        let rhoExpr ← mkEnvExpr varsListExpr
-        let rhoSyntax ← Lean.Elab.Term.exprToSyntax rhoExpr
-        let varsListSyntax ← Lean.Elab.Term.exprToSyntax varsListExpr
-        let boxSyntax ← Lean.Elab.Term.exprToSyntax boxExpr
-        return (rhoSyntax, varsListSyntax, boxSyntax)
+      let syntaxData ←
+        try
+          withMainContext do
+            let varExprs ← getVarExprs vars
+            let varsListExpr ← mkListLit (Lean.mkConst ``Real) varExprs.toList
+            let rhoExpr ← mkEnvExpr varsListExpr
+            let rhoSyntax ← Lean.Elab.Term.exprToSyntax rhoExpr
+            let varsListSyntax ← Lean.Elab.Term.exprToSyntax varsListExpr
+            let boxSyntax ← Lean.Elab.Term.exprToSyntax boxExpr
+            pure <| some (rhoSyntax, varsListSyntax, boxSyntax)
+        catch e =>
+          saved.restore
+          return .error <| .unsupported (toString func)
+            (← e.toMessageData.toString)
+      let some (rhoSyntax, varsListSyntax, boxSyntax) := syntaxData
+        | saved.restore
+          return .error <| .unsupported (toString func)
+            "could not construct the multivariate environment"
 
       let checkExpr ← mkAppM ``checkGlobalUpperBound #[ast, boxExpr, boundRat, cfgExpr]
       let certTy ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
@@ -192,13 +227,16 @@ where
           (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
           (tacticName := "multivariate_bound")
       catch e =>
-        throwError "multivariate_bound: Certificate check failed. The bound may be too tight.\n{e.toMessageData}"
+        saved.restore
+        return .error <| .rejected ``checkGlobalUpperBound
+          (← e.toMessageData.toString)
 
       let conclusionProof ← mkAppM' proof #[certGoal]
       let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
 
       setGoals [mainGoalAfterIntro]
-      evalTactic (← `(tactic| exact (by
+      try
+        evalTactic (← `(tactic| exact (by
         have hmem : Box.envMem $rhoSyntax $boxSyntax := by
           intro i
           fin_cases i <;>
@@ -217,21 +255,39 @@ where
           simp [List.getD, LeanCert.Core.Expr.eval, Rat.divInt_eq_div,
             sq, pow_two, sub_eq_add_neg, div_eq_mul_inv] <;>
           ring
-      )))
-      return event
+        )))
+      catch e =>
+        saved.restore
+        return .error <| .transportFailure (← e.toMessageData.toString)
+      return .ok event
 
   /-- Prove ∀ x₁ ∈ I₁, ..., ∀ xₙ ∈ Iₙ, c ≤ f(x) using verify_global_lower_bound -/
   proveMultivariateGe (goal : MVarId) (vars : Array VarIntervalInfo) (func bound : Lean.Expr)
       (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool)
-      (taylorDepth : Nat) : TacticM LeanCert.Tactic.VerificationEvent := do
+      (taylorDepth : Nat) :
+      TacticM (Except MultivariateBoundFailure LeanCert.Tactic.VerificationEvent) := do
+    let saved ← saveState
     goal.withContext do
-      let boxExpr ← mkBoxExpr vars
-      let ast := (← reifyWithReport func).expr
-      let boundRat ← extractRatBound bound
-      let supportProof ← mkSupportedProof ast
-      let cfgExpr ← mkAppM ``GlobalOptConfig.mk #[toExpr maxIters, toExpr tolerance, toExpr useMonotonicity, toExpr taylorDepth]
-
-      let proof ← mkAppM ``verify_global_lower_bound #[ast, supportProof, boxExpr, boundRat, cfgExpr]
+      let prepared ←
+        try
+          let boxExpr ← mkBoxExpr vars
+          let ast := (← reifyWithReport func).expr
+          let boundRat ← extractRatBound bound
+          let supportProof ← mkSupportedProof ast
+          let cfgExpr ← mkAppM ``GlobalOptConfig.mk
+            #[toExpr maxIters, toExpr tolerance, toExpr useMonotonicity,
+              toExpr taylorDepth]
+          let proof ← mkAppM ``verify_global_lower_bound
+            #[ast, supportProof, boxExpr, boundRat, cfgExpr]
+          pure <| some (boxExpr, ast, boundRat, cfgExpr, proof)
+        catch e =>
+          saved.restore
+          return .error <| .unsupported (toString func)
+            (← e.toMessageData.toString)
+      let some (boxExpr, ast, boundRat, cfgExpr, proof) := prepared
+        | saved.restore
+          return .error <| .unsupported (toString func)
+            "multivariate preparation produced no expression"
 
       setGoals [goal]
       try
@@ -240,14 +296,24 @@ where
 
       let mainGoalAfterIntro ← getMainGoal
 
-      let (rhoSyntax, varsListSyntax, boxSyntax) ← withMainContext do
-        let varExprs ← getVarExprs vars
-        let varsListExpr ← mkListLit (Lean.mkConst ``Real) varExprs.toList
-        let rhoExpr ← mkEnvExpr varsListExpr
-        let rhoSyntax ← Lean.Elab.Term.exprToSyntax rhoExpr
-        let varsListSyntax ← Lean.Elab.Term.exprToSyntax varsListExpr
-        let boxSyntax ← Lean.Elab.Term.exprToSyntax boxExpr
-        return (rhoSyntax, varsListSyntax, boxSyntax)
+      let syntaxData ←
+        try
+          withMainContext do
+            let varExprs ← getVarExprs vars
+            let varsListExpr ← mkListLit (Lean.mkConst ``Real) varExprs.toList
+            let rhoExpr ← mkEnvExpr varsListExpr
+            let rhoSyntax ← Lean.Elab.Term.exprToSyntax rhoExpr
+            let varsListSyntax ← Lean.Elab.Term.exprToSyntax varsListExpr
+            let boxSyntax ← Lean.Elab.Term.exprToSyntax boxExpr
+            pure <| some (rhoSyntax, varsListSyntax, boxSyntax)
+        catch e =>
+          saved.restore
+          return .error <| .unsupported (toString func)
+            (← e.toMessageData.toString)
+      let some (rhoSyntax, varsListSyntax, boxSyntax) := syntaxData
+        | saved.restore
+          return .error <| .unsupported (toString func)
+            "could not construct the multivariate environment"
 
       let checkExpr ← mkAppM ``checkGlobalLowerBound #[ast, boxExpr, boundRat, cfgExpr]
       let certTy ← mkAppM ``Eq #[checkExpr, Lean.mkConst ``Bool.true]
@@ -259,13 +325,16 @@ where
           (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
           (tacticName := "multivariate_bound")
       catch e =>
-        throwError "multivariate_bound: Certificate check failed. The bound may be too tight.\n{e.toMessageData}"
+        saved.restore
+        return .error <| .rejected ``checkGlobalLowerBound
+          (← e.toMessageData.toString)
 
       let conclusionProof ← mkAppM' proof #[certGoal]
       let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
 
       setGoals [mainGoalAfterIntro]
-      evalTactic (← `(tactic| exact (by
+      try
+        evalTactic (← `(tactic| exact (by
         have hmem : Box.envMem $rhoSyntax $boxSyntax := by
           intro i
           fin_cases i <;>
@@ -284,8 +353,25 @@ where
           simp [List.getD, LeanCert.Core.Expr.eval, Rat.divInt_eq_div,
             sq, pow_two, sub_eq_add_neg, div_eq_mul_inv] <;>
           ring
-      )))
-      return event
+        )))
+      catch e =>
+        saved.restore
+        return .error <| .transportFailure (← e.toMessageData.toString)
+      return .ok event
+
+/-- Reporting compatibility wrapper preserving the historical throwing API. -/
+def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
+    (useMonotonicity : Bool) (taylorDepth : Nat) :
+    TacticM MultivariateBoundOutcome := do
+  match ← multivariateBoundCoreTyped maxIters tolerance useMonotonicity
+      taylorDepth with
+  | .ok outcome => return outcome
+  | .error (.unsupported expression detail) =>
+      throwError "multivariate_bound: unsupported expression {expression}:\n{detail}"
+  | .error (.rejected _ detail) =>
+      throwError "multivariate_bound: global-bound certificate was rejected:\n{detail}"
+  | .error (.transportFailure detail) =>
+      throwError "multivariate_bound: proof transport failed:\n{detail}"
 
 /-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
 def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ)

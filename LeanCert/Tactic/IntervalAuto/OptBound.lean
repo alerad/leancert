@@ -29,78 +29,108 @@ def mkGlobalOptConfigExpr (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : 
   mkAppM ``GlobalOptConfig.mk #[toExpr maxIters, toExpr tolerance, toExpr useMonotonicity, toExpr taylorDepth]
 
 /-- Runtime facts from the retained global-optimization certificate. -/
+inductive OptimizationDirection where
+  | upper
+  | lower
+  deriving DecidableEq, Repr, Inhabited
+
 structure OptBoundOutcome where
+  direction : OptimizationDirection
   checker : Name
   verifier : Name
   verification : LeanCert.Tactic.VerificationUsage
   maxIterations : Nat
+  tolerance : ℚ
   useMonotonicity : Bool
   taylorDepth : Nat
   deriving Inhabited
 
-/-- The reporting-aware `opt_bound` implementation. Candidate search is an
-implementation detail; this reports only the checker that closed the proof. -/
-def optBoundCoreReported (maxIters : Nat) (useMonotonicity : Bool)
-    (taylorDepth : Nat) : TacticM OptBoundOutcome := do
-  let cfgExpr ← mkGlobalOptConfigExpr maxIters ((1 : ℚ)/1000) useMonotonicity taylorDepth
+inductive OptBoundFailure where
+  | unsupported (expression detail : String)
+  | rejected (checker : Name) (detail : String)
+  | transportFailure (detail : String)
+  deriving Inhabited, Repr
 
-  -- First try applying upper bound theorem (for f(ρ) ≤ c goals)
+/-- Typed `opt_bound` implementation. The upper and lower theorem
+interpretations are transactional, and only the retained certificate
+contributes verification telemetry. -/
+def optBoundCoreTyped (maxIters : Nat) (useMonotonicity : Bool)
+    (taylorDepth : Nat) : TacticM (Except OptBoundFailure OptBoundOutcome) := do
+  let tolerance : ℚ := 1 / 1000
+  let cfgExpr ← mkGlobalOptConfigExpr maxIters tolerance useMonotonicity taylorDepth
+  let cfgSyntax ← Term.exprToSyntax cfgExpr
   let goal ← getMainGoal
-  let upperState ← saveState
-  try
-    let proof ← mkAppOptM ``LeanCert.Validity.GlobalOpt.verify_global_upper_bound
-      #[none, none, none, none, some cfgExpr]
-    let newGoals ← goal.apply proof
-    setGoals newGoals
-    let goals ← getGoals
+  let tryDirection (direction : OptimizationDirection) (checker verifier : Name) :
+      TacticM (Except OptBoundFailure (Option OptBoundOutcome)) := do
+    let saved ← saveState
+    let applied ←
+      try
+        match direction with
+        | .upper =>
+            evalTactic (← `(tactic|
+              apply LeanCert.Validity.GlobalOpt.verify_global_upper_bound
+                (cfg := $cfgSyntax)))
+        | .lower =>
+            evalTactic (← `(tactic|
+              apply LeanCert.Validity.GlobalOpt.verify_global_lower_bound
+                (cfg := $cfgSyntax)))
+        pure true
+      catch _ =>
+        saved.restore
+        return .ok none
+    unless applied do
+      saved.restore
+      return .ok none
+    let newGoals ← getGoals
     let mut verification : LeanCert.Tactic.VerificationUsage := {}
-    for g in goals do
-      setGoals [g]
-      let gType ← g.getType
-      if gType.getAppFn.isConstOf ``ExprSupportedCore then
-        proveSupport g
+    for subgoal in newGoals do
+      setGoals [subgoal]
+      let subgoalType ← subgoal.getType
+      if subgoalType.getAppFn.isConstOf ``ADSupported then
+        try
+          proveSupport subgoal
+          pruneSolvedGoals
+        catch e =>
+          saved.restore
+          return .error <| .transportFailure (← e.toMessageData.toString)
       else
-        let event ← LeanCert.Tactic.closeCertificateGoalReported
-          (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-          (tacticName := "opt_bound")
+        let event ←
+          try
+            LeanCert.Tactic.closeCertificateGoalReported
+              (← LeanCert.Tactic.VerificationConfig.current) subgoal
+              (tacticName := "opt_bound")
+          catch e =>
+            saved.restore
+            return .error <| .rejected checker (← e.toMessageData.toString)
         verification := verification.combine event.toUsage
-    return {
-      checker := ``LeanCert.Validity.GlobalOpt.checkGlobalUpperBound
-      verifier := ``LeanCert.Validity.GlobalOpt.verify_global_upper_bound
-      verification, maxIterations := maxIters, useMonotonicity, taylorDepth
+    unless (← getGoals).isEmpty do
+      saved.restore
+      return .error <| .transportFailure
+        "verified optimization certificate left unresolved proof obligations"
+    return .ok <| some {
+      direction
+      checker
+      verifier
+      verification
+      maxIterations := maxIters
+      tolerance
+      useMonotonicity
+      taylorDepth
     }
-  catch _ => upperState.restore
-
-  -- Try lower bound theorem (for c ≤ f(ρ) goals)
-  let goal ← getMainGoal
-  let lowerState ← saveState
-  try
-    let proof ← mkAppOptM ``LeanCert.Validity.GlobalOpt.verify_global_lower_bound
-      #[none, none, none, none, some cfgExpr]
-    let newGoals ← goal.apply proof
-    setGoals newGoals
-    let goals ← getGoals
-    let mut verification : LeanCert.Tactic.VerificationUsage := {}
-    for g in goals do
-      setGoals [g]
-      let gType ← g.getType
-      if gType.getAppFn.isConstOf ``ExprSupportedCore then
-        proveSupport g
-      else
-        let event ← LeanCert.Tactic.closeCertificateGoalReported
-          (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-          (tacticName := "opt_bound")
-        verification := verification.combine event.toUsage
-    return {
-      checker := ``LeanCert.Validity.GlobalOpt.checkGlobalLowerBound
-      verifier := ``LeanCert.Validity.GlobalOpt.verify_global_lower_bound
-      verification, maxIterations := maxIters, useMonotonicity, taylorDepth
-    }
-  catch _ => lowerState.restore
-
-  throwError "opt_bound: Could not apply global bound theorem. Check that goal has form:\n\
-              • ∀ ρ, Box.envMem ρ B → (∀ i ≥ B.length, ρ i = 0) → c ≤ Expr.eval ρ e\n\
-              • ∀ ρ, Box.envMem ρ B → (∀ i ≥ B.length, ρ i = 0) → Expr.eval ρ e ≤ c"
+  match ← tryDirection .upper
+      ``LeanCert.Validity.GlobalOpt.checkGlobalUpperBound
+      ``LeanCert.Validity.GlobalOpt.verify_global_upper_bound with
+  | .error failure => return .error failure
+  | .ok (some outcome) => return .ok outcome
+  | .ok none => pure ()
+  match ← tryDirection .lower
+      ``LeanCert.Validity.GlobalOpt.checkGlobalLowerBound
+      ``LeanCert.Validity.GlobalOpt.verify_global_lower_bound with
+  | .error failure => return .error failure
+  | .ok (some outcome) => return .ok outcome
+  | .ok none =>
+      return .error <| .unsupported (toString (← goal.getType))
+        "expected a checked global upper- or lower-bound theorem shape"
 
 where
   /-- Prove ExprSupportedCore goal by generating the proof -/
@@ -109,9 +139,21 @@ where
       let gType ← goal.getType
       let args := gType.getAppArgs
       if args.size ≥ 1 then
-        let expr := args[0]!
-        let proof ← mkSupportedCoreProof expr
+        let expr ← withTransparency .all <| whnf args[0]!
+        let proof ← mkSupportedProof expr
         goal.assign proof
+
+/-- Reporting compatibility wrapper preserving the historical throwing API. -/
+def optBoundCoreReported (maxIters : Nat) (useMonotonicity : Bool)
+    (taylorDepth : Nat) : TacticM OptBoundOutcome := do
+  match ← optBoundCoreTyped maxIters useMonotonicity taylorDepth with
+  | .ok outcome => return outcome
+  | .error (.unsupported expression detail) =>
+      throwError "opt_bound: unsupported goal {expression}:\n{detail}"
+  | .error (.rejected _ detail) =>
+      throwError "opt_bound: global-bound certificate was rejected:\n{detail}"
+  | .error (.transportFailure detail) =>
+      throwError "opt_bound: proof transport failed:\n{detail}"
 
 /-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
 def optBoundCore (maxIters : Nat) (useMonotonicity : Bool)

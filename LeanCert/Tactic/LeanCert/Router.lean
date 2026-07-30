@@ -194,6 +194,52 @@ private unsafe def directBoundAttemptTyped (depth : Nat) :
   | .error (.transportFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.certify_bound detail
 
+private def discoveryExecution (outcome : DiscoveryOutcome) : SolverExecution := {
+  backend := outcome.dyadic.map fun dyadic =>
+    if dyadic then .dyadicInterval else .rationalInterval
+  verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
+  checker := outcome.checker
+  verifier := outcome.verifier
+  optimization := some {
+    iterations := some outcome.iterations
+    configuredLimit := outcome.configuredLimit
+    tolerance := outcome.tolerance
+    gap := some (outcome.upperBound - outcome.lowerBound)
+    converged := some (outcome.upperBound - outcome.lowerBound ≤ outcome.tolerance)
+    remainingBoxes := some outcome.remainingBoxes
+  }
+  notes := #[
+    s!"discovered witness: {outcome.witness}",
+    s!"certified search interval: [{outcome.lowerBound}, {outcome.upperBound}]",
+    s!"Taylor depth: {outcome.taylorDepth}"
+  ]
+}
+
+private def discoveryFailure (solver : Name) :
+    DiscoveryFailure → AttemptFailure
+  | .unsupported expression detail =>
+      .unsupported { expression, detail := some detail }
+  | .inconclusive detail =>
+      .inconclusive { detail }
+  | .rejected checker detail =>
+      .rejected { checker, detail }
+  | .transportFailure detail =>
+      .internalError solver detail
+
+private unsafe def minimizeAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← intervalMinimizeCoreTyped depth with
+  | .ok outcome => return .ok (discoveryExecution outcome)
+  | .error failure =>
+      return .error (discoveryFailure `LeanCert.Tactic.Discovery.interval_minimize failure)
+
+private unsafe def maximizeAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← intervalMaximizeCoreTyped depth with
+  | .ok outcome => return .ok (discoveryExecution outcome)
+  | .error failure =>
+      return .error (discoveryFailure `LeanCert.Tactic.Discovery.interval_maximize failure)
+
 private def finSumAttemptReported (precision : Int) (depth : Nat) :
     TacticM SolverExecution := do
   let outcome ← finSumBoundCoreReported precision depth
@@ -258,30 +304,71 @@ private def noRootAttemptReported (depth : Nat) : TacticM SolverExecution := do
     outcome.verification outcome.checker outcome.verifier
     #[s!"Taylor depth: {outcome.taylorDepth}"]
 
-private def optimizationAttemptReported (maxIterations : Nat)
-    (useMonotonicity : Bool) (depth : Nat) : TacticM SolverExecution := do
-  let outcome ← Auto.optBoundCoreReported maxIterations useMonotonicity depth
-  return checkedExecution
-    none
-    outcome.verification outcome.checker outcome.verifier #[
-      s!"maximum iterations: {outcome.maxIterations}",
-      s!"Taylor depth: {outcome.taylorDepth}",
-      s!"monotonicity pruning: {outcome.useMonotonicity}"
-    ]
+private def optimizationAttemptTyped (maxIterations : Nat)
+    (useMonotonicity : Bool) (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Auto.optBoundCoreTyped maxIterations useMonotonicity depth with
+  | .ok outcome =>
+      return .ok {
+        verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
+        checker := some outcome.checker
+        verifier := some outcome.verifier
+        optimization := some {
+          configuredLimit := outcome.maxIterations
+          tolerance := outcome.tolerance
+        }
+        notes := #[
+          s!"Taylor depth: {outcome.taylorDepth}",
+          s!"monotonicity pruning: {outcome.useMonotonicity}"
+        ]
+      }
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported {
+        expression
+        detail := some detail
+      }
+  | .error (.rejected checker detail) =>
+      trace[LeanCert.router] "optimization certificate rejected:\n{detail}"
+      return .error <| .rejected {
+        checker := some checker
+        detail := "The global-optimization certificate was rejected."
+      }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.opt_bound detail
 
-private def multivariateAttemptReported (maxIterations : Nat)
+private def multivariateAttemptTyped (maxIterations : Nat)
     (tolerance : ℚ) (useMonotonicity : Bool) (depth : Nat) :
-    TacticM SolverExecution := do
-  let outcome ← Auto.multivariateBoundCoreReported maxIterations tolerance
-    useMonotonicity depth
-  return checkedExecution
-    none
-    outcome.verification outcome.checker outcome.verifier #[
-      s!"maximum iterations: {outcome.maxIterations}",
-      s!"tolerance: {outcome.tolerance}",
-      s!"Taylor depth: {outcome.taylorDepth}",
-      s!"monotonicity pruning: {outcome.useMonotonicity}"
-    ]
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Auto.multivariateBoundCoreTyped maxIterations tolerance
+      useMonotonicity depth with
+  | .ok outcome =>
+      return .ok {
+        verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
+        checker := some outcome.checker
+        verifier := some outcome.verifier
+        optimization := some {
+          configuredLimit := outcome.maxIterations
+          tolerance := outcome.tolerance
+        }
+        notes := #[
+          s!"Taylor depth: {outcome.taylorDepth}",
+          s!"monotonicity pruning: {outcome.useMonotonicity}"
+        ]
+      }
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported {
+        expression
+        detail := some detail
+      }
+  | .error (.rejected checker detail) =>
+      trace[LeanCert.router] "multivariate certificate rejected:\n{detail}"
+      return .error <| .rejected {
+        checker := some checker
+        detail := "The multivariate optimization certificate was rejected."
+      }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError
+        `LeanCert.Tactic.Auto.multivariate_bound detail
 
 /-- The deterministic strategy portfolio for a recognized goal intent. -/
 private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
@@ -327,7 +414,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
       { report := report intent
           (if cfg.useMonotonicity then s!"opt_bound {cfg.maxIterations} mono"
            else s!"opt_bound {cfg.maxIterations}") cfg mode
-          (.policy "legacy checked global-optimization certificate")
+          (.policy "checked global-optimization certificate")
           (if cfg.taylorDepth == 10 then
             some (suggestion "opt_bound"
               (if cfg.useMonotonicity then #[toString cfg.maxIterations, "mono"]
@@ -335,33 +422,30 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
            else none)
           (strategyId := .globalOptimization),
         solve := Auto.optBoundCore cfg.maxIterations cfg.useMonotonicity d
-        solveReported := some
-          (optimizationAttemptReported cfg.maxIterations cfg.useMonotonicity d)
-        legacyExceptionAdapter := true
+        solveReportedResult := some
+          (optimizationAttemptTyped cfg.maxIterations cfg.useMonotonicity d)
         cost := 3 }]
   | .multivariateBound => #[
       { report := report intent s!"multivariate_bound {cfg.maxIterations}"
-          cfg mode (.policy "legacy checked global-optimization certificate")
+          cfg mode (.policy "checked global-optimization certificate")
           (if !cfg.useMonotonicity && d == 10 then
             some (suggestion "multivariate_bound" #[toString cfg.maxIterations])
            else none)
           (strategyId := .globalOptimization),
         solve := Auto.multivariateBoundCore cfg.maxIterations (1 / 1000)
           cfg.useMonotonicity d
-        solveReported := some <|
-          multivariateAttemptReported cfg.maxIterations (1 / 1000)
+        solveReportedResult := some <|
+          multivariateAttemptTyped cfg.maxIterations (1 / 1000)
             cfg.useMonotonicity d
-        legacyExceptionAdapter := true
         cost := 3 },
       { report := report intent s!"multivariate_bound {2 * cfg.maxIterations}"
-          cfg mode (.policy "legacy checked global-optimization certificate")
+          cfg mode (.policy "checked global-optimization certificate")
           none (strategyId := .globalOptimization),
         solve := Auto.multivariateBoundCore (2 * cfg.maxIterations) (1 / 10000)
           cfg.useMonotonicity d2
-        solveReported := some <|
-          multivariateAttemptReported (2 * cfg.maxIterations) (1 / 10000)
+        solveReportedResult := some <|
+          multivariateAttemptTyped (2 * cfg.maxIterations) (1 / 10000)
             cfg.useMonotonicity d2
-        legacyExceptionAdapter := true
         cost := 4 }]
   | .rootExists => #[
       { report := report intent "endpoint sign-change certificate" cfg mode
@@ -422,24 +506,32 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         legacyExceptionAdapter := true }]
   | .existentialMinimum => #[
       { report := report intent "guided lower-bound discovery and certification" cfg mode
-          (.policy "legacy optimization followed by checked interval certification")
-          (some (suggestion "interval_minimize" #[toString d])), solve := intervalMinimizeCore d },
+          (.policy "guided optimization followed by checked interval certification")
+          (some (suggestion "interval_minimize" #[toString d]))
+        solve := intervalMinimizeCore d
+        solveReportedResult := some (minimizeAttemptTyped d) },
       { report := report intent "multivariate lower-bound discovery and certification" cfg mode
           (.policy "legacy optimization followed by checked certification")
           (some (suggestion "interval_minimize_mv" #[toString d])), solve := intervalMinimizeMvCore d },
       { report := report intent "guided lower-bound discovery and certification" cfg mode
-          (.policy "legacy optimization followed by checked interval certification")
-          (some (suggestion "interval_minimize" #[toString d2])), solve := intervalMinimizeCore d2 }]
+          (.policy "guided optimization followed by checked interval certification")
+          (some (suggestion "interval_minimize" #[toString d2]))
+        solve := intervalMinimizeCore d2
+        solveReportedResult := some (minimizeAttemptTyped d2) }]
   | .existentialMaximum => #[
       { report := report intent "guided upper-bound discovery and certification" cfg mode
-          (.policy "legacy optimization followed by checked interval certification")
-          (some (suggestion "interval_maximize" #[toString d])), solve := intervalMaximizeCore d },
+          (.policy "guided optimization followed by checked interval certification")
+          (some (suggestion "interval_maximize" #[toString d]))
+        solve := intervalMaximizeCore d
+        solveReportedResult := some (maximizeAttemptTyped d) },
       { report := report intent "multivariate upper-bound discovery and certification" cfg mode
           (.policy "legacy optimization followed by checked certification")
           (some (suggestion "interval_maximize_mv" #[toString d])), solve := intervalMaximizeMvCore d },
       { report := report intent "guided upper-bound discovery and certification" cfg mode
-          (.policy "legacy optimization followed by checked interval certification")
-          (some (suggestion "interval_maximize" #[toString d2])), solve := intervalMaximizeCore d2 }]
+          (.policy "guided optimization followed by checked interval certification")
+          (some (suggestion "interval_maximize" #[toString d2]))
+        solve := intervalMaximizeCore d2
+        solveReportedResult := some (maximizeAttemptTyped d2) }]
   | .argmin => #[
       { report := report intent "attained minimum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
