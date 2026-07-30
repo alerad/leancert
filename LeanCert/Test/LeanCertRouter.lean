@@ -49,7 +49,7 @@ private def expectTypedAdapterFailure : TacticM Unit := do
     solve := throwError "legacy Unit adapter ran"
     solveReported := some (throwError "legacy reported adapter ran")
     solveReportedResult := some <| pure <|
-      .error (.internalError "typed result survived semantic transport")
+      .error (.routerFailure (.internalError "typed result survived semantic transport"))
   }
   match ← spec.toSemanticSolver.attempt prepared {} with
   | AttemptOutcome.routerFailure (Diagnostic.RouterFailure.internalError detail) =>
@@ -74,6 +74,78 @@ elab "expect_terminal_outcome_stops" : tactic => do
   if continued then
     throwError "routing continued after a terminal outcome"
 
+syntax (name := expectRationalPointReport) "expect_rational_point_report" : tactic
+
+@[tactic expectRationalPointReport]
+unsafe def elabExpectRationalPointReport : Tactic := fun _ => do
+  let result ← runLeanCert {} .compact
+  unless result.execution.backend == some .rationalInterval do
+    throwError "point difference route did not report Rational execution"
+  unless result.execution.verificationUsage.nativeChecks == 1 &&
+      result.execution.verificationUsage.kernelChecks == 0 do
+    throwError "point Rational report contains leaked or missing verification events"
+  unless result.execution.checker ==
+        some ``LeanCert.Validity.checkStrictLowerBound &&
+      result.execution.verifier ==
+        some ``LeanCert.Validity.verify_strict_lower_bound do
+    throwError "point Rational checker/Golden-Theorem identity was not retained: \
+      checker={result.execution.checker}, verifier={result.execution.verifier}"
+
+syntax (name := expectKernelBoundReport) "expect_kernel_bound_report" : tactic
+
+@[tactic expectKernelBoundReport]
+unsafe def elabExpectKernelBoundReport : Tactic := fun _ => do
+  withTrustMode (some .kernel) do
+    let result ← Auto.intervalBoundRationalCoreTyped 10
+    let .ok outcome := result
+      | throwError "direct Rational bound unexpectedly failed"
+    let usage := Solver.VerificationUsage.ofEvents outcome.verification
+    unless usage.kernelChecks == 1 && usage.nativeChecks == 0 do
+      throwError "kernel bound report contains leaked or incorrect verification events"
+    unless outcome.checker == some ``LeanCert.Validity.checkUpperBound &&
+        outcome.verifier ==
+          some ``LeanCert.Validity.verify_upper_bound_Icc_core do
+      throwError "Rational bound checker/Golden-Theorem identity was not retained"
+
+private def expectRationalBoundIdentity (checker verifier : Name) :
+    TacticM Unit := do
+  match ← Auto.intervalBoundRationalCoreTyped 10 with
+  | .ok outcome =>
+      unless outcome.checker == some checker && outcome.verifier == some verifier do
+        throwError "unexpected Rational bound identity: checker={outcome.checker}, \
+          verifier={outcome.verifier}"
+  | .error failure =>
+      throwError "Rational bound unexpectedly failed: {repr failure}"
+
+elab "expect_rational_lower_bound" : tactic =>
+  expectRationalBoundIdentity ``LeanCert.Validity.checkLowerBound
+    ``LeanCert.Validity.verify_lower_bound_Icc_core
+
+elab "expect_rational_strict_upper_bound" : tactic =>
+  expectRationalBoundIdentity ``LeanCert.Validity.checkStrictUpperBound
+    ``LeanCert.Validity.verify_strict_upper_bound_Icc_core
+
+elab "expect_rational_strict_lower_bound" : tactic =>
+  expectRationalBoundIdentity ``LeanCert.Validity.checkStrictLowerBound
+    ``LeanCert.Validity.verify_strict_lower_bound_Icc_core
+
+elab "expect_rational_bound_inconclusive" : tactic => do
+  match ← Auto.intervalBoundRationalCoreTyped 10 with
+  | .error (.inconclusive _) => pure ()
+  | .error failure =>
+      throwError "Rational rejection had the wrong typed category: {repr failure}"
+  | .ok _ =>
+      throwError "known-false Rational bound unexpectedly succeeded"
+
+elab "expect_rational_bound_unsupported" : tactic => do
+  match ← Auto.intervalBoundRationalCoreTyped 10 with
+  | .error (.unsupported _ _) => pure ()
+  | .error failure =>
+      throwError "unsupported Rational expression had the wrong category: \
+        {repr failure}"
+  | .ok _ =>
+      throwError "unsupported Rational expression unexpectedly succeeded"
+
 /--
 info: LeanCert recognized: closed certificate check
 
@@ -90,6 +162,27 @@ Suggested proof:
 #guard_msgs in
 example : LeanCert.Validity.checkUpperBound checkerExpr checkerInterval 1 {} = true := by
   leancert?
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, (-1 : ℝ) ≤ x := by
+  expect_rational_lower_bound
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x < (2 : ℝ) := by
+  expect_rational_strict_upper_bound
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, (-1 : ℝ) < x := by
+  expect_rational_strict_lower_bound
+
+example (h : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ (-1 : ℝ)) :
+    ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ (-1 : ℝ) := by
+  expect_rational_bound_inconclusive
+  exact h
+
+example (h : ∀ x ∈ Set.Icc (-1 : ℝ) 1,
+    (if x ≤ 0 then 0 else 1 : ℝ) ≤ (2 : ℝ)) :
+    ∀ x ∈ Set.Icc (-1 : ℝ) 1,
+      (if x ≤ 0 then 0 else 1 : ℝ) ≤ (2 : ℝ) := by
+  expect_rational_bound_unsupported
+  exact h
 
 #guard_msgs in
 example : (3 : ℝ) / 2 < 2 := by
@@ -113,6 +206,12 @@ example : ∃ x ∈ Set.Icc (0 : ℝ) 1, x = 0 := by
 example : True := by
   expect_terminal_outcome_stops
   trivial
+
+example : Real.log 2 < Real.exp 1 := by
+  expect_rational_point_report
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x * Real.cos x ≤ 3 := by
+  expect_kernel_bound_report
 
 /--
 info: LeanCert recognized: closed numerical comparison
@@ -169,12 +268,15 @@ info: LeanCert recognized: univariate interval bound
 Selected strategy:
   direct interval enclosure (Taylor depth 10)
   Taylor depth: 10
+  precision: -80
 
 Numerical computation:
-  Rational interval evaluation
+  Dyadic interval evaluation
 
 Certificate verification:
-  requested native; actual route not observed by the legacy adapter
+  requested native → used native
+Checker: LeanCert.Validity.checkUpperBoundDyadicChecked
+Verifier: LeanCert.Validity.verify_upper_bound_dyadic_checked
 
 Suggested proof:
   by
@@ -284,9 +386,11 @@ Attempts:
      solver left 1 proof obligation(s):
 False
   2. direct point enclosure (Taylor depth 10)
-     The backend could not construct a complete certificate with the current settings.
+     The candidate certificate was rejected by its checker.
+Try increasing `taylorDepth`, enabling subdivision, or using the corresponding dedicated tactic for finer control.
   3. direct point enclosure (Taylor depth 20)
-     The backend could not construct a complete certificate with the current settings.
+     The candidate certificate was rejected by its checker.
+Try increasing `taylorDepth`, enabling subdivision, or using the corresponding dedicated tactic for finer control.
 
 Budget: spent 3 of 6
 

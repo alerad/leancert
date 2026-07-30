@@ -45,7 +45,7 @@ structure SolverSpec where
   /-- Recursive routes can return a typed public failure without converting it
   into an implementation exception inside speculative execution. -/
   solveReportedResult :
-    Option (TacticM (Except Diagnostic.RouterFailure SolverExecution)) := none
+    Option (TacticM (Except AttemptFailure SolverExecution)) := none
   /-- Existing engine adapters still signal ordinary numerical rejection by
   throwing. They remain explicitly quarantined behind the compatibility
   exception policy until their PR2 migration returns typed outcomes directly. -/
@@ -128,11 +128,8 @@ private def pointAttempt (depth : Nat) : TacticM Unit := do
   let depth := numSyntax depth
   evalTactic (← `(tactic| interval_auto $depth:num))
 
-private def pointAttemptReported (depth : Nat) : TacticM SolverExecution := do
-  Auto.intervalNormCore
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-  let outcome ← Auto.proveClosedExpressionBoundReported goal goalType depth
+private def pointExecution (outcome : Auto.PointInequalityOutcome) :
+    SolverExecution := Id.run do
   let mut notes := #[s!"Taylor depth: {outcome.taylorDepth}"]
   if let some precision := outcome.precision then
     notes := notes.push s!"precision: {precision}"
@@ -146,8 +143,30 @@ private def pointAttemptReported (depth : Nat) : TacticM SolverExecution := do
     notes
   }
 
-private def directBoundAttemptReported (depth : Nat) : TacticM SolverExecution := do
-  let outcome ← Auto.intervalBoundCoreReported depth
+private def pointAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  Auto.intervalNormCore
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← Auto.proveClosedExpressionBoundTyped goal goalType depth with
+  | .ok outcome => return .ok (pointExecution outcome)
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported {
+        expression
+        detail := some detail
+      }
+  | .error (.rejected detail) =>
+      trace[LeanCert.router] "point certificate rejected:\n{detail}"
+      return .error <| .rejected {
+        detail := "The candidate certificate was rejected by its checker."
+      }
+  | .error (.inconclusive detail) =>
+      return .error <| .inconclusive { detail }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
+
+private def directBoundExecution (outcome : Auto.IntervalBoundOutcome) :
+    SolverExecution := Id.run do
   let mut notes := #[s!"Taylor depth: {outcome.taylorDepth}"]
   if let some precision := outcome.precision then
     notes := notes.push s!"precision: {precision}"
@@ -160,6 +179,20 @@ private def directBoundAttemptReported (depth : Nat) : TacticM SolverExecution :
     verifier := outcome.verifier
     notes
   }
+
+private unsafe def directBoundAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Auto.intervalBoundCoreTyped depth with
+  | .ok outcome => return .ok (directBoundExecution outcome)
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported {
+        expression
+        detail := some detail
+      }
+  | .error (.inconclusive detail) =>
+      return .error <| .inconclusive { detail }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.certify_bound detail
 
 private def finSumAttemptReported (precision : Int) (depth : Nat) :
     TacticM SolverExecution := do
@@ -265,27 +298,23 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (.policy "checked interval tactic portfolio")
           (some (suggestion "interval_auto" #[toString d])),
         solve := pointAttempt d
-        solveReported := some (pointAttemptReported d)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (pointAttemptTyped d) },
       { report := report intent s!"direct point enclosure (Taylor depth {d2})" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "interval_auto" #[toString d2])),
         solve := pointAttempt d2
-        solveReported := some (pointAttemptReported d2)
-        legacyExceptionAdapter := true }]
+        solveReportedResult := some (pointAttemptTyped d2) }]
   | .intervalBound => #[
       { report := report intent s!"direct interval enclosure (Taylor depth {d})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound" #[toString d])),
         solve := Auto.intervalBoundCore d
-        solveReported := some (directBoundAttemptReported d)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (directBoundAttemptTyped d) },
       { report := report intent s!"direct interval enclosure (Taylor depth {d2})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound" #[toString d2])),
         solve := Auto.intervalBoundCore d2
-        solveReported := some (directBoundAttemptReported d2)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (directBoundAttemptTyped d2) },
       { report := report intent "recursive interval subdivision" cfg mode
           (.fixed .rationalInterval)
           (some (suggestion "interval_bound_subdiv"
@@ -603,7 +632,7 @@ semantic parser. The numerical engine sees `lhs - rhs ⋚ 0`; the resulting proo
 is transported back with the ordinary ordered-ring equivalence. -/
 private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) :
     TacticM AttemptOutcome := do
-  let runSpec : TacticM (Except Diagnostic.RouterFailure SolverExecution) :=
+  let runSpec : TacticM (Except AttemptFailure SolverExecution) :=
     match spec.solveReportedResult, spec.solveReported with
     | some solve, _ => solve
     | none, some solve => do return .ok (← solve)
@@ -863,7 +892,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
               runLeanCert cfg verbosity
             catch exception =>
               let detail ← exception.toMessageData.toString
-              return .error <| Diagnostic.RouterFailure.childFailure
+              return .error <| .routerFailure <| Diagnostic.RouterFailure.childFailure
                 (index + 1) childGoals.length childIntent? detail
           children := children.push {
             intent := child.plan.intent
