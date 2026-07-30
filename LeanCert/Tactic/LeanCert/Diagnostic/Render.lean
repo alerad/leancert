@@ -141,18 +141,23 @@ def numericalBackend : NumericalBackend → String
   | .exactRational => "exact rational arithmetic"
   | .checkedRationalPartitions => "checked Rational partition integration"
 
-private def effectiveBackend (report : SolverReport) : BackendReport :=
+private def effectiveBackend (report : SolverReport) :
+    Option NumericalBackend × BackendPolicy :=
   match report.execution.backend with
-  | .unknown => report.plan.backend
-  | observed => observed
+  | some observed => (some observed, report.plan.backendPolicy)
+  | none => (none, report.plan.backendPolicy)
 
-private def renderBackend : BackendReport → Option String
-  | .used backend => some (numericalBackend backend)
-  | .policy description =>
+private def renderBackend :
+    Option NumericalBackend × BackendPolicy → Option String
+  | (some backend, _) => some (numericalBackend backend)
+  | (none, .fixed backend) =>
+      some s!"Configured backend: {numericalBackend backend}\n  Execution was not \
+        observed by the legacy solver adapter."
+  | (none, .policy description) =>
       some s!"Policy: {description}\n  The legacy adapter does not yet expose \
         the winning backend."
-  | .notApplicable => none
-  | .unknown => some "not observed by the legacy solver adapter"
+  | (none, .notApplicable) => none
+  | (none, .unknown) => some "not observed by the legacy solver adapter"
 
 private def verificationMode : VerificationMode → String
   | .native => "native"
@@ -163,12 +168,12 @@ private def renderVerification (report : SolverReport) : Option String :=
   let usage := report.execution.verificationUsage
   let requested := verificationMode report.plan.verificationRequested
   if usage.kernelChecks == 0 && usage.nativeChecks == 0 then
-    if report.plan.strategy == "exact normalization" then
-      some "not required by this proof strategy"
-    else if report.plan.strategy == "integral_exact" then
-      some "kernel proof construction; trust selection not applicable"
-    else
-      some s!"requested {requested}; actual route not observed by the legacy adapter"
+    match report.plan.strategyId with
+    | .exactNormalization => some "not required by this proof strategy"
+    | .exactIntegral =>
+        some "kernel proof construction; trust selection not applicable"
+    | _ =>
+        some s!"requested {requested}; actual route not observed by the legacy adapter"
   else
     let used :=
       if usage.kernelChecks > 0 && usage.nativeChecks > 0 then
@@ -218,10 +223,13 @@ private def renderChildren (children : Array ChildReport) : String :=
     let rows := children.toList.zipIdx.map fun (child, index) =>
       let backend :=
         match child.backend with
-        | .used value => s!"; {numericalBackend value}"
-        | .policy value => s!"; backend policy: {value}"
-        | .notApplicable => ""
-        | .unknown => "; backend not observed"
+        | some value => s!"; {numericalBackend value}"
+        | none =>
+            match child.backendPolicy with
+            | .fixed value => s!"; configured backend: {numericalBackend value}"
+            | .policy value => s!"; backend policy: {value}"
+            | .notApplicable => ""
+            | .unknown => "; backend not observed"
       s!"  {index + 1}. {intentLabel child.intent} — {child.strategy}{backend}"
     s!"\n\nChild theorems:\n{String.intercalate "\n" rows}"
 

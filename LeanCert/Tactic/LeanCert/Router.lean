@@ -44,6 +44,10 @@ private structure SolverSpec where
   into an implementation exception inside speculative execution. -/
   solveReportedResult :
     Option (TacticM (Except Diagnostic.RouterFailure SolverExecution)) := none
+  /-- Existing engine adapters still signal ordinary numerical rejection by
+  throwing. They remain explicitly quarantined behind the compatibility
+  exception policy until their PR2 migration returns typed outcomes directly. -/
+  legacyExceptionAdapter : Bool := true
   cost : Nat := 1
   /-- Comparisons accepted by this solver. `none` means the solver accepts the
   full comparison language for its intent. -/
@@ -71,10 +75,10 @@ private def primarySuggestion (cfg : LeanCertConfig)
 
 private def report (intent : GoalIntent) (strategy : String)
     (cfg : LeanCertConfig) (mode : VerificationMode)
-    (backend : BackendReport := .unknown)
+    (backendPolicy : BackendPolicy := .unknown)
     (dedicatedProof : Option ProofSuggestion := none)
     (strategyDetail : Option String := none)
-    (strategyKind : StrategyKind := .legacy) : SolverPlan :=
+    (strategyId : StrategyId := .legacy) : SolverPlan :=
   let dedicatedProof := dedicatedProof.map fun proof =>
     if proof.tactic == "norm_num" || proof.tactic == "integral_exact" then proof
     else {
@@ -84,13 +88,13 @@ private def report (intent : GoalIntent) (strategy : String)
   {
     intent
     solver := `LeanCert.Tactic.leancert
-    strategyKind
+    strategyId
     strategy
     strategyDetail
     cost := 1
     primaryProof := primarySuggestion cfg mode
     dedicatedProof
-    backend
+    backendPolicy
     verificationRequested := mode
   }
 
@@ -107,7 +111,7 @@ private def subdivisionAttemptReported (cfg : LeanCertConfig) :
   let outcome ← Auto.intervalBoundSubdivWithDepthReported
     (some cfg.taylorDepth) cfg.subdivisions
   return {
-    backend := .used .rationalInterval
+    backend := some .rationalInterval
     verificationUsage :=
       Solver.VerificationUsage.ofEvents outcome.execution.verification
     checker := some outcome.checker
@@ -131,7 +135,7 @@ private def pointAttemptReported (depth : Nat) : TacticM SolverExecution := do
   if let some precision := outcome.precision then
     notes := notes.push s!"precision: {precision}"
   return {
-    backend := .used <|
+    backend := some <|
       if outcome.dyadic then .dyadicInterval else .rationalInterval
     verificationUsage :=
       Solver.VerificationUsage.ofEvents outcome.verification
@@ -146,7 +150,7 @@ private def directBoundAttemptReported (depth : Nat) : TacticM SolverExecution :
   if let some precision := outcome.precision then
     notes := notes.push s!"precision: {precision}"
   return {
-    backend := .used <|
+    backend := some <|
       if outcome.dyadic then .dyadicInterval else .rationalInterval
     verificationUsage :=
       Solver.VerificationUsage.ofEvents outcome.verification
@@ -167,7 +171,7 @@ private def finSumAttemptReported (precision : Int) (depth : Nat) :
     | some count => notes.push s!"terms: {count}"
     | none => notes
   return {
-    backend := .used .dyadicInterval
+    backend := some .dyadicInterval
     verificationUsage :=
       Solver.VerificationUsage.ofEvents outcome.verification
     checker := some outcome.checker
@@ -175,7 +179,7 @@ private def finSumAttemptReported (precision : Int) (depth : Nat) :
     notes
   }
 
-private def integralExecution (backend : BackendReport)
+private def integralExecution (backend : Option NumericalBackend)
     (outcomes : Array IntegralOutcome) : SolverExecution := Id.run do
   let mut usage : Solver.VerificationUsage := {}
   let mut notes : Array String := #[]
@@ -190,7 +194,7 @@ private def integralExecution (backend : BackendReport)
   let verifier := outcomes[0]?.map (·.verifier)
   return { backend, verificationUsage := usage, checker, verifier, notes }
 
-private def checkedExecution (backend : BackendReport)
+private def checkedExecution (backend : Option NumericalBackend)
     (verification : LeanCert.Tactic.VerificationUsage)
     (checker verifier : Name) (notes : Array String := #[]) : SolverExecution := {
   backend
@@ -202,20 +206,20 @@ private def checkedExecution (backend : BackendReport)
 
 private def rootExistsAttemptReported (depth : Nat) : TacticM SolverExecution := do
   let outcome ← intervalRootsCoreReported depth
-  return checkedExecution (.policy "checked root certificate arithmetic")
+  return checkedExecution none
     outcome.verification outcome.checker outcome.verifier
     #[s!"Taylor depth: {outcome.taylorDepth}"]
 
 private unsafe def uniqueRootAttemptReported (depth : Nat) :
     TacticM SolverExecution := do
   let outcome ← intervalUniqueRootCoreReported depth
-  return checkedExecution (.policy "checked Newton certificate arithmetic")
+  return checkedExecution none
     outcome.verification outcome.checker outcome.verifier
     #[s!"Taylor depth: {outcome.taylorDepth}"]
 
 private def noRootAttemptReported (depth : Nat) : TacticM SolverExecution := do
   let outcome ← Auto.rootBoundCoreReported depth
-  return checkedExecution (.policy "checked no-root certificate arithmetic")
+  return checkedExecution none
     outcome.verification outcome.checker outcome.verifier
     #[s!"Taylor depth: {outcome.taylorDepth}"]
 
@@ -223,7 +227,7 @@ private def optimizationAttemptReported (maxIterations : Nat)
     (useMonotonicity : Bool) (depth : Nat) : TacticM SolverExecution := do
   let outcome ← Auto.optBoundCoreReported maxIterations useMonotonicity depth
   return checkedExecution
-    (.policy "legacy checked global-optimization certificate")
+    none
     outcome.verification outcome.checker outcome.verifier #[
       s!"maximum iterations: {outcome.maxIterations}",
       s!"Taylor depth: {outcome.taylorDepth}",
@@ -236,7 +240,7 @@ private def multivariateAttemptReported (maxIterations : Nat)
   let outcome ← Auto.multivariateBoundCoreReported maxIterations tolerance
     useMonotonicity depth
   return checkedExecution
-    (.policy "legacy checked global-optimization certificate")
+    none
     outcome.verification outcome.checker outcome.verifier #[
       s!"maximum iterations: {outcome.maxIterations}",
       s!"tolerance: {outcome.tolerance}",
@@ -253,7 +257,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
   match intent with
   | .pointInequality => #[
       { report := report intent "exact normalization" cfg mode .notApplicable
-          (some (suggestion "norm_num")),
+          (some (suggestion "norm_num")) (strategyId := .exactNormalization),
         solve := do evalTactic (← `(tactic| norm_num)) },
       { report := report intent s!"direct point enclosure (Taylor depth {d})" cfg mode
           (.policy "checked interval tactic portfolio")
@@ -277,7 +281,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solve := Auto.intervalBoundCore d2
         solveReported := some (directBoundAttemptReported d2) },
       { report := report intent "recursive interval subdivision" cfg mode
-          (.used .rationalInterval)
+          (.fixed .rationalInterval)
           (some (suggestion "interval_bound_subdiv"
             #[toString d, toString cfg.subdivisions]))
           (some s!"Taylor depth {d}; maximum recursive depth {cfg.subdivisions}")
@@ -293,7 +297,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
               (if cfg.useMonotonicity then #[toString cfg.maxIterations, "mono"]
                else #[toString cfg.maxIterations]))
            else none)
-          (strategyKind := .globalOptimization),
+          (strategyId := .globalOptimization),
         solve := Auto.optBoundCore cfg.maxIterations cfg.useMonotonicity d
         solveReported := some
           (optimizationAttemptReported cfg.maxIterations cfg.useMonotonicity d)
@@ -304,7 +308,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (if !cfg.useMonotonicity && d == 10 then
             some (suggestion "multivariate_bound" #[toString cfg.maxIterations])
            else none)
-          (strategyKind := .globalOptimization),
+          (strategyId := .globalOptimization),
         solve := Auto.multivariateBoundCore cfg.maxIterations (1 / 1000)
           cfg.useMonotonicity d
         solveReported := some <|
@@ -313,7 +317,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         cost := 3 },
       { report := report intent s!"multivariate_bound {2 * cfg.maxIterations}"
           cfg mode (.policy "legacy checked global-optimization certificate")
-          none (strategyKind := .globalOptimization),
+          none (strategyId := .globalOptimization),
         solve := Auto.multivariateBoundCore (2 * cfg.maxIterations) (1 / 10000)
           cfg.useMonotonicity d2
         solveReported := some <|
@@ -404,11 +408,11 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (some (suggestion "interval_argmax" #[toString d2])), solve := intervalArgmaxCore d2 }]
   | .finiteSum => #[
       { report := report intent "reflective finite-sum certificate" cfg mode
-          (.used .dyadicInterval) (some (suggestion "finsum_bound")),
+          (.fixed .dyadicInterval) (some (suggestion "finsum_bound")),
         solve := finSumBoundCore (-53) 10
         solveReported := some (finSumAttemptReported (-53) 10) },
       { report := report intent "reflective finite-sum certificate" cfg mode
-          (.used .dyadicInterval) (some (suggestion "finsum_bound" #["80"])),
+          (.fixed .dyadicInterval) (some (suggestion "finsum_bound" #["80"])),
         solve := finSumBoundCore (-80) 10
         solveReported := some (finSumAttemptReported (-80) 10) }]
   | .certificateCheck => #[
@@ -428,30 +432,30 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           }
         cost := 0 }]
   | .integralBound => #[
-      { report := report intent "integral_exact" cfg mode (.used .exactRational)
-          (some (suggestion "integral_exact")) (strategyKind := .exactIntegral),
+      { report := report intent "integral_exact" cfg mode (.fixed .exactRational)
+          (some (suggestion "integral_exact")) (strategyId := .exactIntegral),
         solve := integralExactCore
         solveReported := some do
-          return integralExecution (.used .exactRational)
+          return integralExecution (some .exactRational)
             (← integralExactCoreReported)
         cost := 0 },
       { report := report intent "integral_search 16 512" cfg mode
-          (.used .checkedRationalPartitions) (strategyKind := .partitionIntegral),
+          (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 512
         solveReported := some do
-          return integralExecution (.used .checkedRationalPartitions)
+          return integralExecution (some .checkedRationalPartitions)
             (← integralSearchCoreReported 16 512) },
       { report := report intent "integral_search 16 4096" cfg mode
-          (.used .checkedRationalPartitions) (strategyKind := .partitionIntegral),
+          (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 4096
         solveReported := some do
-          return integralExecution (.used .checkedRationalPartitions)
+          return integralExecution (some .checkedRationalPartitions)
             (← integralSearchCoreReported 16 4096) },
       { report := report intent "integral_search 16 16384" cfg mode
-          (.used .checkedRationalPartitions) (strategyKind := .partitionIntegral),
+          (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 16384
         solveReported := some do
-          return integralExecution (.used .checkedRationalPartitions)
+          return integralExecution (some .checkedRationalPartitions)
             (← integralSearchCoreReported 16 16384) }]
   | .conjunction => #[]
 
@@ -485,9 +489,11 @@ private def trySolver (spec : SolverSpec) : TacticM AttemptOutcome := do
   | some solve, _ =>
       Solver.proveWithTacticReportedResult { spec.report with cost := spec.cost }
         proposition solve
+        (if spec.legacyExceptionAdapter then .legacyInconclusive else .internalError)
   | none, some solve =>
-      Solver.proveWithTacticReported { spec.report with cost := spec.cost }
-        proposition solve
+      Solver.proveWithTacticReportedResult { spec.report with cost := spec.cost }
+        proposition (do return .ok (← solve))
+        (if spec.legacyExceptionAdapter then .legacyInconclusive else .internalError)
   | none, none =>
       Solver.proveWithTactic { spec.report with cost := spec.cost } proposition spec.solve
 
@@ -588,8 +594,9 @@ private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) 
     | _ => pure runSpec
   let goal ← getMainGoal
   let proposition ← goal.getType
-  Solver.proveWithTacticReported { spec.report with cost := spec.cost }
-    proposition action
+  Solver.proveWithTacticReportedResult { spec.report with cost := spec.cost }
+    proposition (do return .ok (← action))
+    (if spec.legacyExceptionAdapter then .legacyInconclusive else .internalError)
 
 /-- Temporary adapter for the existing numerical engines. The production
 router speaks only the typed `SemanticSolver` protocol; individual engines can
@@ -746,6 +753,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
     | .error _ => pure .certificateCheck : TacticM GoalIntent)
   let normalizationReport := report normalizationIntent "exact normalization"
     cfg verificationMode .notApplicable (some (suggestion "norm_num"))
+    (strategyId := .exactNormalization)
   let normalizationSpec : SolverSpec := {
     report := normalizationReport
     cost := 0
@@ -800,14 +808,11 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
               let detail ← exception.toMessageData.toString
               return .error <| Diagnostic.RouterFailure.childFailure
                 (index + 1) childGoals.length childIntent? detail
-          let backend :=
-            match child.execution.backend with
-            | .unknown => child.plan.backend
-            | observed => observed
           children := children.push {
             intent := child.plan.intent
             strategy := child.plan.strategy
-            backend
+            backend := child.execution.backend
+            backendPolicy := child.plan.backendPolicy
             verificationUsage := child.execution.verificationUsage
           }
           usage := usage.combine child.execution.verificationUsage
@@ -923,7 +928,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
         let exactReport := report
           (if spec.kind == .exists then .rootExists else .uniqueRoot)
           "exact rational root candidate" cfg verificationMode
-          (.used .exactRational)
+          (.fixed .exactRational)
         let exactSpec : SolverSpec := {
           report := exactReport
           cost := 0
@@ -1019,7 +1024,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
   if let .finiteSum spec := semantic then
     if spec.comparison == .eq then
       let equalityReport := report .finiteSum "exact finite-sum expansion"
-        cfg verificationMode (.used .exactRational)
+        cfg verificationMode (.fixed .exactRational)
         (some (suggestion "finsum_expand"))
       let equalitySpec : SolverSpec := {
         report := equalityReport
@@ -1054,6 +1059,26 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
     | outcome =>
         trace[LeanCert.router] "{solver.plan.strategy} failed: {outcomeSummary outcome}"
         failures := failures.push (solver.plan.strategy, outcome)
+        match outcome.disposition with
+        | .continue => pure ()
+        | .commit =>
+            throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
+              "The portfolio marked a non-proof outcome for commitment."
+        | .stop =>
+            match outcome with
+            | .domainObstruction evidence =>
+                throwRouterFailure verbosity <|
+                  Diagnostic.RouterFailure.domainObstruction intent evidence.reason
+            | .refuted evidence =>
+                throwRouterFailure verbosity <|
+                  Diagnostic.RouterFailure.certifiedRefutation (some intent) evidence
+            | .routerFailure failure => throwRouterFailure verbosity failure
+            | .internalError solver detail =>
+                throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
+                  s!"Solver `{solver}` raised unexpectedly:\n{detail}"
+            | _ =>
+                throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
+                  "The portfolio disposition table stopped on a nonterminal outcome."
 
   if let some refutation ← certifiedBoundRefutation? semantic prepared cfg then
     throwRouterFailure verbosity <|
