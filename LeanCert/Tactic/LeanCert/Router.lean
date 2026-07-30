@@ -128,11 +128,8 @@ private def pointAttempt (depth : Nat) : TacticM Unit := do
   let depth := numSyntax depth
   evalTactic (← `(tactic| interval_auto $depth:num))
 
-private def pointAttemptReported (depth : Nat) : TacticM SolverExecution := do
-  Auto.intervalNormCore
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-  let outcome ← Auto.proveClosedExpressionBoundReported goal goalType depth
+private def pointExecution (outcome : Auto.PointInequalityOutcome) :
+    SolverExecution := Id.run do
   let mut notes := #[s!"Taylor depth: {outcome.taylorDepth}"]
   if let some precision := outcome.precision then
     notes := notes.push s!"precision: {precision}"
@@ -145,6 +142,29 @@ private def pointAttemptReported (depth : Nat) : TacticM SolverExecution := do
     verifier := some outcome.verifier
     notes
   }
+
+private def pointAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  Auto.intervalNormCore
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← Auto.proveClosedExpressionBoundTyped goal goalType depth with
+  | .ok outcome => return .ok (pointExecution outcome)
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported {
+        expression
+        detail := some detail
+      }
+  | .error (.rejected detail) =>
+      trace[LeanCert.router] "point certificate rejected:\n{detail}"
+      return .error <| .inconclusive {
+        detail := "The backend could not construct a complete certificate with \
+          the current settings."
+      }
+  | .error (.inconclusive detail) =>
+      return .error <| .inconclusive { detail }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
 
 private def directBoundAttemptReported (depth : Nat) : TacticM SolverExecution := do
   let outcome ← Auto.intervalBoundCoreReported depth
@@ -265,14 +285,12 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (.policy "checked interval tactic portfolio")
           (some (suggestion "interval_auto" #[toString d])),
         solve := pointAttempt d
-        solveReported := some (pointAttemptReported d)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (pointAttemptTyped d) },
       { report := report intent s!"direct point enclosure (Taylor depth {d2})" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "interval_auto" #[toString d2])),
         solve := pointAttempt d2
-        solveReported := some (pointAttemptReported d2)
-        legacyExceptionAdapter := true }]
+        solveReportedResult := some (pointAttemptTyped d2) }]
   | .intervalBound => #[
       { report := report intent s!"direct interval enclosure (Taylor depth {d})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
