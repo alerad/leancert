@@ -10,6 +10,9 @@ import LeanCert.Examples.Li2Base
 
 Public interface for the Ramanujan-Soldner constant bounds.
 
+**Status:** historical downstream compatibility interface. The canonical
+namespace is `LeanCert.CertifiedBounds.Li2`; new declarations belong there.
+
 The two bound theorems below are intentionally stated with `sorry`, following
 the lightweight-interface / heavy-verification split used by the PNT+ project
 (PNT+ PR #774). Downstream projects import this file and get the bound

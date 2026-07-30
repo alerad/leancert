@@ -11,6 +11,9 @@ import LeanCert.Examples.BKLNW_a2_reflective
 Public interface for BKLNW `(1+α)·f(exp b)` bounds. Historical downstream
 names are preserved, but the theorem bodies now re-export the verified
 reflective certificates rather than placeholder interfaces.
+
+**Status:** downstream compatibility module. The canonical stable namespace
+is `LeanCert.CertifiedBounds.BKLNW`; new declarations belong there.
 -/
 
 open Real Finset

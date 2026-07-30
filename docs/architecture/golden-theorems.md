@@ -503,114 +503,27 @@ find_bounds(x²+sin(x), [0,1])
                                   ∀ x ∈ [0,1], x² + sin(x) ≤ 2
 ```
 
-## Real-World Examples
+## Compiled examples
 
-The `examples/` folder contains complete working examples demonstrating LeanCert on real-world problems from various domains.
+Supported demonstrations live under `LeanCert/Examples`, not in a separate
+top-level research-sketch directory. They are divided into two explicit Lake
+targets:
 
-### Number Theory: √2 (`examples/Sqrt2.lean`)
+```sh
+# Broad supported demonstrations.
+lake build Examples
 
-Proves existence, uniqueness, and arbitrary-precision bounds for √2:
-
-```lean
-def sqrtTwoInterval : IntervalRat := ⟨1, 2, by norm_num⟩
-
-def sqrtTwoExpr : Expr :=
-  Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))
-
-example : ∃ x ∈ sqrtTwoInterval,
-    Expr.eval (fun _ => x) sqrtTwoExpr = 0 := by
-  unfold sqrtTwoExpr
-  interval_roots
-
-example : ∃! x, x ∈ sqrtTwoInterval ∧
-    Expr.eval (fun _ => x) sqrtTwoExpr = 0 := by
-  unfold sqrtTwoExpr
-  interval_unique_root
+# Small announcement-quality success and failure cases.
+lake build Showcase
 ```
 
-### ML Safety: Neural Network Verification (`examples/NeuralNet.lean`)
+The [curated showcase](../showcase.md) covers a transcendental point
+inequality, quantified and multivariate bounds, root uniqueness, exact
+integration, and a domain-specific certified table theorem. The
+[failure showcase](../showcase-failures.md) covers false claims, unsupported
+syntax, domain obstructions, exhausted subdivision, and reported native
+fallback.
 
-Demonstrates interval propagation through neural networks:
-
-```lean
-#check LeanCert.ML.Distillation.SequentialNet.forwardInterval
-#check LeanCert.ML.Distillation.verify_equivalence
-```
-
-### Control Theory: Lyapunov Stability (`examples/Lyapunov.lean`)
-
-Proves energy dissipation for a damped harmonic oscillator:
-
-```lean
-example :
-    ∀ v ∈ Set.Icc (-1:ℝ) 1, -2/5 * v * v ≤ (0 : ℝ) := by
-  intro v ⟨hlo, hhi⟩
-  nlinarith [sq_nonneg v]
-```
-
-**Key technique**: ordinary interval evaluation treats repeated occurrences
-of `v` independently, so `v * v` over `[-1,1]` encloses to `[-1,1]` rather
-than the exact range `[0,1]`. Splitting the domain restores the sign
-information needed here.
-
-### Finance: Black-Scholes Bounds (`examples/BlackScholes.lean`)
-
-Proves bounds on option pricing components:
-
-```lean
--- Discount factor: e^(-rT) bounds for risk-free rate
-theorem discount_factor_lower :
-    ∀ r ∈ Set.Icc (-6/100 : ℝ) (-4/100), (94/100 : ℚ) ≤ Real.exp r := by
-  certify_bound
-
--- Log-moneyness for near-ATM options
-theorem log_moneyness_upper :
-    ∀ x ∈ Set.Icc (9/10 : ℝ) (11/10), Real.log x ≤ (10/100 : ℚ) := by
-  certify_bound
-
--- Gaussian core for vega calculation
-theorem gaussian_core_upper :
-    ∀ x ∈ Set.Icc (0:ℝ) 2, Real.exp (-x * x / 2) ≤ (1 : ℚ) := by
-  leancert
-```
-
-### Physics: Projectile Motion (`examples/Projectile.lean`)
-
-Proves bounds on projectile dynamics with air resistance:
-
-```lean
--- Drag acceleration: F_drag/m = k·v² ≤ 8.33 m/s²
-theorem drag_accel_upper :
-    ∀ v ∈ Set.Icc (0:ℝ) 50, 1/300 * v * v ≤ (25/3 : ℚ) := by
-  leancert
-
--- Net acceleration with gravity and drag
-theorem net_accel_lower :
-    ∀ v ∈ Set.Icc (0:ℝ) 50, (7/5 : ℚ) ≤ 49/5 - 1/300 * v * v := by
-  leancert
-
--- Exponential velocity decay
-theorem exp_decay_lower :
-    ∀ t ∈ Set.Icc (-1:ℝ) 0, (36/100 : ℚ) ≤ Real.exp t := by
-  leancert
-```
-
-### Running the Examples
-
-```bash
-# Test all examples
-for f in examples/*.lean; do lake env lean "$f"; done
-
-# Test a specific example
-lake env lean examples/Sqrt2.lean
-```
-
-### Lessons Learned
-
-| Issue | Solution |
-|-------|----------|
-| **Repeated-variable dependency** (`v * v` encloses to `[-1,1]` instead of the exact `[0,1]`) | Split domain and prove separately on `[0,1]` and `[-1,0]` |
-| **Rational cast errors** (`(2/5 : ℚ)` in expressions) | Use plain fractions: `2/5` without type annotation |
-| **Taylor overflow on wide intervals** (sin/cos) | Use narrower intervals or accept looser bounds |
-| **Division has a domain** (`1/x` bounds) | Use a checked evaluator/checker; intervals containing zero are rejected |
-| **Discovery command syntax** | Use `#bounds (fun x => ...) on [a, b]` with integer endpoints |
+Reusable theorems do not belong to the examples layer. Put them under
+`LeanCert.CertifiedBounds` and expose historical example paths only through
+documented [compatibility surfaces](../reference/compatibility.md).

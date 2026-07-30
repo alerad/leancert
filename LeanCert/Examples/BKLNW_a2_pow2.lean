@@ -11,6 +11,9 @@ import LeanCert.Examples.BKLNW_a2_reflective
 This public interface preserves the historical names used by downstream projects,
 but the large certificates now re-export the verified reflective proofs instead
 of placeholder theorem bodies.
+
+**Status:** downstream compatibility module. The canonical stable namespace
+is `LeanCert.CertifiedBounds.BKLNW`; new declarations belong there.
 -/
 
 open Real Finset

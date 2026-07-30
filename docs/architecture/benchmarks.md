@@ -8,6 +8,26 @@ lake build leancert-bench
 lake exe leancert-bench
 ```
 
+Three benchmark surfaces have distinct purposes:
+
+| Surface | Location | Purpose |
+| --- | --- | --- |
+| Compiled evaluator runner | `LeanCert/Benchmark` and `leancert-bench` | Backend, AD, algebra, root, and integration scaling |
+| Trust calibration | `scripts/bench-trust` | Kernel/native/auto verification policy and gate calibration |
+| Showcase timing | `scripts/bench-showcase` | Repeatable timings for the curated public demonstrations |
+
+Versioned baseline files live beside the two script harnesses. They record the
+Lean toolchain, revision, machine metadata, run count, and route-specific
+results; they are measurements of that recorded environment, not universal
+performance promises. The current pinned-toolchain baselines are:
+
+- `scripts/bench-trust/baselines/v4.32.2.jsonl`;
+- `scripts/bench-showcase/baselines/v4.32.2.jsonl`.
+
+The `Heavy` CI workflow builds the benchmark surfaces and uploads a smoke
+JSONL artifact for each run. Full calibration is intentionally manual because
+stable comparisons require a controlled machine and repeated warm runs.
+
 The default `smoke` suite exercises representative workloads from:
 
 - arithmetic denominator growth;

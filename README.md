@@ -1,7 +1,8 @@
 # LeanCert
 
-[![Lean Action CI](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml)
+[![Core](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml)
 [![Soundness Guard](https://github.com/alerad/leancert/actions/workflows/soundness-guard.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/soundness-guard.yml)
+[![Docs](https://github.com/alerad/leancert/actions/workflows/docs.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/docs.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-leancert.io-brightgreen.svg)](https://docs.leancert.io)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21681348.svg)](https://doi.org/10.5281/zenodo.21681348)
@@ -196,6 +197,31 @@ See [Verification Status](https://docs.leancert.io/architecture/verification-sta
 [Choosing Tactics](https://docs.leancert.io/tactics/choosing-tactics/), and
 [Troubleshooting](https://docs.leancert.io/direct/troubleshooting/) for the
 full support matrix and audit details.
+
+## Repository promises
+
+CI is split into six reviewable guarantees:
+
+| Tier | Status | What it establishes |
+| --- | --- | --- |
+| Core | [![Core](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml) | Stable library, public APIs, and downstream contracts |
+| Functional | [![Functional](https://github.com/alerad/leancert/actions/workflows/functional.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/functional.yml) | Every wired regression and executable smoke test |
+| Docs | [![Docs](https://github.com/alerad/leancert/actions/workflows/docs.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/docs.yml) | README/docs Lean snippets and strict MkDocs build |
+| Soundness | [![Soundness Guard](https://github.com/alerad/leancert/actions/workflows/soundness-guard.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/soundness-guard.yml) | Axiom, `sorry`, proof-hole, and trust-manifest audits |
+| Showcase | [![Showcase](https://github.com/alerad/leancert/actions/workflows/showcase.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/showcase.yml) | Published success and failure demonstrations |
+| Heavy | [![Heavy](https://github.com/alerad/leancert/actions/workflows/heavy.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/heavy.yml) | Expensive certificate targets and benchmark smoke |
+
+The exact commands and scope of each tier are documented in
+[CI Promises](https://docs.leancert.io/architecture/ci-promises/).
+
+The visible source layout follows the same ownership model: stable checked
+entry points live in `LeanCert/API`, reusable numerical theorems in
+`LeanCert/CertifiedBounds`, automation in `LeanCert/Tactic`, supported
+demonstrations in `LeanCert/Examples`, and regressions in `LeanCert/Test`.
+Historical forwarding imports are listed in
+[Compatibility Surfaces](https://docs.leancert.io/reference/compatibility/).
+See the [contributor architecture guide](docs/contributing/architecture.md)
+and [roadmap](docs/roadmap.md) for current boundaries and convergence work.
 
 ## Releases and citation
 

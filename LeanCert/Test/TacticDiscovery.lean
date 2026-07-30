@@ -11,7 +11,7 @@ import LeanCert.Tactic.Discovery
 This file tests the `interval_roots` tactic.
 -/
 
-namespace LeanCert.Tactic.TestDiscovery
+namespace LeanCert.Test.TacticDiscovery
 
 open LeanCert.Core
 open LeanCert.Engine
@@ -219,4 +219,4 @@ theorem test_unique_ln2 : ∃! x, x ∈ I_0_1 ∧
 -- initial brackets for transcendental functions).
 -- The interval arithmetic is sound, but these intervals are too wide for single-step contraction.
 
-end LeanCert.Tactic.TestDiscovery
+end LeanCert.Test.TacticDiscovery

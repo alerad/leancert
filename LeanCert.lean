@@ -95,7 +95,6 @@ import LeanCert.Tactic.DyadicAuto
 import LeanCert.Tactic.Refute
 -- Additional tactics
 import LeanCert.Tactic.Bound
--- Note: TestAuto and TestDiscovery moved to `examples` build target.
 -- Vector simplification with explicit Fin constructors
 import LeanCert.Tactic.VecSimp
 -- Finset sum expansion (intervals, explicit sets, and Fin sums)
