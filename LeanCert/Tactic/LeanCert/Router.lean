@@ -166,8 +166,8 @@ private def pointAttemptTyped (depth : Nat) :
   | .error (.transportFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
 
-private def directBoundAttemptReported (depth : Nat) : TacticM SolverExecution := do
-  let outcome ← Auto.intervalBoundCoreReported depth
+private def directBoundExecution (outcome : Auto.IntervalBoundOutcome) :
+    SolverExecution := Id.run do
   let mut notes := #[s!"Taylor depth: {outcome.taylorDepth}"]
   if let some precision := outcome.precision then
     notes := notes.push s!"precision: {precision}"
@@ -180,6 +180,20 @@ private def directBoundAttemptReported (depth : Nat) : TacticM SolverExecution :
     verifier := outcome.verifier
     notes
   }
+
+private unsafe def directBoundAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Auto.intervalBoundCoreTyped depth with
+  | .ok outcome => return .ok (directBoundExecution outcome)
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported {
+        expression
+        detail := some detail
+      }
+  | .error (.inconclusive detail) =>
+      return .error <| .inconclusive { detail }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.certify_bound detail
 
 private def finSumAttemptReported (precision : Int) (depth : Nat) :
     TacticM SolverExecution := do
@@ -296,14 +310,12 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound" #[toString d])),
         solve := Auto.intervalBoundCore d
-        solveReported := some (directBoundAttemptReported d)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (directBoundAttemptTyped d) },
       { report := report intent s!"direct interval enclosure (Taylor depth {d2})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound" #[toString d2])),
         solve := Auto.intervalBoundCore d2
-        solveReported := some (directBoundAttemptReported d2)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (directBoundAttemptTyped d2) },
       { report := report intent "recursive interval subdivision" cfg mode
           (.fixed .rationalInterval)
           (some (suggestion "interval_bound_subdiv"

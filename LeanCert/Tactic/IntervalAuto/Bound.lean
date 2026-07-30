@@ -134,9 +134,9 @@ structure DyadicBoundOutcome where
   taylorDepth : Nat
   deriving Inhabited
 
-/-- Runtime facts from the retained direct-bound proof. A Rational fallback is
-observed by first running the checked Dyadic attempt in an isolated state; the
-legacy Rational adapter does not yet expose its individual checker event. -/
+/-- Runtime facts from the retained direct-bound proof. Both Dyadic success and
+the checked Rational fallback retain their checker, Golden Theorem, and
+verification event. -/
 structure IntervalBoundOutcome where
   dyadic : Bool
   checker : Option Name := none
@@ -146,6 +146,56 @@ structure IntervalBoundOutcome where
   taylorDepth : Nat
   deriving Inhabited
 
+/-- Expected non-successes from the direct interval-bound portfolio. -/
+inductive IntervalBoundFailure where
+  | unsupported (expression detail : String)
+  | inconclusive (detail : String)
+  | transportFailure (detail : String)
+  deriving Inhabited
+
+/-- One retained Rational bound certificate observation. -/
+structure RationalBoundObservation where
+  checker : Name
+  verifier : Name
+  verification : LeanCert.Tactic.VerificationUsage
+  deriving Inhabited
+
+private def boundVerifierName (isStrict isLower useChecked fromIcc : Bool) : Name :=
+  match isStrict, isLower, useChecked, fromIcc with
+  | false, false, false, false => ``verify_upper_bound
+  | false, false, true, false => ``verify_upper_bound_checked
+  | false, false, false, true => ``verify_upper_bound_Icc_core
+  | false, false, true, true => ``verify_upper_bound_Icc_checked
+  | false, true, false, false => ``verify_lower_bound
+  | false, true, true, false => ``verify_lower_bound_checked
+  | false, true, false, true => ``verify_lower_bound_Icc_core
+  | false, true, true, true => ``verify_lower_bound_Icc_checked
+  | true, false, false, false => ``verify_strict_upper_bound
+  | true, false, true, false => ``verify_strict_upper_bound_checked
+  | true, false, false, true => ``verify_strict_upper_bound_Icc_core
+  | true, false, true, true => ``verify_strict_upper_bound_Icc_checked
+  | true, true, false, false => ``verify_strict_lower_bound
+  | true, true, true, false => ``verify_strict_lower_bound_checked
+  | true, true, false, true => ``verify_strict_lower_bound_Icc_core
+  | true, true, true, true => ``verify_strict_lower_bound_Icc_checked
+
+private def closeBoundCertificate
+    (observation? : Option (IO.Ref (Option RationalBoundObservation)))
+    (verifier : Name) (goal : MVarId) : TacticM Unit := do
+  let certType ← instantiateMVars (← goal.getType)
+  let args := certType.getAppArgs
+  let checker :=
+    if args.size ≥ 2 then args[args.size - 2]!.getAppFn.constName?.getD .anonymous
+    else .anonymous
+  let event ← closeCertificateGoalReported (← VerificationConfig.current) goal
+    (tacticName := "certify_bound")
+  if let some observation := observation? then
+    observation.set <| some {
+      checker
+      verifier
+      verification := event.toUsage
+    }
+
 /-- Try to prove a forall-bound goal using the Dyadic backend.
     Returns metadata if the entire goal was closed, `none` otherwise.
     Uses the checked Dyadic evaluator for arbitrary expressions. -/
@@ -153,8 +203,7 @@ def tryDyadicBoundReported (goal : MVarId) (ast boundRat : Lean.Expr)
     (intervalInfo : IntervalInfo) (taylorDepth : Nat)
     (isStrict isLower : Bool) : TacticM (Option DyadicBoundOutcome) := do
   let saved ← saveState
-  try
-    let (theoremName, checkName) :=
+  let (theoremName, checkName) :=
       match isStrict, isLower with
       | false, false => (``LeanCert.Validity.verify_upper_bound_dyadic_checked, ``LeanCert.Validity.checkUpperBoundDyadicChecked)
       | false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic_checked, ``LeanCert.Validity.checkLowerBoundDyadicChecked)
@@ -174,24 +223,40 @@ def tryDyadicBoundReported (goal : MVarId) (ast boundRat : Lean.Expr)
       let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
-      let event ← certGoalId.withContext do
-        setGoals [certGoalId]
-        closeCertificateGoalReported (← VerificationConfig.current)
-          (← getMainGoal) (tacticName := "certify_bound")
+      let event? ←
+        try
+          some <$> certGoalId.withContext do
+            setGoals [certGoalId]
+            closeCertificateGoalReported (← VerificationConfig.current)
+              (← getMainGoal) (tacticName := "certify_bound")
+        catch e =>
+          trace[interval_decide] "Dyadic certificate rejected in certify_bound: \
+            {e.toMessageData}"
+          pure none
+      let some event := event?
+        | saved.restore
+          return none
       let conclusionProof ← mkAppM' proof #[certGoal]
       -- Retain the event locally until all transport goals have closed.
       setGoals [goal]
-      let newGoals ← goal.apply conclusionProof
-      setGoals newGoals
-      for g in newGoals do
-        setGoals [g]
-        try evalTactic (← `(tactic| rfl))
-        catch _ =>
-          try evalTactic (← `(tactic| norm_num))
-          catch _ =>
-            try evalTactic (← `(tactic| norm_cast))
-            catch _ => pure ()
-      if (← getGoals).isEmpty then
+      let transported ←
+        try
+          let newGoals ← goal.apply conclusionProof
+          setGoals newGoals
+          for g in newGoals do
+            setGoals [g]
+            try evalTactic (← `(tactic| rfl))
+            catch _ =>
+              try evalTactic (← `(tactic| norm_num))
+              catch _ =>
+                try evalTactic (← `(tactic| norm_cast))
+                catch _ => pure ()
+          pure (← getGoals).isEmpty
+        catch e =>
+          trace[interval_decide] "Dyadic proof transport unavailable in \
+            certify_bound: {e.toMessageData}"
+          pure false
+      if transported then
         return some {
           checker := checkName
           verifier := theoremName
@@ -202,15 +267,13 @@ def tryDyadicBoundReported (goal : MVarId) (ast boundRat : Lean.Expr)
       saved.restore
       return none
     | none => saved.restore; return none
-  catch e =>
-    saved.restore
-    trace[interval_decide] "Dyadic backend failed in certify_bound: {e.toMessageData}"
-    return none
 
 /-! ## Main Tactic Implementation -/
 
 /-- The main certify_bound tactic implementation -/
-def intervalBoundCore (taylorDepth : Nat) : TacticM Unit := do
+def intervalBoundCore (taylorDepth : Nat) (useDyadic : Bool := true)
+    (observation? : Option (IO.Ref (Option RationalBoundObservation)) := none) :
+    TacticM Unit := do
   intervalNormCore
   -- Pre-process: convert ≥ to ≤ and > to < for uniform handling
   -- First intro variables to get into the body of the forall
@@ -285,12 +348,15 @@ where
 
       -- 2.5. Try Dyadic backend first
       let savedState ← saveState
-      if (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth false false).isSome then
+      if useDyadic &&
+          (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth false false).isSome then
         return
       restoreState savedState
 
       -- 3. Generate support proof (tries Core first, falls back to Checked for log/inv)
       let (supportProof, useChecked) ← getSupportProof ast
+      let verifier := boundVerifierName false false useChecked
+        intervalInfo.fromSetIcc.isSome
 
       -- 4. Build config expression
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -325,7 +391,7 @@ where
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
-              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+              closeBoundCertificate observation? verifier (← getMainGoal)
           catch _ =>
             -- Apply failed, so we need to use convert
             setGoals [goal]
@@ -343,7 +409,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+            closeBoundCertificate observation? verifier (← getMainGoal)
             let certProof := certGoal
 
             -- Apply the theorem with the certificate to get the conclusion
@@ -413,7 +479,7 @@ where
             setGoals newGoals
             for g in newGoals do
               setGoals [g]
-              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+              closeBoundCertificate observation? verifier (← getMainGoal)
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -425,7 +491,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+            closeBoundCertificate observation? verifier (← getMainGoal)
             let certProof := certGoal
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
@@ -467,11 +533,14 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth false true).isSome then
+      if useDyadic &&
+          (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth false true).isSome then
         return
       restoreState savedState
 
       let (supportProof, useChecked) ← getSupportProof ast
+      let verifier := boundVerifierName false true useChecked
+        intervalInfo.fromSetIcc.isSome
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
       -- Handle based on interval source
@@ -504,7 +573,7 @@ where
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
-              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+              closeBoundCertificate observation? verifier (← getMainGoal)
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -519,7 +588,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+            closeBoundCertificate observation? verifier (← getMainGoal)
             let certProof := certGoal
 
             let conclusionProof ← mkAppM' proof #[certProof]
@@ -583,7 +652,7 @@ where
             setGoals newGoals
             for g in newGoals do
               setGoals [g]
-              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+              closeBoundCertificate observation? verifier (← getMainGoal)
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -595,7 +664,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+            closeBoundCertificate observation? verifier (← getMainGoal)
             let certProof := certGoal
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
@@ -637,11 +706,14 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth true false).isSome then
+      if useDyadic &&
+          (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth true false).isSome then
         return
       restoreState savedState
 
       let (supportProof, useChecked) ← getSupportProof ast
+      let verifier := boundVerifierName true false useChecked
+        intervalInfo.fromSetIcc.isSome
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
       -- Handle based on interval source
@@ -674,7 +746,7 @@ where
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
-              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+              closeBoundCertificate observation? verifier (← getMainGoal)
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -689,7 +761,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+            closeBoundCertificate observation? verifier (← getMainGoal)
             let certProof := certGoal
 
             let conclusionProof ← mkAppM' proof #[certProof]
@@ -750,7 +822,7 @@ where
           for g in newGoals do
             setGoals [g]
             try
-              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+              closeBoundCertificate observation? verifier (← getMainGoal)
             catch _ =>
               try
                 evalTactic (← `(tactic| norm_cast))
@@ -769,11 +841,14 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth true true).isSome then
+      if useDyadic &&
+          (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth true true).isSome then
         return
       restoreState savedState
 
       let (supportProof, useChecked) ← getSupportProof ast
+      let verifier := boundVerifierName true true useChecked
+        intervalInfo.fromSetIcc.isSome
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
 
       -- Handle based on interval source
@@ -806,7 +881,7 @@ where
                   return false
               if ← tryClose (evalTactic (← `(tactic| rfl))) then
                 continue
-              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+              closeBoundCertificate observation? verifier (← getMainGoal)
           catch _ =>
             -- Apply failed, use convert
             setGoals [goal]
@@ -821,7 +896,7 @@ where
             let certGoal ← mkFreshExprMVar certTy
             let certGoalId := certGoal.mvarId!
             setGoals [certGoalId]
-            discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+            closeBoundCertificate observation? verifier (← getMainGoal)
             let certProof := certGoal
 
             let conclusionProof ← mkAppM' proof #[certProof]
@@ -882,22 +957,20 @@ where
           for g in newGoals do
             setGoals [g]
             try
-              discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+              closeBoundCertificate observation? verifier (← getMainGoal)
             catch _ =>
               try
                 evalTactic (← `(tactic| norm_cast))
               catch _ =>
                 evalTactic (← `(tactic| simp only [Rat.cast_zero, Rat.cast_one, Rat.cast_intCast, Rat.cast_natCast]))
 
-/-- Reporting-aware direct-bound entry point.
-
-The checked Dyadic attempt already returns complete telemetry. If that attempt
-does not close the goal, the original state is restored and the compatibility
-core runs its checked Rational fallback. This makes the winning arithmetic
-backend observable without allowing failed Dyadic metadata to leak into the
-Rational result. -/
-def intervalBoundCoreReported (taylorDepth : Nat) : TacticM IntervalBoundOutcome := do
-  let original ← saveState
+/-- Evaluate the closed Rational checker corresponding to a normalized bound.
+This is used only after proof construction failed: `false` identifies an
+ordinary inconclusive enclosure, while `true` means the certificate was valid
+and the failure occurred in proof construction or transport. -/
+private unsafe def rationalBoundCheckerResult? (taylorDepth : Nat) :
+    TacticM (Option Bool) := do
+  let saved ← saveState
   try
     intervalNormCore
     try
@@ -913,45 +986,142 @@ def intervalBoundCoreReported (taylorDepth : Nat) : TacticM IntervalBoundOutcome
         simp only [pow_zero, pow_one, one_mul, mul_one] at *))
     catch _ => pure ()
     let goal ← getMainGoal
-    let goalType ← goal.getType
-    let some boundGoal ← parseBoundGoal goalType
-      | throwError "reported direct bound: goal normalization did not produce a bound"
-    let attempt (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
-        (isStrict isLower : Bool) : TacticM (Option DyadicBoundOutcome) := do
-      goal.withContext do
-        discard <| tryNormalizeGoalToIcc
-        let normalizedGoal ← getMainGoal
-        let ast := (← getAstWithReport func).expr
-        let boundRat ← extractRatBound bound
-        tryDyadicBoundReported normalizedGoal ast boundRat intervalInfo taylorDepth
-          isStrict isLower
-    let dyadic? ←
+    let some boundGoal ← parseBoundGoal (← goal.getType)
+      | saved.restore
+        return none
+    let evaluate (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
+        (isStrict isLower : Bool) : TacticM (Option Bool) := goal.withContext do
+      discard <| tryNormalizeGoalToIcc
+      let ast := (← getAstWithReport func).expr
+      let boundRat ← extractRatBound bound
+      let (_, useChecked) ← getSupportProof ast
+      let checkName :=
+        match isStrict, isLower, useChecked with
+        | false, false, false => ``LeanCert.Validity.checkUpperBound
+        | false, false, true => ``LeanCert.Validity.checkUpperBoundChecked
+        | false, true, false => ``LeanCert.Validity.checkLowerBound
+        | false, true, true => ``LeanCert.Validity.checkLowerBoundChecked
+        | true, false, false => ``LeanCert.Validity.checkStrictUpperBound
+        | true, false, true => ``LeanCert.Validity.checkStrictUpperBoundChecked
+        | true, true, false => ``LeanCert.Validity.checkStrictLowerBound
+        | true, true, true => ``LeanCert.Validity.checkStrictLowerBoundChecked
+      let checkExpr ←
+        if useChecked then
+          mkAppM checkName #[ast, intervalInfo.intervalRat, boundRat]
+        else
+          mkAppM checkName #[ast, intervalInfo.intervalRat, boundRat,
+            ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]]
+      return some (← unsafe evalExpr Bool (mkConst ``Bool) checkExpr)
+    let result ←
       match boundGoal with
       | .forallLe _ intervalInfo func bound =>
-          attempt intervalInfo func bound false false
+          evaluate intervalInfo func bound false false
       | .forallGe _ intervalInfo func bound =>
-          attempt intervalInfo func bound false true
+          evaluate intervalInfo func bound false true
       | .forallLt _ intervalInfo func bound =>
-          attempt intervalInfo func bound true false
+          evaluate intervalInfo func bound true false
       | .forallGt _ intervalInfo func bound =>
-          attempt intervalInfo func bound true true
-    if let some outcome := dyadic? then
-      return {
-        dyadic := true
-        checker := some outcome.checker
-        verifier := some outcome.verifier
-        verification := outcome.verification
-        precision := some outcome.precision
-        taylorDepth := outcome.taylorDepth
-      }
-  catch error =>
-    trace[interval_decide] "reported Dyadic direct-bound attempt failed: {error.toMessageData}"
+          evaluate intervalInfo func bound true true
+    saved.restore
+    return result
+  catch _ =>
+    saved.restore
+    return none
+
+/-- Typed direct-bound entry point.
+
+The Dyadic branch is isolated internally. Rational proof construction runs
+once on success. Only after a Rational failure do we evaluate its checker
+directly to distinguish an ordinary inconclusive enclosure from a valid
+certificate whose proof transport failed. -/
+unsafe def intervalBoundCoreTyped (taylorDepth : Nat) :
+    TacticM (Except IntervalBoundFailure IntervalBoundOutcome) := do
+  let original ← saveState
+  intervalNormCore
+  try
+    evalTactic (← `(tactic|
+      intro _x _hx
+      simp only [ge_iff_le, gt_iff_lt]
+      revert _x _hx))
+  catch _ =>
+    try evalTactic (← `(tactic| simp only [ge_iff_le, gt_iff_lt]))
+    catch _ => pure ()
+  try
+    evalTactic (← `(tactic|
+      simp only [pow_zero, pow_one, one_mul, mul_one] at *))
+  catch _ => pure ()
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let some boundGoal ← parseBoundGoal goalType
+    | original.restore
+      return .error <| .unsupported (toString goalType)
+        "goal normalization did not produce a supported direct bound"
+  let attempt (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
+      (isStrict isLower : Bool) : TacticM (Option DyadicBoundOutcome) :=
+    goal.withContext do
+      discard <| tryNormalizeGoalToIcc
+      let normalizedGoal ← getMainGoal
+      let ast := (← getAstWithReport func).expr
+      let boundRat ← extractRatBound bound
+      tryDyadicBoundReported normalizedGoal ast boundRat intervalInfo taylorDepth
+        isStrict isLower
+  let dyadic? ←
+    match boundGoal with
+    | .forallLe _ intervalInfo func bound =>
+        attempt intervalInfo func bound false false
+    | .forallGe _ intervalInfo func bound =>
+        attempt intervalInfo func bound false true
+    | .forallLt _ intervalInfo func bound =>
+        attempt intervalInfo func bound true false
+    | .forallGt _ intervalInfo func bound =>
+        attempt intervalInfo func bound true true
+  if let some outcome := dyadic? then
+    return .ok {
+      dyadic := true
+      checker := some outcome.checker
+      verifier := some outcome.verifier
+      verification := outcome.verification
+      precision := some outcome.precision
+      taylorDepth := outcome.taylorDepth
+    }
   original.restore
-  intervalBoundCore taylorDepth
-  return {
-    dyadic := false
-    taylorDepth
-  }
+  let rationalObservation ← IO.mkRef (none : Option RationalBoundObservation)
+  try
+    intervalBoundCore taylorDepth false (some rationalObservation)
+    let some observation ← rationalObservation.get
+      | throwError "Rational bound proof closed without recording its certificate"
+    return .ok {
+      dyadic := false
+      checker := some observation.checker
+      verifier := some observation.verifier
+      verification := observation.verification
+      taylorDepth
+    }
+  catch error =>
+    original.restore
+    match ← rationalBoundCheckerResult? taylorDepth with
+    | some false =>
+        return .error <| .inconclusive
+          "The direct interval enclosure did not establish the requested bound."
+    | some true =>
+        return .error <| .transportFailure (← error.toMessageData.toString)
+    | none => throw error
+
+/-- Reporting-aware direct-bound entry point.
+
+The checked Dyadic attempt already returns complete telemetry. If it does not
+close the goal, the original state is restored and the Rational core runs
+without retrying Dyadic. Only the winning branch's observation is returned. -/
+unsafe def intervalBoundCoreReported (taylorDepth : Nat) :
+    TacticM IntervalBoundOutcome := do
+  match ← intervalBoundCoreTyped taylorDepth with
+  | .ok outcome => return outcome
+  | .error (.unsupported expression detail) =>
+      throwError "reported direct bound: unsupported expression {expression}:\n{detail}"
+  | .error (.inconclusive detail) =>
+      throwError "reported direct bound: {detail}"
+  | .error (.transportFailure detail) =>
+      throwError "reported direct bound: proof transport failed:\n{detail}"
 
 
 /-! ## Tactic Syntax -/

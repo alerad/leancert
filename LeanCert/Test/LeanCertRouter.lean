@@ -74,6 +74,33 @@ elab "expect_terminal_outcome_stops" : tactic => do
   if continued then
     throwError "routing continued after a terminal outcome"
 
+syntax (name := expectRationalPointReport) "expect_rational_point_report" : tactic
+
+@[tactic expectRationalPointReport]
+unsafe def elabExpectRationalPointReport : Tactic := fun _ => do
+  let result ← runLeanCert {} .compact
+  unless result.execution.backend == some .rationalInterval do
+    throwError "point difference route did not report Rational execution"
+  unless result.execution.verificationUsage.nativeChecks == 1 &&
+      result.execution.verificationUsage.kernelChecks == 0 do
+    throwError "point Rational report contains leaked or missing verification events"
+
+syntax (name := expectKernelBoundReport) "expect_kernel_bound_report" : tactic
+
+@[tactic expectKernelBoundReport]
+unsafe def elabExpectKernelBoundReport : Tactic := fun _ => do
+  withTrustMode (some .kernel) do
+    let result ← runLeanCert { trust := some .kernel } .compact
+    unless result.execution.backend == some .rationalInterval do
+      throwError "direct bound did not report its Rational fallback"
+    unless result.execution.verificationUsage.kernelChecks == 1 &&
+        result.execution.verificationUsage.nativeChecks == 0 do
+      throwError "kernel bound report contains leaked or incorrect verification events"
+    unless result.execution.checker == some ``LeanCert.Validity.checkUpperBound &&
+        result.execution.verifier ==
+          some ``LeanCert.Validity.verify_upper_bound_Icc_core do
+      throwError "Rational bound checker/Golden-Theorem identity was not retained"
+
 /--
 info: LeanCert recognized: closed certificate check
 
@@ -113,6 +140,12 @@ example : ∃ x ∈ Set.Icc (0 : ℝ) 1, x = 0 := by
 example : True := by
   expect_terminal_outcome_stops
   trivial
+
+example : Real.log 2 < Real.exp 1 := by
+  expect_rational_point_report
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x * Real.cos x ≤ 3 := by
+  expect_kernel_bound_report
 
 /--
 info: LeanCert recognized: closed numerical comparison
@@ -174,7 +207,9 @@ Numerical computation:
   Rational interval evaluation
 
 Certificate verification:
-  requested native; actual route not observed by the legacy adapter
+  requested native → used native
+Checker: LeanCert.Validity.checkUpperBound
+Verifier: LeanCert.Validity.verify_upper_bound_Icc_core
 
 Suggested proof:
   by
