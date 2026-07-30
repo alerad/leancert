@@ -263,7 +263,6 @@ structure DiscoveryOutcome where
 inductive DiscoveryFailure where
   | unsupported (expression detail : String)
   | inconclusive (detail : String)
-  | rejected (checker : Option Name) (detail : String)
   | transportFailure (detail : String)
   deriving Inhabited, Repr
 
@@ -278,8 +277,6 @@ private def throwDiscoveryFailure (tacticName : String) : DiscoveryFailure → T
       throwError "{tacticName}: unsupported expression {expression}:\n{detail}"
   | .inconclusive detail =>
       throwError "{tacticName}: {detail}"
-  | .rejected checker detail =>
-      throwError "{tacticName}: certificate {checker} was rejected:\n{detail}"
   | .transportFailure detail =>
       throwError "{tacticName}: proof transport failed:\n{detail}"
 

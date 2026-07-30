@@ -195,8 +195,7 @@ private unsafe def directBoundAttemptTyped (depth : Nat) :
       return .error <| .internalError `LeanCert.Tactic.Auto.certify_bound detail
 
 private def discoveryExecution (outcome : DiscoveryOutcome) : SolverExecution := {
-  backend := outcome.dyadic.map fun dyadic =>
-    if dyadic then .dyadicInterval else .rationalInterval
+  backend := some .rationalInterval
   verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
   checker := outcome.checker
   verifier := outcome.verifier
@@ -211,6 +210,8 @@ private def discoveryExecution (outcome : DiscoveryOutcome) : SolverExecution :=
   notes := #[
     s!"discovered witness: {outcome.witness}",
     s!"certified search interval: [{outcome.lowerBound}, {outcome.upperBound}]",
+    s!"bound certification backend: {
+      if outcome.dyadic.getD false then "Dyadic interval" else "Rational interval"}",
     s!"Taylor depth: {outcome.taylorDepth}"
   ]
 }
@@ -221,8 +222,6 @@ private def discoveryFailure (solver : Name) :
       .unsupported { expression, detail := some detail }
   | .inconclusive detail =>
       .inconclusive { detail }
-  | .rejected checker detail =>
-      .rejected { checker, detail }
   | .transportFailure detail =>
       .internalError solver detail
 
@@ -304,7 +303,7 @@ private def noRootAttemptReported (depth : Nat) : TacticM SolverExecution := do
     outcome.verification outcome.checker outcome.verifier
     #[s!"Taylor depth: {outcome.taylorDepth}"]
 
-private def optimizationAttemptTyped (maxIterations : Nat)
+private unsafe def optimizationAttemptTyped (maxIterations : Nat)
     (useMonotonicity : Bool) (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← Auto.optBoundCoreTyped maxIterations useMonotonicity depth with
@@ -327,16 +326,12 @@ private def optimizationAttemptTyped (maxIterations : Nat)
         expression
         detail := some detail
       }
-  | .error (.rejected checker detail) =>
-      trace[LeanCert.router] "optimization certificate rejected:\n{detail}"
-      return .error <| .rejected {
-        checker := some checker
-        detail := "The global-optimization certificate was rejected."
-      }
   | .error (.transportFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.opt_bound detail
+  | .error (.internalFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.opt_bound detail
 
-private def multivariateAttemptTyped (maxIterations : Nat)
+private unsafe def multivariateAttemptTyped (maxIterations : Nat)
     (tolerance : ℚ) (useMonotonicity : Bool) (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← Auto.multivariateBoundCoreTyped maxIterations tolerance
@@ -360,13 +355,10 @@ private def multivariateAttemptTyped (maxIterations : Nat)
         expression
         detail := some detail
       }
-  | .error (.rejected checker detail) =>
-      trace[LeanCert.router] "multivariate certificate rejected:\n{detail}"
-      return .error <| .rejected {
-        checker := some checker
-        detail := "The multivariate optimization certificate was rejected."
-      }
   | .error (.transportFailure detail) =>
+      return .error <| .internalError
+        `LeanCert.Tactic.Auto.multivariate_bound detail
+  | .error (.internalFailure detail) =>
       return .error <| .internalError
         `LeanCert.Tactic.Auto.multivariate_bound detail
 

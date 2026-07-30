@@ -47,6 +47,12 @@ and checker are not rerun to produce this report. For a direct `opt_bound`
 certificate, only configured limits are reported because that checked API does
 not expose an execution trace.
 
+A gap larger than the configured tolerance is reported as
+`Within requested tolerance: false`. It does not invalidate an existential
+bound: the discovered witness is still accepted only after its bound is
+independently certified. The tolerance measures discovery quality, not proof
+soundness or tactic success.
+
 Discovery mode is useful when you do not yet know the bound or extremum.  See
 the existing [Discovery Mode](../tactics/discovery.md) reference for command
 syntax and examples.

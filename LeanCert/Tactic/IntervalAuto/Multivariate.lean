@@ -44,15 +44,19 @@ structure MultivariateBoundOutcome where
 
 inductive MultivariateBoundFailure where
   | unsupported (expression detail : String)
-  | rejected (checker : Name) (detail : String)
   | transportFailure (detail : String)
+  | internalFailure (detail : String)
   deriving Inhabited, Repr
 
 /-- Typed multivariate-bound implementation. -/
-def multivariateBoundCoreTyped (maxIters : Nat) (tolerance : ℚ)
+unsafe def multivariateBoundCoreTyped (maxIters : Nat) (tolerance : ℚ)
     (useMonotonicity : Bool) (taylorDepth : Nat) :
     TacticM (Except MultivariateBoundFailure MultivariateBoundOutcome) := do
-  intervalNormCore
+  let original ← saveState
+  try intervalNormCore
+  catch e =>
+    original.restore
+    return .error <| .unsupported "goal normalization" (← e.toMessageData.toString)
   let goal ← getMainGoal
   let goalType ← goal.getType
   trace[LeanCert.discovery] "multivariate_bound goal: {goalType}"
@@ -60,14 +64,17 @@ def multivariateBoundCoreTyped (maxIters : Nat) (tolerance : ℚ)
   -- Parse the multivariate goal
   let parsed ← parseMultivariateBoundGoal goalType
   let some boundGoal := parsed
-    | return .error <| .unsupported (toString goalType)
+    | original.restore
+      return .error <| .unsupported (toString goalType)
         "expected a quantified multivariate upper or lower bound"
 
   match boundGoal with
   | .forallLe vars func bound =>
     match ← proveMultivariateLe goal vars func bound maxIters tolerance
         useMonotonicity taylorDepth with
-    | .error failure => return .error failure
+    | .error failure =>
+      original.restore
+      return .error failure
     | .ok event => return .ok {
       direction := .upper
       checker := ``checkGlobalUpperBound
@@ -81,7 +88,9 @@ def multivariateBoundCoreTyped (maxIters : Nat) (tolerance : ℚ)
   | .forallGe vars func bound =>
     match ← proveMultivariateGe goal vars func bound maxIters tolerance
         useMonotonicity taylorDepth with
-    | .error failure => return .error failure
+    | .error failure =>
+      original.restore
+      return .error failure
     | .ok event => return .ok {
       direction := .lower
       checker := ``checkGlobalLowerBound
@@ -228,8 +237,7 @@ where
           (tacticName := "multivariate_bound")
       catch e =>
         saved.restore
-        return .error <| .rejected ``checkGlobalUpperBound
-          (← e.toMessageData.toString)
+        return .error <| .internalFailure (← e.toMessageData.toString)
 
       let conclusionProof ← mkAppM' proof #[certGoal]
       let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
@@ -326,8 +334,7 @@ where
           (tacticName := "multivariate_bound")
       catch e =>
         saved.restore
-        return .error <| .rejected ``checkGlobalLowerBound
-          (← e.toMessageData.toString)
+        return .error <| .internalFailure (← e.toMessageData.toString)
 
       let conclusionProof ← mkAppM' proof #[certGoal]
       let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
@@ -360,7 +367,7 @@ where
       return .ok event
 
 /-- Reporting compatibility wrapper preserving the historical throwing API. -/
-def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
+unsafe def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
     (useMonotonicity : Bool) (taylorDepth : Nat) :
     TacticM MultivariateBoundOutcome := do
   match ← multivariateBoundCoreTyped maxIters tolerance useMonotonicity
@@ -368,13 +375,13 @@ def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
   | .ok outcome => return outcome
   | .error (.unsupported expression detail) =>
       throwError "multivariate_bound: unsupported expression {expression}:\n{detail}"
-  | .error (.rejected _ detail) =>
-      throwError "multivariate_bound: global-bound certificate was rejected:\n{detail}"
   | .error (.transportFailure detail) =>
       throwError "multivariate_bound: proof transport failed:\n{detail}"
+  | .error (.internalFailure detail) =>
+      throwError "multivariate_bound: internal verification failure:\n{detail}"
 
 /-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ)
+unsafe def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ)
     (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
   discard <| multivariateBoundCoreReported maxIters tolerance useMonotonicity taylorDepth
 
@@ -390,11 +397,17 @@ def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ)
     - `∀ x ∈ I, ∀ y ∈ J, f(x,y) ≤ c`
     - `∀ x ∈ I, ∀ y ∈ J, c ≤ f(x,y)`
 -/
-elab "multivariate_bound" iters:(num)? t:(leancertTrustItem)? : tactic => do
+syntax (name := multivariateBoundTac) "multivariate_bound" (num)?
+  (leancertTrustItem)? : tactic
+
+@[tactic multivariateBoundTac]
+unsafe def elabMultivariateBound : Tactic := fun stx => do
+  let iters := stx[1].getOptional?
+  let t := stx[2].getOptional?.map (⟨·⟩)
   let trust? ← LeanCert.Tactic.elabTrustItem? t
   LeanCert.Tactic.withTrustMode trust? do
     let maxIters := match iters with
-      | some n => n.getNat
+      | some n => n.toNat
       | none => 1000
     multivariateBoundCore maxIters (1/1000) false 10
 
