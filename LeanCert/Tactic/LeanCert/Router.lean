@@ -210,6 +210,12 @@ private def discoveryExecution (outcome : DiscoveryOutcome) : SolverExecution :=
     gap := some (outcome.upperBound - outcome.lowerBound)
     converged := some (outcome.upperBound - outcome.lowerBound ≤ outcome.tolerance)
     remainingBoxes := some outcome.remainingBoxes
+    termination := some <|
+      match outcome.termination with
+      | .toleranceReached => .toleranceReached
+      | .iterationLimit => .iterationLimit
+      | .queueExhausted => .queueExhausted
+      | .stopped => .stopped
   }
   notes := #[
     s!"discovered witness: {outcome.witness}",
@@ -226,6 +232,12 @@ private def discoveryFailure (solver : Name) :
       .unsupported { expression, detail := some detail }
   | .inconclusive detail =>
       .inconclusive { detail }
+  | .domainObstruction domain operation detail =>
+      .domainObstruction {
+        source := { original := domain, kind := .intervalRat }
+        reason := detail
+        operation := some operation
+      }
   | .transportFailure detail =>
       .internalError solver detail
   | .internalFailure detail =>
@@ -244,6 +256,22 @@ private unsafe def maximizeAttemptTyped (depth : Nat) :
   | .ok outcome => return .ok (discoveryExecution outcome)
   | .error failure =>
       return .error (discoveryFailure `LeanCert.Tactic.Discovery.interval_maximize failure)
+
+private unsafe def minimizeMvAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← intervalMinimizeMvCoreTyped depth with
+  | .ok outcome => return .ok (discoveryExecution outcome)
+  | .error failure =>
+      return .error (discoveryFailure
+        `LeanCert.Tactic.Discovery.interval_minimize_mv failure)
+
+private unsafe def maximizeMvAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← intervalMaximizeMvCoreTyped depth with
+  | .ok outcome => return .ok (discoveryExecution outcome)
+  | .error failure =>
+      return .error (discoveryFailure
+        `LeanCert.Tactic.Discovery.interval_maximize_mv failure)
 
 private def finSumAttemptReported (precision : Int) (depth : Nat) :
     TacticM SolverExecution := do
@@ -513,8 +541,10 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solve := intervalMinimizeCore d
         solveReportedResult := some (minimizeAttemptTyped d) },
       { report := report intent "multivariate lower-bound discovery and certification" cfg mode
-          (.policy "legacy optimization followed by checked certification")
-          (some (suggestion "interval_minimize_mv" #[toString d])), solve := intervalMinimizeMvCore d },
+          (.policy "guided Rational optimization followed by checked multivariate certification")
+          (some (suggestion "interval_minimize_mv" #[toString d]))
+        solve := intervalMinimizeMvCore d
+        solveReportedResult := some (minimizeMvAttemptTyped d) },
       { report := report intent "guided lower-bound discovery and certification" cfg mode
           (.policy "guided optimization followed by checked interval certification")
           (some (suggestion "interval_minimize" #[toString d2]))
@@ -527,8 +557,10 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solve := intervalMaximizeCore d
         solveReportedResult := some (maximizeAttemptTyped d) },
       { report := report intent "multivariate upper-bound discovery and certification" cfg mode
-          (.policy "legacy optimization followed by checked certification")
-          (some (suggestion "interval_maximize_mv" #[toString d])), solve := intervalMaximizeMvCore d },
+          (.policy "guided Rational optimization followed by checked multivariate certification")
+          (some (suggestion "interval_maximize_mv" #[toString d]))
+        solve := intervalMaximizeMvCore d
+        solveReportedResult := some (maximizeMvAttemptTyped d) },
       { report := report intent "guided upper-bound discovery and certification" cfg mode
           (.policy "guided optimization followed by checked interval certification")
           (some (suggestion "interval_maximize" #[toString d2]))

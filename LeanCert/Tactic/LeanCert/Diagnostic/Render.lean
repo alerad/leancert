@@ -245,8 +245,17 @@ private def renderOptimization (statistics : Option OptimizationStatistics) : St
         (fun value => s!"\n  Within requested tolerance: {value}") |>.getD ""
       let remaining := statistics.remainingBoxes.map
         (fun value => s!"\n  Remaining boxes: {value}") |>.getD ""
+      let termination := statistics.termination.map
+        (fun value =>
+          let rendered :=
+            match value with
+            | .toleranceReached => "requested tolerance reached"
+            | .iterationLimit => "configured iteration limit"
+            | .queueExhausted => "search queue exhausted"
+            | .stopped => "search stopped"
+          s!"\n  Search termination: {rendered}") |>.getD ""
       s!"\n\nOptimization:\n  Configured iteration limit: {statistics.configuredLimit}\n  \
-        Tolerance: {statistics.tolerance}{actual}{gap}{converged}{remaining}"
+        Tolerance: {statistics.tolerance}{actual}{gap}{converged}{remaining}{termination}"
 
 def successReport (report : SolverReport) : String :=
   let plan := report.plan

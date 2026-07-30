@@ -94,6 +94,15 @@ structure ChildReport where
   verificationUsage : VerificationUsage := {}
   deriving Inhabited
 
+/-- Why an optimization search stopped. Certification may still validate a
+sound theorem after a search that stopped before reaching its target gap. -/
+inductive OptimizationTermination where
+  | toleranceReached
+  | iterationLimit
+  | queueExhausted
+  | stopped
+  deriving DecidableEq, Repr, Inhabited
+
 /-- Structured facts from an optimization or optimization-guided discovery
 run. Fields unavailable from Boolean-only certificate APIs remain `none`
 rather than being reconstructed by rerunning the optimizer. -/
@@ -104,6 +113,7 @@ structure OptimizationStatistics where
   gap : Option ℚ := none
   converged : Option Bool := none
   remainingBoxes : Option Nat := none
+  termination : Option OptimizationTermination := none
   deriving Inhabited, Repr
 
 /-- Stable algorithm identity for reporting and failure classification.
