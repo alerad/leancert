@@ -8,7 +8,7 @@ the CI tiers.
 The usual local checks are:
 
 ```sh
-lake build LeanCert
+lake build LeanCert LeanCert.Tactic
 lake build FunctionalTests
 lake build Examples Showcase
 python3 scripts/check_docs_snippets.py

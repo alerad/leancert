@@ -7,7 +7,7 @@ specific meaning; it is not one undifferentiated “build passed” signal.
 | --- | --- | --- | --- |
 | **Core** | `Core` | `lake build LeanCert DownstreamInterface DownstreamPatterns` | The stable library, isolated public APIs, and downstream compatibility contracts compile. |
 | **Functional** | `Functional` | `lake build FunctionalTests` plus the repository Python tests | Every wired regression module and public executable smoke test passes. |
-| **Docs** | `Docs` | `python3 scripts/check_docs_snippets.py` and `mkdocs build --strict` | README and canonical documentation snippets compile, links/navigation resolve, and the site builds strictly. |
+| **Docs** | `Docs` | `lake build LeanCert LeanCert.Tactic`, then `python3 scripts/check_docs_snippets.py` and `mkdocs build --strict` | README and canonical documentation snippets compile, links/navigation resolve, and the site builds strictly. |
 | **Soundness** | `Soundness Guard` | `lake env lean Tests/AxiomAudit.lean` and `lake env lean Tests/TrustManifest.lean` | Unauthorized axioms, `sorry`, synthetic holes, and changes to the exported trust manifest are rejected. |
 | **Showcase** | `Showcase` | `lake build Examples Showcase` | Supported examples and the small announcement-quality success and failure demonstrations compile exactly as published. |
 | **Heavy** | `Heavy` | See [Benchmarks](benchmarks.md) and the targets below | Expensive certificates compile and the benchmark surface remains executable. |
