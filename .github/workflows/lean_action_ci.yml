@@ -28,5 +28,6 @@ jobs:
             LeanCert.Test.PublicAPI.Bounds \
             LeanCert.Test.PublicAPI.Optimization \
             LeanCert.Test.PublicAPI.Isolation \
+            LeanCert.Test.PublicAPI.CertifiedBoundsImport \
             LeanCert.Test.PublicAPI.TrustAxes \
             LeanCert.Test.PublicAPI.DomainUmbrellas

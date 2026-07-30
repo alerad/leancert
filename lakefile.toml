@@ -25,6 +25,13 @@ name = "Examples"
 roots = ["LeanCert.Examples"]
 precompileModules = false
 
+# Compatibility target retained for existing scripts and downstream automation.
+# New documentation uses `Examples`, but `lake build examples` remains supported.
+[[lean_lib]]
+name = "examples"
+roots = ["LeanCert.Examples"]
+precompileModules = false
+
 # Public announcement examples. Keep this small, quick, and presentation-ready.
 # Build explicitly with: lake build Showcase
 [[lean_lib]]

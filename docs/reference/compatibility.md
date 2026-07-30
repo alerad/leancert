@@ -11,6 +11,7 @@ not be added to them.
 | `LeanCert.Examples.BKLNW_a2_bounds` and related `BKLNW_a2_*` declarations | `LeanCert.CertifiedBounds.BKLNW` | downstream compatibility |
 | `LeanCert.Examples.Li2Bounds` | `LeanCert.CertifiedBounds.Li2` | lightweight historical interface; see qualification below |
 | deprecated tactic and discovery spellings | replacements listed in [Supported Public API](public-api.md#semantic-tactic-api-migration) | deprecated aliases |
+| `lake build examples` | `lake build Examples` | retained Lake target alias |
 
 ## Li₂ qualification
 

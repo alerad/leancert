@@ -124,8 +124,8 @@ import LeanCert.ML.Optimized.Matrix
 import LeanCert.ML.Optimized.QuantizedLayer
 import LeanCert.ML.Optimized.MatrixNetwork
 
--- Note: Examples moved to separate `examples` build target.
--- Build with: lake build examples
+-- Examples are separate from the default library build.
+-- Both `lake build Examples` and the historical `lake build examples` work.
 
 -- Contrib (community contributions)
 import LeanCert.Contrib.Sinc
