@@ -1,7 +1,8 @@
 # Roots And No-Root Proofs
 
-Use this path for root existence, uniqueness, and no-root goals over an
-interval.
+For ordinary root existence, uniqueness, and no-root goals, start with
+[`leancert`](leancert.md). Use this page when you need the dedicated root
+controls or programmatic certificate APIs.
 
 For square multivariate systems in LeanCert's differentiable AD fragment, use the certificate API
 `KrawczykCert`, `krawczykCheck`, and `verify_unique_system_root`. See the
@@ -18,7 +19,14 @@ Typical goals:
 ∃! x ∈ I, f x = 0
 ∀ x ∈ I, f x ≠ 0
 ```
-Main tools:
+Primary workflow:
+
+```text
+leancert
+leancert?
+```
+
+Advanced controls:
 
 ```text
 interval_roots

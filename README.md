@@ -1,30 +1,49 @@
 # LeanCert
 
+[![Lean Action CI](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-leancert.io-brightgreen.svg)](https://docs.leancert.io)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21681348.svg)](https://doi.org/10.5281/zenodo.21681348)
 
-**Numerical computation produces suggestions. LeanCert produces theorems.**
+**Certified numerics for Lean 4.**
 
-LeanCert is a Lean 4 library for certified numerical reasoning. It provides proof-producing tactics and certificate APIs for interval bounds, global optimization, root existence and uniqueness, integration bounds, Chebyshev function certificates, analytic-number-theory finite certificates, exact q-product/product-integral certificates, and neural-network interval verification.
+LeanCert turns numerical certificates into theorems about real-valued
+expressions. Its `leancert` tactic handles point inequalities, quantified
+bounds on boxes, root existence and uniqueness, global bounds, finite sums,
+and definite integrals. The library also exposes the checked interval,
+optimization, root-finding, and integration APIs underneath the tactic.
 
-## What LeanCert Provides
+## Four proofs
 
-* Verified interval bounds for real-valued expressions
-* Proof automation for inequalities over intervals
-* Root existence and uniqueness tactics
-* Exact Bézout certificates for polynomial separability and simple roots
-* Global minimum and maximum certificates
-* Definite integral bound certificates
-* Dyadic and rational arithmetic backends
-* Chebyshev `ψ` and `θ` finite-range certificates
-* Analytic-number-theory certificates for Abel transforms, Euler products, Dirichlet truncations, Mertens-style sums, and asymptotic envelopes
-* Exact q-product/product-integral certificates and prime-limit sandwich bounds
-* Neural-network and transformer interval verification tools
-* Lean-only workflows, with Python and bridge tooling split into separate repositories
+```lean
+import LeanCert.Tactic
 
-## Installation
+-- A transcendental constant inequality.
+example : Real.log 2 < 7 / 10 := by
+  leancert
 
-Add LeanCert to your `lakefile.toml`:
+-- One proof covers every real x in the interval.
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.exp x * Real.cos x ≤ 3 := by
+  leancert
+
+-- Existence and uniqueness, certified by interval and Newton arguments.
+example : ∃! x, x ∈ Set.Icc (1 : ℝ) 2 ∧ x ^ 2 - 2 = 0 := by
+  leancert
+
+-- Polynomial integrals are normalized and checked exactly over ℚ.
+example : (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 := by
+  leancert
+```
+
+These are ordinary Lean theorems, not tests against sampled floating-point
+values. The exact snippets above are compiled in CI.
+
+## Install and prove something
+
+LeanCert currently tracks the Lean and Mathlib versions in
+[`lean-toolchain`](lean-toolchain) and [`lakefile.toml`](lakefile.toml). Add it
+to a Lake project:
 
 ```toml
 [[require]]
@@ -33,322 +52,156 @@ git = "https://github.com/alerad/leancert"
 rev = "main"
 ```
 
-Then run:
+Then update dependencies:
 
 ```bash
 lake update
 ```
 
-LeanCert targets the Lean/mathlib version pinned by `lean-toolchain`.
+Create `Main.lean`:
 
-To check compatibility in a larger project:
+```lean
+import LeanCert.Tactic
+
+example : Real.exp 1 < 3 := by
+  leancert
+```
+
+Check it with:
 
 ```bash
-lake exe check-compat
+lake env lean Main.lean
 ```
 
-## Quick Start
+For a reproducible development or release, pin `rev` to a commit or tag rather
+than `main`.
 
-Prove a simple bound over an interval:
+## What is actually verified?
+
+LeanCert separates finding a certificate, checking it, and interpreting it.
+
+```text
+ goal in Lean
+      │
+      ▼
+ reify expression ──► search for interval/root/integral certificate
+                              │
+                              │  untrusted candidate data
+                              ▼
+                    executable certificate checker
+                              │
+                              │  proof that check = true
+                              ▼
+                  proved soundness / “golden” theorem
+                              │
+                              ▼
+                       theorem in Lean
+```
+
+Search, heuristics, and candidate generation do not need to be trusted: a bad
+candidate fails the checker. The checker is connected to the mathematical
+claim by proved soundness theorems. CI audits the production golden theorems
+for dependencies beyond Lean/Mathlib's standard foundations.
+
+There are two ways to prove the closed proposition `check = true`:
+
+| Mode | Certificate check | Trust added by the generated proof |
+| --- | --- | --- |
+| `native` (default) | `native_decide` | Lean kernel plus compiler/runtime |
+| `kernel` | `decide +kernel` | Lean kernel only; never falls back |
+| `auto` | kernel first, native when gated or unsuccessful | Reports native fallback |
+
+Choose the route per proof:
 
 ```lean
 import LeanCert.Tactic
 
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
-  leancert
+example : Real.log 2 < 7 / 10 := by
+  leancert (trust := kernel)
 ```
 
-Use a larger Taylor depth for tighter transcendental bounds:
-
-```lean
-import LeanCert.Tactic.IntervalAuto
-
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 2.72 := by
-  certify_bound 20
-```
-
-Use the dyadic backend for faster verification on deeper expressions:
-
-```lean
-import LeanCert.Tactic.DyadicAuto
-
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
-    Real.cos (Real.sin (Real.cos x)) ≤ 1 := by
-  certify_bound (trust := kernel)
-```
-
-Programmatic interval evaluation uses a single backend selector. For interval
-evaluation, `auto` is expression-aware: it selects Affine for exact
-cancellation, Rational for ordinary algebraic expressions, and Dyadic for
-nonlinear expressions or high exact-denominator growth risk. Global
-optimization currently resolves `auto` to Dyadic, while operations without a
-certified Dyadic implementation (root finding and integration) use Rational.
-See [Interval Backend Selection](docs/architecture/backend-selection.md).
-
-```lean
-import LeanCert
-
-open LeanCert
-
-def unit : IntervalRat := ⟨0, 1, by norm_num⟩
-
-def preciseDyadic : EvalOptions := {
-  backend := .dyadic
-  precisionOptions := { dyadicExponent := -80, taylorDepth := 12 }
-}
-
-#eval evalInterval (.exp (.var 0)) [unit]
-#eval evalInterval (.exp (.var 0)) [unit] { backend := .affine }
-#eval evalInterval (.exp (.var 0)) [unit] preciseDyadic
-```
-
-`LeanCert.evalInterval_correct` is the backend-independent golden theorem for
-every successful result. Domain and configuration failures are returned as
-structured `EvalError` values rather than permissive intervals.
-Clients needing native results can use `LeanCert.Backend.Rational.eval`,
-`LeanCert.Backend.Dyadic.eval`, or `LeanCert.Backend.Affine.eval`; each has a
-local `eval_correct` theorem and the same checked failure discipline.
-
-## Discovery Workflow
-
-LeanCert includes editor commands for exploring bounds before committing to a theorem.
-
-```lean
-import LeanCert.Discovery.Commands
-
-#bounds (fun x => x^2 + Real.sin x) on [0, 1]
-#find_min (fun x => x^2 + Real.sin x) on [0, 1]
-#find_max (fun x => Real.exp x - x^2) on [0, 1]
-```
-
-Then turn the discovered estimate into a Lean theorem:
-
-```lean
-import LeanCert.Tactic
-
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
-    x^2 + Real.sin x ≤ 2 := by
-  leancert
-```
-
-## Root Finding
-
-Prove that a root exists:
-
-```lean
-import LeanCert.Tactic.Discovery
-
-example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x^2 - 2 = 0 := by
-  interval_roots
-```
-
-Prove uniqueness using Newton contraction:
-
-```lean
-import LeanCert.Tactic.Discovery
-
-example : ∃! x, x ∈ Set.Icc (1 : ℝ) 2 ∧ x^2 - 2 = 0 := by
-  interval_unique_root
-```
-
-## Choosing a Tactic
-
-Start with `leancert`. It recognizes point and interval inequalities,
-multivariate bounds, root existence/uniqueness/exclusion, extrema, existential
-bounds, finite sums, and ordinary definite-integral equalities or inequalities.
-Polynomial integrals are checked exactly over the rationals; other supported
-integrands use certified partition search. Use `leancert?` to see the dedicated
-tactic selected.
-
-| Goal                                       | Tactic                 |
-| ------------------------------------------ | ---------------------- |
-| Any recognized semantic goal               | `leancert`             |
-| `∀ x ∈ I, f x ≤ c`                         | `leancert`             |
-| `∀ x ∈ I, c ≤ f x`                         | `leancert`             |
-| Explicit single-variable bound engine      | `certify_bound`        |
-| Kernel-verified bound                      | `certify_bound (trust := kernel)` |
-| Multivariate bound                         | `multivariate_bound`   |
-| Root existence                             | `interval_roots`       |
-| Root uniqueness                            | `interval_unique_root` |
-| No roots on an interval                    | `root_bound`           |
-| Point inequality, such as `Real.pi < 3.15` | `interval_decide`      |
-| Counterexample search                      | `interval_refute`      |
-| Minimum certificate                        | `interval_minimize`    |
-| Maximum certificate                        | `interval_maximize`    |
-| Natural integral equality/bound            | `leancert`             |
-| Expand finite sums                         | `finsum_expand`        |
-| Simplify vector indexing                   | `vec_simp`             |
-
-See the full tactics guide in the documentation for examples and troubleshooting.
-
-## Certificate APIs
-
-LeanCert also exposes domain-specific certificate APIs for more structured proofs.
-
-### Chebyshev Certificates
-
-```lean
-import LeanCert.Engine.ChebyshevPsi
-import LeanCert.Engine.ChebyshevTheta
-```
-
-These modules certify finite-range bounds for the Chebyshev functions `ψ` and `θ`.
-
-Example:
-
-```lean
-import LeanCert.Engine.ChebyshevPsi
-
-open Chebyshev (psi)
-open LeanCert.Engine.ChebyshevPsi
-
-example :
-    ∀ N : Nat, 0 < N → N ≤ 20 →
-      psi (N : Real) ≤ (3 : Real) * N := by
-  exact verify_all_psi_le_mul 20 20 3 (by native_decide)
-```
-
-### Analytic Number Theory Certificates
-
-```lean
-import LeanCert.ANT
-import LeanCert.ANT.Asymp
-```
-
-The ANT layer includes finite certificates for:
-
-* step sums
-* Abel transforms
-* Euler and log products
-* Dirichlet truncations
-* harmonic and prime harmonic sums
-* Mertens-style prime sums
-* asymptotic main-term/error envelopes
-* Stieltjes-Abel and Dirichlet-hyperbola transforms
-
-### QProduct Certificates
-
-```lean
-import LeanCert.QProduct
-```
-
-`LeanCert.QProduct` certifies exact finite product integrals of the form
-
-```text
-F S = ∫ u in 0..1, ∏ n ∈ S, (1 - u^n)
-```
-
-by expanding the product into a signed polynomial and integrating exactly over `ℚ`.
-
-Example:
-
-```lean
-import LeanCert.QProduct
-
-open LeanCert.QProduct
-
-example : finiteIntegralRat ({2, 3} : Finset Nat) = 7 / 12 := by
-  native_decide
-
-example : F ({2, 3} : Finset Nat) = ((7 / 12 : Rat) : Real) := by
-  rw [finiteIntegralRat_correct]
-  have h : finiteIntegralRat ({2, 3} : Finset Nat) = 7 / 12 := by
-    native_decide
-  exact_mod_cast h
-```
-
-The q-product module also includes prime-indexed limit certificates, including the formal theorem:
-
-```lean
-primeLambda_gt_half : (1 : Real) / 2 < primeLambda
-```
-
-## Neural Network Verification
-
-```lean
-import LeanCert.ML.Network
-```
-
-LeanCert includes verified interval propagation and DeepPoly-style relaxations for machine-learning models.
-
-Supported components include:
-
-* dense feedforward layers
-* ReLU and sigmoid activations
-* GELU
-* transformer attention
-* layer normalization
-* residual connections
-* affine arithmetic for tighter layer-normalization bounds
-* optimized interval propagation backends
-
-The ML modules are intended for robustness, safety, and model-equivalence verification workflows.
-
-## Architecture
-
-LeanCert follows a certificate-driven architecture:
-
-1. Reify a mathematical expression into `LeanCert.Core.Expr`, or use tactic-level native syntax.
-2. Run a computable checker using rational, dyadic, affine, or domain-specific arithmetic.
-3. Apply a Golden Theorem that lifts the successful check to a semantic theorem over real numbers.
-4. Finish with a short Lean proof script.
-
-In simplified form:
-
-```text
-computable certificate data
-+ boolean or exact checker
-+ Golden Theorem
-= theorem over Real
-```
-
-This design keeps computation executable while the final claim remains a Lean theorem.
-
-## Verification Status
-
-Most core LeanCert components are fully verified, including:
-
-* fundamental interval arithmetic
-* bounds for `exp`, `sin`, `cos`, `log`, `sqrt`, `atan`, `atanh`, `erf`, and related functions
-* Taylor-model correctness
-* automatic differentiation soundness
-* global optimization certificates
-* root existence and uniqueness certificates
-* rational and dyadic integration certificates
-* dyadic interval evaluation
-* neural-network interval propagation soundness
-* Chebyshev, ANT, and q-product certificate bridges
-
-The documentation contains a detailed verification-status page, including any known proof gaps.
-
-## Documentation
-
-The full documentation is available at:
-
-```text
-https://docs.leancert.io
-```
-
-Useful starting points:
-
-* Quickstart
-* Choosing Tactics
-* Tactics Reference
-* Discovery Mode
-* Troubleshooting
-* Certificate Overview
-* Golden Theorems
-* Verification Status
-* Neural Network Verification
-
-## Repository Split
-
-This repository is Lean-only.
-
-The Python SDK and bridge binaries live in separate repositories:
-
-* Python SDK: `https://github.com/alerad/leancert-python`
-* Bridge binaries / JSON-RPC executable: `https://github.com/alerad/leancert-bridge`
+Or set it for a section or file with
+`set_option leancert.trust "kernel"`. Numerical backend selection
+(Rational/Dyadic/Affine) is independent of this verification choice.
+
+## Why not `norm_num`, `positivity`, or a basic interval tactic?
+
+These tools are complementary:
+
+| Tool | Best at | What LeanCert adds |
+| --- | --- | --- |
+| `norm_num` | Exact normalization of concrete algebraic/numeric goals | Certified enclosures for transcendental expressions and quantified real domains |
+| `positivity` | Deriving that an expression is nonnegative or positive | Quantitative upper/lower bounds, not just a sign |
+| Basic interval tactics | Propagating enclosures through a supported expression | A semantic front door spanning bounds, subdivision/optimization, roots, sums, and integrals |
+
+LeanCert itself uses ordinary algebraic automation for side conditions. Its
+distinctive role is proof-producing numerical search plus a checked
+certificate bridge to the final proposition. Run `leancert?` when you want to
+see which dedicated solver the router selected.
+
+## What is in the library?
+
+The main verified numerical path includes:
+
+- Rational, Dyadic, and Affine interval evaluation
+- Algebraic operations and supported transcendental functions including
+  `exp`, `log`, `sin`, `cos`, `sqrt`, `atan`, `atanh`, and `erf`
+- Checked automatic differentiation and global bound certificates
+- Root existence, exclusion, and Newton-style uniqueness certificates
+- Exact rational polynomial integration and certified partition integration
+- Domain-specific Chebyshev, analytic-number-theory, q-product, table, and
+  neural-network certificate infrastructure
+
+For programmatic use, start with the stable `LeanCert` APIs:
+
+- `LeanCert.evalInterval` and `LeanCert.evalInterval_correct`
+- `LeanCert.API.Bounds`
+- `LeanCert.API.Optimization`
+- the checked AD, root, and integration APIs described in the
+  [documentation](https://docs.leancert.io)
+
+## Honest limitations
+
+- `leancert` is automation over a supported expression and goal fragment, not
+  a general decision procedure for real analysis.
+- Interval dependency and coarse enclosures can make a true tight bound
+  inconclusive. Increasing Taylor depth, subdividing, or choosing a dedicated
+  tactic may help, but success is not guaranteed.
+- Root existence by sign change misses even-multiplicity/tangent roots.
+  Uniqueness additionally needs the hypotheses certified by the Newton
+  contraction argument.
+- Exact integral equality automation is for rational polynomials. Other
+  supported integrands use certified partitions and are generally suited to
+  inequalities or enclosures rather than symbolic antiderivatives.
+- Partial functions require a certified valid domain; for example, logarithm
+  intervals must be positive and a denominator interval must exclude zero.
+- Kernel verification can be slower or exceed resources on large
+  certificates. The faster default native route explicitly adds trust in
+  Lean's compiler/runtime.
+- Some high-level frameworks require mathematical premises supplied by the
+  downstream project. In particular, theorem names in experimental optimized
+  ML components should not be read as end-to-end model soundness without
+  checking their exact statements.
+- The production imports are placeholder-free, but
+  `LeanCert.Examples.Li2Bounds` contains two explicitly allowlisted
+  compatibility placeholders. Their statements are matched in CI against the
+  separately built verified implementation; do not use that lightweight
+  interface as a trust-free production dependency.
+
+See [Verification Status](https://docs.leancert.io/architecture/verification-status/),
+[Choosing Tactics](https://docs.leancert.io/tactics/choosing-tactics/), and
+[Troubleshooting](https://docs.leancert.io/direct/troubleshooting/) for the
+full support matrix and audit details.
+
+## Releases and citation
+
+Archived releases are available from Zenodo:
+
+- `v4.32.2.1`: [10.5281/zenodo.21681348](https://doi.org/10.5281/zenodo.21681348)
+- `v4.32.1`: [10.5281/zenodo.21633981](https://doi.org/10.5281/zenodo.21633981)
+
+When citing LeanCert, use the DOI for the exact version used in the proof
+development.
 
 ## License
 

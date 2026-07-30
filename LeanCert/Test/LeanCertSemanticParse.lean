@@ -51,7 +51,8 @@ private unsafe def expectLeanCertFailure
 
 @[tactic expectUnsupportedExpression]
 unsafe def evalExpectUnsupportedExpression : Tactic := fun _ =>
-  expectLeanCertFailure #["Unsupported expression"] #["Core.Expr", "Head symbol"]
+  expectLeanCertFailure #["Unsupported expression", "Suggestions:"]
+    #["Core.Expr", "Lean.Expr", "MVarId"]
 
 @[tactic expectUnsupportedCarrier]
 unsafe def evalExpectUnsupportedCarrier : Tactic := fun _ =>
@@ -59,7 +60,9 @@ unsafe def evalExpectUnsupportedCarrier : Tactic := fun _ =>
 
 @[tactic expectSanitizedCheckerFailure]
 unsafe def evalExpectSanitizedCheckerFailure : Tactic := fun _ =>
-  expectLeanCertFailure #["not accepted"] #["checkNoRoot", "native_decide"]
+  expectLeanCertFailure
+    #["nonvanishing on an interval", "no strategy proved it", "Run `leancert?`"]
+    #["checkNoRoot", "native_decide"]
 
 elab "expect_strict_integral_semantic" : tactic => do
   let goalType ← (← getMainGoal).getType

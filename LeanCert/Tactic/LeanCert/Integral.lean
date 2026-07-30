@@ -39,6 +39,17 @@ structure ParsedIntegralGoal where
   hi : Lean.Expr
   bound : Lean.Expr
 
+/-- Runtime facts retained by one integral proof. `verification = none` means
+the proof was constructed by ordinary kernel terms and did not consult the
+configurable certificate-verification route. -/
+structure IntegralOutcome where
+  checker : Name
+  verifier : Name
+  verification : Option VerificationUsage := none
+  partitionStart : Option Nat := none
+  partitionMaximum : Option Nat := none
+  deriving Inhabited
+
 private def parseIntegralTerm? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Lean.Expr) :=
   if e.getAppFn.constName? == some ``intervalIntegral && e.getAppNumArgs >= 4 then
     let args := e.getAppArgs
@@ -98,7 +109,7 @@ partial def isNaturalIntegralGoal (goal : Lean.Expr) : MetaM Bool := do
     return (← isNaturalIntegralGoal args[0]!) && (← isNaturalIntegralGoal args[1]!)
   return false
 
-private def exactIntegralAttempt (parsed : ParsedIntegralGoal) : TacticM Unit := do
+private def exactIntegralAttempt (parsed : ParsedIntegralGoal) : TacticM IntegralOutcome := do
   let some a ← LeanCert.Meta.Numeral.toRat? parsed.lo
     | throwError "exact integral: lower endpoint is not rational: {parsed.lo}"
   let some b ← LeanCert.Meta.Numeral.toRat? parsed.hi
@@ -122,6 +133,10 @@ private def exactIntegralAttempt (parsed : ParsedIntegralGoal) : TacticM Unit :=
     rw [← hfun];
     norm_num [Rat.divInt_eq_div] at hIntegral ⊢ <;>
       first | exact hIntegral | linarith [hIntegral]))
+  return {
+    checker := ``QPoly.checkExactIntegral
+    verifier := ``QPoly.integral_eq_of_check
+  }
 
 private def mkIntervalRatExpr (a b : ℚ) : MetaM Lean.Expr := do
   unless a ≤ b do
@@ -131,7 +146,7 @@ private def mkIntervalRatExpr (a b : ℚ) : MetaM Lean.Expr := do
   mkAppM ``IntervalRat.mk #[toExpr a, toExpr b, leProof]
 
 private partial def numericalIntegralAttempt (parsed : ParsedIntegralGoal)
-    (startN maxN : Nat) : TacticM Unit := do
+    (startN maxN : Nat) : TacticM IntegralOutcome := do
   let some a ← LeanCert.Meta.Numeral.toRat? parsed.lo
     | throwError "numerical integral: lower endpoint is not rational"
   let some b ← LeanCert.Meta.Numeral.toRat? parsed.hi
@@ -216,7 +231,9 @@ private partial def numericalIntegralAttempt (parsed : ParsedIntegralGoal)
         throwError "checked partition evaluation rejected the integrand domain \
           or could not construct an enclosure"
   let checkType ← mkAppM ``Eq #[checker, mkConst ``Bool.true]
-  let checkProof ← mkDecideProof checkType
+  let checkProof ← mkFreshExprMVar checkType
+  let event ← closeCertificateGoalReported (← VerificationConfig.current)
+    checkProof.mvarId! (tacticName := "integral_search")
   let proof ← mkAppM theoremName #[reified.expr, interval, toExpr startN, toExpr maxN,
     startPositive, toExpr c, checkProof, integrableProof]
   let proofSyntax ← Term.exprToSyntax proof
@@ -243,36 +260,56 @@ private partial def numericalIntegralAttempt (parsed : ParsedIntegralGoal)
     first
     | exact hIntegral
     | (convert hIntegral using 1 <;> norm_num [Rat.divInt_eq_div])))
+  return {
+    checker := checkerName
+    verifier := theoremName
+    verification := some event.toUsage
+    partitionStart := some startN
+    partitionMaximum := some maxN
+  }
 
 /-- Exact integral strategy used by the semantic router. -/
-partial def integralExactCore : TacticM Unit := do
+partial def integralExactCoreReported : TacticM (Array IntegralOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
   if goalType.isAppOfArity ``And 2 then
     evalTactic (← `(tactic| constructor))
     let goals ← getGoals
+    let mut outcomes := #[]
     for subgoal in goals do
       setGoals [subgoal]
-      integralExactCore
+      outcomes := outcomes ++ (← integralExactCoreReported)
+    return outcomes
   else
     let some parsed ← parseNaturalIntegralGoal goalType
       | throwError "integral_exact: expected an ordinary interval-integral equality or inequality"
-    exactIntegralAttempt parsed
+    return #[← exactIntegralAttempt parsed]
+
+/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
+partial def integralExactCore : TacticM Unit := do
+  discard <| integralExactCoreReported
 
 /-- Checked partition-search strategy used by the semantic router. -/
-partial def integralSearchCore (startN maxN : Nat) : TacticM Unit := do
+partial def integralSearchCoreReported (startN maxN : Nat) :
+    TacticM (Array IntegralOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
   if goalType.isAppOfArity ``And 2 then
     evalTactic (← `(tactic| constructor))
     let goals ← getGoals
+    let mut outcomes := #[]
     for subgoal in goals do
       setGoals [subgoal]
-      integralSearchCore startN maxN
+      outcomes := outcomes ++ (← integralSearchCoreReported startN maxN)
+    return outcomes
   else
     let some parsed ← parseNaturalIntegralGoal goalType
       | throwError "integral_search: expected an ordinary interval-integral inequality"
-    numericalIntegralAttempt parsed startN maxN
+    return #[← numericalIntegralAttempt parsed startN maxN]
+
+/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
+partial def integralSearchCore (startN maxN : Nat) : TacticM Unit := do
+  discard <| integralSearchCoreReported startN maxN
 
 syntax (name := integralExactTac) "integral_exact" : tactic
 

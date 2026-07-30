@@ -160,7 +160,7 @@ def testVec : IntervalVector := [
 #check @mem_geluIntervalRat
 #check @mem_geluInterval
 
--- LayerNorm soundness (has sorry)
+-- LayerNorm elementwise soundness
 #check @mem_layerNorm_forwardInterval
 
 -- All tests pass if this file compiles!

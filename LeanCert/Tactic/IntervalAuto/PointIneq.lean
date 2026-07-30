@@ -25,8 +25,19 @@ open LeanCert.Core
 open LeanCert.Engine
 open LeanCert.Validity
 
+/-- Runtime facts from a retained point-inequality certificate. -/
+structure PointInequalityOutcome where
+  checker : Name
+  verifier : Name
+  verification : LeanCert.Tactic.VerificationUsage
+  dyadic : Bool
+  precision : Option Int := none
+  taylorDepth : Nat
+  deriving Inhabited
+
 /-- Try to prove a closed expression bound directly using certificate verification. -/
-def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDepth : Nat) : TacticM Unit := do
+def proveClosedExpressionBoundReported (goal : MVarId) (goalType : Lean.Expr)
+    (taylorDepth : Nat) : TacticM PointInequalityOutcome := do
   trace[interval_decide] "proveClosedExpressionBound: Starting with goal {goalType}"
   goal.withContext do
     -- Parse the inequality
@@ -94,7 +105,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
-      discard <| closeCertificateGoal (← VerificationConfig.current) certGoalId
+      let event ← closeCertificateGoalReported (← VerificationConfig.current) certGoalId
         (tacticName := "interval_decide")
 
       let proof ← mkAppM theoremName #[diffAst, supportProof, intervalExpr, toExpr zeroRat, cfgExpr, certGoal]
@@ -150,7 +161,13 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
         let remainingGoals ← getGoals
         if !remainingGoals.isEmpty then
           throwError "proveClosedExpressionBound: Goal not closed after difference approach"
-        return
+        return {
+          checker := checkName
+          verifier := theoremName
+          verification := event.toUsage
+          dyadic := false
+          taylorDepth := taylorDepth
+        }
       catch e =>
         trace[interval_decide] "Difference approach error: {e.toMessageData}"
         throwError "proveClosedExpressionBound: Difference approach failed: {e.toMessageData}"
@@ -275,7 +292,8 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       let dyadicCertGoal ← mkFreshExprMVar dyadicCertTy
       let dyadicCertGoalId := dyadicCertGoal.mvarId!
       trace[interval_decide] "Verifying dyadic certificate"
-      discard <| closeCertificateGoal (← VerificationConfig.current) dyadicCertGoalId
+      let event ← closeCertificateGoalReported (← VerificationConfig.current)
+        dyadicCertGoalId
         (tacticName := "interval_decide")
       trace[interval_decide] "Dyadic certificate verified"
 
@@ -293,7 +311,14 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
       let dyadicProofStx : TSyntax `term := ⟨dyadicProofStxRaw⟩
       let closed ← tryCloseWith dyadicProofStx
       if closed then
-        return
+        return {
+          checker := dyadicCheckName
+          verifier := dyadicTheoremName
+          verification := event.toUsage
+          dyadic := true
+          precision := some prec
+          taylorDepth := taylorDepth
+        }
     catch e =>
       trace[interval_decide] "Dyadic backend failed: {e.toMessageData}"
 
@@ -327,7 +352,7 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
     let certGoal ← mkFreshExprMVar certTy
     let certGoalId := certGoal.mvarId!
     trace[interval_decide] "Verifying rational certificate"
-    discard <| closeCertificateGoal (← VerificationConfig.current) certGoalId
+    let event ← closeCertificateGoalReported (← VerificationConfig.current) certGoalId
       (tacticName := "interval_decide")
     trace[interval_decide] "Certificate verified"
 
@@ -350,8 +375,19 @@ def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr) (taylorDep
 
     let closed ← tryCloseWith proofStx
     if closed then
-      return
+      return {
+        checker := checkName
+        verifier := theoremName
+        verification := event.toUsage
+        dyadic := false
+        taylorDepth := taylorDepth
+      }
     throwError "proveClosedExpressionBound: Failed to close goal after all attempts"
+
+/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
+def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr)
+    (taylorDepth : Nat) : TacticM Unit := do
+  discard <| proveClosedExpressionBoundReported goal goalType taylorDepth
 
 /-- The interval_decide tactic implementation. -/
 def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do

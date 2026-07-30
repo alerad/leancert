@@ -25,6 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
+MARKDOWN_ROOTS = (ROOT / "README.md", DOCS)
 FENCE = re.compile(
     r"^```lean(?P<mode>[ \t]+expect-error(?::[ \t]*(?P<pattern>[^\n]*?))?)?[ \t]*\n"
     r"(?P<body>.*?)^```\s*$",
@@ -58,7 +59,8 @@ class Batch:
 
 def collect() -> list[Snippet]:
     snippets: list[Snippet] = []
-    for source in sorted(DOCS.rglob("*.md")):
+    sources = [MARKDOWN_ROOTS[0], *sorted(MARKDOWN_ROOTS[1].rglob("*.md"))]
+    for source in sources:
         text = source.read_text()
         for ordinal, match in enumerate(FENCE.finditer(text), 1):
             pattern = match.group("pattern")
@@ -350,8 +352,18 @@ def main() -> int:
         # Genuine syntax/elaboration errors still fail on the retry.
         retried_results = []
         for batch, snippets_failed, output in results:
-            if snippets_failed == batch.snippets and not ERROR_LINE.search(output):
-                retried_results.append(compile_batch((batch, work, args.timeout)))
+            if snippets_failed == batch.snippets:
+                # Retrying the same oversized batch cannot recover from a
+                # timeout, memory kill, or an import-level race reported before
+                # any snippet's source range.  The parallel workers have
+                # exited, so isolate its snippets now: a genuine snippet error
+                # remains attributable, while transient batch pressure no
+                # longer reports every otherwise-valid fence as broken.
+                for snippet in batch.snippets:
+                    isolated = Batch(batch.ordinal, [snippet])
+                    retried_results.append(
+                        compile_batch((isolated, work, args.timeout))
+                    )
             else:
                 retried_results.append((batch, snippets_failed, output))
         results = retried_results

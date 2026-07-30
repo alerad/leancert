@@ -3,7 +3,8 @@
 LeanCert is a Lean 4 library for certified numerical computation and
 proof-producing certificate workflows.
 
-Downstream users should begin with the [supported public API](reference/public-api.md).
+For theorem proving, begin with [`leancert`](direct/leancert.md). For
+programmatic use, see the [supported public API](reference/public-api.md).
 
 LeanCert is organized around proof intent:
 
@@ -21,6 +22,7 @@ LeanCert is organized around proof intent:
 
 | I have... | Go to |
 |---|---|
+| A numerical theorem and I want LeanCert to choose the method | [Direct Automation → Using `leancert`](direct/leancert.md) |
 | A concrete inequality over an interval | [Direct Automation → Bounds](direct/bounds.md) |
 | A root existence, uniqueness, or no-root claim | [Direct Automation → Roots](direct/roots.md) |
 | A global minimum or maximum problem | [Direct Automation → Optimization and Discovery](direct/optimization-discovery.md) |
@@ -71,7 +73,7 @@ lake update
 | Section | Description |
 |---|---|
 | [Getting Started](choosing-proof-shape.md) | Choose the right proof path before selecting modules |
-| [Direct Automation](direct/bounds.md) | Tactics and commands for direct numeric goals |
+| [Direct Automation](direct/leancert.md) | Start with `leancert`; use dedicated tactics as advanced controls |
 | [Proof Templates](proof-templates/overview.md) | Reusable certificate strategies and proof patterns |
 | [Domain Libraries](domains/overview.md) | Domain-specific certificate packages |
 | [Architecture and Trust](architecture/golden-theorems.md) | Why checkers imply theorems, and what is trusted |

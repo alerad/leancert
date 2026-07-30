@@ -26,5 +26,4 @@ example : ∀ x ∈ Icc (0 : ℝ) 2, x * x ≤ 4 := by
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
   interval_bound_subdiv 15
 
--- Note: Lower bounds not yet implemented for interval_bound_subdiv
--- The x*x - x case would need lower bound support
+-- Lower-bound subdivision coverage lives in `test_subdiv_lower.lean`.

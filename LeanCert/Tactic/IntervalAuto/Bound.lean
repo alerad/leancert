@@ -125,12 +125,22 @@ def runShadowDiagnostic (boundGoal : Option BoundGoal) (_goalType : Lean.Expr) :
 
 /-! ## Dyadic Backend Helper -/
 
+/-- Runtime facts from a retained checked-Dyadic bound proof. -/
+structure DyadicBoundOutcome where
+  checker : Name
+  verifier : Name
+  verification : LeanCert.Tactic.VerificationUsage
+  precision : Int
+  taylorDepth : Nat
+  deriving Inhabited
+
 /-- Try to prove a forall-bound goal using the Dyadic backend.
-    Returns `true` if the goal was closed, `false` otherwise.
+    Returns metadata if the entire goal was closed, `none` otherwise.
     Uses the checked Dyadic evaluator for arbitrary expressions. -/
-private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
+def tryDyadicBoundReported (goal : MVarId) (ast boundRat : Lean.Expr)
     (intervalInfo : IntervalInfo) (taylorDepth : Nat)
-    (isStrict isLower : Bool) : TacticM Bool := do
+    (isStrict isLower : Bool) : TacticM (Option DyadicBoundOutcome) := do
+  let saved ← saveState
   try
     let (theoremName, checkName) :=
       match isStrict, isLower with
@@ -152,14 +162,15 @@ private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
       let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
-      certGoalId.withContext do
+      let event ← certGoalId.withContext do
         setGoals [certGoalId]
-        discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal) (tacticName := "certify_bound")
+        closeCertificateGoalReported (← VerificationConfig.current)
+          (← getMainGoal) (tacticName := "certify_bound")
       let conclusionProof ← mkAppM' proof #[certGoal]
+      -- Retain the event locally until all transport goals have closed.
       setGoals [goal]
       let newGoals ← goal.apply conclusionProof
       setGoals newGoals
-      -- Close any remaining side goals
       for g in newGoals do
         setGoals [g]
         try evalTactic (← `(tactic| rfl))
@@ -169,12 +180,20 @@ private def tryDyadicBound (goal : MVarId) (ast boundRat : Lean.Expr)
             try evalTactic (← `(tactic| norm_cast))
             catch _ => pure ()
       if (← getGoals).isEmpty then
-        return true
-      return false
-    | none => return false
+        return some {
+          checker := checkName
+          verifier := theoremName
+          verification := event.toUsage
+          precision := prec
+          taylorDepth := taylorDepth
+        }
+      saved.restore
+      return none
+    | none => saved.restore; return none
   catch e =>
+    saved.restore
     trace[interval_decide] "Dyadic backend failed in certify_bound: {e.toMessageData}"
-    return false
+    return none
 
 /-! ## Main Tactic Implementation -/
 
@@ -254,7 +273,7 @@ where
 
       -- 2.5. Try Dyadic backend first
       let savedState ← saveState
-      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth false false then
+      if (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth false false).isSome then
         return
       restoreState savedState
 
@@ -436,7 +455,7 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth false true then
+      if (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth false true).isSome then
         return
       restoreState savedState
 
@@ -606,7 +625,7 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth true false then
+      if (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth true false).isSome then
         return
       restoreState savedState
 
@@ -738,7 +757,7 @@ where
 
       -- Try Dyadic backend first
       let savedState ← saveState
-      if ← tryDyadicBound goal ast boundRat intervalInfo taylorDepth true true then
+      if (← tryDyadicBoundReported goal ast boundRat intervalInfo taylorDepth true true).isSome then
         return
       restoreState savedState
 

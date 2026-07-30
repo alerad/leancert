@@ -23,8 +23,16 @@ open LeanCert.Core
 open LeanCert.Engine
 open LeanCert.Validity
 
-/-- The main root_bound tactic implementation -/
-def rootBoundCore (taylorDepth : Nat) : TacticM Unit := do
+/-- Runtime facts from a retained no-root certificate. -/
+structure RootBoundOutcome where
+  checker : Name
+  verifier : Name
+  verification : LeanCert.Tactic.VerificationUsage
+  taylorDepth : Nat
+  deriving Inhabited
+
+/-- Reporting-aware root-bound implementation. -/
+def rootBoundCoreReported (taylorDepth : Nat) : TacticM RootBoundOutcome := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -38,7 +46,13 @@ def rootBoundCore (taylorDepth : Nat) : TacticM Unit := do
 
   match rootGoal with
   | .forallNeZero _name interval func =>
-    proveForallNeZero goal interval func taylorDepth
+    let event ← proveForallNeZero goal interval func taylorDepth
+    return {
+      checker := ``Validity.RootFinding.checkNoRoot
+      verifier := ``Validity.RootFinding.verify_no_root
+      verification := event.toUsage
+      taylorDepth := taylorDepth
+    }
 
 where
   /-- Extract an AST and retain definitions unfolded during reification. -/
@@ -75,7 +89,7 @@ where
 
   /-- Prove ∀ x ∈ I, f x ≠ 0 using verify_no_root -/
   proveForallNeZero (goal : MVarId) (interval func : Lean.Expr)
-      (taylorDepth : Nat) : TacticM Unit := do
+      (taylorDepth : Nat) : TacticM LeanCert.Tactic.VerificationEvent := do
     goal.withContext do
       -- 0. Try to convert Set.Icc to IntervalRat if needed
       let mut fromSetIcc := false
@@ -109,23 +123,29 @@ where
       -- 4. Apply verify_no_root theorem
       let proof ← mkAppM ``Validity.RootFinding.verify_no_root
         #[ast, supportProof, intervalExpr, cfgExpr]
+      let checkExpr ← mkAppM ``Validity.RootFinding.checkNoRoot
+        #[ast, intervalExpr, cfgExpr]
+      let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
+      let certGoal ← mkFreshExprMVar certTy
+      let event ← LeanCert.Tactic.closeCertificateGoalReported
+        (← LeanCert.Tactic.VerificationConfig.current) certGoal.mvarId!
+        (tacticName := "root_bound")
+      let conclusionProof ← mkAppM' proof #[certGoal]
 
       if fromSetIcc then
         -- Use simpa to bridge Set.Icc to IntervalRat
-        let proofSyntax ← Term.exprToSyntax proof
-        evalTactic (← `(tactic| refine (by
-          have h := $proofSyntax (by leancert_verify_cert)
+        let proofSyntax ← Term.exprToSyntax conclusionProof
+        evalTactic (← `(tactic| exact (by
+          have h := $proofSyntax
           simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
       else
-        -- 5. Apply the proof - this leaves the certificate check as a goal
-        let newGoals ← goal.apply proof
+        goal.assign conclusionProof
+        replaceMainGoal []
+      return event
 
-        setGoals newGoals
-
-        -- 6. Solve remaining goals with native_decide
-        for g in newGoals do
-          setGoals [g]
-          discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "root_bound")
+/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
+def rootBoundCore (taylorDepth : Nat) : TacticM Unit := do
+  discard <| rootBoundCoreReported taylorDepth
 
 /-- The root_bound tactic.
 
@@ -138,10 +158,11 @@ where
     Supports goals of the form:
     - `∀ x ∈ I, f x ≠ 0` (proves no root exists in interval)
 -/
-elab "root_bound" depth:(num)? : tactic => do
-  let taylorDepth := match depth with
-    | some n => n.getNat
-    | none => 10
-  rootBoundCore taylorDepth
+elab "root_bound" depth:(num)? t:(leancertTrustItem)? : tactic => do
+  withTrustMode (← elabTrustItem? t) do
+    let taylorDepth := match depth with
+      | some n => n.getNat
+      | none => 10
+    rootBoundCore taylorDepth
 
 end LeanCert.Tactic.Auto

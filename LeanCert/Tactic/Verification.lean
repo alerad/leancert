@@ -82,7 +82,8 @@ register_option leancert.trust.autoMaxPartitions : Nat := {
 register_option leancert.trust.autoMaxOptIterations : Nat := {
   defValue := 100
   descr := "auto-mode gate: maximum branch-and-bound iteration limit for \
-    which the kernel attempt is made (25 iterations ≈ +2s)"
+    which the kernel attempt is made (a conservative policy threshold; the \
+    v4.32.2 calibration matrix measures comparable routes through 50 iterations)"
 }
 
 namespace LeanCert.Tactic
@@ -114,6 +115,80 @@ inductive VerificationUsed where
   | native
   deriving DecidableEq, Repr
 
+/-- Why a particular verification route was used.
+
+This distinguishes an explicit native request from the two reasons that
+`.auto` can use native verification. -/
+inductive VerificationCause where
+  /-- The caller explicitly requested native verification. -/
+  | explicitNative
+  /-- The caller explicitly requested kernel verification. -/
+  | explicitKernel
+  /-- Auto mode successfully used kernel verification. -/
+  | autoKernel
+  /-- Auto mode selected native verification before attempting the kernel
+  because a calibrated cost gate fired. -/
+  | autoNativeGate
+  /-- Auto mode used native verification after its kernel attempt failed. -/
+  | autoNativeFallback
+  deriving DecidableEq, Repr
+
+/-- Structured telemetry for one successfully closed certificate goal.
+
+The event is returned directly to the caller. It is not stored globally, so
+speculative tactic attempts can discard it together with their proof state. -/
+structure VerificationEvent where
+  /-- The resolved policy in force for this certificate closure. -/
+  requested : VerificationMode
+  /-- The route that actually closed the certificate. -/
+  used : VerificationUsed
+  /-- Why that route was selected. -/
+  cause : VerificationCause
+  /-- Human-readable auto-gate explanation, present exactly for
+  `autoNativeGate` events. -/
+  gateReason : Option String := none
+  deriving Repr
+
+/-- Verification telemetry for zero or more retained certificate closures. -/
+structure VerificationUsage where
+  events : Array VerificationEvent := #[]
+  deriving Repr, Inhabited
+
+namespace VerificationEvent
+
+/-- Regard one successful certificate closure as aggregate usage. -/
+def toUsage (event : VerificationEvent) : VerificationUsage :=
+  { events := #[event] }
+
+end VerificationEvent
+
+namespace VerificationUsage
+
+/-- Aggregate usage containing one successful certificate closure. -/
+def singleton (event : VerificationEvent) : VerificationUsage :=
+  event.toUsage
+
+/-- Combine independently retained verification events, preserving order. -/
+def combine (left right : VerificationUsage) : VerificationUsage :=
+  { events := left.events ++ right.events }
+
+/-- Number of retained certificates closed by kernel reduction. -/
+def kernelChecks (usage : VerificationUsage) : Nat :=
+  usage.events.foldl (fun n event =>
+    if event.used == .kernel then n + 1 else n) 0
+
+/-- Number of retained certificates closed by native reduction. -/
+def nativeChecks (usage : VerificationUsage) : Nat :=
+  usage.events.foldl (fun n event =>
+    if event.used == .native then n + 1 else n) 0
+
+/-- Reasons for auto-mode decisions that bypassed kernel verification. -/
+def autoGateReasons (usage : VerificationUsage) : Array String :=
+  usage.events.filterMap fun event =>
+    if event.cause == .autoNativeGate then event.gateReason else none
+
+end VerificationUsage
+
 def VerificationMode.ofString? : String → Option VerificationMode
   | "native" => some .native
   | "kernel" => some .kernel
@@ -127,8 +202,8 @@ def VerificationMode.asString : VerificationMode → String
   | .auto   => "auto"
 
 /-- Configuration for certificate verification. Tactics resolve this from
-options via `VerificationConfig.current`; a future public `(trust := …)`
-syntax will override it per invocation. -/
+options via `VerificationConfig.current`; public `(trust := …)` syntax
+overrides it per invocation. -/
 structure VerificationConfig where
   mode : VerificationMode := .native
   /-- Heartbeat budget for the kernel attempt in `.auto` mode. -/
@@ -235,19 +310,28 @@ def autoGateReason? (opts : Options) (certType : Expr) : Option String := Id.run
   return none
 
 private def closeAutoCore (cfg : VerificationConfig) (certGoal : MVarId)
-    (tacticName : String) : TacticM VerificationUsed := do
+    (tacticName : String) : TacticM VerificationEvent := do
   let certType ← instantiateMVars (← certGoal.getType)
   if let some reason := autoGateReason? (← getOptions) certType then
     trace[leancert.verification] "{tacticName}: auto gate routed certificate to \
       native_decide ({reason})"
     closeNativeCore certGoal tacticName
-    return .native
+    return {
+      requested := .auto
+      used := .native
+      cause := .autoNativeGate
+      gateReason := some reason
+    }
   let s ← saveState
   try
     withOptions (fun o => o.set `maxHeartbeats cfg.kernelHeartbeats) do
       closeKernelCore certGoal tacticName
     trace[leancert.verification] "{tacticName}: certificate verified by kernel reduction (auto)"
-    pure .kernel
+    pure {
+      requested := .auto
+      used := .kernel
+      cause := .autoKernel
+    }
   catch e =>
     s.restore
     trace[leancert.verification] "{tacticName}: kernel attempt failed in auto mode, \
@@ -259,24 +343,37 @@ private def closeAutoCore (cfg : VerificationConfig) (certGoal : MVarId)
         additionally trusts the compiler. Further fallbacks in this \
         session are reported under `trace[leancert.verification]` only."
     closeNativeCore certGoal tacticName
-    pure .native
+    pure {
+      requested := .auto
+      used := .native
+      cause := .autoNativeFallback
+    }
 
 /-- Close a Boolean certificate goal (`check … = true`) according to the
-verification mode, and return which route actually closed it. The surrounding
-goal list is saved and restored. -/
-def closeCertificateGoal (cfg : VerificationConfig) (certGoal : MVarId)
-    (tacticName : String := "leancert") : TacticM VerificationUsed := do
+verification mode, and return structured telemetry describing the requested
+policy, actual route, and auto-mode decision. The surrounding goal list is
+saved and restored. -/
+def closeCertificateGoalReported (cfg : VerificationConfig) (certGoal : MVarId)
+    (tacticName : String := "leancert") : TacticM VerificationEvent := do
   let savedGoals ← getGoals
   try
     match cfg.mode with
     | .native =>
         closeNativeCore certGoal tacticName
         trace[leancert.verification] "{tacticName}: certificate verified by native_decide"
-        pure .native
+        pure {
+          requested := .native
+          used := .native
+          cause := .explicitNative
+        }
     | .kernel =>
         closeKernelCore certGoal tacticName
         trace[leancert.verification] "{tacticName}: certificate verified by kernel reduction"
-        pure .kernel
+        pure {
+          requested := .kernel
+          used := .kernel
+          cause := .explicitKernel
+        }
     | .auto =>
         closeAutoCore cfg certGoal tacticName
   finally
@@ -285,6 +382,13 @@ def closeCertificateGoal (cfg : VerificationConfig) (certGoal : MVarId)
     -- callers check goal-list emptiness to detect success).
     setGoals savedGoals
     pruneSolvedGoals
+
+/-- Compatibility wrapper returning only the route that closed the
+certificate. New reporting-aware callers should use
+`closeCertificateGoalReported`. -/
+def closeCertificateGoal (cfg : VerificationConfig) (certGoal : MVarId)
+    (tacticName : String := "leancert") : TacticM VerificationUsed := do
+  return (← closeCertificateGoalReported cfg certGoal tacticName).used
 
 /-- Close the current goal as a LeanCert certificate check according to the
 configured verification route (`leancert.trust`, or a `(trust := …)` override

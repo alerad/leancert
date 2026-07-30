@@ -25,8 +25,21 @@ open LeanCert.Validity
 open LeanCert.Validity.GlobalOpt
 open LeanCert.Engine.Optimization
 
-/-- The main multivariate_bound tactic implementation -/
-def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
+/-- Runtime facts from the retained multivariate global-bound certificate. -/
+structure MultivariateBoundOutcome where
+  checker : Name
+  verifier : Name
+  verification : LeanCert.Tactic.VerificationUsage
+  maxIterations : Nat
+  tolerance : ℚ
+  useMonotonicity : Bool
+  taylorDepth : Nat
+  deriving Inhabited
+
+/-- Reporting-aware multivariate-bound implementation. -/
+def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
+    (useMonotonicity : Bool) (taylorDepth : Nat) :
+    TacticM MultivariateBoundOutcome := do
   intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
@@ -47,9 +60,29 @@ def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : 
 
   match boundGoal with
   | .forallLe vars func bound =>
-    proveMultivariateLe goal vars func bound maxIters tolerance useMonotonicity taylorDepth
+    let event ← proveMultivariateLe goal vars func bound maxIters tolerance
+      useMonotonicity taylorDepth
+    return {
+      checker := ``checkGlobalUpperBound
+      verifier := ``verify_global_upper_bound
+      verification := event.toUsage
+      maxIterations := maxIters
+      tolerance := tolerance
+      useMonotonicity := useMonotonicity
+      taylorDepth := taylorDepth
+    }
   | .forallGe vars func bound =>
-    proveMultivariateGe goal vars func bound maxIters tolerance useMonotonicity taylorDepth
+    let event ← proveMultivariateGe goal vars func bound maxIters tolerance
+      useMonotonicity taylorDepth
+    return {
+      checker := ``checkGlobalLowerBound
+      verifier := ``verify_global_lower_bound
+      verification := event.toUsage
+      maxIterations := maxIters
+      tolerance := tolerance
+      useMonotonicity := useMonotonicity
+      taylorDepth := taylorDepth
+    }
 
 where
   /-- Extract rational bound from possible coercion (reusing logic from intervalBoundCore) -/
@@ -123,7 +156,8 @@ where
 
   /-- Prove ∀ x₁ ∈ I₁, ..., ∀ xₙ ∈ Iₙ, f(x) ≤ c using verify_global_upper_bound -/
   proveMultivariateLe (goal : MVarId) (vars : Array VarIntervalInfo) (func bound : Lean.Expr)
-      (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
+      (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool)
+      (taylorDepth : Nat) : TacticM LeanCert.Tactic.VerificationEvent := do
     goal.withContext do
       let boxExpr ← mkBoxExpr vars
       let ast := (← reifyWithReport func).expr
@@ -153,8 +187,10 @@ where
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
       setGoals [certGoalId]
-      try
-        discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "multivariate_bound")
+      let event ← try
+        LeanCert.Tactic.closeCertificateGoalReported
+          (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
+          (tacticName := "multivariate_bound")
       catch e =>
         throwError "multivariate_bound: Certificate check failed. The bound may be too tight.\n{e.toMessageData}"
 
@@ -182,10 +218,12 @@ where
             sq, pow_two, sub_eq_add_neg, div_eq_mul_inv] <;>
           ring
       )))
+      return event
 
   /-- Prove ∀ x₁ ∈ I₁, ..., ∀ xₙ ∈ Iₙ, c ≤ f(x) using verify_global_lower_bound -/
   proveMultivariateGe (goal : MVarId) (vars : Array VarIntervalInfo) (func bound : Lean.Expr)
-      (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
+      (maxIters : Nat) (tolerance : ℚ) (useMonotonicity : Bool)
+      (taylorDepth : Nat) : TacticM LeanCert.Tactic.VerificationEvent := do
     goal.withContext do
       let boxExpr ← mkBoxExpr vars
       let ast := (← reifyWithReport func).expr
@@ -216,8 +254,10 @@ where
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
       setGoals [certGoalId]
-      try
-        discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "multivariate_bound")
+      let event ← try
+        LeanCert.Tactic.closeCertificateGoalReported
+          (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
+          (tacticName := "multivariate_bound")
       catch e =>
         throwError "multivariate_bound: Certificate check failed. The bound may be too tight.\n{e.toMessageData}"
 
@@ -245,6 +285,12 @@ where
             sq, pow_two, sub_eq_add_neg, div_eq_mul_inv] <;>
           ring
       )))
+      return event
+
+/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
+def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ)
+    (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
+  discard <| multivariateBoundCoreReported maxIters tolerance useMonotonicity taylorDepth
 
 /-- The multivariate_bound tactic.
 
@@ -258,10 +304,12 @@ where
     - `∀ x ∈ I, ∀ y ∈ J, f(x,y) ≤ c`
     - `∀ x ∈ I, ∀ y ∈ J, c ≤ f(x,y)`
 -/
-elab "multivariate_bound" iters:(num)? : tactic => do
-  let maxIters := match iters with
-    | some n => n.getNat
-    | none => 1000
-  multivariateBoundCore maxIters (1/1000) false 10
+elab "multivariate_bound" iters:(num)? t:(leancertTrustItem)? : tactic => do
+  let trust? ← LeanCert.Tactic.elabTrustItem? t
+  LeanCert.Tactic.withTrustMode trust? do
+    let maxIters := match iters with
+      | some n => n.getNat
+      | none => 1000
+    multivariateBoundCore maxIters (1/1000) false 10
 
 end LeanCert.Tactic.Auto

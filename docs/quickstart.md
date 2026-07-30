@@ -15,7 +15,7 @@ rev = "main"
 ```
 
 For a reproducible formal development, replace `main` with a tested LeanCert
-release tag. This checkout is pinned to the Lean/Mathlib `v4.32.1` toolchain;
+release tag. This checkout is pinned to the Lean/Mathlib `v4.32.2` toolchain;
 use `main` only when intentionally testing unreleased changes.
 
 Then run:

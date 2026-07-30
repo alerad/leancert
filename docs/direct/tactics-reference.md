@@ -1,12 +1,10 @@
 # Direct Automation Tactics Reference
 
-This page routes to the existing tactic reference pages.
+The maintained syntax reference is
+[Reference → Tactics](../reference/tactics.md).
 
-- [Choosing Tactics](../tactics/choosing-tactics.md)
-- [Tactics Reference](../tactics/tactics.md)
-- [Discovery Mode](../tactics/discovery.md)
-- [End-to-End Example](../tactics/end-to-end-example.md)
-- [Troubleshooting](../tactics/troubleshooting.md)
+For the primary semantic-router workflow, see
+[Using `leancert`](leancert.md).
 
-The direct-automation section is organized by proof intent; the tactic
-reference remains the place for syntax details.
+This page remains as a compatibility link for existing bookmarks and is not
+part of the main navigation.
