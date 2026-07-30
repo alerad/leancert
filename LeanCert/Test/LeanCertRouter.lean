@@ -122,6 +122,45 @@ unsafe def elabExpectDiscoveryReport : Tactic := fun _ => do
   unless result.execution.backend == some .rationalInterval do
     throwError "discovery search backend was conflated with witness certification"
 
+syntax (name := expectMvDiscoveryReport)
+  "expect_mv_discovery_report" ident : tactic
+
+@[tactic expectMvDiscoveryReport]
+unsafe def elabExpectMvDiscoveryReport : Tactic := fun stx => do
+  let result ← runLeanCert {} .compact
+  let some statistics := result.execution.optimization
+    | throwError "multivariate discovery returned no optimization statistics"
+  unless statistics.termination.isSome && statistics.iterations.isSome &&
+      statistics.gap.isSome do
+    throwError "multivariate discovery lost search termination evidence"
+  let expectedDirection := stx[1].getId
+  let (checker, verifier) :=
+    if expectedDirection == `minimum then
+      (``LeanCert.Validity.GlobalOpt.checkGlobalLowerBound,
+       ``LeanCert.Validity.GlobalOpt.verify_global_lower_bound)
+    else
+      (``LeanCert.Validity.GlobalOpt.checkGlobalUpperBound,
+       ``LeanCert.Validity.GlobalOpt.verify_global_upper_bound)
+  unless result.execution.checker == some checker &&
+      result.execution.verifier == some verifier do
+    throwError "multivariate discovery retained the wrong certificate identity: \
+      checker={result.execution.checker}, verifier={result.execution.verifier}"
+  unless result.execution.backend == some .rationalInterval do
+    throwError "multivariate discovery did not report its Rational search backend"
+
+syntax (name := expectLooseDiscoverySuccess)
+  "expect_loose_discovery_success" : tactic
+
+@[tactic expectLooseDiscoverySuccess]
+unsafe def elabExpectLooseDiscoverySuccess : Tactic := fun _ => do
+  match ← Discovery.intervalMinimizeCoreTyped 10 with
+  | .ok outcome =>
+      unless outcome.termination == .iterationLimit do
+        throwError "expected iteration-limited certified discovery, got \
+          {repr outcome.termination}"
+  | .error failure =>
+      throwError "a loose search with a certifiable endpoint failed: {repr failure}"
+
 syntax (name := expectTypedOptimizationRollback)
   "expect_typed_optimization_rollback" : tactic
 
@@ -167,6 +206,17 @@ example : ∀ ρ, LeanCert.Engine.Optimization.Box.envMem ρ
 
 example : ∃ m : ℚ, ∀ x ∈ Set.Icc (-1 : ℝ) 1, x * x ≥ m := by
   expect_discovery_report
+
+example : ∃ m : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    ∀ y ∈ Set.Icc (0 : ℝ) 1, x * x + y * y ≥ m := by
+  expect_mv_discovery_report minimum
+
+example : ∃ M : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    ∀ y ∈ Set.Icc (0 : ℝ) 1, x + y ≤ M := by
+  expect_mv_discovery_report maximum
+
+example : ∃ m : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 7, Real.sin x ≥ m := by
+  expect_loose_discovery_success
 
 example : True := by
   expect_typed_optimization_rollback
@@ -234,6 +284,32 @@ unsafe def elabExpectTypedMultivariateRejection : Tactic := fun _ => do
 
 example : True := by
   expect_typed_multivariate_rejection
+
+syntax (name := expectDiscoveryDomainObstruction)
+  "expect_discovery_domain_obstruction" : tactic
+
+@[tactic expectDiscoveryDomainObstruction]
+unsafe def elabExpectDiscoveryDomainObstruction : Tactic := fun _ => do
+  let callerGoals ← getGoals
+  let obstructedType ← Term.elabTerm
+    (← `(∃ m : ℚ, ∀ x ∈ Set.Icc (-1 : ℝ) 1, Real.log x ≥ m)) none
+  Term.synthesizeSyntheticMVarsNoPostponing
+  let obstructedType ← instantiateMVars obstructedType
+  let obstructedGoal ← mkFreshExprMVar obstructedType
+  setGoals [obstructedGoal.mvarId!]
+  match ← Discovery.intervalMinimizeCoreTyped 10 with
+  | .error (.domainObstruction _ _ _) =>
+      unless !(← obstructedGoal.mvarId!.isAssigned) do
+        throwError "domain-obstructed discovery assigned its speculative goal"
+      setGoals callerGoals
+      evalTactic (← `(tactic| trivial))
+  | .error failure =>
+      throwError "domain-obstructed discovery had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "domain-obstructed discovery unexpectedly succeeded"
+
+example : True := by
+  expect_discovery_domain_obstruction
 
 syntax (name := expectKernelBoundReport) "expect_kernel_bound_report" : tactic
 
