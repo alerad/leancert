@@ -76,3 +76,9 @@ Theorem, the discovered witness, and the search termination facts.
 Failed speculative proof routes are transactional.  Their goals, messages,
 environment extensions, and verification events are discarded before a
 fallback is attempted.
+
+The `leancert` front door normally proves existence-only extrema with the
+compact extreme-value theorem, which requires no numerical certificate and
+does not choose a reportable rational witness. Use the dedicated
+`interval_argmin` or `interval_argmax` tactic when you specifically want
+guided rational-witness discovery and its detailed certificate report.

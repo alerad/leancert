@@ -303,13 +303,13 @@ private def attainedExecution
     certificates := certificates.push {
       role := certificate.role
       checker := certificate.checker
-      verifier := some outcome.verifier
+      verifier := certificate.verifier
       verificationUsage := observed
       enclosure := certificate.enclosure
     }
   return {
     verificationUsage := usage
-    verifier := some outcome.verifier
+    verifier := outcome.verifier
     optimization := some {
       iterations := some outcome.iterations
       configuredLimit := outcome.configuredLimit

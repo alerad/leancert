@@ -941,3 +941,7 @@ global-bound certificate and a point-value certificate, combined by
 `LeanCert.Validity.verify_argmin` or `LeanCert.Validity.verify_argmax`.
 Certificate rejection is distinct from verification infrastructure failure,
 and failed proof branches do not contribute verification telemetry.
+
+For existence-only extrema, `leancert` prefers the non-numerical compact
+extreme-value theorem. Invoke these dedicated tactics when a discovered
+rational witness and constituent-certificate telemetry are desired.

@@ -762,6 +762,7 @@ inductive AttainedWitnessOrigin where
 structure AttainedCertificate where
   role : String
   checker : Name
+  verifier : Option Name := none
   verification : LeanCert.Tactic.VerificationUsage
   enclosure : Option IntervalRat := none
   deriving Repr, Inhabited
@@ -781,7 +782,7 @@ structure AttainedExtremumOutcome where
   termination : DiscoveryTermination
   taylorDepth : Nat
   certificates : Array AttainedCertificate
-  verifier : Name
+  verifier : Option Name
   deriving Repr, Inhabited
 
 /-- Expected non-successes at the attained-extremum boundary. -/
@@ -950,6 +951,7 @@ private unsafe def intervalArgmaxCoreReported
             pure <| .ok #[{
               role := "global attained-maximum bound"
               checker
+              verifier := outcome.verifier
               verification := outcome.verification
             }]
         | .error failure =>
@@ -1019,6 +1021,7 @@ private unsafe def intervalArgmaxCoreReported
         pure <| .ok #[{
           role := "fallback universal bound"
           checker
+          verifier := outcome.verifier
           verification := outcome.verification
         }]
       | .error e2 =>
@@ -1047,7 +1050,9 @@ private unsafe def intervalArgmaxCoreReported
     termination := discoveryTermination result cfg.maxIterations cfg.tolerance
     taylorDepth
     certificates
-    verifier := ``LeanCert.Validity.verify_argmax
+    verifier :=
+      if certificates.size == 2 then some ``LeanCert.Validity.verify_argmax
+      else certificates[0]?.bind (·.verifier)
   }
 
 /-- Reporting-aware attained-maximum core. -/
@@ -1055,7 +1060,11 @@ unsafe def intervalArgmaxCoreTyped (taylorDepth : Nat) :
     TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
   let original ← saveState
   try
-    return ← intervalArgmaxCoreReported taylorDepth
+    match ← intervalArgmaxCoreReported taylorDepth with
+    | .ok outcome => return .ok outcome
+    | .error failure =>
+        original.restore
+        return .error failure
   catch e =>
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
@@ -1221,6 +1230,7 @@ private unsafe def intervalArgminCoreReported
             pure <| .ok #[{
               role := "global attained-minimum bound"
               checker
+              verifier := outcome.verifier
               verification := outcome.verification
             }]
         | .error failure =>
@@ -1290,6 +1300,7 @@ private unsafe def intervalArgminCoreReported
         pure <| .ok #[{
           role := "fallback universal bound"
           checker
+          verifier := outcome.verifier
           verification := outcome.verification
         }]
       | .error e2 =>
@@ -1318,7 +1329,9 @@ private unsafe def intervalArgminCoreReported
     termination := discoveryTermination result cfg.maxIterations cfg.tolerance
     taylorDepth
     certificates
-    verifier := ``LeanCert.Validity.verify_argmin
+    verifier :=
+      if certificates.size == 2 then some ``LeanCert.Validity.verify_argmin
+      else certificates[0]?.bind (·.verifier)
   }
 
 /-- Reporting-aware attained-minimum core. -/
@@ -1326,7 +1339,11 @@ unsafe def intervalArgminCoreTyped (taylorDepth : Nat) :
     TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
   let original ← saveState
   try
-    return ← intervalArgminCoreReported taylorDepth
+    match ← intervalArgminCoreReported taylorDepth with
+    | .ok outcome => return .ok outcome
+    | .error failure =>
+        original.restore
+        return .error failure
   catch e =>
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)

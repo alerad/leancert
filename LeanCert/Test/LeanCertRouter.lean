@@ -23,6 +23,7 @@ set_option linter.unusedTactic false
 
 private def checkerExpr : LeanCert.Core.Expr := .var 0
 private def checkerInterval : LeanCert.Core.IntervalRat := ⟨0, 1, by norm_num⟩
+private def checkerInterval35 : LeanCert.Core.IntervalRat := ⟨3, 5, by norm_num⟩
 
 private def adapterTestPlan : SolverPlan := {
   intent := .pointInequality
@@ -179,7 +180,7 @@ unsafe def elabExpectAttainedReport : Tactic := fun stx => do
   let expectedVerifier :=
     if direction == `minimum then ``LeanCert.Validity.verify_argmin
     else ``LeanCert.Validity.verify_argmax
-  unless outcome.verifier == expectedVerifier do
+  unless outcome.verifier == some expectedVerifier do
     throwError "attained-extremum report retained the wrong Golden Theorem"
   unless outcome.certificates.size == 2 do
     throwError "attained proof retained {outcome.certificates.size} \
@@ -199,6 +200,60 @@ unsafe def elabExpectAttainedReport : Tactic := fun stx => do
       (fun total certificate => total.combine certificate.verification) {}
   unless usage.kernelChecks + usage.nativeChecks == 2 do
     throwError "attained proof did not retain exactly two successful checks"
+
+syntax (name := expectCompactExtremumRoute)
+  "expect_compact_extremum_route" : tactic
+
+@[tactic expectCompactExtremumRoute]
+unsafe def elabExpectCompactExtremumRoute : Tactic := fun _ => do
+  let result ← runLeanCert {} .compact
+  unless result.plan.strategy.contains "compact extreme-value theorem" do
+    throwError "front-door extremum routing changed unexpectedly: \
+      {result.plan.strategy}"
+  unless result.execution.certificates.isEmpty do
+    throwError "compact extreme-value route fabricated numerical certificates"
+
+syntax (name := expectAttainedRejectionRollback)
+  "expect_attained_rejection_rollback" ident : tactic
+
+@[tactic expectAttainedRejectionRollback]
+unsafe def elabExpectAttainedRejectionRollback : Tactic := fun stx => do
+  let callerGoals ← getGoals
+  let direction := stx[1].getId
+  let probeType ←
+    if direction == `minimum then
+      Term.elabTerm (← `(term| ∃ x ∈ checkerInterval35, ∀ y ∈ checkerInterval35,
+        LeanCert.Core.Expr.eval (fun _ => x) (.sin (.var 0)) ≤
+          LeanCert.Core.Expr.eval (fun _ => y) (.sin (.var 0))))
+        (some (mkSort .zero))
+    else
+      Term.elabTerm (← `(term| ∃ x ∈ checkerInterval, ∀ y ∈ checkerInterval,
+        LeanCert.Core.Expr.eval (fun _ => y) (.sin (.var 0)) ≤
+          LeanCert.Core.Expr.eval (fun _ => x) (.sin (.var 0))))
+        (some (mkSort .zero))
+  let probe ← mkFreshExprMVar probeType
+  setGoals [probe.mvarId!]
+  let beforeType ← probe.mvarId!.getType
+  let result ←
+    if direction == `minimum then
+      Discovery.intervalArgminCoreTyped 10
+    else
+      Discovery.intervalArgmaxCoreTyped 10
+  match result with
+  | .error (.rejectedCandidate ..) =>
+      let afterType ← (← getMainGoal).getType
+      unless ← isDefEq beforeType afterType do
+        throwError "rejected attained candidate changed the caller's goal"
+      unless (← getGoals).length == 1 do
+        throwError "rejected attained candidate changed the caller's goal list"
+      unless !(← probe.mvarId!.isAssigned) do
+        throwError "rejected attained candidate retained a partial proof assignment"
+      setGoals callerGoals
+      evalTactic (← `(tactic| trivial))
+  | .error failure =>
+      throwError "attained candidate had wrong failure classification: {repr failure}"
+  | .ok _ =>
+      throwError "irrational attained candidate unexpectedly certified"
 
 syntax (name := expectTypedOptimizationRollback)
   "expect_typed_optimization_rollback" : tactic
@@ -266,6 +321,15 @@ example : ∃ x ∈ checkerInterval, ∀ y ∈ checkerInterval,
     LeanCert.Core.Expr.eval (fun _ => x) (.var 0) ≤
       LeanCert.Core.Expr.eval (fun _ => y) (.var 0) := by
   expect_attained_report minimum
+
+example : ∃ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1, y ≤ x := by
+  expect_compact_extremum_route
+
+example : True := by
+  expect_attained_rejection_rollback maximum
+
+example : True := by
+  expect_attained_rejection_rollback minimum
 
 example : True := by
   expect_typed_optimization_rollback
