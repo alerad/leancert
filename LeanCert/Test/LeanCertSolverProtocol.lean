@@ -93,6 +93,19 @@ elab "expect_reported_exception_is_internal" : tactic => do
   unless environmentSizeAfter == environmentSizeBefore do
     throwError "failed native attempt leaked a generated environment declaration"
 
+elab "expect_reported_error_message_is_internal" : tactic => do
+  let before ← getGoals
+  let result ← runSyntheticReported do
+    logError "unexpected reported-core diagnostic"
+    return {}
+  match result with
+  | .internalError solver detail =>
+      unless solver == testPlan.solver &&
+          detail.contains "unexpected reported-core diagnostic" do
+        throwError "reported error diagnostic lost its internal-error context"
+  | _ => throwError "reported-core error diagnostic was classified as rejection"
+  assertOriginalGoals before
+
 elab "expect_subdivision_failure_detail" : tactic => do
   let before ← getGoals
   let plan := {
@@ -312,6 +325,10 @@ example : True ∧ True := by
 example : True ∧ True := by
   expect_reported_exception_is_internal
   constructor <;> trivial
+
+example : True := by
+  expect_reported_error_message_is_internal
+  trivial
 
 example : True := by
   expect_subdivision_failure_detail

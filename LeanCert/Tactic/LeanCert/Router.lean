@@ -47,7 +47,7 @@ private structure SolverSpec where
   /-- Existing engine adapters still signal ordinary numerical rejection by
   throwing. They remain explicitly quarantined behind the compatibility
   exception policy until their PR2 migration returns typed outcomes directly. -/
-  legacyExceptionAdapter : Bool := true
+  legacyExceptionAdapter : Bool := false
   cost : Nat := 1
   /-- Comparisons accepted by this solver. `none` means the solver accepts the
   full comparison language for its intent. -/
@@ -263,23 +263,27 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (.policy "checked interval tactic portfolio")
           (some (suggestion "interval_auto" #[toString d])),
         solve := pointAttempt d
-        solveReported := some (pointAttemptReported d) },
+        solveReported := some (pointAttemptReported d)
+        legacyExceptionAdapter := true },
       { report := report intent s!"direct point enclosure (Taylor depth {d2})" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "interval_auto" #[toString d2])),
         solve := pointAttempt d2
-        solveReported := some (pointAttemptReported d2) }]
+        solveReported := some (pointAttemptReported d2)
+        legacyExceptionAdapter := true }]
   | .intervalBound => #[
       { report := report intent s!"direct interval enclosure (Taylor depth {d})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound" #[toString d])),
         solve := Auto.intervalBoundCore d
-        solveReported := some (directBoundAttemptReported d) },
+        solveReported := some (directBoundAttemptReported d)
+        legacyExceptionAdapter := true },
       { report := report intent s!"direct interval enclosure (Taylor depth {d2})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound" #[toString d2])),
         solve := Auto.intervalBoundCore d2
-        solveReported := some (directBoundAttemptReported d2) },
+        solveReported := some (directBoundAttemptReported d2)
+        legacyExceptionAdapter := true },
       { report := report intent "recursive interval subdivision" cfg mode
           (.fixed .rationalInterval)
           (some (suggestion "interval_bound_subdiv"
@@ -287,7 +291,8 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (some s!"Taylor depth {d}; maximum recursive depth {cfg.subdivisions}")
           .subdivision,
         solve := subdivisionAttempt cfg
-        solveReported := some (subdivisionAttemptReported cfg) },
+        solveReported := some (subdivisionAttemptReported cfg)
+        legacyExceptionAdapter := true },
       { report := report intent
           (if cfg.useMonotonicity then s!"opt_bound {cfg.maxIterations} mono"
            else s!"opt_bound {cfg.maxIterations}") cfg mode
@@ -301,6 +306,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solve := Auto.optBoundCore cfg.maxIterations cfg.useMonotonicity d
         solveReported := some
           (optimizationAttemptReported cfg.maxIterations cfg.useMonotonicity d)
+        legacyExceptionAdapter := true
         cost := 3 }]
   | .multivariateBound => #[
       { report := report intent s!"multivariate_bound {cfg.maxIterations}"
@@ -314,6 +320,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solveReported := some <|
           multivariateAttemptReported cfg.maxIterations (1 / 1000)
             cfg.useMonotonicity d
+        legacyExceptionAdapter := true
         cost := 3 },
       { report := report intent s!"multivariate_bound {2 * cfg.maxIterations}"
           cfg mode (.policy "legacy checked global-optimization certificate")
@@ -323,55 +330,65 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solveReported := some <|
           multivariateAttemptReported (2 * cfg.maxIterations) (1 / 10000)
             cfg.useMonotonicity d2
+        legacyExceptionAdapter := true
         cost := 4 }]
   | .rootExists => #[
       { report := report intent "endpoint sign-change certificate" cfg mode
           (.policy "checked root certificate arithmetic")
           (some (suggestion "interval_roots" #[toString d])),
         solve := intervalRootsCore d
-        solveReported := some (rootExistsAttemptReported d) },
+        solveReported := some (rootExistsAttemptReported d)
+        legacyExceptionAdapter := true },
       { report := report intent "endpoint sign-change certificate" cfg mode
           (.policy "checked root certificate arithmetic")
           (some (suggestion "interval_roots" #[toString d2])),
         solve := intervalRootsCore d2
-        solveReported := some (rootExistsAttemptReported d2) },
+        solveReported := some (rootExistsAttemptReported d2)
+        legacyExceptionAdapter := true },
       { report := report intent "endpoint sign-change certificate" cfg mode
           (.policy "checked root certificate arithmetic")
           (some (suggestion "interval_roots" #[toString d3])),
         solve := intervalRootsCore d3
-        solveReported := some (rootExistsAttemptReported d3) }]
+        solveReported := some (rootExistsAttemptReported d3)
+        legacyExceptionAdapter := true }]
   | .uniqueRoot => #[
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
           (some (suggestion "interval_unique_root" #[toString d])),
         solve := intervalUniqueRootCore d
-        solveReported := some (uniqueRootAttemptReported d) },
+        solveReported := some (uniqueRootAttemptReported d)
+        legacyExceptionAdapter := true },
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
           (some (suggestion "interval_unique_root" #[toString d2])),
         solve := intervalUniqueRootCore d2
-        solveReported := some (uniqueRootAttemptReported d2) },
+        solveReported := some (uniqueRootAttemptReported d2)
+        legacyExceptionAdapter := true },
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
           (some (suggestion "interval_unique_root" #[toString d3])),
         solve := intervalUniqueRootCore d3
-        solveReported := some (uniqueRootAttemptReported d3) }]
+        solveReported := some (uniqueRootAttemptReported d3)
+        legacyExceptionAdapter := true }]
   | .noRoot => #[
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "root_bound" #[toString d])),
         solve := Auto.rootBoundCore d
-        solveReported := some (noRootAttemptReported d) },
+        solveReported := some (noRootAttemptReported d)
+        legacyExceptionAdapter := true },
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "root_bound" #[toString d2])),
         solve := Auto.rootBoundCore d2
-        solveReported := some (noRootAttemptReported d2) },
+        solveReported := some (noRootAttemptReported d2)
+        legacyExceptionAdapter := true },
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "root_bound" #[toString d3])),
         solve := Auto.rootBoundCore d3
-        solveReported := some (noRootAttemptReported d3) }]
+        solveReported := some (noRootAttemptReported d3)
+        legacyExceptionAdapter := true }]
   | .existentialMinimum => #[
       { report := report intent "guided lower-bound discovery and certification" cfg mode
           (.policy "legacy optimization followed by checked interval certification")
@@ -410,11 +427,13 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
       { report := report intent "reflective finite-sum certificate" cfg mode
           (.fixed .dyadicInterval) (some (suggestion "finsum_bound")),
         solve := finSumBoundCore (-53) 10
-        solveReported := some (finSumAttemptReported (-53) 10) },
+        solveReported := some (finSumAttemptReported (-53) 10)
+        legacyExceptionAdapter := true },
       { report := report intent "reflective finite-sum certificate" cfg mode
           (.fixed .dyadicInterval) (some (suggestion "finsum_bound" #["80"])),
         solve := finSumBoundCore (-80) 10
-        solveReported := some (finSumAttemptReported (-80) 10) }]
+        solveReported := some (finSumAttemptReported (-80) 10)
+        legacyExceptionAdapter := true }]
   | .certificateCheck => #[
       { report := report intent "closed Boolean certificate verification" cfg mode
           .notApplicable,
@@ -438,25 +457,29 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solveReported := some do
           return integralExecution (some .exactRational)
             (← integralExactCoreReported)
+        legacyExceptionAdapter := true
         cost := 0 },
       { report := report intent "integral_search 16 512" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 512
         solveReported := some do
           return integralExecution (some .checkedRationalPartitions)
-            (← integralSearchCoreReported 16 512) },
+            (← integralSearchCoreReported 16 512)
+        legacyExceptionAdapter := true },
       { report := report intent "integral_search 16 4096" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 4096
         solveReported := some do
           return integralExecution (some .checkedRationalPartitions)
-            (← integralSearchCoreReported 16 4096) },
+            (← integralSearchCoreReported 16 4096)
+        legacyExceptionAdapter := true },
       { report := report intent "integral_search 16 16384" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 16384
         solveReported := some do
           return integralExecution (some .checkedRationalPartitions)
-            (← integralSearchCoreReported 16 16384) }]
+            (← integralSearchCoreReported 16 16384)
+        legacyExceptionAdapter := true }]
   | .conjunction => #[]
 
 private def Semantic.SemanticGoal.comparison? :
@@ -596,7 +619,10 @@ private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) 
   let proposition ← goal.getType
   Solver.proveWithTacticReportedResult { spec.report with cost := spec.cost }
     proposition (do return .ok (← action))
-    (if spec.legacyExceptionAdapter then .legacyInconclusive else .internalError)
+    (if spec.solveReported.isNone || spec.legacyExceptionAdapter then
+      .legacyInconclusive
+    else
+      .internalError)
 
 /-- Temporary adapter for the existing numerical engines. The production
 router speaks only the typed `SemanticSolver` protocol; individual engines can

@@ -253,14 +253,20 @@ def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
     let captured ← Mathlib.Tactic.withResetServerInfo solver
     if captured.msgs.hasErrors then
       let rendered ← captured.msgs.toList.mapM fun message => message.data.toString
+      let detail := String.intercalate "\n" rendered
       trace[LeanCert.solver] "{plan.strategy} checker output:\n\
-        {String.intercalate "\n" rendered}"
+        {detail}"
       saved.restore
-      return .rejected {
-        checker := plan.checker
-        detail := "The generated certificate was not accepted at the current \
-          precision or strategy settings."
-      }
+      match exceptionPolicy with
+      | .internalError =>
+          return .internalError plan.solver
+            s!"solver logged error diagnostics without returning a typed failure:\n{detail}"
+      | .legacyInconclusive =>
+          return .rejected {
+            checker := plan.checker
+            detail := "The generated certificate was not accepted at the current \
+              precision or strategy settings."
+          }
     let some result := captured.result?
       | saved.restore
         return .internalError plan.solver
