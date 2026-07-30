@@ -14,9 +14,65 @@ front door, importing only the stable tactic umbrella.
 
 open LeanCert
 open MeasureTheory
+open Lean Meta Elab Tactic
+open LeanCert.Tactic
+open LeanCert.Tactic.Semantic
+open LeanCert.Tactic.Solver
+
+set_option linter.unusedTactic false
 
 private def checkerExpr : LeanCert.Core.Expr := .var 0
 private def checkerInterval : LeanCert.Core.IntervalRat := ⟨0, 1, by norm_num⟩
+
+private def adapterTestPlan : SolverPlan := {
+  intent := .pointInequality
+  solver := `typedAdapterTest
+  strategy := "typed adapter preservation test"
+  cost := 0
+  backendPolicy := .notApplicable
+  verificationRequested := .kernel
+}
+
+private def expectTypedAdapterFailure : TacticM Unit := do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let semantic ← goal.withContext do
+    match ← Semantic.parseGoal goalType with
+    | .ok semantic => pure semantic
+    | .error failure => throwError "test goal did not parse: {failure.detail}"
+  let prepared ← goal.withContext do
+    match ← Semantic.prepareGoal semantic with
+    | .ok prepared => pure prepared
+    | .error failure => throwError "test goal did not prepare: {failure.detail}"
+  let spec : SolverSpec := {
+    report := adapterTestPlan
+    solve := throwError "legacy Unit adapter ran"
+    solveReported := some (throwError "legacy reported adapter ran")
+    solveReportedResult := some <| pure <|
+      .error (.internalError "typed result survived semantic transport")
+  }
+  match ← spec.toSemanticSolver.attempt prepared {} with
+  | AttemptOutcome.routerFailure (Diagnostic.RouterFailure.internalError detail) =>
+      unless detail == "typed result survived semantic transport" do
+        throwError "typed router failure detail changed during transport"
+  | outcome =>
+      throwError "semantic adapter discarded its typed result: {repr outcome.disposition}"
+
+elab "expect_typed_adapter_failure" : tactic =>
+  expectTypedAdapterFailure
+
+elab "expect_terminal_outcome_stops" : tactic => do
+  let mut continued := false
+  try
+    enforceAttemptDisposition .compact .pointInequality <|
+      .internalError `syntheticTerminalSolver "terminal sentinel"
+    continued := true
+  catch exception =>
+    let detail ← exception.toMessageData.toString
+    unless detail.contains "terminal sentinel" do
+      throwError "terminal outcome lost its diagnostic: {detail}"
+  if continued then
+    throwError "routing continued after a terminal outcome"
 
 /--
 info: LeanCert recognized: closed certificate check
@@ -38,6 +94,25 @@ example : LeanCert.Validity.checkUpperBound checkerExpr checkerInterval 1 {} = t
 #guard_msgs in
 example : (3 : ℝ) / 2 < 2 := by
   leancert (budget := 1)
+
+-- Typed results take precedence over both reported and opaque compatibility
+-- adapters, including through normalized bound/root transport.
+example : (3 : ℝ) / 2 < 2 := by
+  expect_typed_adapter_failure
+  norm_num
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ≤ 1 := by
+  expect_typed_adapter_failure
+  intro x hx
+  exact hx.2
+
+example : ∃ x ∈ Set.Icc (0 : ℝ) 1, x = 0 := by
+  expect_typed_adapter_failure
+  exact ⟨0, by simp⟩
+
+example : True := by
+  expect_terminal_outcome_stops
+  trivial
 
 /--
 info: LeanCert recognized: closed numerical comparison

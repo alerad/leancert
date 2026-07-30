@@ -34,7 +34,9 @@ open LeanCert.Engine.Search
 
 initialize registerTraceClass `LeanCert.router
 
-private structure SolverSpec where
+/-- Transitional description of one router strategy. Exposed so the adapter
+contract can be regression-tested; it is not part of the stable tactic API. -/
+structure SolverSpec where
   report : SolverPlan
   solve : TacticM Unit
   /-- Migrated cores can return execution facts. Legacy cores leave this empty
@@ -505,6 +507,33 @@ private def throwRouterFailure {α : Type}
     (failure : Diagnostic.RouterFailure) : TacticM α :=
   throwError "{Diagnostic.routerFailure verbosity failure}"
 
+/-- Enforce the centralized portfolio disposition for speculative routes that
+run before the main portfolio. Expected failure returns normally; terminal
+protocol outcomes are surfaced immediately. -/
+def enforceAttemptDisposition
+    (verbosity : Diagnostic.DiagnosticVerbosity)
+    (intent : GoalIntent) (outcome : AttemptOutcome) : TacticM Unit := do
+  match outcome.disposition with
+  | .continue => pure ()
+  | .commit =>
+      throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
+        "A speculative route discarded a proof outcome instead of committing it."
+  | .stop =>
+      match outcome with
+      | .domainObstruction evidence =>
+          throwRouterFailure verbosity <|
+            Diagnostic.RouterFailure.domainObstruction intent evidence.reason
+      | .refuted evidence =>
+          throwRouterFailure verbosity <|
+            Diagnostic.RouterFailure.certifiedRefutation (some intent) evidence
+      | .routerFailure failure => throwRouterFailure verbosity failure
+      | .internalError solver detail =>
+          throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
+            s!"Solver `{solver}` raised unexpectedly:\n{detail}"
+      | _ =>
+          throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
+            "The disposition table stopped on a nonterminal solver outcome."
+
 private def trySolver (spec : SolverSpec) : TacticM AttemptOutcome := do
   let goal ← getMainGoal
   let proposition ← goal.getType
@@ -574,12 +603,13 @@ semantic parser. The numerical engine sees `lhs - rhs ⋚ 0`; the resulting proo
 is transported back with the ordinary ordered-ring equivalence. -/
 private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) :
     TacticM AttemptOutcome := do
-  let runSpec : TacticM SolverExecution :=
-    match spec.solveReported with
-    | some solve => solve
-    | none => do
+  let runSpec : TacticM (Except Diagnostic.RouterFailure SolverExecution) :=
+    match spec.solveReportedResult, spec.solveReported with
+    | some solve, _ => solve
+    | none, some solve => do return .ok (← solve)
+    | none, none => do
         spec.solve
-        return {}
+        return .ok {}
   let action ←
     match semantic with
     | .bound boundSpec =>
@@ -618,8 +648,9 @@ private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) 
   let goal ← getMainGoal
   let proposition ← goal.getType
   Solver.proveWithTacticReportedResult { spec.report with cost := spec.cost }
-    proposition (do return .ok (← action))
-    (if spec.solveReported.isNone || spec.legacyExceptionAdapter then
+    proposition action
+    (if (spec.solveReportedResult.isNone && spec.solveReported.isNone) ||
+        spec.legacyExceptionAdapter then
       .legacyInconclusive
     else
       .internalError)
@@ -627,7 +658,7 @@ private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) 
 /-- Temporary adapter for the existing numerical engines. The production
 router speaks only the typed `SemanticSolver` protocol; individual engines can
 then migrate from this adapter to consuming prepared payloads directly. -/
-private def SolverSpec.toSemanticSolver (spec : SolverSpec) : SemanticSolver := {
+def SolverSpec.toSemanticSolver (spec : SolverSpec) : SemanticSolver := {
   plan := { spec.report with cost := spec.cost }
   supports := spec.isApplicableTo
   attempt := fun prepared _ => trySolverFor spec prepared.semantic
@@ -787,7 +818,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
   }
   match ← trySolver normalizationSpec with
   | .proved artifact => return ← commitArtifact artifact
-  | _ => pure ()
+  | outcome => enforceAttemptDisposition verbosity normalizationIntent outcome
   let (semantic, prepared) ← goal.withContext do
     let semantic ←
       match semanticResult with
@@ -975,7 +1006,9 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
         }
         match ← trySolver exactSpec with
         | .proved artifact => return ← commitArtifact artifact
-        | _ => pure ()
+        | outcome =>
+            enforceAttemptDisposition verbosity
+              (if spec.kind == .exists then .rootExists else .uniqueRoot) outcome
 
   if let .extremum spec := semantic then
     if prepared.domains.any (fun domain => domain.isProvablyEmpty) then
@@ -1046,6 +1079,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
       | outcome =>
           trace[LeanCert.router] "compact extreme-value theorem unavailable: \
             {outcomeSummary outcome}"
+          enforceAttemptDisposition verbosity intent outcome
 
   if let .finiteSum spec := semantic then
     if spec.comparison == .eq then
@@ -1085,26 +1119,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
     | outcome =>
         trace[LeanCert.router] "{solver.plan.strategy} failed: {outcomeSummary outcome}"
         failures := failures.push (solver.plan.strategy, outcome)
-        match outcome.disposition with
-        | .continue => pure ()
-        | .commit =>
-            throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
-              "The portfolio marked a non-proof outcome for commitment."
-        | .stop =>
-            match outcome with
-            | .domainObstruction evidence =>
-                throwRouterFailure verbosity <|
-                  Diagnostic.RouterFailure.domainObstruction intent evidence.reason
-            | .refuted evidence =>
-                throwRouterFailure verbosity <|
-                  Diagnostic.RouterFailure.certifiedRefutation (some intent) evidence
-            | .routerFailure failure => throwRouterFailure verbosity failure
-            | .internalError solver detail =>
-                throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
-                  s!"Solver `{solver}` raised unexpectedly:\n{detail}"
-            | _ =>
-                throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
-                  "The portfolio disposition table stopped on a nonterminal outcome."
+        enforceAttemptDisposition verbosity intent outcome
 
   if let some refutation ← certifiedBoundRefutation? semantic prepared cfg then
     throwRouterFailure verbosity <|
