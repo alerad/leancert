@@ -151,6 +151,7 @@ inductive IntervalBoundFailure where
   | unsupported (expression detail : String)
   | inconclusive (detail : String)
   | transportFailure (detail : String)
+  | internalFailure (detail : String)
   deriving Inhabited, Repr
 
 private def boundVerifierName (isStrict isLower useChecked fromIcc : Bool) : Name :=
@@ -273,19 +274,21 @@ def tryDyadicBoundReported (goal : MVarId) (reified : LeanCert.Meta.ReifyReport)
       let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
       let certGoal ← mkFreshExprMVar certTy
       let certGoalId := certGoal.mvarId!
-      let event? ←
-        try
-          some <$> certGoalId.withContext do
-            setGoals [certGoalId]
-            closeCertificateGoalReported (← VerificationConfig.current)
-              (← getMainGoal) (tacticName := "certify_bound")
-        catch e =>
-          trace[interval_decide] "Dyadic certificate rejected in certify_bound: \
-            {e.toMessageData}"
-          pure none
-      let some event := event?
-        | saved.restore
-          return .ok none
+      let verificationResult ← certGoalId.withContext do
+        setGoals [certGoalId]
+        closeCertificateGoalTyped (← VerificationConfig.current)
+          (← getMainGoal) (tacticName := "certify_bound")
+      let event ←
+        match verificationResult with
+        | .accepted event => pure event
+        | .rejected =>
+            trace[interval_decide] "Dyadic certificate rejected in certify_bound"
+            saved.restore
+            return .ok none
+        | .failed failure =>
+            saved.restore
+            return .error <| .internalFailure
+              (failure.message "certify_bound")
       let conclusionProof ← mkAppM' proof #[certGoal]
       -- Retain the event locally until all transport goals have closed.
       setGoals [goal]
@@ -316,6 +319,8 @@ private def tryDyadicBoundCompatibility (goal : MVarId)
       throwError "certify_bound: unsupported expression {expression}:\n{detail}"
   | .error (.inconclusive detail) =>
       throwError "certify_bound: {detail}"
+  | .error (.internalFailure detail) =>
+      throwError "certify_bound: certificate verification failed:\n{detail}"
 
 /-! ## Main Tactic Implementation -/
 
@@ -1072,17 +1077,21 @@ private def rationalBoundAttemptTyped (goal : MVarId)
     let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
     let certGoal ← mkFreshExprMVar certTy
     let certGoalId := certGoal.mvarId!
+    let verificationResult ← certGoalId.withContext do
+      setGoals [certGoalId]
+      closeCertificateGoalTyped (← VerificationConfig.current)
+        certGoalId (tacticName := "certify_bound")
     let event ←
-      try
-        certGoalId.withContext do
-          setGoals [certGoalId]
-          closeCertificateGoalReported (← VerificationConfig.current)
-            certGoalId (tacticName := "certify_bound")
-      catch e =>
-        saved.restore
-        return .error <| .inconclusive
-          s!"The Rational interval checker rejected the candidate certificate: \
-            {← e.toMessageData.toString}"
+      match verificationResult with
+      | .accepted event => pure event
+      | .rejected =>
+          saved.restore
+          return .error <| .inconclusive
+            "The Rational interval checker rejected the candidate certificate."
+      | .failed failure =>
+          saved.restore
+          return .error <| .internalFailure
+            (failure.message "certify_bound")
     let conclusionProof ←
       try mkAppM' theoremProof #[certGoal]
       catch e =>
@@ -1225,6 +1234,8 @@ def intervalBoundCoreReported (taylorDepth : Nat) :
       throwError "reported direct bound: {detail}"
   | .error (.transportFailure detail) =>
       throwError "reported direct bound: proof transport failed:\n{detail}"
+  | .error (.internalFailure detail) =>
+      throwError "reported direct bound: certificate verification failed:\n{detail}"
 
 
 /-! ## Tactic Syntax -/

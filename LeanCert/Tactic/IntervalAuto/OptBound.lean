@@ -47,6 +47,7 @@ structure OptBoundOutcome where
 
 inductive OptBoundFailure where
   | unsupported (expression detail : String)
+  | rejected (detail : String)
   | transportFailure (detail : String)
   | internalFailure (detail : String)
   deriving Inhabited, Repr
@@ -124,13 +125,18 @@ unsafe def optBoundCoreTyped (maxIters : Nat) (useMonotonicity : Bool)
           return .error <| .internalFailure
             s!"expected a Boolean certificate equality, got {subgoalType}"
         let event ←
-          try
-            LeanCert.Tactic.closeCertificateGoalReported
+          match ← LeanCert.Tactic.closeCertificateGoalTyped
               (← LeanCert.Tactic.VerificationConfig.current) subgoal
-              (tacticName := "opt_bound")
-          catch e =>
-            saved.restore
-            return .error <| .internalFailure (← e.toMessageData.toString)
+              (tacticName := "opt_bound") with
+          | .accepted event => pure event
+          | .rejected =>
+              saved.restore
+              return .error <| .rejected
+                "the global optimization checker evaluated to false"
+          | .failed failure =>
+              saved.restore
+              return .error <| .internalFailure
+                (failure.message "opt_bound")
         verification := verification.combine event.toUsage
     unless (← getGoals).isEmpty do
       saved.restore
@@ -174,6 +180,8 @@ unsafe def optBoundCoreReported (maxIters : Nat) (useMonotonicity : Bool)
   | .ok outcome => return outcome
   | .error (.unsupported expression detail) =>
       throwError "opt_bound: unsupported goal {expression}:\n{detail}"
+  | .error (.rejected detail) =>
+      throwError "opt_bound: certificate rejected:\n{detail}"
   | .error (.transportFailure detail) =>
       throwError "opt_bound: proof transport failed:\n{detail}"
   | .error (.internalFailure detail) =>
