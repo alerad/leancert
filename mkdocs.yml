@@ -54,6 +54,8 @@ nav:
   - Getting Started:
     - Quickstart: quickstart.md
     - Choosing A Proof Shape: choosing-proof-shape.md
+    - Curated Showcase: showcase.md
+    - Failure Showcase: showcase-failures.md
   - Direct Automation:
     - Using leancert: direct/leancert.md
     - Bounds and Inequalities: direct/bounds.md
@@ -98,6 +100,7 @@ nav:
     - Verification: ml/neural-networks.md
     - Distillation: ml/distillation.md
   - Architecture and Trust:
+    - Trust Model: architecture/trust-model.md
     - Golden Theorems: architecture/golden-theorems.md
     - Interval Backend Selection: architecture/backend-selection.md
     - Table Certificates: architecture/table-certificates.md

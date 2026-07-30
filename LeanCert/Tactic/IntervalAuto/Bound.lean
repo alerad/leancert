@@ -134,6 +134,18 @@ structure DyadicBoundOutcome where
   taylorDepth : Nat
   deriving Inhabited
 
+/-- Runtime facts from the retained direct-bound proof. A Rational fallback is
+observed by first running the checked Dyadic attempt in an isolated state; the
+legacy Rational adapter does not yet expose its individual checker event. -/
+structure IntervalBoundOutcome where
+  dyadic : Bool
+  checker : Option Name := none
+  verifier : Option Name := none
+  verification : LeanCert.Tactic.VerificationUsage := {}
+  precision : Option Int := none
+  taylorDepth : Nat
+  deriving Inhabited
+
 /-- Try to prove a forall-bound goal using the Dyadic backend.
     Returns metadata if the entire goal was closed, `none` otherwise.
     Uses the checked Dyadic evaluator for arbitrary expressions. -/
@@ -876,6 +888,70 @@ where
                 evalTactic (← `(tactic| norm_cast))
               catch _ =>
                 evalTactic (← `(tactic| simp only [Rat.cast_zero, Rat.cast_one, Rat.cast_intCast, Rat.cast_natCast]))
+
+/-- Reporting-aware direct-bound entry point.
+
+The checked Dyadic attempt already returns complete telemetry. If that attempt
+does not close the goal, the original state is restored and the compatibility
+core runs its checked Rational fallback. This makes the winning arithmetic
+backend observable without allowing failed Dyadic metadata to leak into the
+Rational result. -/
+def intervalBoundCoreReported (taylorDepth : Nat) : TacticM IntervalBoundOutcome := do
+  let original ← saveState
+  try
+    intervalNormCore
+    try
+      evalTactic (← `(tactic|
+        intro _x _hx
+        simp only [ge_iff_le, gt_iff_lt]
+        revert _x _hx))
+    catch _ =>
+      try evalTactic (← `(tactic| simp only [ge_iff_le, gt_iff_lt]))
+      catch _ => pure ()
+    try
+      evalTactic (← `(tactic|
+        simp only [pow_zero, pow_one, one_mul, mul_one] at *))
+    catch _ => pure ()
+    let goal ← getMainGoal
+    let goalType ← goal.getType
+    let some boundGoal ← parseBoundGoal goalType
+      | throwError "reported direct bound: goal normalization did not produce a bound"
+    let attempt (intervalInfo : IntervalInfo) (func bound : Lean.Expr)
+        (isStrict isLower : Bool) : TacticM (Option DyadicBoundOutcome) := do
+      goal.withContext do
+        discard <| tryNormalizeGoalToIcc
+        let normalizedGoal ← getMainGoal
+        let ast := (← getAstWithReport func).expr
+        let boundRat ← extractRatBound bound
+        tryDyadicBoundReported normalizedGoal ast boundRat intervalInfo taylorDepth
+          isStrict isLower
+    let dyadic? ←
+      match boundGoal with
+      | .forallLe _ intervalInfo func bound =>
+          attempt intervalInfo func bound false false
+      | .forallGe _ intervalInfo func bound =>
+          attempt intervalInfo func bound false true
+      | .forallLt _ intervalInfo func bound =>
+          attempt intervalInfo func bound true false
+      | .forallGt _ intervalInfo func bound =>
+          attempt intervalInfo func bound true true
+    if let some outcome := dyadic? then
+      return {
+        dyadic := true
+        checker := some outcome.checker
+        verifier := some outcome.verifier
+        verification := outcome.verification
+        precision := some outcome.precision
+        taylorDepth := outcome.taylorDepth
+      }
+  catch error =>
+    trace[interval_decide] "reported Dyadic direct-bound attempt failed: {error.toMessageData}"
+  original.restore
+  intervalBoundCore taylorDepth
+  return {
+    dyadic := false
+    taylorDepth
+  }
 
 
 /-! ## Tactic Syntax -/

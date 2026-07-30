@@ -25,6 +25,13 @@ name = "examples"
 roots = ["LeanCert.Examples"]
 precompileModules = false
 
+# Public announcement examples. Keep this small, quick, and presentation-ready.
+# Build explicitly with: lake build Showcase
+[[lean_lib]]
+name = "Showcase"
+roots = ["LeanCert.Examples.Showcase"]
+precompileModules = false
+
 # Heavy numerical verification - for CI validation. Proves the bounds stated
 # (with `sorry`) in the Li2Bounds interface and statement-identity-checks them.
 # Build explicitly with: lake build Li2Verified
@@ -139,6 +146,7 @@ roots = [
   "LeanCert.Test.PublicAPI.Isolation",
   "LeanCert.Test.PublicAPI.Bounds",
   "LeanCert.Test.PublicAPI.CertifiedBoundsImport",
+  "LeanCert.Test.PublicAPI.DomainUmbrellas",
   "LeanCert.Test.PublicAPI.TrustAxes",
   "LeanCert.Test.ReadmeTest",
   "LeanCert.Test.ReleaseTest",

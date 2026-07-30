@@ -17,6 +17,9 @@ jobs:
       - name: Build examples
         run: lake build examples
 
+      - name: Build curated public showcase
+        run: lake build Showcase
+
       - name: Build FunctionalTests (full regression suite)
         run: lake build FunctionalTests
 

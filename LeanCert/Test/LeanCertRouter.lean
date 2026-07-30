@@ -60,6 +60,60 @@ Advanced control:
 example : (1 : ℝ) < 2 := by
   leancert?
 
+/--
+info: LeanCert recognized: closed numerical comparison
+
+Selected strategy:
+  direct point enclosure (Taylor depth 10)
+  Taylor depth: 10
+  precision: -80
+
+Numerical computation:
+  Dyadic interval evaluation
+
+Certificate verification:
+  requested native → used native
+Checker: LeanCert.Validity.checkStrictUpperBoundDyadicChecked
+Verifier: LeanCert.Validity.verify_strict_upper_bound_dyadic_checked
+
+Suggested proof:
+  by
+    leancert
+
+Advanced control:
+  by
+    interval_auto 10
+-/
+#guard_msgs in
+example : Real.log 2 < 7 / 10 := by
+  leancert?
+
+/--
+info: LeanCert recognized: univariate interval bound
+
+Selected strategy:
+  direct interval enclosure (Taylor depth 10)
+  Taylor depth: 10
+
+Numerical computation:
+  Rational interval evaluation
+
+Certificate verification:
+  requested native; actual route not observed by the legacy adapter
+
+Suggested proof:
+  by
+    leancert
+
+Advanced control:
+  by
+    certify_bound 10
+-/
+#guard_msgs in
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.exp x * Real.cos x ≤ 3 := by
+  leancert?
+
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ^ 2 ≤ 1 := by
   leancert
 
