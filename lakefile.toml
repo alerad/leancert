@@ -29,7 +29,7 @@ precompileModules = false
 # Build explicitly with: lake build Showcase
 [[lean_lib]]
 name = "Showcase"
-roots = ["LeanCert.Examples.Showcase"]
+roots = ["LeanCert.Examples.Showcase", "LeanCert.Test.ShowcaseFailures"]
 precompileModules = false
 
 # Heavy numerical verification - for CI validation. Proves the bounds stated
@@ -150,6 +150,7 @@ roots = [
   "LeanCert.Test.PublicAPI.TrustAxes",
   "LeanCert.Test.ReadmeTest",
   "LeanCert.Test.ReleaseTest",
+  "LeanCert.Test.ShowcaseFailures",
   "LeanCert.Test.SqrtTest",
   "LeanCert.Test.Support",
   "LeanCert.Test.TestDyadicEval",

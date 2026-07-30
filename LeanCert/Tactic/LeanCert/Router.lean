@@ -871,6 +871,25 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
             require rational endpoints"
         ]
     rejectUnsupportedPreparedFunctions prepared verbosity
+    -- Domain validity is an executable precondition of the checked Rational
+    -- evaluator. Diagnose its failure before treating a rejected certificate
+    -- as mere numerical imprecision. This evaluation influences diagnostics
+    -- only; proof acceptance still goes through the checked tactic core.
+    for function in prepared.functions do
+      let source := match function with
+        | .ready source .. | .unsupported source .. | .deferred source .. => source
+      let ast := (← LeanCert.Meta.reifyWithReport source).expr
+      for domain in prepared.domains do
+        if let .closedRat _ interval _ := domain then
+          let cfgExpr ← mkAppM ``LeanCert.Engine.EvalConfig.mk
+            #[toExpr cfg.taylorDepth]
+          let check ← mkAppM ``LeanCert.Engine.checkDomainValid1
+            #[ast, interval, cfgExpr]
+          let valid ← unsafe evalExpr Bool (mkConst ``Bool) check
+          unless valid do
+            throwRouterFailure verbosity <|
+              Diagnostic.RouterFailure.domainObstruction .intervalBound
+                "the checked evaluator rejected a partial operation on this interval"
 
   if let .root spec := semantic then
     if prepared.domains.any (fun domain => domain.isProvablyEmpty) then

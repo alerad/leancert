@@ -30,23 +30,32 @@ import LeanCert.QProduct
 
 open LeanCert.QProduct
 
-example : primeLambda ≤ ((133 / 240 : ℚ) : ℝ) := by
-  exact verify_primeLambda_upper 7 (133 / 240) (by native_decide)
+example : ((19 / 36 : ℚ) : ℝ) ≤ primeLambda ∧
+    primeLambda ≤ ((7 / 12 : ℚ) : ℝ) :=
+  LeanCert.Validity.verify_limit_interval
+    primeLambda_le_shiftedTrunc shiftedTrunc_sub_tail_le_primeLambda
+    1 (19 / 36) (7 / 12) (by native_decide)
 ```
 
-| Example | Selected method | Trust story |
-| --- | --- | --- |
-| `log 2 < 0.7` | direct point enclosure | checked Dyadic certificate |
-| nonlinear quantified bound | direct enclosure | Dyadic-first/Rational-fallback checked portfolio |
-| two-variable box | branch-and-bound | checked global-bound certificate |
-| unique square root | interval Newton | checked root certificate |
-| polynomial integral | exact rational integration | ordinary kernel proof |
-| prime q-product limit | finite truncation | Golden Theorem with native-checked premise |
+Every displayed advanced proof is also compiled privately in the showcase
+module.
 
-On the reference development machine, a warm direct compilation of the whole
-module took approximately 21 seconds on Lean/Mathlib v4.32.2. Runtime depends
-on hardware, cache state, and verification mode.
+| Example | Exact advanced control | Certificate/trust story | Median |
+| --- | --- | --- | ---: |
+| `log 2 < 0.7` | `interval_auto 10` | observed Dyadic checker; native default | 6.056 s |
+| nonlinear quantified bound | `certify_bound 10` | observed Rational fallback; legacy route unobserved | 6.198 s |
+| two-variable box | `multivariate_bound` | checked branch-and-bound certificate | 6.311 s |
+| unique square root | `interval_unique_root` | checked interval-Newton certificate | 7.044 s |
+| polynomial integral | `integral_exact` | exact rational kernel proof | 6.149 s |
+| q-product enclosure | explicit limit Golden Theorem | native-checked finite truncation and tail | 4.476 s |
+
+These are medians of three isolated warm `lake env lean` processes on an
+Apple-arm64 development machine, Lean/Mathlib v4.32.2. They include roughly
+4–6 seconds of Lean process/import overhead and therefore measure the complete
+copy-paste user experience, not tactic execution alone. The
+[machine-readable baseline](https://github.com/alerad/leancert/blob/main/scripts/bench-showcase/baselines/v4.32.2.json)
+records every sample and environment metadata. Runtime depends on hardware,
+cache state, and verification mode.
 
 Use `leancert?` to inspect the recognized shape, strategy, numerical backend or
 policy, verification route, and advanced control.
-

@@ -3,6 +3,10 @@
 Good automation distinguishes false mathematics from unsupported syntax and
 insufficient numerical resolution:
 
+All five rows are executable regressions in
+`LeanCert.Test.ShowcaseFailures`, built by both `Showcase` and
+`FunctionalTests`.
+
 | Situation | Diagnostic | Action |
 | --- | --- | --- |
 | false theorem | certified counterexample | inspect the witness and repair the statement |
@@ -18,6 +22,15 @@ import LeanCert.Tactic
 
 example : ∀ x ∈ Set.Icc (-2 : ℝ) 2, x * x ≤ 3 := by
   interval_refute
+```
+
+Domain failures are distinguished from precision failures:
+
+```lean expect-error: Domain obstruction
+import LeanCert.Tactic
+
+example : ∀ x ∈ Set.Icc (-1 : ℝ) 1, Real.log x ≤ 1 := by
+  leancert?
 ```
 
 Question mode exposes the successful decision:
