@@ -5,6 +5,8 @@ proof-producing certificate workflows.
 
 For theorem proving, begin with [`leancert`](direct/leancert.md). For
 programmatic use, see the [supported public API](reference/public-api.md).
+For a compact evaluation path, build the [curated showcase](showcase.md) and
+read the [trust model](architecture/trust-model.md).
 
 LeanCert is organized around proof intent:
 

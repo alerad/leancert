@@ -1,5 +1,19 @@
 # Supported downstream API
 
+Public modules are grouped by support level:
+
+| Level | Meaning |
+| --- | --- |
+| **Stable** | compatibility promise, covered by import and behavioral tests |
+| **Advanced** | supported expert interface whose lower-level details may evolve |
+| **Compatibility** | forwarding surface with a documented canonical replacement |
+| **Internal** | implementation module with no downstream stability promise |
+
+The stable front doors are `LeanCert`, `LeanCert.Tactic`,
+`LeanCert.API.Eval`, `LeanCert.API.Backend`, `LeanCert.API.Bounds`,
+`LeanCert.API.Optimization`, and selected domain umbrellas including
+`LeanCert.ANT` and `LeanCert.QProduct`.
+
 LeanCert provides three stable umbrella imports for downstream developments:
 
 ```lean

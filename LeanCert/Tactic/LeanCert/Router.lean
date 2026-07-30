@@ -122,6 +122,39 @@ private def pointAttempt (depth : Nat) : TacticM Unit := do
   let depth := numSyntax depth
   evalTactic (← `(tactic| interval_auto $depth:num))
 
+private def pointAttemptReported (depth : Nat) : TacticM SolverExecution := do
+  Auto.intervalNormCore
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let outcome ← Auto.proveClosedExpressionBoundReported goal goalType depth
+  let mut notes := #[s!"Taylor depth: {outcome.taylorDepth}"]
+  if let some precision := outcome.precision then
+    notes := notes.push s!"precision: {precision}"
+  return {
+    backend := .used <|
+      if outcome.dyadic then .dyadicInterval else .rationalInterval
+    verificationUsage :=
+      Solver.VerificationUsage.ofEvents outcome.verification
+    checker := some outcome.checker
+    verifier := some outcome.verifier
+    notes
+  }
+
+private def directBoundAttemptReported (depth : Nat) : TacticM SolverExecution := do
+  let outcome ← Auto.intervalBoundCoreReported depth
+  let mut notes := #[s!"Taylor depth: {outcome.taylorDepth}"]
+  if let some precision := outcome.precision then
+    notes := notes.push s!"precision: {precision}"
+  return {
+    backend := .used <|
+      if outcome.dyadic then .dyadicInterval else .rationalInterval
+    verificationUsage :=
+      Solver.VerificationUsage.ofEvents outcome.verification
+    checker := outcome.checker
+    verifier := outcome.verifier
+    notes
+  }
+
 private def finSumAttemptReported (precision : Int) (depth : Nat) :
     TacticM SolverExecution := do
   let outcome ← finSumBoundCoreReported precision depth
@@ -225,20 +258,24 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
       { report := report intent s!"direct point enclosure (Taylor depth {d})" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "interval_auto" #[toString d])),
-        solve := pointAttempt d },
+        solve := pointAttempt d
+        solveReported := some (pointAttemptReported d) },
       { report := report intent s!"direct point enclosure (Taylor depth {d2})" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "interval_auto" #[toString d2])),
-        solve := pointAttempt d2 }]
+        solve := pointAttempt d2
+        solveReported := some (pointAttemptReported d2) }]
   | .intervalBound => #[
       { report := report intent s!"direct interval enclosure (Taylor depth {d})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound" #[toString d])),
-        solve := Auto.intervalBoundCore d },
+        solve := Auto.intervalBoundCore d
+        solveReported := some (directBoundAttemptReported d) },
       { report := report intent s!"direct interval enclosure (Taylor depth {d2})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound" #[toString d2])),
-        solve := Auto.intervalBoundCore d2 },
+        solve := Auto.intervalBoundCore d2
+        solveReported := some (directBoundAttemptReported d2) },
       { report := report intent "recursive interval subdivision" cfg mode
           (.used .rationalInterval)
           (some (suggestion "interval_bound_subdiv"
@@ -834,6 +871,25 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
             require rational endpoints"
         ]
     rejectUnsupportedPreparedFunctions prepared verbosity
+    -- Domain validity is an executable precondition of the checked Rational
+    -- evaluator. Diagnose its failure before treating a rejected certificate
+    -- as mere numerical imprecision. This evaluation influences diagnostics
+    -- only; proof acceptance still goes through the checked tactic core.
+    for function in prepared.functions do
+      let source := match function with
+        | .ready source .. | .unsupported source .. | .deferred source .. => source
+      let ast := (← LeanCert.Meta.reifyWithReport source).expr
+      for domain in prepared.domains do
+        if let .closedRat _ interval _ := domain then
+          let cfgExpr ← mkAppM ``LeanCert.Engine.EvalConfig.mk
+            #[toExpr cfg.taylorDepth]
+          let check ← mkAppM ``LeanCert.Engine.checkDomainValid1
+            #[ast, interval, cfgExpr]
+          let valid ← unsafe evalExpr Bool (mkConst ``Bool) check
+          unless valid do
+            throwRouterFailure verbosity <|
+              Diagnostic.RouterFailure.domainObstruction .intervalBound
+                "the checked evaluator rejected a partial operation on this interval"
 
   if let .root spec := semantic then
     if prepared.domains.any (fun domain => domain.isProvablyEmpty) then

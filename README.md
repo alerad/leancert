@@ -1,6 +1,7 @@
 # LeanCert
 
 [![Lean Action CI](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/lean_action_ci.yml)
+[![Soundness Guard](https://github.com/alerad/leancert/actions/workflows/soundness-guard.yml/badge.svg)](https://github.com/alerad/leancert/actions/workflows/soundness-guard.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-leancert.io-brightgreen.svg)](https://docs.leancert.io)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21681348.svg)](https://doi.org/10.5281/zenodo.21681348)
@@ -123,6 +124,9 @@ example : Real.log 2 < 7 / 10 := by
 Or set it for a section or file with
 `set_option leancert.trust "kernel"`. Numerical backend selection
 (Rational/Dyadic/Affine) is independent of this verification choice.
+
+See the authoritative [trust model](https://docs.leancert.io/architecture/trust-model/)
+and the compiled [curated showcase](https://docs.leancert.io/showcase/).
 
 ## Why not `norm_num`, `positivity`, or a basic interval tactic?
 

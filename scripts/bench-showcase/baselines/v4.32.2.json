@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "metric": "isolated warm end-to-end `lake env lean` wall time",
+  "lean_toolchain": "leanprover/lean4:v4.32.2",
+  "mathlib_revision": "v4.32.2",
+  "git_commit": "2e02c0b9c2ab9e9673f3bacd98a5107514a6aa73",
+  "git_dirty": true,
+  "platform": "macOS-14.5-arm64-arm-64bit",
+  "machine": "arm64",
+  "processor": "arm",
+  "cases": [
+    {
+      "case": "point_log",
+      "runs": 3,
+      "seconds": [
+        8.229,
+        6.056,
+        6.033
+      ],
+      "median_seconds": 6.056,
+      "min_seconds": 6.033,
+      "max_seconds": 8.229
+    },
+    {
+      "case": "quantified_nonlinear",
+      "runs": 3,
+      "seconds": [
+        6.126,
+        6.198,
+        6.239
+      ],
+      "median_seconds": 6.198,
+      "min_seconds": 6.126,
+      "max_seconds": 6.239
+    },
+    {
+      "case": "multivariate_box",
+      "runs": 3,
+      "seconds": [
+        6.311,
+        6.276,
+        6.357
+      ],
+      "median_seconds": 6.311,
+      "min_seconds": 6.276,
+      "max_seconds": 6.357
+    },
+    {
+      "case": "unique_root",
+      "runs": 3,
+      "seconds": [
+        7.065,
+        7.036,
+        7.044
+      ],
+      "median_seconds": 7.044,
+      "min_seconds": 7.036,
+      "max_seconds": 7.065
+    },
+    {
+      "case": "exact_integral",
+      "runs": 3,
+      "seconds": [
+        6.094,
+        6.149,
+        6.163
+      ],
+      "median_seconds": 6.149,
+      "min_seconds": 6.094,
+      "max_seconds": 6.163
+    },
+    {
+      "case": "qproduct_limit",
+      "runs": 3,
+      "seconds": [
+        4.542,
+        4.474,
+        4.476
+      ],
+      "median_seconds": 4.476,
+      "min_seconds": 4.474,
+      "max_seconds": 4.542
+    }
+  ]
+}
