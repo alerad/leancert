@@ -35,13 +35,10 @@ inductive NumericalBackend where
   | checkedRationalPartitions
   deriving DecidableEq, Repr, Inhabited
 
-/-- What the router can honestly say about numerical execution.
-
-`.used` is runtime evidence. `.policy` describes a legacy selection policy
-whose winner is not observable through the adapter. These cases must never be
-rendered as equivalent. -/
-inductive BackendReport where
-  | used (backend : NumericalBackend)
+/-- Static arithmetic policy selected before execution. It is deliberately
+unable to claim which backend actually ran. -/
+inductive BackendPolicy where
+  | fixed (backend : NumericalBackend)
   | policy (description : String)
   | notApplicable
   | unknown
@@ -92,14 +89,16 @@ def VerificationUsage.ofEvents
 structure ChildReport where
   intent : GoalIntent
   strategy : String
-  backend : BackendReport := .unknown
+  backend : Option NumericalBackend := none
+  backendPolicy : BackendPolicy := .unknown
   verificationUsage : VerificationUsage := {}
   deriving Inhabited
 
 /-- Stable algorithm identity for reporting and failure classification.
 User-facing `strategy` text may be polished without changing control flow. -/
-inductive StrategyKind where
+inductive StrategyId where
   | legacy
+  | exactNormalization
   | exactIntegral
   | partitionIntegral
   | subdivision
@@ -111,13 +110,13 @@ runtime winner. -/
 structure SolverPlan where
   intent : GoalIntent
   solver : Name
-  strategyKind : StrategyKind := .legacy
+  strategyId : StrategyId := .legacy
   strategy : String
   strategyDetail : Option String := none
   cost : Nat
   primaryProof : ProofSuggestion := { tactic := "leancert" }
   dedicatedProof : Option ProofSuggestion := none
-  backend : BackendReport := .unknown
+  backendPolicy : BackendPolicy := .unknown
   verificationRequested : VerificationMode := .native
   checker : Option Name := none
   verifier : Option Name := none
@@ -130,13 +129,13 @@ solver.
 Reporting invariants:
 
 1. `strategy` is algorithmic, never arithmetic or trust.
-2. `.used` is observed execution; `.policy` is not.
+2. Static backend policy and observed execution use different types.
 3. `verificationRequested` and retained `verificationUsage` are distinct.
 4. `checker` is executable evidence; `verifier` is its Golden Theorem.
 5. Enclosures are retained values, never recomputed for display.
 6. Reporting metadata never participates in proof validation. -/
 structure SolverExecution where
-  backend : BackendReport := .unknown
+  backend : Option NumericalBackend := none
   verificationUsage : VerificationUsage := {}
   checker : Option Name := none
   verifier : Option Name := none
@@ -168,6 +167,19 @@ inductive AttemptOutcome where
   | internalError (solver : Name) (detail : String)
   deriving Inhabited
 
+/-- Portfolio control is centralized so individual loops cannot accidentally
+assign different meanings to the same typed outcome. -/
+inductive AttemptDisposition where
+  | continue
+  | stop
+  | commit
+  deriving DecidableEq, Repr, Inhabited
+
+def AttemptOutcome.disposition : AttemptOutcome → AttemptDisposition
+  | .proved _ => .commit
+  | .notApplicable | .unsupported _ | .inconclusive _ | .rejected _ => .continue
+  | .domainObstruction _ | .refuted _ | .routerFailure _ | .internalError .. => .stop
+
 /-- A capability-driven semantic solver. -/
 structure SemanticSolver where
   plan : SolverPlan
@@ -176,7 +188,9 @@ structure SemanticSolver where
     Elab.Tactic.TacticM AttemptOutcome
 
 private def backendInconclusiveDetail (plan : SolverPlan) : String :=
-  match plan.strategyKind with
+  match plan.strategyId with
+  | .exactNormalization =>
+      "Exact normalization did not close the prepared proposition."
   | .exactIntegral =>
       "Exact integration did not recognize the integrand as a rational polynomial \
         with supported constant divisions."
@@ -189,13 +203,30 @@ private def backendInconclusiveDetail (plan : SolverPlan) : String :=
   | .legacy =>
       "The backend could not construct a complete certificate with the current settings."
 
-/-- Validate a proof before it can be committed to the user's goal. -/
-def validateProofArtifact (artifact : ProofArtifact) : MetaM (Except String Unit) := do
+/-- Compatibility policy for exception-based legacy tactic cores. New reported
+cores must use `.internalError`; only the opaque `TacticM Unit` adapter may
+translate an exception into the historical inconclusive result. -/
+inductive ExceptionPolicy where
+  | internalError
+  | legacyInconclusive
+
+/-- Validate a proof against the immutable proposition prepared for the
+attempt, rather than trusting a proposition returned by solver code. -/
+def validateProofArtifact (preparedProposition : Lean.Expr)
+    (artifact : ProofArtifact) : MetaM (Except String Unit) := do
+  let preparedProposition ← instantiateMVars preparedProposition
+  if preparedProposition.hasMVar then
+    return .error "prepared proposition contains unresolved metavariables"
+  if preparedProposition.hasLooseBVars then
+    return .error "prepared proposition contains loose bound variables"
   let proposition ← instantiateMVars artifact.proposition
   if proposition.hasMVar then
     return .error "proof artifact proposition contains unresolved metavariables"
   if proposition.hasLooseBVars then
     return .error "proof artifact proposition contains loose bound variables"
+  unless ← isDefEq proposition preparedProposition do
+    return .error s!"proof artifact proposition {← ppExpr proposition} does not match \
+      prepared proposition {← ppExpr preparedProposition}"
   let proof ← instantiateMVars artifact.proof
   if proof.hasMVar then
     return .error "proof artifact contains unresolved metavariables"
@@ -211,7 +242,8 @@ def validateProofArtifact (artifact : ProofArtifact) : MetaM (Except String Unit
 a complete proof into a validated artifact. The execution metadata is retained
 only if the proof and all transport goals succeed. -/
 def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
-    (solver : Elab.Tactic.TacticM (Except RouterFailure SolverExecution)) :
+    (solver : Elab.Tactic.TacticM (Except RouterFailure SolverExecution))
+    (exceptionPolicy : ExceptionPolicy := .internalError) :
     Elab.Tactic.TacticM AttemptOutcome := do
   let originalGoals ← Elab.Tactic.getGoals
   let saved ← Elab.Tactic.saveState
@@ -221,14 +253,20 @@ def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
     let captured ← Mathlib.Tactic.withResetServerInfo solver
     if captured.msgs.hasErrors then
       let rendered ← captured.msgs.toList.mapM fun message => message.data.toString
+      let detail := String.intercalate "\n" rendered
       trace[LeanCert.solver] "{plan.strategy} checker output:\n\
-        {String.intercalate "\n" rendered}"
+        {detail}"
       saved.restore
-      return .rejected {
-        checker := plan.checker
-        detail := "The generated certificate was not accepted at the current \
-          precision or strategy settings."
-      }
+      match exceptionPolicy with
+      | .internalError =>
+          return .internalError plan.solver
+            s!"solver logged error diagnostics without returning a typed failure:\n{detail}"
+      | .legacyInconclusive =>
+          return .rejected {
+            checker := plan.checker
+            detail := "The generated certificate was not accepted at the current \
+              precision or strategy settings."
+          }
     let some result := captured.result?
       | saved.restore
         return .internalError plan.solver
@@ -255,7 +293,7 @@ def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
         "solver proof contains unresolved metavariables"
     let report : SolverReport := { plan, execution }
     let artifact : ProofArtifact := { proof, proposition, report }
-    match ← validateProofArtifact artifact with
+    match ← validateProofArtifact proposition artifact with
     | .ok _ =>
         -- Keep environment extensions produced by successful tactics such as
         -- `native_decide`, but return control with exactly the caller's goals.
@@ -268,9 +306,10 @@ def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
     let detail ← exception.toMessageData.toString
     trace[LeanCert.solver] "{plan.strategy} raised during speculative execution:\n{detail}"
     saved.restore
-    return .inconclusive {
-      detail := backendInconclusiveDetail plan
-    }
+    match exceptionPolicy with
+    | .internalError => return .internalError plan.solver detail
+    | .legacyInconclusive =>
+        return .inconclusive { detail := backendInconclusiveDetail plan }
 
 /-- Convenience wrapper for the common case where a reported solver can only
 fail through the ordinary tactic protocol. -/
@@ -286,8 +325,8 @@ execution remains explicitly unknown. -/
 def proveWithTactic (plan : SolverPlan) (proposition : Lean.Expr)
     (solver : Elab.Tactic.TacticM Unit) :
     Elab.Tactic.TacticM AttemptOutcome :=
-  proveWithTacticReported plan proposition do
+  proveWithTacticReportedResult plan proposition (do
     solver
-    return {}
+    return .ok {}) .legacyInconclusive
 
 end LeanCert.Tactic.Solver
