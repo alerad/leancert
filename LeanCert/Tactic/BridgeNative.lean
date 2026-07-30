@@ -38,28 +38,29 @@ Parameters:
 - `tacticName`: name for error messages (e.g., "finsum_bound")
 - `converterSteps`: fallback tactics to try (in order) for converting `proofTy → goalType`
 -/
-def closeBridgeWithNativeDecide
+def closeBridgeWithVerificationReported
     (goal : MVarId) (goalType : Lean.Expr)
     (proof checkMVar : Lean.Expr)
     (tacticName : String)
     (converterSteps : Array (TacticM Unit))
-    : TacticM Unit := do
+    : TacticM VerificationEvent := do
   let proofTy ← inferType proof
   if ← isDefEq proofTy goalType then
     -- Direct path: bridge type matches goal exactly
     -- Close the executable certificate before assigning the main goal.  This
     -- avoids leaving the user with an assigned theorem whose checker proof
     -- failed afterward.
-    try
-      discard <| closeCertificateGoal (← VerificationConfig.current)
-        checkMVar.mvarId! (tacticName := tacticName)
-    catch e =>
-      throwError "{tacticName}: certificate check failed.\n\
-        Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}\n\
-        Bridge proof type: {← ppExpr proofTy}\n\
-        Goal type: {← ppExpr goalType}\n\
-        {e.toMessageData}"
+    let event ← try
+        closeCertificateGoalReported (← VerificationConfig.current)
+          checkMVar.mvarId! (tacticName := tacticName)
+      catch e =>
+        throwError "{tacticName}: certificate check failed.\n\
+          Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}\n\
+          Bridge proof type: {← ppExpr proofTy}\n\
+          Goal type: {← ppExpr goalType}\n\
+          {e.toMessageData}"
     goal.assign proof
+    return event
   else
     -- Suffices fallback: bridge type differs from goal
     let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
@@ -68,28 +69,28 @@ def closeBridgeWithNativeDecide
 
     -- 1. Solve checkMVar via the verification choke point before assigning
     -- the main goal.
-    try
-      discard <| closeCertificateGoal (← VerificationConfig.current)
-        checkMVar.mvarId! (tacticName := tacticName)
-    catch e =>
-      throwError "{tacticName}: certificate check failed.\n\
-        Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}\n\
-        Bridge proof type: {← ppExpr proofTy}\n\
-        Goal type: {← ppExpr goalType}\n\
-        {e.toMessageData}"
+    let event ← try
+        closeCertificateGoalReported (← VerificationConfig.current)
+          checkMVar.mvarId! (tacticName := tacticName)
+      catch e =>
+        throwError "{tacticName}: certificate check failed.\n\
+          Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}\n\
+          Bridge proof type: {← ppExpr proofTy}\n\
+          Goal type: {← ppExpr goalType}\n\
+          {e.toMessageData}"
 
     -- 2. Solve converterMVar: try each converter in sequence.  A converter
     -- only succeeds if it closes all goals; partial progress is rolled back.
     setGoals [converterMVar.mvarId!]
     for step in converterSteps do
-      if (← getGoals).isEmpty then return
+      if (← getGoals).isEmpty then return event
       let saved ← saveState
       try
         step
         if (← getGoals).isEmpty then
           suffMVar.mvarId!.assign proof
           goal.assign (mkApp converterMVar suffMVar)
-          return
+          return event
         else
           saved.restore
       catch _ =>
@@ -101,5 +102,14 @@ def closeBridgeWithNativeDecide
       Goal type: {← ppExpr goalType}\n\
       Converter goal: {← ppExpr cvGoalType}\n\
       Check expression type: {← ppExpr (← checkMVar.mvarId!.getType)}"
+
+/-- Compatibility wrapper retaining the historical API name and result type. -/
+def closeBridgeWithNativeDecide
+    (goal : MVarId) (goalType : Lean.Expr)
+    (proof checkMVar : Lean.Expr)
+    (tacticName : String)
+    (converterSteps : Array (TacticM Unit)) : TacticM Unit := do
+  discard <| closeBridgeWithVerificationReported goal goalType proof checkMVar
+    tacticName converterSteps
 
 end LeanCert.Tactic

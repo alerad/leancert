@@ -323,14 +323,16 @@ Proves goals of the form `∃ m, ∀ x ∈ I, f(x) ≥ m` by:
 2. Instantiating the existential with `m`.
 3. Proving the bound using `opt_bound`.
 -/
-syntax (name := intervalMinimizeTac) "interval_minimize" (num)? : tactic
+syntax (name := intervalMinimizeTac) "interval_minimize" (num)?
+  (leancertTrustItem)? : tactic
 
 @[tactic intervalMinimizeTac]
 unsafe def elabIntervalMinimize : Tactic := fun stx => do
   let depth := match stx[1].getOptional? with
     | some n => n.toNat
     | none => 10
-  intervalMinimizeCore depth
+  withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
+    intervalMinimizeCore depth
 
 /-! ## Maximization Tactic -/
 
@@ -413,14 +415,16 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
 
 Proves goals of the form `∃ M, ∀ x ∈ I, f(x) ≤ M`.
 -/
-syntax (name := intervalMaximizeTac) "interval_maximize" (num)? : tactic
+syntax (name := intervalMaximizeTac) "interval_maximize" (num)?
+  (leancertTrustItem)? : tactic
 
 @[tactic intervalMaximizeTac]
 unsafe def elabIntervalMaximize : Tactic := fun stx => do
   let depth := match stx[1].getOptional? with
     | some n => n.toNat
     | none => 10
-  intervalMaximizeCore depth
+  withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
+    intervalMaximizeCore depth
 
 /-! ## Argmax/Argmin Tactics -/
 
@@ -749,14 +753,16 @@ Proves goals of the form `∃ x ∈ I, ∀ y ∈ I, f(y) ≤ f(x)` by:
 3. Proving membership x ∈ I.
 4. Proving the universal bound using interval arithmetic.
 -/
-syntax (name := intervalArgmaxTac) "interval_argmax" (num)? : tactic
+syntax (name := intervalArgmaxTac) "interval_argmax" (num)?
+  (leancertTrustItem)? : tactic
 
 @[tactic intervalArgmaxTac]
 unsafe def elabIntervalArgmax : Tactic := fun stx => do
   let depth := match stx[1].getOptional? with
     | some n => n.toNat
     | none => 10
-  intervalArgmaxCore depth
+  withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
+    intervalArgmaxCore depth
 
 /-- The interval_argmin tactic implementation -/
 unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
@@ -947,14 +953,16 @@ Proves goals of the form `∃ x ∈ I, ∀ y ∈ I, f(x) ≤ f(y)` by:
 3. Proving membership x ∈ I.
 4. Proving the universal bound using interval arithmetic.
 -/
-syntax (name := intervalArgminTac) "interval_argmin" (num)? : tactic
+syntax (name := intervalArgminTac) "interval_argmin" (num)?
+  (leancertTrustItem)? : tactic
 
 @[tactic intervalArgminTac]
 unsafe def elabIntervalArgmin : Tactic := fun stx => do
   let depth := match stx[1].getOptional? with
     | some n => n.toNat
     | none => 10
-  intervalArgminCore depth
+  withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
+    intervalArgminCore depth
 
 /-! ## Multivariate Minimization/Maximization Tactics -/
 
@@ -1078,14 +1086,16 @@ Proves multivariate goals of the form `∃ m, ∀ x ∈ I, ∀ y ∈ J, f(x,y) �
 2. Instantiating the existential with the found minimum.
 3. Proving the bound using `certify_bound`.
 -/
-syntax (name := intervalMinimizeMvTac) "interval_minimize_mv" (num)? : tactic
+syntax (name := intervalMinimizeMvTac) "interval_minimize_mv" (num)?
+  (leancertTrustItem)? : tactic
 
 @[tactic intervalMinimizeMvTac]
 unsafe def elabIntervalMinimizeMv : Tactic := fun stx => do
   let depth := match stx[1].getOptional? with
     | some n => n.toNat
     | none => 10
-  intervalMinimizeMvCore depth
+  withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
+    intervalMinimizeMvCore depth
 
 /-- The interval_maximize_mv tactic implementation for multivariate goals -/
 unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
@@ -1169,14 +1179,16 @@ Proves multivariate goals of the form `∃ M, ∀ x ∈ I, ∀ y ∈ J, f(x,y) �
 2. Instantiating the existential with the found maximum.
 3. Proving the bound using `certify_bound`.
 -/
-syntax (name := intervalMaximizeMvTac) "interval_maximize_mv" (num)? : tactic
+syntax (name := intervalMaximizeMvTac) "interval_maximize_mv" (num)?
+  (leancertTrustItem)? : tactic
 
 @[tactic intervalMaximizeMvTac]
 unsafe def elabIntervalMaximizeMv : Tactic := fun stx => do
   let depth := match stx[1].getOptional? with
     | some n => n.toNat
     | none => 10
-  intervalMaximizeMvCore depth
+  withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
+    intervalMaximizeMvCore depth
 
 /-! ## Roots Tactic -/
 
@@ -1278,8 +1290,16 @@ where
         return some (← mkSetIccFromBounds loExpr hiExpr)
       return none
 
-/-- The interval_roots tactic implementation -/
-def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
+/-- Runtime facts from a retained root certificate. -/
+structure RootDiscoveryOutcome where
+  checker : Name
+  verifier : Name
+  verification : LeanCert.Tactic.VerificationUsage
+  taylorDepth : Nat
+  deriving Inhabited
+
+/-- Reporting-aware interval-roots implementation. -/
+def intervalRootsCoreReported (taylorDepth : Nat) : TacticM RootDiscoveryOutcome := do
   LeanCert.Tactic.Auto.intervalNormCore
   let initialGoal ← getMainGoal
   let goalType ← initialGoal.getType
@@ -1328,22 +1348,34 @@ def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
     -- verify_sign_change : ExprSupportedCore e → ContinuousOn ... → checkSignChange e I cfg = true → ∃ x ∈ I, f(x) = 0
     let proof ← mkAppM ``LeanCert.Validity.RootFinding.verify_sign_change
       #[ast, supportProof, intervalExpr, cfgExpr, contProof]
+    let checker ← mkAppM ``LeanCert.Validity.RootFinding.checkSignChange
+      #[ast, intervalExpr, cfgExpr]
+    let certType ← mkAppM ``Eq #[checker, mkConst ``Bool.true]
+    let certificate ← mkFreshExprMVar certType
+    let event ← LeanCert.Tactic.closeCertificateGoalReported
+      (← LeanCert.Tactic.VerificationConfig.current) certificate.mvarId!
+      (tacticName := "interval_roots")
+    let conclusion ← mkAppM' proof #[certificate]
 
     if fromSetIcc then
-      let proofSyntax ← Term.exprToSyntax proof
-      evalTactic (← `(tactic| refine (by
-        have h := $proofSyntax (by leancert_verify_cert)
+      let proofSyntax ← Term.exprToSyntax conclusion
+      evalTactic (← `(tactic| exact (by
+        have h := $proofSyntax
         simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
           add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
     else
-      -- 7. Apply the proof - this leaves the certificate check as a goal
-      let newGoals ← goal.apply proof
-      setGoals newGoals
+      goal.assign conclusion
+      replaceMainGoal []
+    return {
+      checker := ``LeanCert.Validity.RootFinding.checkSignChange
+      verifier := ``LeanCert.Validity.RootFinding.verify_sign_change
+      verification := event.toUsage
+      taylorDepth := taylorDepth
+    }
 
-      -- 8. Solve remaining certificate goals via the verification choke point
-      for g in newGoals do
-        discard <| LeanCert.Tactic.closeCertificateGoal
-          (← LeanCert.Tactic.VerificationConfig.current) g (tacticName := "interval_roots")
+/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
+def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
+  discard <| intervalRootsCoreReported taylorDepth
 
 /-- The interval_roots tactic.
 
@@ -1368,11 +1400,12 @@ example : ∃ x ∈ Icc (0 : ℝ) 2, x^2 - 2 = 0 := by
 - Requires a sign change at the endpoints (IVT condition)
 - If there's no sign change, the tactic will fail
 -/
-elab "interval_roots" depth:(num)? : tactic => do
+elab "interval_roots" depth:(num)? t:(leancertTrustItem)? : tactic => do
   let taylorDepth := match depth with
     | some n => n.getNat
     | none => 10
-  intervalRootsCore taylorDepth
+  withTrustMode (← elabTrustItem? t) do
+    intervalRootsCore taylorDepth
 
 /-! ## Unique Root Tactic -/
 
@@ -1451,7 +1484,8 @@ def parseUniqueRootGoal (goalType : Lean.Expr) :
     (configured via `leancert.trust`) to work without noncomputable Real
     functions.
 -/
-unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
+unsafe def intervalUniqueRootCoreReported (taylorDepth : Nat) :
+    TacticM RootDiscoveryOutcome := do
   LeanCert.Tactic.Auto.intervalNormCore
   let initialGoal ← getMainGoal
   let goalType ← initialGoal.getType
@@ -1498,23 +1532,34 @@ unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
   -- Args: e, hsupp, hvar0, I, cfg, hCont
   let proof ← mkAppM ``Validity.RootFinding.verify_unique_root_computable
     #[ast, supportProof, var0Proof, intervalExpr, evalCfgExpr, contProof]
+  let checker ← mkAppM ``Validity.RootFinding.checkNewtonContractsCore
+    #[ast, intervalExpr, evalCfgExpr]
+  let certType ← mkAppM ``Eq #[checker, mkConst ``Bool.true]
+  let certificate ← mkFreshExprMVar certType
+  let event ← LeanCert.Tactic.closeCertificateGoalReported
+    (← LeanCert.Tactic.VerificationConfig.current) certificate.mvarId!
+    (tacticName := "interval_unique_root")
+  let conclusion ← mkAppM' proof #[certificate]
 
-    if fromSetIcc then
-      let proofSyntax ← Term.exprToSyntax proof
-      evalTactic (← `(tactic| refine (by
-        have h := $proofSyntax (by leancert_verify_cert)
-        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
-          add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
+  if fromSetIcc then
+    let proofSyntax ← Term.exprToSyntax conclusion
+    evalTactic (← `(tactic| exact (by
+      have h := $proofSyntax
+      simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
+        add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
   else
-    -- Apply the proof (leaves one certificate check goal)
-    let newGoals ← goal.apply proof
-    setGoals newGoals
+    goal.assign conclusion
+    replaceMainGoal []
+  return {
+    checker := ``Validity.RootFinding.checkNewtonContractsCore
+    verifier := ``Validity.RootFinding.verify_unique_root_computable
+    verification := event.toUsage
+    taylorDepth := taylorDepth
+  }
 
-    -- Solve certificate check: checkNewtonContractsCore e I cfg = true
-    -- (computable; closed via the verification choke point)
-    for g in newGoals do
-      discard <| LeanCert.Tactic.closeCertificateGoal
-        (← LeanCert.Tactic.VerificationConfig.current) g (tacticName := "interval_unique_root")
+/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
+unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
+  discard <| intervalUniqueRootCoreReported taylorDepth
 
 /-- The interval_unique_root tactic.
 
@@ -1533,14 +1578,16 @@ example : ∃! x ∈ I_1_2, Expr.eval (fun _ => x) (x² - 2) = 0 := by
   checking.
 - Newton step must contract (derivative doesn't contain 0)
 -/
-syntax (name := intervalUniqueRootTac) "interval_unique_root" (num)? : tactic
+syntax (name := intervalUniqueRootTac) "interval_unique_root" (num)?
+  (leancertTrustItem)? : tactic
 
 @[tactic intervalUniqueRootTac]
 unsafe def elabIntervalUniqueRoot : Tactic := fun stx => do
   let taylorDepth := match stx[1].getOptional? with
     | some n => n.toNat
     | none => 10
-  intervalUniqueRootCore taylorDepth
+  withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
+    intervalUniqueRootCore taylorDepth
 
 /-! ## Discover Tactic -/
 

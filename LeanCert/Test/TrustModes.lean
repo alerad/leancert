@@ -23,6 +23,39 @@ silently used native verification). These pins are the guard against a
 repeat.
 -/
 
+open Lean Elab Tactic
+
+private def closeAndExpectVerificationEvent
+    (cfg : LeanCert.Tactic.VerificationConfig)
+    (requested : LeanCert.Tactic.VerificationMode)
+    (used : LeanCert.Tactic.VerificationUsed)
+    (cause : LeanCert.Tactic.VerificationCause) : TacticM Unit := do
+  let goal ← getMainGoal
+  let event ← LeanCert.Tactic.closeCertificateGoalReported cfg goal
+    "trust telemetry test"
+  unless event.requested == requested do
+    throwError "wrong requested verification mode: {repr event}"
+  unless event.used == used do
+    throwError "wrong observed verification route: {repr event}"
+  unless event.cause == cause do
+    throwError "wrong verification cause: {repr event}"
+
+elab "close_expect_native_event" : tactic =>
+  closeAndExpectVerificationEvent { mode := .native }
+    .native .native .explicitNative
+
+elab "close_expect_kernel_event" : tactic =>
+  closeAndExpectVerificationEvent { mode := .kernel }
+    .kernel .kernel .explicitKernel
+
+elab "close_expect_auto_kernel_event" : tactic =>
+  closeAndExpectVerificationEvent { mode := .auto }
+    .auto .kernel .autoKernel
+
+example : True := by close_expect_native_event
+example : True := by close_expect_kernel_event
+example : True := by close_expect_auto_kernel_event
+
 /-! ### Default mode: native (behavior preserved) -/
 
 theorem trustDefaultNative : Real.log 2 < 7/10 := by interval_decide
@@ -123,8 +156,11 @@ run_meta do
     mkEq app (toExpr true)
   let opts ← getOptions
   let bigTy ← mkSumCheck 1 5000
-  unless (autoGateReason? opts bigTy).isSome do
-    throwError "auto gate did not fire on a 5000-term finite sum"
+  let expected :=
+    "finite sum with 5000 terms exceeds autoMaxSumTerms=2000"
+  let actual := autoGateReason? opts bigTy
+  unless actual == some expected do
+    throwError "auto gate reason mismatch: expected {expected}, got {repr actual}"
   let smallTy ← mkSumCheck 1 100
   unless (autoGateReason? opts smallTy).isNone do
     throwError "auto gate wrongly fired on a 100-term finite sum"

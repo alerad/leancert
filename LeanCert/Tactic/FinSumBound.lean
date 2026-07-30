@@ -263,7 +263,8 @@ private def reifyFinSumBody (bodyLambda : Lean.Expr) : MetaM Lean.Expr := do
 /-! ## Tactic Kernel -/
 
 /-- Core implementation of `finsum_bound` for Finset.Icc goals. -/
-private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
+private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int)
+    (taylorDepth : Nat) : TacticM VerificationEvent := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -306,7 +307,7 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int) (taylorDepth :
         precLeZeroProof, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
-    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound" #[
+    closeBridgeWithVerificationReported goal goalType proof checkMVar "finsum_bound" #[
       do evalTactic (← `(tactic|
         intro h; norm_num [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
           div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢; done)),
@@ -321,7 +322,8 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int) (taylorDepth :
     ]
 
 /-- Core implementation of `finsum_bound` for arbitrary Finsets (list path). -/
-private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
+private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int)
+    (taylorDepth : Nat) : TacticM VerificationEvent := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -366,7 +368,7 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int) (taylorDe
         precLeZeroProof, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
-    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound" #[
+    closeBridgeWithVerificationReported goal goalType proof checkMVar "finsum_bound" #[
       do evalTactic (← `(tactic|
         intro h; norm_num [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
           div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢; done)),
@@ -421,21 +423,56 @@ private def tryRewriteFinSum : TacticM Unit := do
   let newGoal ← goal.replaceTargetEq result.eNew result.eqProof
   replaceMainGoal (newGoal :: result.mvarIds)
 
-/-- Main dispatch: try Icc path first, then list path. -/
-def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
+/-- Runtime facts from a retained finite-sum certificate. -/
+structure FinSumBoundOutcome where
+  checker : Name
+  verifier : Name
+  verification : VerificationUsage
+  precision : Int
+  taylorDepth : Nat
+  termCount : Option Nat := none
+  deriving Inhabited
+
+/-- Reporting-aware dispatch: try Icc path first, then list path. -/
+def finSumBoundCoreReported (prec : Int) (taylorDepth : Nat) :
+    TacticM FinSumBoundOutcome := do
   let goal ← getMainGoal
   let goalType ← goal.getType
   -- Try Icc path first (faster, no Nodup check needed)
   if let some iccGoal := parseFinSumGoal goalType then
-    finSumBoundIccCore iccGoal prec taylorDepth
-    return
+    let event ← finSumBoundIccCore iccGoal prec taylorDepth
+    let checker := if iccGoal.isUpper then
+      ``checkFinSumUpperBoundFull else ``checkFinSumLowerBoundFull
+    let verifier := if iccGoal.isUpper then
+      ``verify_finsum_upper_full_checked else ``verify_finsum_lower_full_checked
+    return {
+      checker := checker
+      verifier := verifier
+      verification := event.toUsage
+      precision := prec
+      taylorDepth := taylorDepth
+    }
   -- Fall back to general list path
   if let some listGoal := ← parseFinSumGoalList goalType then
-    finSumBoundListCore listGoal prec taylorDepth
-    return
+    let event ← finSumBoundListCore listGoal prec taylorDepth
+    let checker := if listGoal.isUpper then
+      ``checkFinSumUpperBoundListFull else ``checkFinSumLowerBoundListFull
+    let verifier := if listGoal.isUpper then
+      ``verify_finsum_upper_list_full_checked else ``verify_finsum_lower_list_full_checked
+    return {
+      checker := checker
+      verifier := verifier
+      verification := event.toUsage
+      precision := prec
+      taylorDepth := taylorDepth
+    }
   throwError "finsum_bound: goal is not of the form \
     `∑ k ∈ S, f k ≤ target` or `target ≤ ∑ k ∈ S, f k` \
     where S is a recognized Finset (Icc, Ico, Ioc, Ioo, range, or explicit)"
+
+/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
+def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
+  discard <| finSumBoundCoreReported prec taylorDepth
 
 /-- Whether `goalType` is a finite-sum bound understood by `finsum_bound`. -/
 def isFinSumBoundGoal (goalType : Lean.Expr) : MetaM Bool := do
@@ -459,29 +496,36 @@ def isFinSumBoundGoal (goalType : Lean.Expr) : MetaM Bool := do
     - `finsum_bound using myEval myProof 100` — witness mode, 100-bit precision
     - `finsum_bound auto myEval` — witness mode, auto-prove membership
     - `finsum_bound auto myEval 80` — auto-hmem, 80-bit precision -/
-syntax (name := finSumBound) "finsum_bound" ("using" term:max term:max)? (num)? : tactic
-syntax (name := finSumBoundAuto) "finsum_bound" "auto" term:max (num)? : tactic
+syntax (name := finSumBound) "finsum_bound" ("using" term:max term:max)? (num)?
+  (leancertTrustItem)? : tactic
+syntax (name := finSumBoundAuto) "finsum_bound" "auto" term:max (num)?
+  (leancertTrustItem)? : tactic
 
 elab_rules : tactic
-  | `(tactic| finsum_bound using $evalTerm:term $hmem:term $[$prec:num]?) => do
+  | `(tactic| finsum_bound using $evalTerm:term $hmem:term $[$prec:num]?
+      $[$trust:leancertTrustItem]?) => do
     let precision : Int := match prec with
       | some n => -(n.getNat : Int)
       | none => -53
     -- Try rewriting Fin n sums to Finset.range before witness dispatch
     try tryRewriteFinSum catch _ => pure ()
-    finSumWitnessCore evalTerm hmem precision
-  | `(tactic| finsum_bound $[$prec:num]?) => do
+    withTrustMode (← elabTrustItem? trust) do
+      finSumWitnessCore evalTerm hmem precision
+  | `(tactic| finsum_bound $[$prec:num]? $[$trust:leancertTrustItem]?) => do
     let precision : Int := match prec with
       | some n => -(n.getNat : Int)
       | none => -53
     -- Try rewriting Fin n sums to Finset.range before main dispatch
     try tryRewriteFinSum catch _ => pure ()
-    finSumBoundCore precision 10
-  | `(tactic| finsum_bound auto $evalTerm:term $[$prec:num]?) => do
+    withTrustMode (← elabTrustItem? trust) do
+      finSumBoundCore precision 10
+  | `(tactic| finsum_bound auto $evalTerm:term $[$prec:num]?
+      $[$trust:leancertTrustItem]?) => do
     let precision : Int := match prec with
       | some n => -(n.getNat : Int)
       | none => -53
     try tryRewriteFinSum catch _ => pure ()
-    finSumWitnessAutoCore evalTerm precision
+    withTrustMode (← elabTrustItem? trust) do
+      finSumWitnessAutoCore evalTerm precision
 
 end LeanCert.Tactic

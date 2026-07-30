@@ -55,13 +55,17 @@ nav:
     - Quickstart: quickstart.md
     - Choosing A Proof Shape: choosing-proof-shape.md
   - Direct Automation:
+    - Using leancert: direct/leancert.md
     - Bounds and Inequalities: direct/bounds.md
     - Roots and No-Root Proofs: direct/roots.md
     - Optimization and Discovery: direct/optimization-discovery.md
-    - Checked Automatic Differentiation: direct/checked-ad.md
     - Integration: direct/integration.md
+    - Checked Automatic Differentiation: direct/checked-ad.md
     - Troubleshooting: direct/troubleshooting.md
-    - Tactics Reference: direct/tactics-reference.md
+    - Advanced Guides:
+      - Choosing a Dedicated Tactic: tactics/choosing-tactics.md
+      - Discovery Commands: tactics/discovery.md
+      - Discovery to Theorem: tactics/end-to-end-example.md
   - Proof Templates:
     - Overview: proof-templates/overview.md
     - Checker-To-Theorem Pattern: proof-templates/checker-to-theorem.md
@@ -83,6 +87,13 @@ nav:
       - Explicit PNT: domains/ant/explicit-pnt.md
     - QProduct Prime Limits: domains/qproduct-prime-limits.md
     - Constants: domains/constants.md
+  - Certificate Engines:
+    - Analytic Number Theory: certificates/ant.md
+    - Asymptotic Envelopes: certificates/ant-asymp.md
+    - Chebyshev: certificates/chebyshev.md
+    - QProduct: certificates/qproduct.md
+    - ConstantFactory: certificates/constants.md
+    - Contour Shift: certificates/contour-shift.md
   - ML Verification:
     - Verification: ml/neural-networks.md
     - Distillation: ml/distillation.md
@@ -100,4 +111,3 @@ nav:
     - Certificate APIs: reference/certificate-apis.md
     - Algebraic Root Certificates: certificates/algebraic-roots.md
     - Legacy Certificate Overview: certificates/overview.md
-    - Legacy Tactics Reference: tactics/tactics.md

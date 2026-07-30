@@ -1,428 +1,78 @@
 # Verification Status
 
-LeanCert aims for full formal verification in its production/default library.
-Legacy examples and prototype interface files are separate from that guarantee
-and may contain placeholders while their verified counterparts are developed.
+LeanCert's production path is built around checked computations and theorems
+that lift successful checks to mathematical propositions. The table below
+states the actual boundary for each major subsystem. A successful checker is
+verified; search and certificate generation may still fail or be inconclusive.
+
+One compatibility exception is important: the lightweight imported Li₂ aliases
+use two explicitly allowlisted placeholders. Their matching proofs are built in
+a separate CI target, but the aliases are not kernel-linked to those proof
+constants. See the final row for the exact qualification.
 
 ## Production Verification Status
 
-The following production components have complete proofs with no Lean proof
-placeholders in the default LeanCert library path:
+| Component | Checked entry point | Correctness bridge | Qualification |
+|---|---|---|---|
+| Backend-independent interval evaluation | `LeanCert.evalInterval` | `LeanCert.evalInterval_correct` in `API/Eval.lean` | Returns structured `EvalError`; missing list coordinates are fixed to zero. |
+| Rational interval evaluation | `LeanCert.Backend.Rational.eval` | `LeanCert.Backend.Rational.eval_correct` in `API/Backend.lean` | The shared dispatcher requires the fixed Rational Taylor depth. |
+| Dyadic interval evaluation | `LeanCert.Backend.Dyadic.eval` | `LeanCert.Backend.Dyadic.eval_correct` in `API/Backend.lean` | Requires a nonpositive rounding exponent. |
+| Affine interval evaluation | `LeanCert.Backend.Affine.eval` | `LeanCert.Backend.Affine.eval_correct` in `API/Backend.lean` | Preserves correlation where implemented; some operations conservatively fall back to interval enclosures. |
+| Automatic differentiation | `evalDualChecked`, `derivIntervalChecked`, `Optimization.gradientIntervalChecked` | `evalDualChecked_val_correct`, `derivIntervalChecked_correct`, `gradientIntervalChecked_correct` | Domain and unsupported-operation failures are returned rather than accepted as enclosures. |
+| Global optimization | `LeanCert.globalMinimize`, `LeanCert.globalMaximize` | `LeanCert.globalMinimize_correct`, `LeanCert.globalMaximize_correct` in `API/Optimization.lean` | Proves a global lower or upper bound, not attainment or that `bestBox` contains an optimizer. |
+| Root existence | `RootFinding.checkSignChange` | `RootFinding.verify_sign_change` in `Validity/Bounds.lean` | The theorem also uses the stated continuity hypotheses. |
+| Root uniqueness | `RootFinding.checkNewtonContractsCore` | `RootFinding.verify_unique_root_computable` in `Validity/Bounds.lean` | Uses checked contraction data and the theorem's support/continuity hypotheses. |
+| Root exclusion | `RootFinding.checkNoRoot` | `RootFinding.verify_no_root` in `Validity/Bounds.lean` | A true nonvanishing certificate proves no root on the interval. |
+| Exact polynomial integration | `QPoly.checkExactIntegral` | `QPoly.integral_eq_of_check` in `Engine/Algebra/QPolyIntegral.lean` | Exact for supported rational polynomials. |
+| Router partition integration | `checkIntegralSearchUpperBound`, `checkIntegralSearchLowerBound` | `integral_upper_bound_of_search`, `integral_lower_bound_of_search` in `Validity/Integration.lean` | Uses checked Rational partitions and the shared configurable verification route. |
+| Dyadic-list partition integration | `checkIntegralBoundsDyadicList` | `integral_bounds_of_check_dyadic_list` in `Validity/IntegrationDyadic.lean` | Separate lower-level checker validating domains and complete partition coverage. |
+| Finite sums | checked `checkFinSum*` functions | `verify_finsum_upper_full_checked`, `verify_finsum_lower_full_checked` in `Engine/FinSumDyadic.lean` | Each term is bounded by checked Dyadic evaluation. |
+| Generic tables | `TableCert.checkAll` | `TableCert.verify` in `Engine/Table.lean` | Generated rows remain untrusted until every row check succeeds. |
+| ANT and QProduct templates | certificate structures and exact observers | nearby `verify_*` and consequence theorems | Projects must supply the analytic estimates and convergence/envelope hypotheses required by each template. |
+| Dense and elementwise neural-network bounds | interval forward functions | `Layer.mem_forwardInterval`, `TwoLayerNet.mem_forwardInterval`, and activation membership theorems | Soundness requires the dimension, input-membership, and precision premises in each theorem. |
+| Transformer attention | `scaledDotProductAttention` | `mem_scaledDotProductAttention` in `ML/Attention.lean` | Currently proves an output-length relation, not elementwise semantic enclosure. |
+| Quantized inference | `QuantizedLayer.forwardQuantized` | `QuantizedLayer.forwardQuantized_sound` | Currently proves lower endpoints do not exceed upper endpoints; it is not a real-forward containment theorem. |
+| Lightweight Li₂ interface | `LeanCert.CertifiedBounds.Li2.lower`, `.upper` | matching `Li2Verified.li2_lower_verified`, `.li2_upper_verified` in the separate `Li2Verified` target | The imported aliases intentionally use two allowlisted placeholders. CI builds the matching proofs and checks statement identity, but this is not a kernel link between the aliases and those proof terms. |
+
+Backend selection and certificate verification are independent. Rational,
+Dyadic, and Affine are numerical backends. `kernel`, `native`, and `auto`
+choose how an executable certificate is discharged.
 
 ## Proof Template Verification Status
 
-Proof templates package reusable certificate structure.  Some templates have
-executable checkers; others organize proof obligations that must be supplied by
-project-specific mathematics.
+Proof templates organize reusable certificate structure. Some have executable
+checkers; others expose mathematical obligations that a project must supply.
 
-| Template | Status | Trust boundary |
+| Template | Verified part | Project-supplied boundary |
 |---|---|---|
-| `TableCert` | Verified generic traversal and row-soundness lifting | Generated rows are untrusted until the row checker succeeds |
-| `AsympEnv` | Verified semantic lower/upper envelope consequences and algebra | Projects supply the certificate proof for the underlying summatory estimate |
-| `PointwiseEnvelope` | Verified pointwise lower/upper consequences and basic algebra | Projects supply the pointwise error proof on the domain |
-| Exact product-integral certificates | Exact rational finite product-integral checkers and soundness theorems | Finite checker data is trusted only through the boolean/exact checker |
-| ConstantFactory exact observers | Verified finite observer identity for disjoint base/perturbation data | Disjointness and finite observer checker obligations must be discharged |
-| ConstantFactory interval banks | Verified interval observer theorem from kernel-bank correctness | Kernel interval bank correctness is supplied by exact or analytic certificates |
-| `ContourShiftCert` | Verified orientation/limit algebra for stable finite residue data | Rectangle identities, residue values, and decay/convergence proofs are supplied by the project |
+| `TableCert` | Generic traversal and row-soundness lifting | A sound checker for each row's semantic claim |
+| `AsympEnv` | Lower/upper envelope consequences and algebra | The certificate proof for the summatory estimate |
+| `PointwiseEnvelope` | Pointwise lower/upper consequences and algebra | The pointwise error proof on the domain |
+| Exact product-integral certificates | Exact rational finite checkers and soundness theorems | The finite certificate data |
+| ConstantFactory exact observers | Finite observer identity for disjoint base/perturbation data | Disjointness and observer-checker obligations |
+| ConstantFactory interval banks | Observer theorem from kernel-bank correctness | Exact or analytic proofs of kernel interval correctness |
+| `ContourShiftCert` | Orientation and limit algebra for stable finite residue data | Rectangle identities, residue values, decay, and convergence |
 
-### Interval Arithmetic (FTIA)
+## Trust and placeholder audit
 
-The Fundamental Theorem of Interval Arithmetic is proved for all basic operations:
+The repository's audit tests pin the expected axiom sets of representative
+public theorems and sweep the environment for locally introduced axioms.
+Textual guards reject unallowlisted `sorry` and `axiom` declarations. The two
+Li₂ compatibility placeholders are deliberately named in that allowlist; they
+must not be described as kernel-checked aliases.
 
-- Addition, subtraction: $x \in I_1, y \in I_2 \implies x + y \in I_1 + I_2$
-- Multiplication: $x \in I_1, y \in I_2 \implies x \cdot y \in I_1 \cdot I_2$
-- Division: $x \in I_1, y \in I_2, 0 \notin I_2 \implies x / y \in I_1 / I_2$
-- Power: $x \in I \implies x^n \in I^n$
-
-### Transcendental Functions
-
-Rigorous bounds via Taylor series with verified remainder terms:
-
-| Function | Theorem | Location |
-|----------|---------|----------|
-| $e^x$ | `mem_expInterval` | `Core/IntervalReal.lean` |
-| $\sin x$ | `mem_sinInterval` | `Core/IntervalReal.lean` |
-| $\cos x$ | `mem_cosInterval` | `Core/IntervalReal.lean` |
-| $\log x$ | `mem_logInterval` | `Core/IntervalReal.lean` |
-| $\sinh x$ | `mem_sinhInterval` | `Core/IntervalReal.lean` |
-| $\cosh x$ | `mem_coshInterval` | `Core/IntervalReal.lean` |
-| $\tanh x$ | `mem_tanhInterval` | `Core/IntervalReal.lean` |
-| $\arctan x$ | `mem_atanInterval` | `Engine/Eval/Core.lean` |
-| $\text{arsinh}(x)$ | `mem_arsinhInterval` | `Engine/Eval/Core.lean` |
-| $\text{atanh}(x)$ | `mem_atanhInterval` | `Engine/Eval/Core.lean` |
-| $\sqrt{x}$ | `mem_sqrtIntervalTight` | `Core/IntervalRat/Transcendental.lean` |
-| $\text{erf}(x)$ | `mem_erfInterval` | `Engine/Eval/Core.lean` |
-| $\text{sinc}(x)$ | `sinc_evalSet_correct` | `Engine/TaylorModel/Trig.lean` |
-
-### Extended Interval Arithmetic
-
-Standard interval arithmetic fails when dividing by an interval containing zero. LeanCert's **Extended Arithmetic** returns a union of intervals, preserving soundness even across singularities.
-
-- **Theorem**: `evalExtendedUnchecked_correct_core`
-- **Behavior**: 1 / [-1, 1] → (-∞, -1] ∪ [1, ∞)
-- **Status**: Verified for core expressions
-
-This enables robust handling of expressions like 1/x near x = 0.
-
-### Taylor Series
-
-The core Taylor remainder bounds are fully proved:
+For a theorem in a downstream project, inspect its actual dependency set:
 
 ```lean
-import LeanCert.Core.Taylor
+import LeanCert.Tactic
 
-#check LeanCert.Core.taylor_remainder_bound
-```
-This is the foundation for all transcendental function bounds.
+theorem verification_status_log2 : Real.log 2 < 7 / 10 := by
+  leancert (trust := kernel)
 
-### Taylor Models
-
-Taylor Models combine polynomial approximation with rigorous remainder bounds. The `fromExpr?` function in `Engine/TaylorModel/Expr.lean` converts expressions to verified Taylor Models.
-
-**All functions are now fully enabled:**
-
-| Function | Status | Theorem |
-|----------|--------|---------|
-| `exp`, `log` | ✅ Verified | `tmExp_correct`, `tmLog_correct` |
-| `sin`, `cos` | ✅ Verified | `tmSin_correct`, `tmCos_correct` |
-| `sinh`, `cosh`, `tanh` | ✅ Verified | `sinh_evalSet_correct`, etc. |
-| `atan` | ✅ Verified | `mem_atanInterval` (interval-based) |
-| `arsinh`, `atanh` | ✅ Verified | `tmAsinh_correct`, `atanh_evalSet_correct` |
-| `sqrt` | ✅ Verified | `mem_sqrtIntervalTight` (interval-based) |
-| `erf` | ✅ Verified | `mem_erfInterval` (interval-based) |
-| `sinc` | ✅ Verified | `sinc_evalSet_correct` |
-
-The main correctness theorem `fromExpr_evalSet_correct` proves that for any supported expression, the Taylor Model's evaluation set contains the true function value.
-
-### Automatic Differentiation
-
-Forward-mode AD with verified value and derivative bounds:
-
-- `evalDual_val_correct`: Value component is correct
-- `evalDual_der_correct`: Derivative component is correct
-
-### Global Optimization
-
-Branch-and-bound with formal guarantees:
-
-- `globalMinimize_lo_correct`: Lower bound is valid
-- `globalMaximize_hi_correct`: Upper bound is valid
-
-### Root Finding
-
-- **Bisection**: `verify_sign_change` proves existence via IVT
-- **Newton**: `verify_unique_root_core` proves uniqueness via contraction
-
-### Integration
-
-- `integrateInterval_correct`: Riemann sum bounds contain the true integral (general n partitions)
-- `integrateAdaptive_correct`: Adaptive integration with error-driven subdivision
-- Both rational and dyadic backends are fully verified (see Dyadic Integration below)
-
-### Dyadic Backend
-
-The high-performance dyadic interval evaluator is fully verified:
-
-- `evalIntervalDyadic_correct`: Core-fragment correctness for `ExprSupportedCore`
-- `evalIntervalDyadic_correct_of_domain`: Correctness for arbitrary expressions
-  under explicit semantic domain validity
-- `evalIntervalDyadicChecked_correct`: Every successful checked result is an enclosure
-- `IntervalDyadic.mem_add`, `mem_mul`, `mem_neg`: FTIA for dyadic operations
-- `IntervalDyadic.roundOut_contains`: Outward rounding preserves containment
-- `atanhComputable` / `mem_atanhComputable`: Computable atanh interval via Taylor series endpoint evaluation
-
-The dyadic backend avoids rational denominator explosion by using fixed-precision arithmetic:
-
-| Expression | Rational Denominator | Dyadic Mantissa |
-|------------|---------------------|-----------------|
-| `exp(exp(x))` | ~200 digits | 17 digits |
-| `exp(exp(exp(x)))` | ~2000 digits | 18 digits |
-
-See `LeanCert/Test/BenchmarkBackends.lean` for performance comparisons.
-
-### Dyadic Integration
-
-High-performance integration using the dyadic backend, enabling verified integral bounds for complex expressions where rational arithmetic would be prohibitively slow:
-
-- `integrateInterval1Dyadic_correct`: Single-interval dyadic integration correctness
-- `integral_bounds_of_check_dyadic`: Two-sided certified bounds with uniform partitioning
-- `integral_bounds_of_check_dyadic_list`: Two-sided certified bounds with an arbitrary checked partition
-- `checkListPartitionCovers_correct`: Candidate partitions are independently checked for endpoints and adjacency
-
-The dyadic integration module (`Validity/IntegrationDyadic.lean`) uses an
-internal total evaluator together with executable domain checks. Public
-checked integration returns `none` on invalid domains; boolean certificate
-checkers return `false`. Correctness theorems require either a successful
-checked result or the corresponding domain-validity hypothesis.
-
-Checked partition integration prepares configuration-dependent numerical data
-once per certificate and reuses it for every cell. This cache is an internal,
-deterministic default: it introduces no public flag, mutable state, persisted
-artifact, or new trust assumption. The prepared evaluator's interval result
-and domain-validity bit are both proved equal to the original evaluator. The
-context is operation-independent and currently prepares the certified `log 2`
-enclosure together with the coefficient families used by `log`, `exp`, `sin`,
-`cos`, and `atanh`. Further kernels can join this mechanism without changing
-the public evaluator configuration.
-
-Search and tuning code may propose nonuniform rational partitions without
-entering the trusted proof boundary. The certificate checker independently
-verifies that the candidate covers the requested interval without gaps, fuses
-domain validation with interval evaluation, and accepts only when the final
-enclosure proves the requested bounds. This supports pilot-driven autotuning
-while keeping failure and inconclusive search results distinct from proofs.
-
-### Bernstein Polynomial Enclosure
-
-Tight polynomial bounds via verified Bernstein basis conversion (`Engine/TaylorModel/Core.lean`):
-
-- `boundPolyBernstein_correct`: Main enclosure theorem — polynomial values on an interval are contained in the min/max of Bernstein coefficients
-- `bernstein_partition_of_unity`: Bernstein basis functions sum to 1
-- `bernstein_nonneg`: Bernstein basis functions are nonneg on [0, 1]
-- `monomial_bernstein_expansion`: Monomial-to-Bernstein conversion identity
-
-This enables tighter polynomial range bounds than naive interval evaluation, which is critical for Taylor model remainder estimation.
-
-### Computable Polynomial Taylor Models
-
-Dyadic polynomial Taylor models (`Engine/CompPoly.lean`) avoiding rational coefficient explosion:
-
-- `DyPoly`: Polynomial with `Dyadic` coefficients
-- `DyTM`: Taylor model combining `DyPoly` + `IntervalDyadic` remainder
-- Computable evaluation and integration operations using fixed-precision arithmetic throughout
-
-### Strict Partial Evaluators
-
-Application code should use the authoritative checked façade
-`LeanCert.evalInterval`, whose successful results are covered by the
-backend-independent theorem `LeanCert.evalInterval_correct`. It supports the
-Rational, Dyadic, and Affine backends through one structured `EvalResult` API.
-
-The following strict primitives remain useful to backend implementers. Real-
-endpoint evaluation exposes only strict `Option` results. Refined evaluation
-also provides a total wrapper, but that wrapper requires an `ADSupported`
-proof and obtains its value from the strict evaluator; it has no fallback
-branches:
-
-- `evalIntervalReal?`
-- `evalIntervalReal1?`
-- `evalIntervalReal?_correct`
-- `evalIntervalReal1?_correct`
-- `evalIntervalRefined?`
-- `evalIntervalRefined1?`
-- `evalIntervalRefined?_correct`
-- `evalIntervalRefined1?_correct`
-- `evalIntervalAffine?`
-- `evalAffineToInterval?`
-
-These return `none` for unsupported partial operations such as `inv`, `log`, and
-`atanh`, so callers cannot accidentally treat a fallback interval as a
-certificate. Total fallback evaluators are confined to `LeanCert.Internal.*`;
-new code should use checked or strict variants.
-
-Automatic differentiation has a computable domain-aware path for `inv` and
-`log`: `evalDualChecked`, `derivIntervalChecked`, and
-`Optimization.gradientIntervalChecked`.  Successful results certify value
-enclosure, differentiability, and derivative enclosure.  Reciprocal boxes that
-contain zero, nonpositive logarithm boxes, and unsupported nodes return an
-`EvalError`.  The bridge's derivative/Lipschitz endpoint uses this checked path.
-The legacy total AD core remains internal machinery for already-proved
-domain-free fragments.
-
-`AD.Dyadic` provides the bounded-denominator equivalent:
-`evalDualDyadicChecked`, `derivIntervalDyadicChecked`, and
-`gradientIntervalDyadicChecked`. Algebraic dual operations stay Dyadic and
-round outward after every addition and multiplication; the established
-verified Dyadic transcendental wrappers handle `sin`, `cos`, `exp`, `inv`, and
-`log`. Golden Theorems cover value enclosure, differentiability, indexed
-derivatives, and coordinate-aligned gradients.
-
-### Neural Network Verification
-
-The ML module provides verified interval propagation for neural networks:
-
-- `mem_forwardInterval`: Soundness of dense layer propagation
-- `mem_relu`, `mem_sigmoid`: Activation function soundness
-- `relu_relaxation_sound`: DeepPoly ReLU triangle relaxation
-- `sigmoid_relaxation_sound`: DeepPoly sigmoid monotonicity bounds
-
-**Transformer and optimized components:**
-
-- `mem_layerNorm_forwardInterval`: Elementwise soundness of Layer Normalization
-- `mem_geluInterval`: Elementwise soundness of the GELU enclosure
-- `mem_scaledDotProductAttention`: currently proves an output-length relation;
-  the implementation explicitly omits elementwise membership hypotheses
-- `forwardQuantized_sound`: currently proves validity of the computed interval
-  endpoints (`lo ≤ hi`), not semantic enclosure of a corresponding real-valued
-  quantized inference
-
-Accordingly, the attention and quantized theorem names should not be read as
-full end-to-end semantic soundness claims. Check the exact theorem statement
-before using an optimized or composite ML component in a certification claim.
-
-See `LeanCert/ML/` for the full implementation.
-
-### Kernel Verification (Dyadic)
-
-Bridge theorems for kernel-level verification via `decide`:
-
-- `verify_upper_bound_dyadic`: Connects Dyadic boolean check to Real semantic bounds
-- `verify_lower_bound_dyadic`: Lower bound variant
-- `evalIntervalDyadic_correct`: Dyadic evaluation is sound w.r.t Real operations
-
-These let the shared verification route produce proofs checked purely by the
-Lean kernel. Select it per invocation with `(trust := kernel)` or for a scope
-with `set_option leancert.trust "kernel"`.
-
-### Runtime Optimization Boundary
-
-LeanCert contains optimized candidate implementations for interval
-multiplication:
-
-- `IntervalRat.mulFast`
-- `IntervalDyadic.mulFast`
-
-These are not attached as native replacements in the production path. Compiled
-certificate checks execute the same `mul` definitions that the kernel proofs
-reason about. The retained safety-net theorems:
-
-```lean
-#check IntervalRat.mem_mulFast
-#check IntervalDyadic.mem_mulFast
-```
-prove that the optimized implementations preserve interval containment if they
-are used by a future explicitly-audited backend.
-
-### Meta-Level Evaluation Boundary
-
-Some tactics still use Lean meta-level evaluation while elaborating user input or
-building diagnostics. Current uses are limited to extracting already-elaborated
-certificate data, AST values, intervals, or diagnostic search inputs; final proof
-terms are still produced through the relevant certificate soundness theorems.
-
-The shared numeral parser exposes this boundary explicitly:
-
-```text
-LeanCert.Meta.Numeral.unsafeToRatByEval?
-```
-New proof-producing code should prefer structural parsers such as
-`toRatLeaf?`, `toRatFolded?`, and `peelCast?`, and reserve meta-level evaluation
-for candidate generation or diagnostics.
-
-## Placeholder Boundary
-
-The default LeanCert library and production import paths are intended to be
-placeholder-free. Stable results under `LeanCert.CertifiedBounds` expose the
-verified downstream interfaces. Some legacy example/prototype files under
-`LeanCert/Examples` and top-level `examples` still contain lightweight or
-placeholder interfaces; these are not production imports.
-
-For production work, prefer the verified heavy certificate files and the default
-LeanCert library imports. Do not build downstream formalizations on prototype
-example files that advertise placeholder interfaces.
-
-## Auditing Placeholders
-
-The current CI soundness guard checks the production LeanCert tree and excludes
-legacy example/test prototype directories. To reproduce the production-style
-source scan manually:
-
-```bash
-rg -n '^\s*sorry\s*$|sorryAx|mkSorry|admit' LeanCert \
-  -g '!LeanCert/Examples/**' \
-  -g '!LeanCert/Test/**'
+#print axioms verification_status_log2
 ```
 
-The core theorem audit is:
-
-```bash
-lake env lean Tests/AxiomAudit.lean
-```
-
-These enforce two invariants (both run in CI by `soundness-guard.yml`):
-
-1. **Exact axiom pinning**: the flagship correctness theorems
-   (`evalIntervalCore_correct`, `MathConst.mem_interval`, the golden theorems
-   for the rational, dyadic, and affine backends, root finding, and certified
-   integration) depend on exactly `[propext, Classical.choice, Quot.sound]`,
-   checked with `#guard_msgs in #print axioms`.
-2. **Whole-library axiom sweep**: a `run_meta` pass walks the entire compiled
-   environment and fails if *any* axiom is minted inside the `LeanCert`
-   namespace. Each library-internal `native_decide` would mint a
-   `<decl>._native.native_decide.ax_*` axiom, so this catches compiler-trust
-   creep anywhere in the library — including private lemmas, which
-   per-theorem pinning cannot see.
-
-To inspect legacy example placeholders as well, run a repo-wide textual search
-over Lean files and review hits manually; documentation comments can mention the
-word without introducing a proof placeholder.
-
-## Trust Model: Explicit Verification Modes
-
-A LeanCert proof has two components with different trust jobs:
-
-```
-user's theorem
-  = golden_theorem            -- the lift: check = true → semantic Prop
-    applied to
-    h_check : check ... = true  -- closed by the *verification route*
-```
-
-- **Library theorems (the lifts) are axiom-free.** Every golden theorem and
-  every `mem_*`/`*_correct` theorem is proved from the three standard axioms
-  only. This is enforced by the audits above; a regression is a CI failure.
-- **The certificate check is the one place compiler trust may enter — by the
-  user's explicit, auditable choice.** Every tactic closes `h_check` through a
-  single choke point (`LeanCert.Tactic.closeCertificateGoal`), selected by:
-
-| Mode | Closes with | Trusted base |
-|------|-------------|--------------|
-| `native` (default) | `native_decide` | kernel + compiler/runtime (`Lean.ofReduceBool`, one per-declaration axiom) |
-| `kernel` | `decide +kernel` | kernel only — foundational axioms; **never** silently falls back |
-| `auto` | kernel first, native past the calibrated cost gates | fallback is reported |
-
-Selection precedence: per-invocation `(trust := kernel)` syntax
-> `set_option leancert.trust "kernel"` > native default. The auto-mode cost
-gates (finite-sum term count, integration partitions, optimization
-iterations) are calibrated in `scripts/bench-trust/` and tunable via the
-`leancert.trust.auto*` options.
-
-CI can pin a theorem's trust class with the manifest command:
-
-```text
-#assert_trust kernel my_bound     -- foundational axioms only
-#assert_trust native my_big_table -- native trust allowed AND required
-```
-
-Drift fails in both directions: a kernel-pinned theorem acquiring compiler
-trust is a regression, and a native-pinned theorem losing its native
-dependency means the manifest should be tightened to `kernel`.
-
-In short: native evaluation is the supported engine for *running* large
-certificates, never a dependency of the theorems that give certificates
-their *meaning* — and for point/bound-scale goals, kernel verification now
-costs about the same, so those proofs can carry no compiler trust at all.
-
-## What This Means
-
-**For the listed production evaluators, checkers, and Golden Theorems**
-(polynomials, `sin`, `cos`, `exp`, `log`, `sqrt`, `atan`, `atanh`, `erf`,
-optimization, root finding, and integration):
-
-> Their soundness proofs are complete. LeanCert's correctness theorems are accepted by
-> the Lean kernel with no axioms beyond standard Mathlib foundations
-> (`propext`, `Classical.choice`, `Quot.sound`) — enforced by CI. A proof you
-> generate adds at most one compiler-trust axiom, for the `native_decide`
-> certificate check you chose to run natively (none, if you use `decide`).
-
-Higher-level certificate frameworks may still require mathematical premises
-from the downstream project—for example residue computations, analytic
-continuation, decay estimates, or the correctness of supplied base data.
-
-**For the dyadic backend** (neural networks, deep expressions, integration of complex integrands):
-
-> All supported operations, including `atanh`, have soundness theorems. The
-> dyadic integration path (`Validity/IntegrationDyadic.lean`) provides sound
-> integral bounds while avoiding the denominator growth of exact Rational
-> arithmetic. Performance is workload-dependent and should be measured with
-> the benchmark harness.
+`native` certificate verification additionally trusts Lean's native compiler
+path. `kernel` does not silently fall back. `auto` may select native execution
+according to its configured cost policy and reports that decision through the
+verification diagnostics.

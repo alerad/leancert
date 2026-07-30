@@ -1,6 +1,8 @@
 # Integration
 
-Use this path when the goal is a certified definite-integral enclosure.
+For ordinary definite-integral equalities and inequalities, start with
+[`leancert`](leancert.md). Use this page for the supported routes and
+lower-level certificate APIs.
 
 Typical goals:
 
@@ -9,10 +11,17 @@ Typical goals:
 lo ≤ ∫ x in a..b, f x
 ∫ x in a..b, f x ≤ hi
 ```
-Main tools:
+Primary workflow:
 
 ```text
 leancert
+leancert?
+```
+
+Advanced and programmatic controls:
+
+```text
+integral_exact
 integrateInterval
 ```
 For ordinary mathematical syntax, start with `leancert`:
@@ -32,8 +41,10 @@ example : (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by
 The exact path recognizes rational polynomials, computes their antiderivative
 with `QPoly`, and checks the endpoint result using exact rational arithmetic.
 For supported non-polynomial inequalities, the router uses the existing
-certified partition search. Exact transcendental equalities are intentionally
-not inferred from an interval enclosure.
+certified Rational partition search. Exact rational arithmetic and partition
+search describe computation strategies; they are not certificate-verification
+routes. Exact transcendental equalities are intentionally not inferred from an
+interval enclosure.
 
 For lower-level Taylor-model generated integral certificates, see
 [Proof Templates → ConstantFactory](../proof-templates/constant-factory.md) and the

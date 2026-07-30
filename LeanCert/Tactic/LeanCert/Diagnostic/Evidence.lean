@@ -6,6 +6,7 @@ Authors: LeanCert Contributors
 import Lean
 import LeanCert.Core.IntervalRat.Basic
 import LeanCert.Tactic.LeanCert.Semantic.Domain
+import LeanCert.Tactic.LeanCert.Semantic.Goal
 
 /-!
 # Structured Solver Evidence
@@ -49,6 +50,37 @@ structure DomainObstruction where
   source : Semantic.IntervalSyntax
   reason : String
   operation : Option String := none
+  deriving Inhabited
+
+/-- Whether a router diagnostic should be compact (`leancert`) or explanatory
+(`leancert?`). Both modes are rendered from the same typed failure. -/
+inductive DiagnosticVerbosity where
+  | compact
+  | explain
+  deriving DecidableEq, Inhabited
+
+/-- Sanitized record of one strategy attempt. Legacy-adapted solvers may only
+provide a generic typed outcome; raw exception strings remain trace-only. -/
+structure AttemptDiagnostic where
+  strategy : String
+  outcome : String
+  deriving Inhabited
+
+/-- Major semantic-router failures. This is intentionally independent of the
+solver protocol's `AttemptOutcome` to avoid an import cycle. -/
+inductive RouterFailure where
+  | unsupportedGoal (goal detail : String)
+  | unsupportedExpression (expression detail : String)
+  | unsupportedDomain (intent : Semantic.GoalIntent) (details : Array String)
+  | domainObstruction (intent : Semantic.GoalIntent) (reason : String)
+  | portfolioExhausted (intent : Semantic.GoalIntent)
+      (attempts : Array AttemptDiagnostic) (spent budget : Nat)
+  | certifiedRefutation (intent : Option Semantic.GoalIntent)
+      (evidence : RefutationEvidence)
+  | childFailure (index total : Nat) (intent : Option Semantic.GoalIntent)
+      (detail : String)
+  | conjunctionFailure (detail : String)
+  | internalError (detail : String)
   deriving Inhabited
 
 end LeanCert.Tactic.Diagnostic

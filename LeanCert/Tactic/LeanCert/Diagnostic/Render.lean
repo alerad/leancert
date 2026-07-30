@@ -75,16 +75,183 @@ def attemptOutcome : AttemptOutcome → String
       s!"Certified counterexample: {evidence.witness}{detail}"
   | .notApplicable => "The solver does not apply to this theorem."
   | .proved _ => "The solver proved the theorem."
+  | .routerFailure _ => "A nested semantic route failed."
   | .internalError solver _ =>
       s!"LeanCert encountered an internal proof-construction error in `{solver}`. \
         Enable `set_option trace.LeanCert.solver true` when reporting this bug."
 
+private def attemptLedger (attempts : Array AttemptDiagnostic) : String :=
+  if attempts.isEmpty then "  No applicable strategy ran."
+  else
+    String.intercalate "\n" <| attempts.toList.zipIdx.map fun (attempt, index) =>
+      s!"  {index + 1}. {attempt.strategy}\n     {attempt.outcome}"
+
+def routerFailure (verbosity : DiagnosticVerbosity) : RouterFailure → String
+  | .unsupportedGoal goal detail =>
+      s!"LeanCert could not recognize this theorem shape.\n\nGoal:\n  {goal}\n\n\
+        {detail}\n\nLeanCert handles numerical comparisons, interval bounds, roots, \
+        extrema, finite sums, integrals, and conjunctions of supported numerical theorems."
+  | .unsupportedExpression expression detail =>
+      s!"LeanCert recognized the theorem, but could not translate a numerical expression.\n\n\
+        Unsupported expression:\n  {expression}\n\n{detail}\n\n\
+        Unfold a reducible wrapper or reformulate it with a supported arithmetic \
+        or transcendental operation."
+  | .unsupportedDomain intent details =>
+      s!"LeanCert recognized: {intentLabel intent}\n\nThe domain is not supported:\n\
+        {String.intercalate "\n" details.toList}"
+  | .domainObstruction intent reason =>
+      s!"LeanCert recognized: {intentLabel intent}\n\nDomain obstruction:\n  {reason}\n\n\
+        Narrow the domain or prove the required positivity/nonzero condition. \
+        Increasing numerical precision does not repair an invalid domain."
+  | .portfolioExhausted intent attempts spent budget =>
+      match verbosity with
+      | .compact =>
+          s!"LeanCert recognized a {intentLabel intent}, but no strategy proved it \
+            within cost budget {budget} (spent {spent}).\n\n\
+            Run `leancert?` on the same goal for the attempted strategies and \
+            detailed next steps."
+      | .explain =>
+          s!"LeanCert recognized: {intentLabel intent}\n\nAttempts:\n\
+            {attemptLedger attempts}\n\nBudget: spent {spent} of {budget}\n\nNext steps:\n\
+            • Check whether the requested statement is true.\n\
+            • Increase `(taylorDepth := ...)`, `(subdivisions := ...)`, or \
+              `(maxIterations := ...)` when the corresponding attempt was inconclusive.\n\
+            • Use `interval_refute` to search for a certified counterexample."
+  | .certifiedRefutation intent? evidence =>
+      let recognized := intent?.map (fun intent =>
+        s!"LeanCert recognized: {intentLabel intent}\n\n") |>.getD ""
+      let detail := evidence.detail.map (fun value => s!"\n{value}") |>.getD ""
+      s!"{recognized}The statement is false.\n\nCertified counterexample: \
+        {evidence.witness}{detail}"
+  | .childFailure index total intent? detail =>
+      let label := intent?.map intentLabel |>.getD "numerical theorem"
+      s!"LeanCert recognized a conjunction, but child {index} of {total} failed: \
+        {label}\n\n{detail}"
+  | .conjunctionFailure detail =>
+      s!"LeanCert recognized a conjunction, but a child theorem failed.\n\n{detail}"
+  | .internalError detail =>
+      s!"LeanCert encountered an internal proof-construction error.\n\n{detail}\n\n\
+        Enable `set_option trace.LeanCert.solver true` and \
+        `set_option trace.LeanCert.router true` when reporting this bug."
+
+def numericalBackend : NumericalBackend → String
+  | .rationalInterval => "Rational interval evaluation"
+  | .dyadicInterval => "Dyadic interval evaluation"
+  | .affineArithmetic => "Affine arithmetic"
+  | .exactRational => "exact rational arithmetic"
+  | .checkedRationalPartitions => "checked Rational partition integration"
+
+private def effectiveBackend (report : SolverReport) : BackendReport :=
+  match report.execution.backend with
+  | .unknown => report.plan.backend
+  | observed => observed
+
+private def renderBackend : BackendReport → Option String
+  | .used backend => some (numericalBackend backend)
+  | .policy description =>
+      some s!"Policy: {description}\n  The legacy adapter does not yet expose \
+        the winning backend."
+  | .notApplicable => none
+  | .unknown => some "not observed by the legacy solver adapter"
+
+private def verificationMode : VerificationMode → String
+  | .native => "native"
+  | .kernel => "kernel"
+  | .auto => "auto"
+
+private def renderVerification (report : SolverReport) : Option String :=
+  let usage := report.execution.verificationUsage
+  let requested := verificationMode report.plan.verificationRequested
+  if usage.kernelChecks == 0 && usage.nativeChecks == 0 then
+    if report.plan.strategy == "exact normalization" then
+      some "not required by this proof strategy"
+    else if report.plan.strategy == "integral_exact" then
+      some "kernel proof construction; trust selection not applicable"
+    else
+      some s!"requested {requested}; actual route not observed by the legacy adapter"
+  else
+    let used :=
+      if usage.kernelChecks > 0 && usage.nativeChecks > 0 then
+        s!"mixed: {usage.kernelChecks} kernel, {usage.nativeChecks} native"
+      else if usage.kernelChecks > 0 then
+        if usage.kernelChecks == 1 then "kernel"
+        else s!"kernel ({usage.kernelChecks} checks)"
+      else if usage.nativeChecks == 1 then "native"
+      else s!"native ({usage.nativeChecks} checks)"
+    let reasons :=
+      if usage.autoGateReasons.isEmpty then ""
+      else s!"\n  Auto gate: {String.intercalate "; " usage.autoGateReasons.toList}"
+    let fallback :=
+      if usage.kernelFallbacks == 0 then ""
+      else s!"\n  {usage.kernelFallbacks} kernel attempt(s) fell back to native"
+    some s!"requested {requested} → used {used}{reasons}{fallback}"
+
+private def invocation (proof : ProofSuggestion) : String :=
+  let positional :=
+    if proof.positionalArgs.isEmpty then ""
+    else " " ++ String.intercalate " " proof.positionalArgs.toList
+  let named := proof.namedArgs.toList.map fun (key, value) =>
+    s!"({key} := {value})"
+  let named :=
+    if named.isEmpty then "" else " " ++ String.intercalate " " named
+  let trust :=
+    match proof.trust with
+    | some mode =>
+        if proof.acceptsInlineTrust then s!" (trust := {verificationMode mode})"
+        else ""
+    | none => ""
+  s!"{proof.tactic}{positional}{named}{trust}"
+
+private def renderProof (proof : ProofSuggestion) : String :=
+  match proof.trust with
+  | some mode =>
+      if proof.acceptsInlineTrust then
+        s!"by\n    {invocation proof}"
+      else
+        s!"by\n    set_option leancert.trust \"{verificationMode mode}\" in\n\
+          {invocation proof}"
+  | none => s!"by\n    {invocation proof}"
+
+private def renderChildren (children : Array ChildReport) : String :=
+  if children.isEmpty then ""
+  else
+    let rows := children.toList.zipIdx.map fun (child, index) =>
+      let backend :=
+        match child.backend with
+        | .used value => s!"; {numericalBackend value}"
+        | .policy value => s!"; backend policy: {value}"
+        | .notApplicable => ""
+        | .unknown => "; backend not observed"
+      s!"  {index + 1}. {intentLabel child.intent} — {child.strategy}{backend}"
+    s!"\n\nChild theorems:\n{String.intercalate "\n" rows}"
+
 def successReport (report : SolverReport) : String :=
-  let backend := report.backend.map (fun value => s!"\nBackend: {value}") |>.getD ""
-  let checker := report.checker.map (fun value => s!"\nChecker: {value}") |>.getD ""
-  let verifier := report.verifier.map (fun value => s!"\nVerifier: {value}") |>.getD ""
-  s!"LeanCert can prove this.\n\nIntent: {intentLabel report.intent}\n\
-    Method: {report.method}{backend}{checker}{verifier}\n\
-    Suggested proof:\n  by leancert"
+  let plan := report.plan
+  let detail := plan.strategyDetail.map (fun value => s!"\n  {value}") |>.getD ""
+  let executionNotes :=
+    if report.execution.notes.isEmpty then ""
+    else "\n" ++ String.intercalate "\n"
+      (report.execution.notes.toList.map fun value => s!"  {value}")
+  let backend :=
+    match renderBackend (effectiveBackend report) with
+    | some value => s!"\n\nNumerical computation:\n  {value}"
+    | none => ""
+  let verification :=
+    match renderVerification report with
+    | some value => s!"\n\nCertificate verification:\n  {value}"
+    | none => ""
+  let checker :=
+    (report.execution.checker <|> plan.checker).map
+      (fun value => s!"\nChecker: {value}") |>.getD ""
+  let verifier :=
+    (report.execution.verifier <|> plan.verifier).map
+      (fun value => s!"\nVerifier: {value}") |>.getD ""
+  let advanced :=
+    plan.dedicatedProof.map (fun proof =>
+      s!"\n\nAdvanced control:\n  {renderProof proof}") |>.getD ""
+  s!"LeanCert recognized: {intentLabel plan.intent}\n\n\
+    Selected strategy:\n  {plan.strategy}{detail}{executionNotes}{backend}{verification}\
+    {checker}{verifier}\n\nSuggested proof:\n  {renderProof plan.primaryProof}\
+    {advanced}{renderChildren report.execution.children}"
 
 end LeanCert.Tactic.Diagnostic

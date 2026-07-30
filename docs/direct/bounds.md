@@ -1,6 +1,7 @@
 # Bounds And Inequalities
 
-Use this path when the goal is a concrete inequality over an interval or box.
+For ordinary numerical inequalities, start with [`leancert`](leancert.md).
+Use this page when you need the dedicated controls for an interval or box.
 
 Typical goals:
 
@@ -9,10 +10,16 @@ Typical goals:
 ∀ x ∈ I, c ≤ f x
 ∀ x ∈ I, f x ≤ g x
 ```
-Main tactics and commands:
+Primary workflow:
 
 ```text
 leancert
+leancert?
+```
+
+Advanced controls:
+
+```text
 certify_bound
 multivariate_bound
 ```
@@ -24,8 +31,10 @@ kernel verification first and reports any native fallback.
 For ergonomic raw Lean goals, start with `leancert`. Use `certify_bound` when
 you intentionally want the dedicated single-variable interval engine, including
 explicit Taylor-depth selection.
-Verification mode is independent of the rational, dyadic, or affine backend
-chosen by the interval solver.
+`certify_bound` is a numerical portfolio rather than a promise of one fixed
+backend: it tries a checked Dyadic path and can fall back to Rational interval
+evaluation. Verification mode is independent of that numerical selection.
+Subdivision and global optimization are strategies, not backends.
 
 Minimal example:
 
