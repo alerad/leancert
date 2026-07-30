@@ -39,6 +39,20 @@ not the optimization arithmetic. Until runtime telemetry identifies a concrete
 backend, a report should describe the selected strategy or backend policy
 rather than infer one.
 
+`leancert?` reports discovery and certification separately. Discovery reports
+the iterations actually used, final certified gap, tolerance, and remaining
+boxes from the retained optimizer run. Certification reports the checker,
+Golden Theorem, and verification route used to close the bound. The optimizer
+and checker are not rerun to produce this report. For a direct `opt_bound`
+certificate, only configured limits are reported because that checked API does
+not expose an execution trace.
+
+A gap larger than the configured tolerance is reported as
+`Within requested tolerance: false`. It does not invalidate an existential
+bound: the discovered witness is still accepted only after its bound is
+independently certified. The tolerance measures discovery quality, not proof
+soundness or tactic success.
+
 Discovery mode is useful when you do not yet know the bound or extremum.  See
 the existing [Discovery Mode](../tactics/discovery.md) reference for command
 syntax and examples.

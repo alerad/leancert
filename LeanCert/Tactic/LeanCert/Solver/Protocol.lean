@@ -94,6 +94,18 @@ structure ChildReport where
   verificationUsage : VerificationUsage := {}
   deriving Inhabited
 
+/-- Structured facts from an optimization or optimization-guided discovery
+run. Fields unavailable from Boolean-only certificate APIs remain `none`
+rather than being reconstructed by rerunning the optimizer. -/
+structure OptimizationStatistics where
+  iterations : Option Nat := none
+  configuredLimit : Nat
+  tolerance : ℚ
+  gap : Option ℚ := none
+  converged : Option Bool := none
+  remainingBoxes : Option Nat := none
+  deriving Inhabited, Repr
+
 /-- Stable algorithm identity for reporting and failure classification.
 User-facing `strategy` text may be polished without changing control flow. -/
 inductive StrategyId where
@@ -140,6 +152,7 @@ structure SolverExecution where
   checker : Option Name := none
   verifier : Option Name := none
   enclosure : Option LeanCert.Core.IntervalRat := none
+  optimization : Option OptimizationStatistics := none
   notes : Array String := #[]
   children : Array ChildReport := #[]
   deriving Inhabited

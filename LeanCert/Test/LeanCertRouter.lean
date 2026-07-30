@@ -91,6 +91,91 @@ unsafe def elabExpectRationalPointReport : Tactic := fun _ => do
     throwError "point Rational checker/Golden-Theorem identity was not retained: \
       checker={result.execution.checker}, verifier={result.execution.verifier}"
 
+syntax (name := expectOptimizationReport) "expect_optimization_report" : tactic
+
+@[tactic expectOptimizationReport]
+unsafe def elabExpectOptimizationReport : Tactic := fun _ => do
+  let outcome ←
+    match ← Auto.optBoundCoreTyped 64 false 10 with
+    | .ok outcome => pure outcome
+    | .error failure =>
+        throwError "typed optimization route unexpectedly failed: {repr failure}"
+  unless outcome.maxIterations == 64 do
+    throwError "optimization outcome lost its configured iteration limit"
+  unless outcome.direction == .upper &&
+      outcome.checker == ``LeanCert.Validity.GlobalOpt.checkGlobalUpperBound &&
+      outcome.verifier == ``LeanCert.Validity.GlobalOpt.verify_global_upper_bound do
+    throwError "optimization report retained the wrong direction/checker/Golden Theorem"
+
+syntax (name := expectDiscoveryReport) "expect_discovery_report" : tactic
+
+@[tactic expectDiscoveryReport]
+unsafe def elabExpectDiscoveryReport : Tactic := fun _ => do
+  let result ← runLeanCert {} .compact
+  let some statistics := result.execution.optimization
+    | throwError "discovery route returned no structured statistics"
+  unless statistics.iterations.isSome && statistics.gap.isSome &&
+      statistics.remainingBoxes.isSome do
+    throwError "discovery report did not retain actual optimizer results"
+  unless result.execution.checker.isSome && result.execution.verifier.isSome do
+    throwError "discovery report lost certification identity"
+  unless result.execution.backend == some .rationalInterval do
+    throwError "discovery search backend was conflated with witness certification"
+
+syntax (name := expectTypedOptimizationRollback)
+  "expect_typed_optimization_rollback" : tactic
+
+@[tactic expectTypedOptimizationRollback]
+unsafe def elabExpectTypedOptimizationRollback : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let before ← goal.getType
+  match ← Auto.optBoundCoreTyped 8 false 10 with
+  | .error (.unsupported ..) =>
+      let after ← (← getMainGoal).getType
+      unless ← isDefEq before after do
+        throwError "unsupported opt_bound mutated the caller's goal"
+  | .error failure =>
+      throwError "unsupported opt_bound had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "unsupported opt_bound unexpectedly succeeded"
+
+syntax (name := expectTypedMultivariateRollback)
+  "expect_typed_multivariate_rollback" : tactic
+
+@[tactic expectTypedMultivariateRollback]
+unsafe def elabExpectTypedMultivariateRollback : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let before ← goal.getType
+  match ← Auto.multivariateBoundCoreTyped 8 (1 / 1000) false 10 with
+  | .error (.unsupported ..) =>
+      let after ← (← getMainGoal).getType
+      unless ← isDefEq before after do
+        throwError "unsupported multivariate bound mutated the caller's goal"
+  | .error failure =>
+      throwError "unsupported multivariate bound had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "unsupported multivariate bound unexpectedly succeeded"
+
+example : ∀ ρ, LeanCert.Engine.Optimization.Box.envMem ρ
+      ([⟨0, 1, by norm_num⟩] : LeanCert.Engine.Optimization.Box) →
+    (∀ i, i ≥
+      ([⟨0, 1, by norm_num⟩] : LeanCert.Engine.Optimization.Box).length →
+      ρ i = 0) →
+    LeanCert.Core.Expr.eval ρ
+      (.mul (.var 0) (.var 0)) ≤ (1 : ℚ) := by
+  expect_optimization_report
+
+example : ∃ m : ℚ, ∀ x ∈ Set.Icc (-1 : ℝ) 1, x * x ≥ m := by
+  expect_discovery_report
+
+example : True := by
+  expect_typed_optimization_rollback
+  trivial
+
+example : True := by
+  expect_typed_multivariate_rollback
+  trivial
+
 syntax (name := expectKernelBoundReport) "expect_kernel_bound_report" : tactic
 
 @[tactic expectKernelBoundReport]

@@ -236,26 +236,78 @@ private def tryConvertSetIcc (interval : Lean.Expr) : MetaM (Option Lean.Expr) :
 
 /-! ## Minimization Tactic -/
 
-/-- The interval_minimize tactic implementation -/
-unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
-  LeanCert.Tactic.Auto.intervalNormCore
+/-- Whether discovery searched for a lower or upper extremum. -/
+inductive DiscoveryDirection where
+  | minimum
+  | maximum
+  deriving DecidableEq, Repr, Inhabited
+
+/-- Runtime facts retained from the single successful discovery/certification run. -/
+structure DiscoveryOutcome where
+  direction : DiscoveryDirection
+  witness : ℚ
+  lowerBound : ℚ
+  upperBound : ℚ
+  iterations : Nat
+  configuredLimit : Nat
+  remainingBoxes : Nat
+  tolerance : ℚ
+  checker : Option Name
+  verifier : Option Name
+  verification : LeanCert.Tactic.VerificationUsage
+  dyadic : Option Bool := none
+  taylorDepth : Nat
+  deriving Inhabited
+
+/-- Expected and invariant failures from existential optimization discovery. -/
+inductive DiscoveryFailure where
+  | unsupported (expression detail : String)
+  | inconclusive (detail : String)
+  | transportFailure (detail : String)
+  deriving Inhabited, Repr
+
+private def discoveryFailureOfBound :
+    LeanCert.Tactic.Auto.IntervalBoundFailure → DiscoveryFailure
+  | .unsupported expression detail => .unsupported expression detail
+  | .inconclusive detail => .inconclusive detail
+  | .transportFailure detail => .transportFailure detail
+
+private def throwDiscoveryFailure (tacticName : String) : DiscoveryFailure → TacticM α
+  | .unsupported expression detail =>
+      throwError "{tacticName}: unsupported expression {expression}:\n{detail}"
+  | .inconclusive detail =>
+      throwError "{tacticName}: {detail}"
+  | .transportFailure detail =>
+      throwError "{tacticName}: proof transport failed:\n{detail}"
+
+/-- Reporting-aware implementation of `interval_minimize`.
+
+The optimizer and certificate checker each run exactly once. Failure restores
+the caller's complete tactic state; success returns facts from the retained run. -/
+unsafe def intervalMinimizeCoreTyped (taylorDepth : Nat) :
+    TacticM (Except DiscoveryFailure DiscoveryOutcome) := do
+  let original ← saveState
+  try LeanCert.Tactic.Auto.intervalNormCore
+  catch e =>
+    original.restore
+    return .error <| .unsupported "goal normalization" (← e.toMessageData.toString)
   let goal ← getMainGoal
   let goalType ← goal.getType
 
   let some (.minimize _varName varType domainExpr funcExpr) ← parseExistentialGoal goalType
-    | let diagReport ← LeanCert.Tactic.Auto.mkDiagnosticReport "interval_minimize" goalType "parse"
-        (some m!"Expected form: ∃ m, ∀ x ∈ I, f(x) ≥ m\n\n\
-                 Where:\n\
-                 • m is a rational bound variable\n\
-                 • x is the quantified variable over interval I\n\
-                 • f(x) is an expression supported by LeanCert")
-      throwError "interval_minimize: Could not parse goal.\n\n{diagReport}"
+    | original.restore
+      return .error <| .unsupported (toString goalType)
+        "expected `∃ m, ∀ x ∈ I, f x ≥ m`"
 
   trace[LeanCert.discovery] "Parsing goal: ∃ m, ∀ x ∈ I, f(x) ≥ m"
   trace[LeanCert.discovery] "Function expression: {funcExpr}"
 
   -- 1. Reify the function (or extract from Expr.eval)
-  let ast := (← getAstFromFuncWithReport funcExpr).expr
+  let ast ←
+    try pure (← getAstFromFuncWithReport funcExpr).expr
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString funcExpr) (← e.toMessageData.toString)
   trace[LeanCert.discovery] "Reified AST: {ast}"
 
   -- 2. Prepare for evaluation with guided optimization
@@ -275,13 +327,21 @@ unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
     match ← tryConvertSetIcc domainExpr with
     | some intervalRat => pure intervalRat
     | none => pure domainExpr
-  let domainVal ← evalExpr IntervalRat (mkConst ``IntervalRat) domainExpr
+  let domainVal ←
+    try evalExpr IntervalRat (mkConst ``IntervalRat) domainExpr
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString domainExpr) (← e.toMessageData.toString)
   let boxVal : Box := [domainVal]
   trace[LeanCert.discovery] "Domain: [{domainVal.lo}, {domainVal.hi}]"
 
   -- 3. Run float-guided optimization
   trace[LeanCert.discovery] "Running float-guided optimization (heuristic samples={cfg.heuristicSamples}, maxIters={cfg.maxIterations}, taylorDepth={taylorDepth})..."
-  let astVal ← evalExpr LExpr (mkConst ``LeanCert.Core.Expr) ast
+  let astVal ←
+    try evalExpr LExpr (mkConst ``LeanCert.Core.Expr) ast
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString funcExpr) (← e.toMessageData.toString)
   let result := globalMinimizeGuided astVal boxVal cfg
   let boundVal := result.bound.lo
 
@@ -306,15 +366,46 @@ unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
       else if ty.isConstOf ``Real then
         mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
       else
-        throwError "interval_minimize: Unsupported bound type. Use ℚ or ℝ."
+        original.restore
+        return .error <| .unsupported (toString varType)
+          "bound type must be ℚ or ℝ"
   let boundSyntax ← Term.exprToSyntax boundTerm
   trace[LeanCert.discovery] "Providing witness: m = {boundVal}"
-  evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
+  try evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
+  catch e =>
+    original.restore
+    return .error <| .transportFailure (← e.toMessageData.toString)
 
   -- 5. Now we have a goal `∀ x ∈ I, f(x) ≥ bound`
   trace[LeanCert.discovery] "Proving universal bound with certify_bound..."
-  LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
+  let certification ←
+    match ← LeanCert.Tactic.Auto.intervalBoundCoreTyped taylorDepth with
+    | .ok certification => pure certification
+    | .error failure =>
+        original.restore
+        return .error (discoveryFailureOfBound failure)
   trace[LeanCert.discovery] "✓ Proof complete"
+  return .ok {
+    direction := .minimum
+    witness := boundVal
+    lowerBound := result.bound.lo
+    upperBound := result.bound.hi
+    iterations := result.bound.iterations
+    configuredLimit := cfg.maxIterations
+    remainingBoxes := result.remainingBoxes.length
+    tolerance := cfg.tolerance
+    checker := certification.checker
+    verifier := certification.verifier
+    verification := certification.verification
+    dyadic := some certification.dyadic
+    taylorDepth := taylorDepth
+  }
+
+/-- Compatibility entry point preserving the dedicated tactic's throwing API. -/
+unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
+  match ← intervalMinimizeCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwDiscoveryFailure "interval_minimize" failure
 
 /-- The interval_minimize tactic.
 
@@ -336,26 +427,31 @@ unsafe def elabIntervalMinimize : Tactic := fun stx => do
 
 /-! ## Maximization Tactic -/
 
-/-- The interval_maximize tactic implementation -/
-unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
-  LeanCert.Tactic.Auto.intervalNormCore
+/-- Reporting-aware implementation of `interval_maximize`. -/
+unsafe def intervalMaximizeCoreTyped (taylorDepth : Nat) :
+    TacticM (Except DiscoveryFailure DiscoveryOutcome) := do
+  let original ← saveState
+  try LeanCert.Tactic.Auto.intervalNormCore
+  catch e =>
+    original.restore
+    return .error <| .unsupported "goal normalization" (← e.toMessageData.toString)
   let goal ← getMainGoal
   let goalType ← goal.getType
 
   let some (.maximize _varName varType domainExpr funcExpr) ← parseExistentialGoal goalType
-    | let diagReport ← LeanCert.Tactic.Auto.mkDiagnosticReport "interval_maximize" goalType "parse"
-        (some m!"Expected form: ∃ M, ∀ x ∈ I, f(x) ≤ M\n\n\
-                 Where:\n\
-                 • M is a rational bound variable\n\
-                 • x is the quantified variable over interval I\n\
-                 • f(x) is an expression supported by LeanCert")
-      throwError "interval_maximize: Could not parse goal.\n\n{diagReport}"
+    | original.restore
+      return .error <| .unsupported (toString goalType)
+        "expected `∃ M, ∀ x ∈ I, f x ≤ M`"
 
   trace[LeanCert.discovery] "Parsing goal: ∃ M, ∀ x ∈ I, f(x) ≤ M"
   trace[LeanCert.discovery] "Function expression: {funcExpr}"
 
   -- Use getAstFromFuncWithReport to handle both Expr.eval and raw expressions
-  let ast := (← getAstFromFuncWithReport funcExpr).expr
+  let ast ←
+    try pure (← getAstFromFuncWithReport funcExpr).expr
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString funcExpr) (← e.toMessageData.toString)
   trace[LeanCert.discovery] "Reified AST: {ast}"
 
   let cfg : GuidedOptConfig := {
@@ -373,12 +469,20 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
     match ← tryConvertSetIcc domainExpr with
     | some intervalRat => pure intervalRat
     | none => pure domainExpr
-  let domainVal ← evalExpr IntervalRat (mkConst ``IntervalRat) domainExpr
+  let domainVal ←
+    try evalExpr IntervalRat (mkConst ``IntervalRat) domainExpr
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString domainExpr) (← e.toMessageData.toString)
   let boxVal : Box := [domainVal]
   trace[LeanCert.discovery] "Domain: [{domainVal.lo}, {domainVal.hi}]"
 
   trace[LeanCert.discovery] "Running float-guided optimization (heuristic samples={cfg.heuristicSamples}, maxIters={cfg.maxIterations}, taylorDepth={taylorDepth})..."
-  let astVal ← evalExpr LExpr (mkConst ``LeanCert.Core.Expr) ast
+  let astVal ←
+    try evalExpr LExpr (mkConst ``LeanCert.Core.Expr) ast
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString funcExpr) (← e.toMessageData.toString)
   let result := globalMaximizeGuided astVal boxVal cfg
   let boundVal := result.bound.hi
 
@@ -401,15 +505,46 @@ unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
       else if ty.isConstOf ``Real then
         mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
       else
-        throwError "interval_maximize: Unsupported bound type. Use ℚ or ℝ."
+        original.restore
+        return .error <| .unsupported (toString varType)
+          "bound type must be ℚ or ℝ"
   let boundSyntax ← Term.exprToSyntax boundTerm
   trace[LeanCert.discovery] "Providing witness: M = {boundVal}"
-  evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
+  try evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
+  catch e =>
+    original.restore
+    return .error <| .transportFailure (← e.toMessageData.toString)
 
   -- Now prove the bound using intervalBoundCore
   trace[LeanCert.discovery] "Proving universal bound with certify_bound..."
-  LeanCert.Tactic.Auto.intervalBoundCore taylorDepth
+  let certification ←
+    match ← LeanCert.Tactic.Auto.intervalBoundCoreTyped taylorDepth with
+    | .ok certification => pure certification
+    | .error failure =>
+        original.restore
+        return .error (discoveryFailureOfBound failure)
   trace[LeanCert.discovery] "✓ Proof complete"
+  return .ok {
+    direction := .maximum
+    witness := boundVal
+    lowerBound := result.bound.lo
+    upperBound := result.bound.hi
+    iterations := result.bound.iterations
+    configuredLimit := cfg.maxIterations
+    remainingBoxes := result.remainingBoxes.length
+    tolerance := cfg.tolerance
+    checker := certification.checker
+    verifier := certification.verifier
+    verification := certification.verification
+    dyadic := some certification.dyadic
+    taylorDepth := taylorDepth
+  }
+
+/-- Compatibility entry point preserving the dedicated tactic's throwing API. -/
+unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
+  match ← intervalMaximizeCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwDiscoveryFailure "interval_maximize" failure
 
 /-- The interval_maximize tactic.
 

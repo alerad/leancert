@@ -233,6 +233,21 @@ private def renderChildren (children : Array ChildReport) : String :=
       s!"  {index + 1}. {intentLabel child.intent} — {child.strategy}{backend}"
     s!"\n\nChild theorems:\n{String.intercalate "\n" rows}"
 
+private def renderOptimization (statistics : Option OptimizationStatistics) : String :=
+  match statistics with
+  | none => ""
+  | some statistics =>
+      let actual := statistics.iterations.map
+        (fun value => s!"\n  Iterations used: {value}") |>.getD ""
+      let gap := statistics.gap.map
+        (fun value => s!"\n  Final certified gap: {value}") |>.getD ""
+      let converged := statistics.converged.map
+        (fun value => s!"\n  Within requested tolerance: {value}") |>.getD ""
+      let remaining := statistics.remainingBoxes.map
+        (fun value => s!"\n  Remaining boxes: {value}") |>.getD ""
+      s!"\n\nOptimization:\n  Configured iteration limit: {statistics.configuredLimit}\n  \
+        Tolerance: {statistics.tolerance}{actual}{gap}{converged}{remaining}"
+
 def successReport (report : SolverReport) : String :=
   let plan := report.plan
   let detail := plan.strategyDetail.map (fun value => s!"\n  {value}") |>.getD ""
@@ -254,12 +269,13 @@ def successReport (report : SolverReport) : String :=
   let verifier :=
     (report.execution.verifier <|> plan.verifier).map
       (fun value => s!"\nVerifier: {value}") |>.getD ""
+  let optimization := renderOptimization report.execution.optimization
   let advanced :=
     plan.dedicatedProof.map (fun proof =>
       s!"\n\nAdvanced control:\n  {renderProof proof}") |>.getD ""
   s!"LeanCert recognized: {intentLabel plan.intent}\n\n\
     Selected strategy:\n  {plan.strategy}{detail}{executionNotes}{backend}{verification}\
-    {checker}{verifier}\n\nSuggested proof:\n  {renderProof plan.primaryProof}\
+    {checker}{verifier}{optimization}\n\nSuggested proof:\n  {renderProof plan.primaryProof}\
     {advanced}{renderChildren report.execution.children}"
 
 end LeanCert.Tactic.Diagnostic

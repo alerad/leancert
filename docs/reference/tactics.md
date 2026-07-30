@@ -563,6 +563,10 @@ opt_bound <maxIterations> mono (trust := kernel)
 a strategy choice, not a
 numerical-backend or trust selection.
 
+Reported execution includes the exact checker, Golden Theorem, verification
+route, configured iteration limit, and tolerance. The Boolean certificate API
+does not expose actual iteration counts, so reports do not infer them.
+
 ---
 
 ### `root_bound`
