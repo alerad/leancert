@@ -32,6 +32,21 @@ gaps without hiding backend selection or fallback.
 **Evidence:** backend-specific correctness tests and checked public API
 examples for each newly supported operation.
 
+## Quantitative asymptotics
+
+**Current state:** `eventual_bound` checks explicit positive cutoffs for
+natural-number upper bounds on nonnegative rational multiples of reciprocal
+powers. The endpoint is an executable exact-rational check, while the Golden
+Theorem proves the infinite tail by symbolic monotonicity. Existential goals
+accept an explicit witness through `eventual_bound using N`.
+
+**Possible next milestone:** add untrusted cutoff discovery over the same
+checker boundary, then grow the typed tail-rule language from demonstrated
+downstream needs.
+
+**Evidence:** fixed-cutoff and existential regression theorems, rejected
+cutoff tests, and `eventual_bound?` provenance.
+
 ## Stronger quantified ML theorems
 
 **Current state:** ML certificate components prove the precise structural and

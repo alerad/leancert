@@ -8,6 +8,7 @@ import LeanCert.Tactic.Refute
 import LeanCert.Tactic.FinSumExpand
 import LeanCert.Tactic.FinSumBound
 import LeanCert.Tactic.FinSumWitness
+import LeanCert.Tactic.EventualBound
 import LeanCert.Tactic.VecSimp
 import LeanCert.Tactic.LeanCert
 import LeanCert.Tactic.Discovery

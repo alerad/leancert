@@ -31,6 +31,12 @@ namespace LeanCert.Test.ValidityExports
 #check LeanCert.Validity.Algebra.verify_cubic_root_radius
 #check LeanCert.Validity.Algebra.verify_cubic_separation_mesh
 #check LeanCert.Validity.Algebra.verify_cubic_distinct_roots_separated
+#check LeanCert.Validity.checkReciprocalPowerUpper
+#check LeanCert.Validity.ReciprocalPowerUpperCert
+#check LeanCert.Validity.EventualBoundCert
+#check LeanCert.Validity.EventualBoundCert.verify
+#check LeanCert.Validity.verify_reciprocal_power_upper
+#check LeanCert.Validity.verify_reciprocal_upper
 #check LeanCert.Engine.Algebra.cubic_root_gap_gt_of_discr_bound
 #check LeanCert.Engine.Algebra.cubic_roots_pairwise_gap_gt_of_discr_bound_and_radius
 

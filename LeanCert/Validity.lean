@@ -15,6 +15,7 @@ import LeanCert.Validity.AffineBounds
 import LeanCert.Validity.AffineCover
 import LeanCert.Validity.Monotonicity
 import LeanCert.Validity.DirectedLimit
+import LeanCert.Validity.Eventual
 import LeanCert.Validity.Krawczyk
 import LeanCert.Validity.Algebra
 

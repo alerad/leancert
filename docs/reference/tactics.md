@@ -925,6 +925,30 @@ certificate-generating paths. It recognizes `Finset.Icc`, `Finset.Ico`,
 
 ## Common Patterns
 
+### Fixed-cutoff eventual bounds
+
+`eventual_bound` certifies natural-number tails of the form
+`q / (n : ℝ) ^ k ≤ c`, where `q` is nonnegative, `k` and the cutoff are
+positive, and all fixed values are rational. The endpoint comparison is
+checked exactly; monotonic decay of reciprocal powers proves the entire
+infinite tail.
+
+```lean
+import LeanCert.Tactic
+
+example : ∀ n : Nat, 100 ≤ n → (1 : ℝ) / n ≤ 1 / 100 := by
+  eventual_bound
+
+example : ∃ N : Nat, ∀ n ≥ N, (3 : ℝ) / n ^ 2 ≤ 3 / 100 := by
+  eventual_bound using 10
+```
+
+`eventual_bound?` proves the same goal and reports the selected tail rule and
+cutoff source. Existential goals require `using N`; automated cutoff discovery
+is not part of this fixed-cutoff boundary. General logarithmic/exponential
+tails and AD-based tail rules are also outside this initial certificate
+language.
+
 ### Proving a function is bounded
 
 ```lean
