@@ -202,7 +202,9 @@ private def proveByNormNum (proposition : Lean.Expr) : TacticM Lean.Expr := do
   let proof ← mkFreshExprMVar proposition MetavarKind.syntheticOpaque
   setGoals [proof.mvarId!]
   try
-    evalTactic (← `(tactic| norm_num [LeanCert.Core.IntervalRat.mem_def]))
+    evalTactic (← `(tactic|
+      norm_num [LeanCert.Core.IntervalRat.mem_def, Rat.divInt_eq_div] <;>
+        norm_num [Rat.divInt_eq_div]))
     unless (← getGoals).isEmpty do
       throwError "exact rational comparison left proof obligations"
     let proof ← instantiateMVars proof

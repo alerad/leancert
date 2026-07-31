@@ -105,6 +105,37 @@ theorem narrowIdentity_mem
   rcases hcheck with ⟨_, rfl⟩
   simpa [narrowIdentity] using hx
 
+/- A sound but deliberately widened enclosure. It exercises correlation loss,
+subdivision, and domain propagation through a registered atom. -/
+noncomputable def fatPositive (x : ℝ) : ℝ := if x ≤ 0 then 0 else x
+
+def fatPositiveOutput (input : IntervalRat) : IntervalRat where
+  lo := input.lo - 1 / 10
+  hi := input.hi + 1 / 10
+  le := by linarith [input.le]
+
+def fatPositiveCandidate (request : UnaryEnclosureRequest) :
+    Except EnclosureCandidateFailure IntervalRat :=
+  if 0 < request.input.lo then .ok (fatPositiveOutput request.input)
+  else .error <| .domainObstruction "input interval is not strictly positive"
+
+def checkFatPositive (request : UnaryEnclosureRequest) (output : IntervalRat) : Bool :=
+  decide (0 < request.input.lo) && decide (output = fatPositiveOutput request.input)
+
+@[leancert_enclosure fatPositiveCandidate]
+theorem fatPositive_mem
+    {request : UnaryEnclosureRequest} {x : ℝ} {output : IntervalRat}
+    (hx : x ∈ request.input)
+    (hcheck : checkFatPositive request output = true) :
+    fatPositive x ∈ output := by
+  simp only [checkFatPositive, Bool.and_eq_true, decide_eq_true_eq] at hcheck
+  rcases hcheck with ⟨hpositive, rfl⟩
+  have hxpositive : 0 < x := lt_of_lt_of_le (by exact_mod_cast hpositive) hx.1
+  simp only [fatPositive, if_neg (not_le.mpr hxpositive), IntervalRat.mem_def,
+    fatPositiveOutput]
+  simp only [IntervalRat.mem_def] at hx
+  constructor <;> push_cast <;> linarith [hx.1, hx.2]
+
 run_meta do
   let env ← getEnv
   let rules := getUnaryEnclosureRules env ``shifted

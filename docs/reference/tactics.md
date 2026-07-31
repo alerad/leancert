@@ -792,7 +792,8 @@ These reduce the goal to a rational inequality that must be proved manually.
 Simplifies vector indexing expressions with explicit `Fin.mk` constructors using a custom `dsimproc` that extracts the natural number from `Fin.mk n proof` and walks the `vecCons` chain directly.
 
 ```lean
-import Mathlib
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
 import LeanCert.Tactic.VecSimp
 
 -- Basic indexing: reduces ![a, b, c] ⟨i, proof⟩ to the i-th element
@@ -859,7 +860,8 @@ rewrite or certificate attempt restores the original goal and local state.
 Expands finite sums over Finsets into explicit additions.
 
 ```lean
-import Mathlib
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
 import LeanCert.Tactic.FinSumExpand
 
 -- Interval finsets (Icc = closed-closed)

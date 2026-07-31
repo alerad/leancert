@@ -53,9 +53,11 @@ private def proveByNormNum (proposition : Lean.Expr) : TacticM Lean.Expr := do
   setGoals [proof.mvarId!]
   try
     evalTactic (← `(tactic|
-      norm_num [Set.mem_Icc, LeanCert.Core.IntervalRat.mem_def]))
+      norm_num [Set.mem_Icc, LeanCert.Core.IntervalRat.mem_def, Rat.divInt_eq_div] <;>
+        norm_num [Rat.divInt_eq_div]))
     unless (← getGoals).isEmpty do
-      throwError "normalization left proof obligations"
+      let remaining ← getGoals >>= (·.mapM fun goal => goal.getType)
+      throwError "normalization left proof obligations:\n{remaining}"
     let proof ← instantiateMVars proof
     if proof.hasMVar then
       throwError "normalization proof contains metavariables"
