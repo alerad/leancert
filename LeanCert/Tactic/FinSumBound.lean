@@ -271,11 +271,16 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int)
   goal.withContext do
     -- Extract target as rational
     let some target ← Auto.extractRatFromReal fsGoal.targetExpr
-      | throwError "finsum_bound: could not extract rational from bound `{← ppExpr fsGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr fsGoal.targetExpr}"
     let targetExpr := toExpr target
 
     -- Reify the sum body
-    let ast ← reifyFinSumBody fsGoal.bodyLambda
+    let ast ←
+      try reifyFinSumBody fsGoal.bodyLambda
+      catch e =>
+        return .error <| .unsupported
+          s!"summand is not supported: {← e.toMessageData.toString}"
     trace[finsum_bound] "Reified AST: {ast}"
 
     -- Build configuration
@@ -370,11 +375,16 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int)
   goal.withContext do
     -- Extract target as rational
     let some target ← Auto.extractRatFromReal fsGoal.targetExpr
-      | throwError "finsum_bound: could not extract rational from bound `{← ppExpr fsGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr fsGoal.targetExpr}"
     let targetExpr := toExpr target
 
     -- Reify the sum body
-    let ast ← reifyFinSumBody fsGoal.bodyLambda
+    let ast ←
+      try reifyFinSumBody fsGoal.bodyLambda
+      catch e =>
+        return .error <| .unsupported
+          s!"summand is not supported: {← e.toMessageData.toString}"
     trace[finsum_bound] "Reified AST (list path): {ast}"
 
     -- Build configuration

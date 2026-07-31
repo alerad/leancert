@@ -222,16 +222,36 @@ private partial def numericalIntegralAttemptTyped (parsed : ParsedIntegralGoal)
       hi := parsed.lo
       bound := negBound
     }
-    return ← numericalIntegralAttemptTyped transformed startN maxN
+    match ← numericalIntegralAttemptTyped transformed startN maxN with
+    | .ok outcome =>
+        return .ok {
+          outcome with
+          enclosure := outcome.enclosure.map IntervalRat.neg
+        }
+    | .error failure => return .error failure
   if parsed.comparison == .eq then
     return .error <| .unsupported "numerical interval enclosures do not certify exact equality"
   if parsed.comparison == .upperStrict || parsed.comparison == .lowerStrict then
     return .error <| .unsupported
       "strict numerical integral bounds require a margin certificate"
-  let reified ← reifyWithReport parsed.integrand
-  let supportProof ← mkSupportedCoreProof reified.expr
+  let reified ←
+    try reifyWithReport parsed.integrand
+    catch e =>
+      return .error <| .unsupported
+        s!"integrand is not supported: {← e.toMessageData.toString}"
+  let supportProof ←
+    try mkSupportedCoreProof reified.expr
+    catch e =>
+      return .error <| .unsupported
+        s!"integrand is outside the supported expression language: \
+          {← e.toMessageData.toString}"
   let interval ← mkIntervalRatExpr a b
-  let domainProof ← mkContinuousDomainValidProof reified.expr interval
+  let domainProof ←
+    try mkContinuousDomainValidProof reified.expr interval
+    catch e =>
+      return .error <| .domainObstruction
+        s!"could not establish the integrand's mathematical domain: \
+          {← e.toMessageData.toString}"
   let integrableProof ← mkAppM ``LeanCert.Validity.Integration.exprSupportedCore_intervalIntegrable
     #[reified.expr, supportProof, interval, domainProof]
   if startN == 0 then

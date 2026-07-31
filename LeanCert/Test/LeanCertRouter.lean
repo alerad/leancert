@@ -1143,6 +1143,60 @@ unsafe def elabExpectTypedFinSumDomainRollback : Tactic := fun _ => do
   | .ok _ =>
       throwError "division-by-zero finite sum unexpectedly succeeded"
 
+syntax (name := expectTypedFinSumUnsupported)
+  "expect_typed_finsum_unsupported" : tactic
+
+@[tactic expectTypedFinSumUnsupported]
+unsafe def elabExpectTypedFinSumUnsupported : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← finSumBoundCoreTyped (-53) 10 with
+  | .error (.unsupported _) =>
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "unsupported finite sum changed the caller state"
+  | .error failure =>
+      throwError "unsupported finite sum had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "unsupported finite sum unexpectedly succeeded"
+
+syntax (name := expectTypedFinSumWitnessUnsupported)
+  "expect_typed_finsum_witness_unsupported" : tactic
+
+@[tactic expectTypedFinSumWitnessUnsupported]
+unsafe def elabExpectTypedFinSumWitnessUnsupported : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let badEvaluator ← `(term| (0 : Nat))
+  let irrelevantProof ← `(term| by simp)
+  match ← finSumWitnessBoundCoreTyped badEvaluator irrelevantProof (-53) with
+  | .error (.unsupported detail) =>
+      unless detail.contains "malformed witness evaluator" do
+        throwError "malformed witness evaluator lost its intentional diagnostic"
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "malformed witness input changed the caller state"
+  | .error failure =>
+      throwError "malformed witness input had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "malformed witness evaluator unexpectedly succeeded"
+  let evaluator ← `(term|
+    fun k (_cfg : LeanCert.Engine.DyadicConfig) =>
+      LeanCert.Core.IntervalDyadic.singleton
+        (LeanCert.Core.Dyadic.ofInt (Int.ofNat k)))
+  let badProof ← `(term| (0 : Nat))
+  match ← finSumWitnessBoundCoreTyped evaluator badProof (-53) with
+  | .error (.unsupported detail) =>
+      unless detail.contains "malformed witness proof" do
+        throwError "malformed witness proof lost its intentional diagnostic"
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "malformed witness proof changed the caller state"
+  | .error failure =>
+      throwError "malformed witness proof had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "malformed witness proof unexpectedly succeeded"
+
 syntax (name := expectIntegralExhaustionRollback)
   "expect_integral_exhaustion_rollback" : tactic
 
@@ -1165,6 +1219,56 @@ unsafe def elabExpectIntegralExhaustionRollback : Tactic := fun _ => do
   | .ok _ =>
       throwError "false integral bound unexpectedly succeeded"
 
+syntax (name := expectTypedIntegralUnsupported)
+  "expect_typed_integral_unsupported" : tactic
+
+@[tactic expectTypedIntegralUnsupported]
+unsafe def elabExpectTypedIntegralUnsupported : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← integralSearchCoreTyped 16 64 with
+  | .error (.unsupported _) =>
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "unsupported integral changed the caller state"
+  | .error failure =>
+      throwError "unsupported integral had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "unsupported integral unexpectedly succeeded"
+
+syntax (name := expectTypedIntegralDomainObstruction)
+  "expect_typed_integral_domain_obstruction" : tactic
+
+@[tactic expectTypedIntegralDomainObstruction]
+unsafe def elabExpectTypedIntegralDomainObstruction : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← integralSearchCoreTyped 16 64 with
+  | .error (.domainObstruction _) =>
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "domain-obstructed integral changed the caller state"
+  | .error failure =>
+      throwError "integral domain obstruction had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "domain-obstructed integral unexpectedly succeeded"
+
+syntax (name := expectReversedIntegralReport)
+  "expect_reversed_integral_report" : tactic
+
+@[tactic expectReversedIntegralReport]
+unsafe def elabExpectReversedIntegralReport : Tactic := fun _ => do
+  match ← integralSearchCoreTyped 16 512 with
+  | .ok #[outcome] =>
+      let some enclosure := outcome.enclosure
+        | throwError "reversed integral report lost its retained enclosure"
+      unless enclosure.hi < 0 do
+        throwError "reversed integral telemetry describes the swapped integral: {repr enclosure}"
+  | .ok outcomes =>
+      throwError "reversed integral produced {outcomes.size} outcomes instead of one"
+  | .error failure =>
+      throwError "reversed integral unexpectedly failed: {repr failure}"
+
 example (h : ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 1) :
     ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 1 := by
   expect_typed_finsum_rollback
@@ -1182,8 +1286,36 @@ example (h : ∑ k ∈ Finset.Icc (0 : Nat) 1, (1 : ℝ) / k ≤ 2) :
   expect_typed_finsum_domain_rollback
   exact h
 
+example (f : Nat → ℝ) (h : ∑ k ∈ Finset.Icc (0 : Nat) 1, f k ≤ 0) :
+    ∑ k ∈ Finset.Icc (0 : Nat) 1, f k ≤ 0 := by
+  expect_typed_finsum_unsupported
+  exact h
+
+example (c : ℝ) (h : ∑ k ∈ Finset.Icc (0 : Nat) 1, (k : ℝ) ≤ c) :
+    ∑ k ∈ Finset.Icc (0 : Nat) 1, (k : ℝ) ≤ c := by
+  expect_typed_finsum_unsupported
+  exact h
+
+example (h : ∑ k ∈ Finset.Icc (0 : Nat) 1, (k : ℝ) ≤ 2) :
+    ∑ k ∈ Finset.Icc (0 : Nat) 1, (k : ℝ) ≤ 2 := by
+  expect_typed_finsum_witness_unsupported
+  exact h
+
 example : (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by
   expect_integral_partition_report
+
+example (f : ℝ → ℝ) (h : (∫ x in (0 : ℝ)..1, f x) ≤ 0) :
+    (∫ x in (0 : ℝ)..1, f x) ≤ 0 := by
+  expect_typed_integral_unsupported
+  exact h
+
+example (h : (∫ x in (-1 : ℝ)..1, Real.log x) ≤ 0) :
+    (∫ x in (-1 : ℝ)..1, Real.log x) ≤ 0 := by
+  expect_typed_integral_domain_obstruction
+  exact h
+
+example : (∫ x in (1 : ℝ)..0, Real.exp x) ≤ 0 := by
+  expect_reversed_integral_report
 
 example (h : (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 ∧
     (∫ x in (0 : ℝ)..1, Real.exp x) = 1) :

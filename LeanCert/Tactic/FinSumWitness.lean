@@ -159,8 +159,8 @@ private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Sy
   goal.withContext do
     -- Extract target as rational
     let some target ← Auto.extractRatFromReal wGoal.targetExpr
-      | throwError "finsum_witness: could not extract rational from bound \
-          `{← ppExpr wGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr wGoal.targetExpr}"
     let targetExpr := toExpr target
 
     -- Build configuration
@@ -171,7 +171,11 @@ private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Sy
     -- Elaborate user's evalTerm
     let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
       (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
-    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+    let evalTermExpr ←
+      try Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness evaluator: {← e.toMessageData.toString}"
 
     -- Build the expected type for hmem:
     --   ∀ k, a ≤ k → k ≤ b → f k ∈ evalTerm k cfg
@@ -187,7 +191,11 @@ private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Sy
 
     trace[finsum_witness] "Expected hmem type: {hmemTy}"
 
-    let hmemExpr ← Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+    let hmemExpr ←
+      try Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness proof: {← e.toMessageData.toString}"
 
     let some a ← extractNatLit wGoal.aExpr
       | return .error <| .unsupported "range lower endpoint is not a natural literal"
@@ -250,8 +258,8 @@ private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn
 
   goal.withContext do
     let some target ← Auto.extractRatFromReal wGoal.targetExpr
-      | throwError "finsum_witness: could not extract rational from bound \
-          `{← ppExpr wGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr wGoal.targetExpr}"
     let targetExpr := toExpr target
 
     let precExpr := toExpr prec
@@ -260,7 +268,11 @@ private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn
 
     let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
       (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
-    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+    let evalTermExpr ←
+      try Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness evaluator: {← e.toMessageData.toString}"
 
     -- Build hmem type: ∀ k, k ∈ S → f k ∈ evalTerm k cfg
     let natTy := Lean.mkConst ``Nat
@@ -274,7 +286,11 @@ private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn
 
     trace[finsum_witness] "Expected hmem type (list path): {hmemTy}"
 
-    let hmemExpr ← Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+    let hmemExpr ←
+      try Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness proof: {← e.toMessageData.toString}"
 
     let indices ← unsafe evalExpr (List Nat)
       (mkApp (mkConst ``List [0]) (mkConst ``Nat)) wGoal.indicesExpr
@@ -412,8 +428,8 @@ private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax
 
   goal.withContext do
     let some target ← Auto.extractRatFromReal wGoal.targetExpr
-      | throwError "finsum_bound auto: could not extract rational from bound \
-          `{← ppExpr wGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr wGoal.targetExpr}"
     let targetExpr := toExpr target
 
     let precExpr := toExpr prec
@@ -422,7 +438,11 @@ private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax
 
     let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
       (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
-    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+    let evalTermExpr ←
+      try Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness evaluator: {← e.toMessageData.toString}"
 
     -- Build hmem type: ∀ k, a ≤ k → k ≤ b → f k ∈ evalTerm k cfg
     let natTy := Lean.mkConst ``Nat
@@ -438,7 +458,11 @@ private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax
     -- Auto-prove hmem
     let hmemMVar ← mkFreshExprMVar (some hmemTy) (kind := .syntheticOpaque)
     let savedGoals ← getGoals
-    tryAutoProveHmem hmemMVar.mvarId!
+    try
+      tryAutoProveHmem hmemMVar.mvarId!
+    catch e =>
+      return .error <| .unsupported
+        s!"could not synthesize the witness membership proof: {← e.toMessageData.toString}"
     setGoals savedGoals
 
     let hmemExpr := hmemMVar
@@ -509,8 +533,8 @@ private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : S
 
   goal.withContext do
     let some target ← Auto.extractRatFromReal wGoal.targetExpr
-      | throwError "finsum_bound auto: could not extract rational from bound \
-          `{← ppExpr wGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr wGoal.targetExpr}"
     let targetExpr := toExpr target
 
     let precExpr := toExpr prec
@@ -519,7 +543,11 @@ private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : S
 
     let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
       (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
-    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+    let evalTermExpr ←
+      try Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness evaluator: {← e.toMessageData.toString}"
 
     -- Build hmem type: ∀ k, k ∈ S → f k ∈ evalTerm k cfg
     let natTy := Lean.mkConst ``Nat
@@ -534,7 +562,11 @@ private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : S
     -- Auto-prove hmem
     let hmemMVar ← mkFreshExprMVar (some hmemTy) (kind := .syntheticOpaque)
     let savedGoals ← getGoals
-    tryAutoProveHmem hmemMVar.mvarId!
+    try
+      tryAutoProveHmem hmemMVar.mvarId!
+    catch e =>
+      return .error <| .unsupported
+        s!"could not synthesize the witness membership proof: {← e.toMessageData.toString}"
     setGoals savedGoals
 
     let hmemExpr := hmemMVar
