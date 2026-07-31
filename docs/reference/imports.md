@@ -64,7 +64,7 @@ import LeanCert.Engine.Chebyshev.Theta
 import LeanCert.Validity.Krawczyk
 ```
 
-For the manual certificate tactic, import the tactic umbrella:
+For automatic or manual system-root tactics, import the tactic umbrella:
 
 ```lean
 import LeanCert.Tactic

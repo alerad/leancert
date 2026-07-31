@@ -15,7 +15,7 @@ proof strategy.
 | `multivariate_bound` | optional positional iteration count, followed by optional `(trust := ...)` |
 | `opt_bound` | optional positional iteration count, followed by optional `mono` and `(trust := ...)` |
 | `root_bound`, `interval_roots`, `interval_unique_root` | optional positional Taylor depth, followed by optional `(trust := ...)` |
-| `system_unique_root`, `system_unique_root?` | `using cert`, followed by optional `(taylorDepth := n)` and `(trust := native\|kernel\|auto)` in either order |
+| `system_unique_root`, `system_unique_root?` | optional `using cert`; automatic mode also accepts `(maxIterations := n)` and `(maxDimension := n)`, plus `(taylorDepth := n)` and `(trust := native\|kernel\|auto)` |
 | `interval_minimize`, `interval_maximize` | optional positional Taylor depth, followed by optional `(trust := ...)` |
 | `interval_minimize_mv`, `interval_maximize_mv` | optional positional Taylor depth, followed by optional `(trust := ...)` |
 | `interval_argmin`, `interval_argmax` | optional positional Taylor depth, followed by optional `(trust := ...)` |
@@ -384,8 +384,8 @@ failures. Every failure is transactional.
 
 ### `system_unique_root` and `system_unique_root?`
 
-Certifies a unique zero of a square nonlinear system using a user-supplied,
-dimension-indexed `KrawczykCert n`:
+Certifies a unique zero of a square nonlinear system. Automatic mode generates
+a rational `KrawczykCert n`; manual mode accepts a user-supplied certificate:
 
 ```lean
 import LeanCert.Examples.Krawczyk
@@ -395,15 +395,21 @@ open LeanCert.Core LeanCert.Engine LeanCert.Validity
 open LeanCert.Examples.Krawczyk
 
 example : ∃! x, FinBoxMem x box ∧ SystemZero system x := by
-  system_unique_root using certificate (taylorDepth := 10) (trust := auto)
+  system_unique_root (maxIterations := 8) (taylorDepth := 10) (trust := auto)
 ```
 
 The tactic accepts the conjunction in either order. `system_unique_root?`
-proves the same goal and reports the supplied center, checked contraction
-bound, `krawczykCheck`, `verify_unique_system_root`, and observed verification
-route. Candidate rejection and dimension mismatch are typed, transactional
-failures. Candidate generation and box subdivision are not part of this manual
-I1 tactic.
+proves the same goal and reports attempts, Newton refinements, generated center
+and preconditioner, checked contraction bound, `krawczykCheck`,
+`verify_unique_system_root`, and the observed verification route. Candidate
+generation is untrusted and the selected candidate is replayed through the I1
+checker. Candidate rejection, singular midpoint Jacobians, budget exhaustion,
+unsupported AD, and dimension limits are typed, transactional failures.
+
+Use `system_unique_root using certificate` to bypass search while retaining the
+same trusted verification boundary. Automatic box subdivision is intentionally
+excluded because a certificate on one sub-box does not prove uniqueness over
+the original target box.
 
 ---
 

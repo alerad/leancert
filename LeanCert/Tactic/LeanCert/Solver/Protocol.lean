@@ -171,6 +171,16 @@ structure EventualBoundStatistics where
   refinementComplete : Bool
   deriving Inhabited, Repr
 
+/-- Structured facts retained from automatic Krawczyk candidate generation. -/
+structure KrawczykStatistics where
+  dimension : Nat
+  attempts : Nat
+  refinements : Nat
+  center : List ℚ
+  preconditioner : List (List ℚ)
+  contractionBound : ℚ
+  deriving Inhabited, Repr
+
 /-- Stable algorithm identity for reporting and failure classification.
 User-facing `strategy` text may be polished without changing control flow. -/
 inductive StrategyId where
@@ -230,6 +240,7 @@ structure SolverExecution where
   finiteSum : Option FiniteSumStatistics := none
   integralPartitions : Option IntegralPartitionStatistics := none
   eventualBound : Option EventualBoundStatistics := none
+  krawczyk : Option KrawczykStatistics := none
   /-- Constituent checker proofs retained by composite artifacts. The singular
   `checker`/`verifier` fields describe ordinary one-certificate solvers. -/
   certificates : Array CertificateObservation := #[]

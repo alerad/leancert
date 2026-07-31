@@ -61,7 +61,7 @@ Three golden theorems expose the same successful check in the common goal
 shapes: `verify_system_root_exists`, `verify_system_root_unique`, and
 `verify_unique_system_root`.
 
-The manual I1 front end exposes the last shape directly:
+The automatic I2 front end exposes the last shape directly:
 
 ```lean
 import LeanCert.Examples.Krawczyk
@@ -71,12 +71,14 @@ open LeanCert.Core LeanCert.Engine LeanCert.Validity
 open LeanCert.Examples.Krawczyk
 
 example : ∃! x, FinBoxMem x box ∧ SystemZero system x := by
-  system_unique_root using certificate (trust := auto)
+  system_unique_root (trust := auto)
 ```
 
-The center and preconditioner remain untrusted candidate data. The tactic
-checks dimensions, runs the same monolithic checker, and reaches the theorem
-only through the configured certificate-verification route.
+The generated center and preconditioner remain untrusted candidate data. The
+search uses a box midpoint, singleton checked-AD Jacobian, pivoted rational
+Gauss--Jordan inversion, and bounded interval-Newton refinement. It then runs
+the same monolithic checker as `system_unique_root using certificate` and
+reaches the theorem only through the configured verification route.
 
 ### Current limits
 
@@ -84,9 +86,12 @@ only through the configured certificate-verification route.
 - Boxes, centers, and preconditioners use exact rational data.
 - The norm-form enclosure is intentionally conservative; a rejected
   certificate is inconclusive.
-- LeanCert checks but does not currently generate the approximate center or
-  inverse-Jacobian preconditioner. Those remain untrusted frontend/CAS data and
-  are supplied to `system_unique_root using cert`.
+- Automatic generation defaults to dimensions at most four; explicit
+  certificates remain dimension-generic.
+- Candidate refinement uses fixed dyadic precision to prevent denominator
+  explosion in untrusted search data.
+- Automatic search does not subdivide the target box. A certificate on one
+  sub-box would not prove uniqueness over the original box.
 - The theorem is over real boxes. Complex systems must first be represented as
   coupled real and imaginary coordinates.
 
@@ -305,5 +310,6 @@ This is used internally for:
 | `Engine/RootFinding/Contraction.lean` | Newton contraction verification |
 | `Engine/RootFinding/MVTBounds.lean` | Mean value theorem utilities |
 | `Engine/RootFinding/Krawczyk.lean` | Nonlinear-system checker and soundness bridge |
+| `Engine/RootFinding/KrawczykCandidate.lean` | Untrusted rational candidate generation and refinement |
 | `Validity/Krawczyk.lean` | Stable golden theorem |
 | `Tactic/Discovery.lean` | `interval_roots`, `interval_unique_root` tactics |

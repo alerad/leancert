@@ -70,8 +70,8 @@ The router currently recognizes:
   search followed by a fixed-candidate certificate;
 - fixed-cutoff and existential eventual upper bounds for supported
   reciprocal-power tails over `Nat`;
-- nonlinear-system unique-root goals in Krawczyk form (recognized by the
-  router; I1 asks for `system_unique_root using cert`);
+- nonlinear-system unique-root goals in Krawczyk form, with automatic rational
+  candidate generation and checked replay through the I1 verifier;
 - closed LeanCert Boolean checker propositions;
 - conjunctions whose children are themselves recognized.
 

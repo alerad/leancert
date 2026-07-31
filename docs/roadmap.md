@@ -52,23 +52,23 @@ and `eventual_bound?`/`leancert?` provenance.
 
 ## Nonlinear-system roots
 
-**Current state:** `system_unique_root using cert` checks an explicit,
-dimension-indexed Krawczyk center and preconditioner for square systems in the
-checked-AD fragment. The semantic router recognizes the canonical `∃!` system
-goal, while the dedicated tactic provides typed dimension and rejection
-diagnostics, transactional failure, all verification modes, and transparent
-`system_unique_root?` provenance. Candidate data is untrusted; proof acceptance
-still passes through `krawczykCheck` and `verify_unique_system_root`.
+**Current state:** `system_unique_root` generates rational Krawczyk centers and
+preconditioners for square systems in the checked-AD fragment. It uses
+singleton point-Jacobian enclosures, pivoted Gauss--Jordan inversion, bounded
+interval-Newton refinement, and fixed-precision candidate rounding. The
+semantic router invokes it directly for the canonical `∃!` system goal.
+`system_unique_root using cert` remains the manual path. Both pass through
+`krawczykCheck` and `verify_unique_system_root`; search data is never trusted.
 
-**Possible next milestone:** generate centers and rational preconditioners in
-an untrusted frontend, then replay every candidate through the same manual I1
-boundary. Adaptive box refinement should be justified by concrete systems and
-must preserve the distinction between local uniqueness and uniqueness in the
-original box.
+**Possible next milestone:** expose the checked system-root operation through
+the bridge and let external numerical frontends supply stronger candidates.
+Adaptive box refinement remains separate: it requires existence in one box and
+root exclusion over the complement to preserve uniqueness in the original box.
 
-**Evidence:** successful translated, coupled transcendental, cyclic 3D, and
-generic 4D systems; mutation tests for every checker stage; dimension mismatch,
-conjunction-order, local-certificate, trust-route, and rollback regressions.
+**Evidence:** automatic translated, coupled transcendental, cyclic 3D, generic
+4D, and refinement-requiring exponential systems; exact and singular matrix
+inversion tests; mutation tests for every checker stage; dimension-limit,
+budget, unsupported-AD, conjunction-order, trust-route, and rollback tests.
 
 ## Stronger quantified ML theorems
 

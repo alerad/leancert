@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Benchmark.Harness
+import LeanCert.Engine.RootFinding.KrawczykCandidate
 import LeanCert.Examples.Krawczyk
 
 /-!
@@ -67,6 +68,24 @@ private def expCheckedRun : IO Outcome := do
     return { status := "success", backendUsed := some "rational" }
   return { status := "certificate_rejected", backendUsed := some "rational" }
 
+private def automaticCandidateRun : IO Outcome := do
+  let report := generateAutomaticKrawczyk system box
+  if report.succeeded then
+    return { status := "success", backendUsed := some "rational" }
+  return { status := "candidate_search_failed", backendUsed := some "rational" }
+
+private def shiftedExpSystem : Fin 1 → LeanCert.Core.Expr :=
+  ![.add (.exp (.var 0)) (.const (-1 / 8))]
+
+private def shiftedExpBox : Fin 1 → LeanCert.Core.IntervalRat :=
+  ![⟨-57 / 20, -33 / 20, by norm_num⟩]
+
+private def refinementCandidateRun : IO Outcome := do
+  let report := generateAutomaticKrawczyk shiftedExpSystem shiftedExpBox
+  if report.succeeded && report.refinements == 1 then
+    return { status := "success", backendUsed := some "rational" }
+  return { status := "candidate_refinement_failed", backendUsed := some "rational" }
+
 private def baseParameters : List (String × String) := [
   ("system", "coupled_quadratic_2x2"),
   ("box", "[9/10,11/10]^2"),
@@ -125,6 +144,34 @@ def cases : List Case := [
     input := expInput
     innerIterations := 25
     run := expCheckedRun
+  },
+  {
+    name := "krawczyk.coupled_quadratic_2x2.automatic_candidate"
+    family := "nonlinear_system_roots"
+    tier := "end_to_end"
+    layer := .internal
+    backendRequested := "rational"
+    suites := ["smoke", "krawczyk", "all"]
+    parameters := baseParameters ++ [("candidate", "automatic_midpoint_jacobian")]
+    input
+    innerIterations := 25
+    run := automaticCandidateRun
+  },
+  {
+    name := "krawczyk.shifted_exp_1x1.refined_candidate"
+    family := "nonlinear_system_roots"
+    tier := "end_to_end"
+    layer := .internal
+    backendRequested := "rational"
+    suites := ["krawczyk", "all"]
+    parameters := [
+      ("system", "exp_x_minus_one_eighth"),
+      ("box", "[-57/20,-33/20]"),
+      ("candidate", "one_interval_newton_refinement")
+    ]
+    input := expInput
+    innerIterations := 10
+    run := refinementCandidateRun
   }
 ]
 

@@ -14,6 +14,7 @@ import LeanCert.Tactic.Extension.Execute
 import LeanCert.Tactic.Discovery
 import LeanCert.Tactic.FinSumExpand
 import LeanCert.Tactic.EventualBound
+import LeanCert.Tactic.Krawczyk
 import LeanCert.Engine.Search.CounterExample
 
 /-!
@@ -743,6 +744,80 @@ private def eventualBoundAttemptTyped (maxChecks : Nat) :
         notes := if outcome.discovered then #[] else #[s!"Explicit cutoff: N = {outcome.cutoff}"]
       }
 
+private def automaticKrawczykFailure
+    (failure : SystemUniqueRootFailure) : AttemptFailure :=
+  match failure with
+  | .unsupportedGoal _ => .notApplicable
+  | .dimensionMismatch expected actual => .internalError
+      `LeanCert.Tactic.systemUniqueRootAutomaticCoreTyped
+      s!"automatic certificate dimension mismatch: expected {expected}, found {actual}"
+  | .generationFailed report =>
+      match report.failure with
+      | some .unsupportedAD => .unsupported {
+          expression := "nonlinear system"
+          detail := some "The system lies outside LeanCert's checked-AD fragment."
+        }
+      | some (.dimensionLimit actual limit) => .inconclusive {
+          requested := some s!"automatic dimension at most {limit}"
+          detail := s!"System dimension {actual} exceeds the automatic Krawczyk limit. \
+            Supply an explicit certificate with `system_unique_root using cert`."
+        }
+      | some (.singularPointJacobian attempt) => .inconclusive {
+          detail := s!"The midpoint Jacobian was singular at candidate attempt {attempt}."
+        }
+      | some (.centerEscaped attempt) => .inconclusive {
+          detail := s!"The interval-Newton center left the target box after attempt {attempt}."
+        }
+      | some (.stagnated attempt) => .inconclusive {
+          enclosure := none
+          detail := s!"Automatic Krawczyk refinement stagnated after attempt {attempt}; \
+            the original box may be too wide."
+        }
+      | some (.exhausted attempts) => .inconclusive {
+          requested := some s!"at most {attempts} candidate attempts"
+          detail := "Automatic Krawczyk candidate search exhausted its configured budget."
+        }
+      | some .invalidDimension => .unsupported {
+          expression := "Fin 0 system"
+          detail := some "Automatic Krawczyk generation requires a positive dimension."
+        }
+      | none => .internalError `LeanCert.Tactic.systemUniqueRootAutomaticCoreTyped
+          "candidate generation failed without a classified cause"
+  | .rejected inspection => .rejected {
+      checker := some ``LeanCert.Engine.krawczykCheck
+      detail := s!"Generated Krawczyk certificate was rejected at stage \
+        {repr inspection.stage}; contraction bound {inspection.contractionBound}."
+    }
+  | .verificationFailure detail => .internalError
+      `LeanCert.Tactic.systemUniqueRootAutomaticCoreTyped detail
+  | .transportFailure detail => .internalError
+      `LeanCert.Tactic.systemUniqueRootAutomaticCoreTyped detail
+  | .internalFailure detail => .internalError
+      `LeanCert.Tactic.systemUniqueRootAutomaticCoreTyped detail
+
+private unsafe def systemRootAttemptTyped (maxIterations taylorDepth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← systemUniqueRootAutomaticCoreTyped maxIterations 4 taylorDepth with
+  | .error failure => return .error (automaticKrawczykFailure failure)
+  | .ok outcome =>
+      let some search := outcome.search
+        | return .error <| .internalError `LeanCert.Tactic.systemUniqueRootAutomaticCoreTyped
+            "automatic proof succeeded without retained search statistics"
+      return .ok {
+        backend := some .exactRational
+        verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification.toUsage
+        checker := some outcome.checker
+        verifier := some outcome.verifier
+        krawczyk := some {
+          dimension := search.dimension
+          attempts := search.attempts
+          refinements := search.refinements
+          center := search.center
+          preconditioner := search.preconditioner
+          contractionBound := outcome.inspection.contractionBound
+        }
+      }
+
 /-- The deterministic strategy portfolio for a recognized goal intent. -/
 private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
     (mode : VerificationMode) : Array SolverSpec :=
@@ -751,15 +826,12 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
   let d3 := d + 20
   match intent with
   | .systemRoot => #[
-      { report := report intent "manual Krawczyk contraction certificate"
-          cfg mode .notApplicable
-          (some { tactic := "system_unique_root using", positionalArgs := #["cert"] })
+      { report := report intent "automatic Krawczyk candidate generation"
+          cfg mode (.fixed .exactRational)
+          (some { tactic := "system_unique_root" })
           (strategyId := .systemRoot),
-        solve := pure <| .error <| .inconclusive {
-          detail := "This I1 theorem family requires an explicit `KrawczykCert`. \
-            Use `system_unique_root using cert`; automatic candidate generation \
-            is reserved for I2."
-        } }]
+        solve := systemRootAttemptTyped
+          (if cfg.maxIterations == 1000 then 8 else cfg.maxIterations) cfg.taylorDepth }]
   | .eventualBound => #[
       { report := report intent "reciprocal-power tail certificate"
           cfg mode (.fixed .exactRational)
