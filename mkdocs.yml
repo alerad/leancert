@@ -62,6 +62,7 @@ nav:
     - Roots and No-Root Proofs: direct/roots.md
     - Optimization and Discovery: direct/optimization-discovery.md
     - Integration: direct/integration.md
+    - Eventual Bounds and Cutoff Discovery: direct/eventual-bounds.md
     - Checked Automatic Differentiation: direct/checked-ad.md
     - Troubleshooting: direct/troubleshooting.md
     - Advanced Guides:

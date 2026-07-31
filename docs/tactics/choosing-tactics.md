@@ -57,6 +57,10 @@ What do you want to prove?
 ├─► Integral bound
 │   └─► leancert
 │
+├─► "∀ n ≥ N, q / n^k ≤ c" or "∃ N, ∀ n ≥ N, q / n^k ≤ c"
+│   └─► leancert
+│       └─► Need an explicit cutoff? ──► eventual_bound using N
+│
 ├─► Simplify vector/matrix indexing (![a,b,c] ⟨1,h⟩ → b)
 │   └─► vec_simp
 │
@@ -84,6 +88,7 @@ What do you want to prove?
 | Simplify vector indexing | `vec_simp` | `![a,b,c] ⟨1, h⟩ = b` |
 | Expand finite sums | `finsum_expand` | `∑ k ∈ Icc 1 3, f k = f 1 + f 2 + f 3` |
 | Integral equality or inequality | `leancert` | `(∫ x in a..b, f x) ≤ c` |
+| Eventual reciprocal-power bound | `leancert` | `∃ N, ∀ n ≥ N, 3 / n^2 ≤ 1/1000` |
 
 ## Trust Levels
 

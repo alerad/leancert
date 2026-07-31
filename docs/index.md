@@ -30,6 +30,8 @@ LeanCert is organized around proof intent:
 | A global minimum or maximum problem | [Direct Automation → Optimization and Discovery](direct/optimization-discovery.md) |
 | A certified partial derivative or gradient enclosure | [Direct Automation → Checked Automatic Differentiation](direct/checked-ad.md) |
 | A definite integral bound | [Direct Automation → Integration](direct/integration.md) |
+| A bound that should hold for every sufficiently large natural number | [Direct Automation → Eventual Bounds](direct/eventual-bounds.md) |
+| A project-specific unary function with its own checked enclosure | [Reference → Downstream Enclosure Extensions](reference/extensions.md) |
 | Generated finite rows to verify | [Proof Templates → Table Certificates](proof-templates/table-certificates.md) |
 | A summatory function with a main term and error term | [Proof Templates → Asymptotic Envelopes](proof-templates/asymptotic-envelopes.md) |
 | A real-variable approximation with an error radius | [Proof Templates → Pointwise Envelopes](proof-templates/pointwise-envelopes.md) |

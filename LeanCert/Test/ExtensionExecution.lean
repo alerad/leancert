@@ -76,6 +76,26 @@ set_option leancert.trust "kernel" in
 example : ∀ x ∈ Set.Icc (0 : ℝ) 2, shifted x - x ≤ 2 := by
   leancert (subdivisions := 1)
 
+/- Rational endpoints and bounds may materialize through `Rat.divInt`; their
+proof transport must normalize without leaking side goals. -/
+set_option leancert.trust "kernel" in
+example : ∀ x ∈ Set.Icc (1 / 20 : ℝ) 1, positiveBranch x ≤ 1 := by
+  leancert
+
+/- The widened registered atom loses correlation with `x`; subdivision makes
+the composed comparison precise enough. -/
+set_option leancert.trust "kernel" in
+example : ∀ x ∈ Set.Icc (1 / 20 : ℝ) 1, fatPositive x - x ≤ (1 / 2 : ℝ) := by
+  leancert (subdivisions := 4)
+
+/- Multiple registered atoms remain compositional under distinct core
+transcendental operations. -/
+set_option leancert.trust "kernel" in
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.exp (positiveBranch (x / 2 + 1 / 10)) +
+      Real.sin (positiveBranch (x + 1 / 10)) - x ≤ 4 := by
+  leancert
+
 /-- error: LeanCert recognized: univariate interval bound
 
 Attempts:
@@ -119,6 +139,18 @@ Narrow the domain or prove the required positivity/nonzero condition. Increasing
 #guard_msgs in
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
     Real.log (positiveBranch (x + 1) - 2) ≤ 0 := by
+  leancert
+
+/- The outer evaluator must honor the widened certified enclosure rather than
+the definition of the opaque registered atom. -/
+/-- error: LeanCert recognized: univariate interval bound
+
+Domain obstruction:
+  the checked interval evaluator rejected a partial operation
+
+Narrow the domain or prove the required positivity/nonzero condition. Increasing numerical precision does not repair an invalid domain. -/
+#guard_msgs in
+example : ∀ x ∈ Set.Icc (1 / 20 : ℝ) 1, Real.log (fatPositive x) ≤ 2 := by
   leancert
 
 end LeanCert.Test.ExtensionExecution
