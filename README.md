@@ -180,9 +180,9 @@ does not imply that the theorem is false.
   supported integrands generally use certified partition bounds.
 - Supported evaluators may require domain certificates, such as positivity for
   logarithms or exclusion of zero from denominator intervals.
-- Downstream enclosure execution currently targets unary interval bounds with
-  checked, reifiable inner arguments; surrounding custom operations and
-  adaptive subdivision remain follow-up work.
+- Downstream enclosure execution currently targets unary interval bounds.
+  Existing core operations may surround proof-carrying registered subterms;
+  unsupported custom operations and adaptive subdivision are not yet covered.
 
 Native verification is faster but additionally trusts Lean's compiler/runtime;
 kernel-only verification may be substantially more expensive. See the

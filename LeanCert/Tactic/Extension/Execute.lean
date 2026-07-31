@@ -48,6 +48,7 @@ structure RegisteredEnclosureObservation where
 structure RegisteredEnclosureOutcome where
   enclosure : IntervalRat
   observations : Array RegisteredEnclosureObservation
+  compositionSteps : Nat := 0
   verification : LeanCert.Tactic.VerificationUsage
   deriving Inhabited
 
@@ -57,7 +58,101 @@ private structure EnclosedTerm where
   intervalExpr : Lean.Expr
   membership : Lean.Expr
   observations : Array RegisteredEnclosureObservation := #[]
+  compositionSteps : Nat := 0
   verification : LeanCert.Tactic.VerificationUsage := {}
+
+/-- Interval counterpart of `Bridge.realEnvironment`. -/
+private def intervalEnvironment (values : List IntervalRat) (index : Nat) : IntervalRat :=
+  match values with
+  | [value] => value
+  | _ => values.getD index (IntervalRat.singleton 0)
+
+private theorem getD_mem_environment
+    {values : List ℝ} {intervals : List IntervalRat}
+    (h : List.Forall₂ (fun value interval => value ∈ interval) values intervals) :
+    ∀ index, values.getD index 0 ∈ intervals.getD index (IntervalRat.singleton 0) := by
+  intro index
+  induction h generalizing index with
+  | nil => simpa using IntervalRat.mem_singleton (0 : ℚ)
+  | cons hmem _ ih =>
+      cases index with
+      | zero => simpa using hmem
+      | succ index => simpa using ih index
+
+private theorem environment_mem
+    {values : List ℝ} {intervals : List IntervalRat}
+    (h : List.Forall₂ (fun value interval => value ∈ interval) values intervals) :
+    LeanCert.Engine.envMem
+      (LeanCert.Tactic.Bridge.realEnvironment values)
+      (intervalEnvironment intervals) := by
+  intro index
+  cases h with
+  | nil =>
+      simpa [LeanCert.Tactic.Bridge.realEnvironment, intervalEnvironment] using
+        IntervalRat.mem_singleton (0 : ℚ)
+  | cons hmem htail =>
+      cases htail with
+      | nil =>
+          simpa [LeanCert.Tactic.Bridge.realEnvironment, intervalEnvironment] using hmem
+      | cons hmem' htail' =>
+          simpa [LeanCert.Tactic.Bridge.realEnvironment, intervalEnvironment] using
+            getD_mem_environment (.cons hmem (.cons hmem' htail')) index
+
+private def withRealLocals {α : Type} (count : Nat)
+    (continuation : Array Lean.Expr → TacticM α) : TacticM α := do
+  let rec loop (remaining : Nat) (locals : Array Lean.Expr) : TacticM α := do
+    match remaining with
+    | 0 => continuation locals
+    | remaining + 1 =>
+        withLocalDeclD `value (mkConst ``Real) fun value =>
+          loop remaining (locals.push value)
+  loop count #[]
+
+private partial def collectRegisteredRoots (env : Environment) (expression : Lean.Expr)
+    (roots : Array Lean.Expr := #[]) : Array Lean.Expr :=
+  if expression.getAppFn.constName?.any fun name =>
+      !(getUnaryEnclosureRules env name).isEmpty then
+    if roots.any (· == expression) then roots else roots.push expression
+  else
+    match expression with
+    | .app fn argument =>
+        collectRegisteredRoots env argument (collectRegisteredRoots env fn roots)
+    | .mdata _ body | .proj _ _ body => collectRegisteredRoots env body roots
+    | .letE _ type value body _ =>
+        collectRegisteredRoots env body <|
+          collectRegisteredRoots env value <| collectRegisteredRoots env type roots
+    | .lam _ type body _ | .forallE _ type body _ =>
+        collectRegisteredRoots env body (collectRegisteredRoots env type roots)
+    | _ => roots
+
+private def mkMembershipRelation : MetaM Lean.Expr := do
+  withLocalDeclD `value (mkConst ``Real) fun value =>
+    withLocalDeclD `interval (mkConst ``IntervalRat) fun interval => do
+      let membership ← mkAppM ``Membership.mem #[interval, value]
+      mkLambdaFVars #[value, interval] membership
+
+private def mkForall₂Membership (memberships : Array Lean.Expr) : MetaM Lean.Expr := do
+  let relation ← mkMembershipRelation
+  let emptyValues ← mkListLit (mkConst ``Real) []
+  let emptyIntervals ← mkListLit (mkConst ``IntervalRat) []
+  let mut values := emptyValues
+  let mut intervals := emptyIntervals
+  let mut proof ← mkAppOptM ``List.Forall₂.nil
+    #[some (mkConst ``Real), some (mkConst ``IntervalRat), some relation]
+  for membership in memberships.reverse do
+    let membershipType ← inferType membership
+    let arguments := membershipType.getAppArgs
+    if arguments.size < 2 then
+      throwError "registered enclosure atom did not have an explicit membership proposition"
+    let value := arguments[arguments.size - 1]!
+    let interval := arguments[arguments.size - 2]!
+    proof ← mkAppOptM ``List.Forall₂.cons #[
+      some (mkConst ``Real), some (mkConst ``IntervalRat), some relation,
+      some value, some interval, some values, some intervals,
+      some membership, some proof]
+    values ← mkAppM ``List.cons #[value, values]
+    intervals ← mkAppM ``List.cons #[interval, intervals]
+  return proof
 
 private def mkIntervalExpr (interval : IntervalRat) : MetaM Lean.Expr := do
   let ordered ← mkDecideProof (← mkAppM ``LE.le #[toExpr interval.lo, toExpr interval.hi])
@@ -81,6 +176,28 @@ private def proveByNormNum (proposition : Lean.Expr) : TacticM Lean.Expr := do
       throwError "exact rational comparison contains metavariables"
     setGoals originalGoals
     return proof
+  catch exception =>
+    saved.restore
+    throw exception
+
+private def proveRatCastComparison (rational real : Lean.Expr)
+    (rationalProof : Lean.Expr) : TacticM Lean.Expr := do
+  let originalGoals ← getGoals
+  let saved ← saveState
+  try
+    withLocalDeclD `h rational fun h => do
+      let proof ← mkFreshExprMVar real MetavarKind.syntheticOpaque
+      setGoals [proof.mvarId!]
+      let hSyntax ← Term.exprToSyntax h
+      evalTactic (← `(tactic| exact_mod_cast $hSyntax))
+      unless (← getGoals).isEmpty do
+        throwError "rational-cast comparison left proof obligations"
+      let proof ← instantiateMVars proof
+      if proof.hasMVar then
+        throwError "rational-cast comparison contains metavariables"
+      let implication ← mkLambdaFVars #[h] proof
+      setGoals originalGoals
+      return mkApp implication rationalProof
   catch exception =>
     saved.restore
     throw exception
@@ -121,6 +238,17 @@ private def transportMembership (equality membership : Lean.Expr) : MetaM Lean.E
   unless ← isDefEq actual expected do
     throwError "registered enclosure membership transport produced an unexpected type"
   return transported
+
+private def transportMembershipInterval (value membership targetInterval : Lean.Expr) : MetaM Lean.Expr := do
+  let membershipType ← inferType membership
+  let some (_, sourceInterval) := explicitMembership? membershipType
+    | throwError "registered enclosure interval transport expected interval membership"
+  let intervalEquality ← mkDecideProof (← mkAppM ``Eq #[sourceInterval, targetInterval])
+  let predicate ← withLocalDeclD `interval (mkConst ``IntervalRat) fun interval => do
+    let body ← mkAppM ``Membership.mem #[interval, value]
+    mkLambdaFVars #[interval] body
+  let transportedEquality ← mkAppM ``congrArg #[predicate, intervalEquality]
+  mkAppM ``Eq.mp #[transportedEquality, membership]
 
 private def encloseReified (x : Lean.Expr) (hx : Lean.Expr)
     (inputExpr body : Lean.Expr)
@@ -201,6 +329,7 @@ private unsafe def runCandidate (rule : UnaryEnclosureRule)
       enclosure := output
       verification := event.toUsage
     }
+    compositionSteps := argument.compositionSteps
     verification := argument.verification.combine event.toUsage
   }
 
@@ -209,10 +338,92 @@ private unsafe def encloseTerm (x : Lean.Expr) (hx : Lean.Expr)
     (precision : Int) (taylorDepth : Nat) :
     TacticM (Except RegisteredEnclosureFailure EnclosedTerm) := do
   let body := body.headBeta
+  let env ← getEnv
   let rules := body.getAppFn.constName?.map
-    (getUnaryEnclosureRules (← getEnv)) |>.getD #[]
+    (getUnaryEnclosureRules env) |>.getD #[]
   if rules.isEmpty then
-    return ← encloseReified x hx inputExpr body taylorDepth
+    let roots := collectRegisteredRoots env body
+    if roots.isEmpty then
+      return ← encloseReified x hx inputExpr body taylorDepth
+    let mut enclosedRoots : Array EnclosedTerm := #[]
+    for root in roots do
+      match ← encloseTerm x hx inputExpr root precision taylorDepth with
+      | .ok enclosed => enclosedRoots := enclosedRoots.push enclosed
+      | .error failure => return .error failure
+    -- This temporary tree is inspected only for free-variable occurrence. The
+    -- placeholder prevents variables inside registered roots from being counted;
+    -- it is never elaborated or used to construct a proof.
+    let bodyWithoutRoots := body.replace fun expression =>
+      if roots.any (· == expression) then some (mkConst ``True) else none
+    let needsInput := bodyWithoutRoots.containsFVar x.fvarId!
+    let localCount := roots.size + if needsInput then 1 else 0
+    return ← withRealLocals localCount fun locals => do
+      let transformed := body.replace fun expression =>
+        match roots.findIdx? (· == expression) with
+        | some index => some locals[index]!
+        | none =>
+            if needsInput && expression.isFVar && expression.fvarId! == x.fvarId! then
+              some locals[roots.size]!
+            else
+              none
+      let function ← mkLambdaFVars locals transformed
+      let reified ← LeanCert.Tactic.Bridge.reifyFunction function
+      let capabilities ← LeanCert.Tactic.Bridge.deriveCapabilities reified
+      let some supported := capabilities.supportedCore
+        | return .error <| .unsupported (toString body)
+            "the expression surrounding registered applications is not supported by the core evaluator"
+      let mut values := enclosedRoots.map (·.value)
+      let mut intervals := enclosedRoots.map (·.intervalExpr)
+      let mut memberships := enclosedRoots.map (·.membership)
+      if needsInput then
+        values := values.push x
+        intervals := intervals.push inputExpr
+        memberships := memberships.push hx
+      let valuesList ← mkListLit (mkConst ``Real) values.toList
+      let intervalsList ← mkListLit (mkConst ``IntervalRat) intervals.toList
+      let realEnv ← mkAppM ``LeanCert.Tactic.Bridge.realEnvironment #[valuesList]
+      let intervalEnv ← mkAppM ``intervalEnvironment #[intervalsList]
+      let membershipList ← mkForall₂Membership memberships
+      let environmentMembership ← mkAppM ``environment_mem #[membershipList]
+      let cfgExpr ← mkAppM ``LeanCert.Engine.EvalConfig.mk #[toExpr taylorDepth]
+      let check ← mkAppM ``LeanCert.Engine.checkDomainValid
+        #[reified.ast, intervalEnv, cfgExpr]
+      let checked ← closeCheck check "registered enclosure composition-domain check"
+      let (domainCheckProof, event) ←
+        match checked with
+        | .ok result => pure result
+        | .error (.rejected ..) =>
+            return .error <| .domainObstruction "surrounding expression"
+              "the checked interval evaluator rejected a partial operation"
+        | .error failure => return .error failure
+      let domainProof ← mkAppM ``LeanCert.Engine.checkDomainValid_correct
+        #[reified.ast, intervalEnv, cfgExpr, domainCheckProof]
+      let resultExpr ← mkAppM ``LeanCert.Internal.Rational.evalTotalCore
+        #[reified.ast, intervalEnv, cfgExpr]
+      let result ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) resultExpr
+      let explicitResultExpr ← mkIntervalExpr result
+      let evalMembership ← mkAppM ``LeanCert.Engine.evalIntervalCore_correct
+        #[reified.ast, supported, realEnv, intervalEnv, environmentMembership,
+          cfgExpr, domainProof]
+      let equality ← instantiateMVars (mkAppN reified.evalEq values)
+      let membership ← transportMembership equality evalMembership
+      let membership ← transportMembershipInterval body membership explicitResultExpr
+      let observations := enclosedRoots.foldl
+        (fun accumulated enclosed => accumulated ++ enclosed.observations) #[]
+      let compositionSteps := enclosedRoots.foldl
+        (fun accumulated enclosed => accumulated + enclosed.compositionSteps) 1
+      let verification := enclosedRoots.foldl
+        (fun accumulated enclosed => accumulated.combine enclosed.verification)
+        event.toUsage
+      return .ok {
+        value := body
+        interval := result
+        intervalExpr := explicitResultExpr
+        membership
+        observations
+        compositionSteps
+        verification
+      }
   let arguments := body.getAppArgs
   unless arguments.size == 1 do
     return .error <| .unsupported (toString body)
@@ -259,14 +470,39 @@ private def finalComparisonProof (comparison : Comparison) (functionOnLeft : Boo
       s!"registered enclosure [{enclosed.interval.lo}, {enclosed.interval.hi}] does not prove the requested bound"
       (some enclosed.interval)
   let endpointReal ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, toExpr endpoint]
-  let endpointComparison ←
+  let boundReal ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, toExpr bound]
+  let rationalComparison ←
     match comparison, functionOnLeft with
-    | .le, true => mkAppM ``LE.le #[endpointReal, boundExpr]
-    | .le, false => mkAppM ``LE.le #[boundExpr, endpointReal]
-    | .lt, true => mkAppM ``LT.lt #[endpointReal, boundExpr]
-    | .lt, false => mkAppM ``LT.lt #[boundExpr, endpointReal]
+    | .le, true => mkAppM ``LE.le #[toExpr endpoint, toExpr bound]
+    | .le, false => mkAppM ``LE.le #[toExpr bound, toExpr endpoint]
+    | .lt, true => mkAppM ``LT.lt #[toExpr endpoint, toExpr bound]
+    | .lt, false => mkAppM ``LT.lt #[toExpr bound, toExpr endpoint]
     | _, _ => throwError "unsupported registered enclosure comparison"
-  let endpointProof ← proveByNormNum endpointComparison
+  let rationalProof ← mkDecideProof rationalComparison
+  let castComparison ←
+    match comparison, functionOnLeft with
+    | .le, true => mkAppM ``LE.le #[endpointReal, boundReal]
+    | .le, false => mkAppM ``LE.le #[boundReal, endpointReal]
+    | .lt, true => mkAppM ``LT.lt #[endpointReal, boundReal]
+    | .lt, false => mkAppM ``LT.lt #[boundReal, endpointReal]
+    | _, _ => throwError "unsupported registered enclosure comparison"
+  let castProof ← proveRatCastComparison rationalComparison castComparison rationalProof
+  let boundEquality ← proveByNormNum (← mkAppM ``Eq #[boundReal, boundExpr])
+  let predicate ← withLocalDeclD `bound (mkConst ``Real) fun boundValue => do
+    let proposition ←
+      if functionOnLeft then
+        match comparison with
+        | .le => mkAppM ``LE.le #[endpointReal, boundValue]
+        | .lt => mkAppM ``LT.lt #[endpointReal, boundValue]
+        | _ => throwError "unsupported registered enclosure comparison"
+      else
+        match comparison with
+        | .le => mkAppM ``LE.le #[boundValue, endpointReal]
+        | .lt => mkAppM ``LT.lt #[boundValue, endpointReal]
+        | _ => throwError "unsupported registered enclosure comparison"
+    mkLambdaFVars #[boundValue] proposition
+  let endpointProof ← mkAppM ``Eq.mp
+    #[← mkAppM ``congrArg #[predicate, boundEquality], castProof]
   let membershipType ← inferType enclosed.membership
   let some (_, _) := explicitMembership? membershipType
     | throwError "registered enclosure theorem did not produce interval membership"
@@ -335,6 +571,7 @@ unsafe def registeredEnclosureBoundCoreTyped (prepared : PreparedGoal)
     return .ok {
       enclosure := enclosed.interval
       observations := enclosed.observations
+      compositionSteps := enclosed.compositionSteps
       verification := enclosed.verification
     }
 
