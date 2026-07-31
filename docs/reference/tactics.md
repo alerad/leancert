@@ -842,6 +842,13 @@ The optional precision is measured in bits. `finsum_bound` accepts a trailing
 inline trust override in every form. `finsum_witness` honors the scoped
 `leancert.trust` option but does not accept an inline override.
 
+All finite-sum forms use transactional typed cores. Reified routes evaluate a
+candidate once to distinguish an invalid summand domain from an enclosure that
+does not prove the requested bound, then close one retained Boolean
+certificate. Witness routes retain their actual index path, term count,
+enclosure, checker, verifier, and verification usage. A failed `Fin n`
+rewrite or certificate attempt restores the original goal and local state.
+
 ### `finsum_expand`
 
 Expands finite sums over Finsets into explicit additions.

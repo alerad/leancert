@@ -66,7 +66,8 @@ The router currently recognizes:
 - attained minima and maxima;
 - finite-sum equalities and inequalities;
 - exact rational-polynomial integral equalities;
-- supported definite-integral inequalities through certified partition search;
+- supported definite-integral inequalities through one retained partition
+  search followed by a fixed-candidate certificate;
 - closed LeanCert Boolean checker propositions;
 - conjunctions whose children are themselves recognized.
 

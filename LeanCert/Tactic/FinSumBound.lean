@@ -264,7 +264,7 @@ private def reifyFinSumBody (bodyLambda : Lean.Expr) : MetaM Lean.Expr := do
 
 /-- Core implementation of `finsum_bound` for Finset.Icc goals. -/
 private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int)
-    (taylorDepth : Nat) : TacticM VerificationEvent := do
+    (taylorDepth : Nat) : TacticM (Except FinSumFailure FinSumOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -283,9 +283,31 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int)
     let depthExpr := toExpr taylorDepth
     let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr]
 
+    let some a ← extractNatLit fsGoal.aExpr
+      | return .error <| .unsupported "range lower endpoint is not a natural literal"
+    let some b ← extractNatLit fsGoal.bExpr
+      | return .error <| .unsupported "range upper endpoint is not a natural literal"
+    let candidateExpr ← mkAppM ``evaluateFinSumCandidate
+      #[ast, fsGoal.aExpr, fsGoal.bExpr, cfgExpr]
+    let candidate ← unsafe evalExpr FinSumEvaluation
+      (mkConst ``FinSumEvaluation) candidateExpr
+    let enclosure ← match candidate with
+      | .domainObstruction index =>
+          return .error <| .domainObstruction (some index)
+            "the reified summand is outside its mathematical domain"
+      | .success enclosure => pure enclosure
+
     -- Precision proof: prec ≤ 0
     let precLeZeroTy ← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)]
     let precLeZeroProof ← mkDecideProof precLeZeroTy
+
+    let checkerName := if fsGoal.isUpper then
+      ``checkFinSumUpperBoundFull else ``checkFinSumLowerBoundFull
+    let verifierName := if fsGoal.isUpper then
+      ``verify_finsum_upper_full_checked else ``verify_finsum_lower_full_checked
+    let enclosureRat := enclosure.toIntervalRat
+    unless (if fsGoal.isUpper then enclosureRat.hi ≤ target else target ≤ enclosureRat.lo) do
+      return .error <| .rejected checkerName (some enclosureRat)
 
     -- Build the combined certificate check expression (domain + bound in one check)
     let checkExpr ← if fsGoal.isUpper then
@@ -307,7 +329,7 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int)
         precLeZeroProof, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
-    closeBridgeWithVerificationReported goal goalType proof checkMVar "finsum_bound" #[
+    let result ← closeBridgeWithVerificationTyped goal goalType proof checkMVar "finsum_bound" #[
       do evalTactic (← `(tactic|
         intro h; norm_num [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
           div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢; done)),
@@ -320,10 +342,28 @@ private def finSumBoundIccCore (fsGoal : FinSumGoal) (prec : Int)
           div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
         push_cast at h ⊢; linarith))
     ]
+    match result with
+    | .error .rejected => return .error <| .rejected checkerName (some enclosureRat)
+    | .error (.verificationFailure detail) =>
+        return .error <| .verificationFailure detail
+    | .error (.transportFailure detail) =>
+        return .error <| .transportFailure detail
+    | .ok event =>
+      return .ok {
+        path := .reifiedRange
+        isUpper := fsGoal.isUpper
+        termCount := if b < a then 0 else b + 1 - a
+        precision := prec
+        taylorDepth := taylorDepth
+        enclosure := enclosureRat
+        checker := checkerName
+        verifier := verifierName
+        verification := event.toUsage
+      }
 
 /-- Core implementation of `finsum_bound` for arbitrary Finsets (list path). -/
 private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int)
-    (taylorDepth : Nat) : TacticM VerificationEvent := do
+    (taylorDepth : Nat) : TacticM (Except FinSumFailure FinSumOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
@@ -342,9 +382,29 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int)
     let depthExpr := toExpr taylorDepth
     let cfgExpr ← mkAppM ``DyadicConfig.mk #[precExpr, depthExpr]
 
+    let indices ← unsafe evalExpr (List Nat)
+      (mkApp (mkConst ``List [0]) (mkConst ``Nat)) fsGoal.indicesExpr
+    let candidateExpr ← mkAppM ``evaluateFinSumListCandidate
+      #[ast, fsGoal.indicesExpr, cfgExpr]
+    let candidate ← unsafe evalExpr FinSumEvaluation
+      (mkConst ``FinSumEvaluation) candidateExpr
+    let enclosure ← match candidate with
+      | .domainObstruction index =>
+          return .error <| .domainObstruction (some index)
+            "the reified summand is outside its mathematical domain"
+      | .success enclosure => pure enclosure
+
     -- Precision proof
     let precLeZeroTy ← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)]
     let precLeZeroProof ← mkDecideProof precLeZeroTy
+
+    let checkerName := if fsGoal.isUpper then
+      ``checkFinSumUpperBoundListFull else ``checkFinSumLowerBoundListFull
+    let verifierName := if fsGoal.isUpper then
+      ``verify_finsum_upper_list_full_checked else ``verify_finsum_lower_list_full_checked
+    let enclosureRat := enclosure.toIntervalRat
+    unless (if fsGoal.isUpper then enclosureRat.hi ≤ target else target ≤ enclosureRat.lo) do
+      return .error <| .rejected checkerName (some enclosureRat)
 
     -- Build the combined certificate check (S = indices.toFinset ∧ Nodup ∧ domain ∧ bound)
     let checkExpr ← if fsGoal.isUpper then
@@ -368,7 +428,7 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int)
         precLeZeroProof, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
-    closeBridgeWithVerificationReported goal goalType proof checkMVar "finsum_bound" #[
+    let result ← closeBridgeWithVerificationTyped goal goalType proof checkMVar "finsum_bound" #[
       do evalTactic (← `(tactic|
         intro h; norm_num [LeanCert.Core.Expr.eval, LeanCert.Engine.sumBodyRealEnv,
           div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢; done)),
@@ -381,15 +441,33 @@ private def finSumBoundListCore (fsGoal : FinSumGoalList) (prec : Int)
           div_eq_mul_inv, ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs] at h ⊢;
         push_cast at h ⊢; linarith))
     ]
+    match result with
+    | .error .rejected => return .error <| .rejected checkerName (some enclosureRat)
+    | .error (.verificationFailure detail) =>
+        return .error <| .verificationFailure detail
+    | .error (.transportFailure detail) =>
+        return .error <| .transportFailure detail
+    | .ok event =>
+      return .ok {
+        path := .reifiedExplicit
+        isUpper := fsGoal.isUpper
+        termCount := indices.length
+        precision := prec
+        taylorDepth := taylorDepth
+        enclosure := enclosureRat
+        checker := checkerName
+        verifier := verifierName
+        verification := event.toUsage
+      }
 
 /-- Try to detect `Finset.sum Finset.univ f` where `univ` is over `Fin n` in the goal,
     and rewrite using `Fin.sum_univ_eq_sum_range f` to convert to a `Finset.range` sum.
     Unlike `simp only [Fin.sum_univ_eq_sum_range]`, this handles arbitrary bodies
     by explicitly providing the function argument `f`. -/
-private def tryRewriteFinSum : TacticM Unit := do
+private def tryRewriteFinSum : TacticM Bool := do
   let goal ← getMainGoal
   let goalType ← goal.getType
-  let_expr LE.le _ _ lhs rhs := goalType | return
+  let_expr LE.le _ _ lhs rhs := goalType | return false
   -- Check both sides for a Fin sum
   let findFinSum (e : Lean.Expr) : Option Lean.Expr := do
     let fn := e.getAppFn
@@ -405,7 +483,7 @@ private def tryRewriteFinSum : TacticM Unit := do
           return f
     none
   let bodyOpt := findFinSum lhs <|> findFinSum rhs
-  let some body := bodyOpt | return
+  let some body := bodyOpt | return false
   -- body : Fin n → β. We need f : ℕ → β such that body i = f (Fin.val i).
   -- Extract by: lambdaTelescope body, replace Fin.val i with fresh ℕ var.
   let f ← lambdaTelescope body fun vars innerBody => do
@@ -422,57 +500,76 @@ private def tryRewriteFinSum : TacticM Unit := do
   let result ← goal.rewrite goalType rwLemma
   let newGoal ← goal.replaceTargetEq result.eNew result.eqProof
   replaceMainGoal (newGoal :: result.mvarIds)
+  return true
 
-/-- Runtime facts from a retained finite-sum certificate. -/
-structure FinSumBoundOutcome where
-  checker : Name
-  verifier : Name
-  verification : VerificationUsage
-  precision : Int
-  taylorDepth : Nat
-  termCount : Option Nat := none
-  deriving Inhabited
+/-- Transactional reporting-aware dispatch. Rewriting `Fin n`, candidate
+evaluation, certificate closure, and theorem transport are one transaction. -/
+def finSumBoundCoreTyped (prec : Int) (taylorDepth : Nat) :
+    TacticM (Except FinSumFailure FinSumOutcome) := do
+  let original ← saveState
+  try
+    let rewritten ← try tryRewriteFinSum catch _ => pure false
+    let goal ← getMainGoal
+    let goalType ← goal.getType
+    let result ←
+      if let some iccGoal := parseFinSumGoal goalType then
+        finSumBoundIccCore iccGoal prec taylorDepth
+      else if let some listGoal := ← parseFinSumGoalList goalType then
+        finSumBoundListCore listGoal prec taylorDepth
+      else
+        pure <| .error <| .unsupported
+          "goal is not a recognized finite-sum bound"
+    match result with
+    | .ok outcome => return .ok { outcome with rewrittenFin := rewritten }
+    | .error failure =>
+        original.restore
+        return .error failure
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Reporting-aware dispatch: try Icc path first, then list path. -/
+/-- Reporting compatibility wrapper preserving the historical result API. -/
 def finSumBoundCoreReported (prec : Int) (taylorDepth : Nat) :
-    TacticM FinSumBoundOutcome := do
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-  -- Try Icc path first (faster, no Nodup check needed)
-  if let some iccGoal := parseFinSumGoal goalType then
-    let event ← finSumBoundIccCore iccGoal prec taylorDepth
-    let checker := if iccGoal.isUpper then
-      ``checkFinSumUpperBoundFull else ``checkFinSumLowerBoundFull
-    let verifier := if iccGoal.isUpper then
-      ``verify_finsum_upper_full_checked else ``verify_finsum_lower_full_checked
-    return {
-      checker := checker
-      verifier := verifier
-      verification := event.toUsage
-      precision := prec
-      taylorDepth := taylorDepth
-    }
-  -- Fall back to general list path
-  if let some listGoal := ← parseFinSumGoalList goalType then
-    let event ← finSumBoundListCore listGoal prec taylorDepth
-    let checker := if listGoal.isUpper then
-      ``checkFinSumUpperBoundListFull else ``checkFinSumLowerBoundListFull
-    let verifier := if listGoal.isUpper then
-      ``verify_finsum_upper_list_full_checked else ``verify_finsum_lower_list_full_checked
-    return {
-      checker := checker
-      verifier := verifier
-      verification := event.toUsage
-      precision := prec
-      taylorDepth := taylorDepth
-    }
-  throwError "finsum_bound: goal is not of the form \
-    `∑ k ∈ S, f k ≤ target` or `target ≤ ∑ k ∈ S, f k` \
-    where S is a recognized Finset (Icc, Ico, Ioc, Ioo, range, or explicit)"
+    TacticM FinSumOutcome := do
+  match ← finSumBoundCoreTyped prec taylorDepth with
+  | .ok outcome => return outcome
+  | .error failure => throwError "finsum_bound: {repr failure}"
 
 /-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
 def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
   discard <| finSumBoundCoreReported prec taylorDepth
+
+/-- Transactional typed entry for the `finsum_bound using ...` syntax,
+including a possible `Fin n` rewrite. -/
+def finSumWitnessBoundCoreTyped (evalTermSyn hmemSyn : Syntax) (prec : Int) :
+    TacticM (Except FinSumFailure FinSumOutcome) := do
+  let original ← saveState
+  try
+    let rewritten ← try tryRewriteFinSum catch _ => pure false
+    match ← finSumWitnessCoreTyped evalTermSyn hmemSyn prec with
+    | .ok outcome => return .ok { outcome with rewrittenFin := rewritten }
+    | .error failure =>
+        original.restore
+        return .error failure
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Transactional typed entry for the `finsum_bound auto ...` syntax,
+including a possible `Fin n` rewrite. -/
+def finSumWitnessAutoBoundCoreTyped (evalTermSyn : Syntax) (prec : Int) :
+    TacticM (Except FinSumFailure FinSumOutcome) := do
+  let original ← saveState
+  try
+    let rewritten ← try tryRewriteFinSum catch _ => pure false
+    match ← finSumWitnessAutoCoreTyped evalTermSyn prec with
+    | .ok outcome => return .ok { outcome with rewrittenFin := rewritten }
+    | .error failure =>
+        original.restore
+        return .error failure
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
 
 /-- Whether `goalType` is a finite-sum bound understood by `finsum_bound`. -/
 def isFinSumBoundGoal (goalType : Lean.Expr) : MetaM Bool := do
@@ -507,16 +604,14 @@ elab_rules : tactic
     let precision : Int := match prec with
       | some n => -(n.getNat : Int)
       | none => -53
-    -- Try rewriting Fin n sums to Finset.range before witness dispatch
-    try tryRewriteFinSum catch _ => pure ()
     withTrustMode (← elabTrustItem? trust) do
-      finSumWitnessCore evalTerm hmem precision
+      match ← finSumWitnessBoundCoreTyped evalTerm hmem precision with
+      | .ok _ => pure ()
+      | .error failure => throwError "finsum_bound: {repr failure}"
   | `(tactic| finsum_bound $[$prec:num]? $[$trust:leancertTrustItem]?) => do
     let precision : Int := match prec with
       | some n => -(n.getNat : Int)
       | none => -53
-    -- Try rewriting Fin n sums to Finset.range before main dispatch
-    try tryRewriteFinSum catch _ => pure ()
     withTrustMode (← elabTrustItem? trust) do
       finSumBoundCore precision 10
   | `(tactic| finsum_bound auto $evalTerm:term $[$prec:num]?
@@ -524,8 +619,9 @@ elab_rules : tactic
     let precision : Int := match prec with
       | some n => -(n.getNat : Int)
       | none => -53
-    try tryRewriteFinSum catch _ => pure ()
     withTrustMode (← elabTrustItem? trust) do
-      finSumWitnessAutoCore evalTerm precision
+      match ← finSumWitnessAutoBoundCoreTyped evalTerm precision with
+      | .ok _ => pure ()
+      | .error failure => throwError "finsum_bound auto: {repr failure}"
 
 end LeanCert.Tactic

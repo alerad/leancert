@@ -387,40 +387,137 @@ private unsafe def argmaxAttemptTyped (depth : Nat) :
       return .error (attainedFailure
         `LeanCert.Tactic.Discovery.interval_argmax failure)
 
-private def finSumAttemptReported (precision : Int) (depth : Nat) :
-    TacticM SolverExecution := do
-  let outcome ← finSumBoundCoreReported precision depth
-  let notes := #[
-    s!"precision: {outcome.precision}",
-    s!"Taylor depth: {outcome.taylorDepth}"
-  ]
-  let notes :=
-    match outcome.termCount with
-    | some count => notes.push s!"terms: {count}"
-    | none => notes
-  return {
+private def finiteSumExecution (outcome : FinSumOutcome) : SolverExecution := {
     backend := some .dyadicInterval
     verificationUsage :=
       Solver.VerificationUsage.ofEvents outcome.verification
     checker := some outcome.checker
     verifier := some outcome.verifier
-    notes
+    enclosure := some outcome.enclosure
+    finiteSum := some {
+      path := match outcome.path with
+        | .reifiedRange => .reifiedRange
+        | .reifiedExplicit => .reifiedExplicit
+        | .witnessRange => .witnessRange
+        | .witnessExplicit => .witnessExplicit
+      rewrittenFin := outcome.rewrittenFin
+      termCount := outcome.termCount
+      precision := outcome.precision
+      taylorDepth := outcome.taylorDepth
+    }
   }
+
+private def unknownDomainSource : Semantic.IntervalSyntax := {
+  original := mkConst ``True
+  kind := .intervalRat
+}
+
+private def finSumAttemptTyped (precision : Int) (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← finSumBoundCoreTyped precision depth with
+  | .ok outcome => return .ok (finiteSumExecution outcome)
+  | .error (.unsupported detail) =>
+      return .error <| .unsupported { expression := "finite sum", detail := some detail }
+  | .error (.domainObstruction index detail) =>
+      let suffix := index.map (fun i => s!" at index {i}") |>.getD ""
+      return .error <| .domainObstruction {
+        source := unknownDomainSource
+        reason := detail ++ suffix
+      }
+  | .error (.rejected checker enclosure) =>
+      return .error <| .rejected {
+        checker := some checker
+        enclosure
+        detail := "The finite-sum enclosure does not prove the requested bound."
+      }
+  | .error (.verificationFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.finsum_bound detail
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.finsum_bound detail
+  | .error (.internalFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.finsum_bound detail
 
 private def integralExecution (backend : Option NumericalBackend)
     (outcomes : Array IntegralOutcome) : SolverExecution := Id.run do
   let mut usage : Solver.VerificationUsage := {}
   let mut notes : Array String := #[]
+  let mut certificates : Array Solver.CertificateObservation := #[]
   for outcome in outcomes do
     if let some verification := outcome.verification then
       usage := usage.combine (Solver.VerificationUsage.ofEvents verification)
+      certificates := certificates.push {
+        role := if outcome.route == .exactRational then "exact integral" else "partition integral"
+        checker := outcome.checker
+        verifier := some outcome.verifier
+        verificationUsage := Solver.VerificationUsage.ofEvents verification
+        enclosure := outcome.enclosure
+      }
     if let some start := outcome.partitionStart then
       notes := notes.push s!"partition search starts at {start}"
     if let some maximum := outcome.partitionMaximum then
       notes := notes.push s!"partition search maximum {maximum}"
+    if let some chosen := outcome.chosenPartitions then
+      notes := notes.push s!"selected {chosen} partitions"
   let checker := outcomes[0]?.map (·.checker)
   let verifier := outcomes[0]?.map (·.verifier)
-  return { backend, verificationUsage := usage, checker, verifier, notes }
+  let partitionStats := outcomes.findSome? fun outcome => do
+    let start ← outcome.partitionStart
+    let maximum ← outcome.partitionMaximum
+    let chosen ← outcome.chosenPartitions
+    let attempts ← outcome.attempts
+    return {
+      startPartitions := start
+      maximumPartitions := maximum
+      chosenPartitions := chosen
+      attempts
+    }
+  return {
+    backend
+    verificationUsage := usage
+    checker
+    verifier
+    enclosure := outcomes.findSome? (·.enclosure)
+    integralPartitions := partitionStats
+    certificates
+    notes
+  }
+
+private def integralFailureToAttempt (solver : Name) :
+    IntegralFailure → AttemptFailure
+  | .unsupported detail =>
+      .unsupported { expression := "interval integral", detail := some detail }
+  | .domainObstruction detail =>
+      .domainObstruction { source := unknownDomainSource, reason := detail }
+  | .exhausted start maximum _lastPartitions lastEnclosure attempts =>
+      .inconclusive {
+        enclosure := lastEnclosure
+        requested := some s!"partition range {start}..{maximum}"
+        detail := s!"Partition search exhausted after {attempts} attempt(s)."
+      }
+  | .rejected checker enclosure =>
+      .rejected {
+        checker := some checker
+        enclosure
+        detail := "The retained partition candidate was rejected."
+      }
+  | .verificationFailure detail => .internalError solver detail
+  | .transportFailure detail => .internalError solver detail
+  | .internalFailure detail => .internalError solver detail
+
+private def integralExactAttemptTyped :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← integralExactCoreTyped with
+  | .ok outcomes => return .ok (integralExecution (some .exactRational) outcomes)
+  | .error failure =>
+      return .error (integralFailureToAttempt `LeanCert.Tactic.integral_exact failure)
+
+private def integralSearchAttemptTyped (start maximum : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← integralSearchCoreTyped start maximum with
+  | .ok outcomes =>
+      return .ok (integralExecution (some .checkedRationalPartitions) outcomes)
+  | .error failure =>
+      return .error (integralFailureToAttempt `LeanCert.Tactic.integral_search failure)
 
 private def checkedExecution (backend : Option NumericalBackend)
     (verification : LeanCert.Tactic.VerificationUsage)
@@ -721,13 +818,11 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
       { report := report intent "reflective finite-sum certificate" cfg mode
           (.fixed .dyadicInterval) (some (suggestion "finsum_bound")),
         solve := finSumBoundCore (-53) 10
-        solveReported := some (finSumAttemptReported (-53) 10)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (finSumAttemptTyped (-53) 10) },
       { report := report intent "reflective finite-sum certificate" cfg mode
           (.fixed .dyadicInterval) (some (suggestion "finsum_bound" #["80"])),
         solve := finSumBoundCore (-80) 10
-        solveReported := some (finSumAttemptReported (-80) 10)
-        legacyExceptionAdapter := true }]
+        solveReportedResult := some (finSumAttemptTyped (-80) 10) }]
   | .certificateCheck => #[
       { report := report intent "closed Boolean certificate verification" cfg mode
           .notApplicable,
@@ -748,32 +843,20 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
       { report := report intent "integral_exact" cfg mode (.fixed .exactRational)
           (some (suggestion "integral_exact")) (strategyId := .exactIntegral),
         solve := integralExactCore
-        solveReported := some do
-          return integralExecution (some .exactRational)
-            (← integralExactCoreReported)
-        legacyExceptionAdapter := true
+        solveReportedResult := some integralExactAttemptTyped
         cost := 0 },
       { report := report intent "integral_search 16 512" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 512
-        solveReported := some do
-          return integralExecution (some .checkedRationalPartitions)
-            (← integralSearchCoreReported 16 512)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (integralSearchAttemptTyped 16 512) },
       { report := report intent "integral_search 16 4096" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 4096
-        solveReported := some do
-          return integralExecution (some .checkedRationalPartitions)
-            (← integralSearchCoreReported 16 4096)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (integralSearchAttemptTyped 16 4096) },
       { report := report intent "integral_search 16 16384" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
         solve := integralSearchCore 16 16384
-        solveReported := some do
-          return integralExecution (some .checkedRationalPartitions)
-            (← integralSearchCoreReported 16 16384)
-        legacyExceptionAdapter := true }]
+        solveReportedResult := some (integralSearchAttemptTyped 16 16384) }]
   | .conjunction => #[]
 
 private def Semantic.SemanticGoal.comparison? :

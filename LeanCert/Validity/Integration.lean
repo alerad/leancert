@@ -36,8 +36,10 @@ interval arithmetic with both computable (Core) and noncomputable (Checked) eval
 ### Exponential Search
 * `searchPartitionLower` - Find minimum partitions for lower bound
 * `searchPartitionUpper` - Find minimum partitions for upper bound
-* `checkIntegralSearchLowerBound` - Boolean checker using exponential search
-* `checkIntegralSearchUpperBound` - Boolean checker using exponential search
+* `searchPartitionLowerCandidate` / `searchPartitionUpperCandidate` - retained
+  untrusted search results with partition counts and enclosures
+* `checkIntegralPartitionLowerBound` / `checkIntegralPartitionUpperBound` -
+  fixed-candidate certificate checkers
 -/
 
 namespace LeanCert.Validity.Integration
@@ -684,6 +686,109 @@ Algorithm:
 
 This finds the optimal N in O(log(N)) integration attempts.
 -/
+
+/-- Retained result of the untrusted exponential partition search.  The
+selected partition count is certified separately by a fixed-candidate
+checker, so the search itself never needs to be executed by the verifier. -/
+inductive IntegralPartitionSearchResult where
+  | success (partitions : Nat) (enclosure : IntervalRat) (attempts : Nat)
+  | exhausted (lastPartitions : Option Nat) (lastEnclosure : Option IntervalRat)
+      (attempts : Nat)
+  | domainObstruction (partitions : Nat) (attempts : Nat)
+  | invalidStart
+  deriving Repr, Inhabited
+
+/-- Structured exponential search for a lower integral bound.  This function
+is candidate generation only; soundness comes from
+`checkIntegralPartitionLowerBound` below. -/
+def searchPartitionLowerCandidateAux (e : Expr) (I : IntervalRat)
+    (n maxN : Nat) (c : ℚ) (fuel attempts : Nat)
+    (lastPartitions : Option Nat := none)
+    (lastEnclosure : Option IntervalRat := none) :
+    IntegralPartitionSearchResult :=
+  match fuel with
+  | 0 => .exhausted lastPartitions lastEnclosure attempts
+  | fuel' + 1 =>
+    if n > maxN then .exhausted lastPartitions lastEnclosure attempts
+    else if _hn : 0 < n then
+      match integratePartitionChecked e I n with
+      | none => .domainObstruction n (attempts + 1)
+      | some J =>
+        if decide (c ≤ J.lo) then .success n J (attempts + 1)
+        else
+          searchPartitionLowerCandidateAux e I (2 * n) maxN c fuel'
+            (attempts + 1) (some n) (some J)
+    else .invalidStart
+
+/-- Structured exponential search for an upper integral bound. -/
+def searchPartitionUpperCandidateAux (e : Expr) (I : IntervalRat)
+    (n maxN : Nat) (c : ℚ) (fuel attempts : Nat)
+    (lastPartitions : Option Nat := none)
+    (lastEnclosure : Option IntervalRat := none) :
+    IntegralPartitionSearchResult :=
+  match fuel with
+  | 0 => .exhausted lastPartitions lastEnclosure attempts
+  | fuel' + 1 =>
+    if n > maxN then .exhausted lastPartitions lastEnclosure attempts
+    else if _hn : 0 < n then
+      match integratePartitionChecked e I n with
+      | none => .domainObstruction n (attempts + 1)
+      | some J =>
+        if decide (J.hi ≤ c) then .success n J (attempts + 1)
+        else
+          searchPartitionUpperCandidateAux e I (2 * n) maxN c fuel'
+            (attempts + 1) (some n) (some J)
+    else .invalidStart
+
+def searchPartitionLowerCandidate (e : Expr) (I : IntervalRat)
+    (startN maxN : Nat) (c : ℚ) : IntegralPartitionSearchResult :=
+  searchPartitionLowerCandidateAux e I startN maxN c 20 0
+
+def searchPartitionUpperCandidate (e : Expr) (I : IntervalRat)
+    (startN maxN : Nat) (c : ℚ) : IntegralPartitionSearchResult :=
+  searchPartitionUpperCandidateAux e I startN maxN c 20 0
+
+/-- Fixed-candidate checker for an integral lower bound. -/
+def checkIntegralPartitionLowerBound (e : Expr) (I : IntervalRat)
+    (partitions : Nat) (c : ℚ) : Bool :=
+  match integratePartitionChecked e I partitions with
+  | some J => decide (c ≤ J.lo)
+  | none => false
+
+/-- Fixed-candidate checker for an integral upper bound. -/
+def checkIntegralPartitionUpperBound (e : Expr) (I : IntervalRat)
+    (partitions : Nat) (c : ℚ) : Bool :=
+  match integratePartitionChecked e I partitions with
+  | some J => decide (J.hi ≤ c)
+  | none => false
+
+/-- Golden theorem for a retained lower-bound partition candidate. -/
+theorem integral_partition_lower_of_check (e : Expr) (I : IntervalRat)
+    (partitions : Nat) (hpartitions : 0 < partitions) (c : ℚ)
+    (hcheck : checkIntegralPartitionLowerBound e I partitions c = true)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
+    (c : ℝ) ≤ ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e := by
+  unfold checkIntegralPartitionLowerBound at hcheck
+  cases hint : integratePartitionChecked e I partitions with
+  | none => simp [hint] at hcheck
+  | some J =>
+      simp only [hint, decide_eq_true_eq] at hcheck
+      have hmem := integratePartitionChecked_correct e I partitions hpartitions J hint hInt
+      exact le_trans (by exact_mod_cast hcheck) hmem.1
+
+/-- Golden theorem for a retained upper-bound partition candidate. -/
+theorem integral_partition_upper_of_check (e : Expr) (I : IntervalRat)
+    (partitions : Nat) (hpartitions : 0 < partitions) (c : ℚ)
+    (hcheck : checkIntegralPartitionUpperBound e I partitions c = true)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e) volume I.lo I.hi) :
+    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ≤ (c : ℝ) := by
+  unfold checkIntegralPartitionUpperBound at hcheck
+  cases hint : integratePartitionChecked e I partitions with
+  | none => simp [hint] at hcheck
+  | some J =>
+      simp only [hint, decide_eq_true_eq] at hcheck
+      have hmem := integratePartitionChecked_correct e I partitions hpartitions J hint hInt
+      exact le_trans hmem.2 (by exact_mod_cast hcheck)
 
 /-- Exponential search with explicit fuel for termination.
     Returns the computed bound if found within fuel doublings, or `none` otherwise. -/

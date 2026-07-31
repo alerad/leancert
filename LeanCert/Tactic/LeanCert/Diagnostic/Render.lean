@@ -267,6 +267,28 @@ private def renderSubdivision (statistics : Option SubdivisionStatistics) : Stri
         Boxes examined: {statistics.boxesExamined}\n  \
         Certified leaves: {statistics.certifiedLeaves}"
 
+private def renderFiniteSum (statistics : Option FiniteSumStatistics) : String :=
+  match statistics with
+  | none => ""
+  | some statistics =>
+      let path := match statistics.path with
+        | .reifiedRange => "reified range"
+        | .reifiedExplicit => "reified explicit indices"
+        | .witnessRange => "witness range"
+        | .witnessExplicit => "witness explicit indices"
+      s!"\n\nFinite sum:\n  Path: {path}\n  Terms: {statistics.termCount}\n  \
+        Precision: {statistics.precision}\n  Taylor depth: {statistics.taylorDepth}\n  \
+        Rewritten from Fin: {statistics.rewrittenFin}"
+
+private def renderIntegralPartitions
+    (statistics : Option IntegralPartitionStatistics) : String :=
+  match statistics with
+  | none => ""
+  | some statistics =>
+      s!"\n\nPartition search:\n  Start: {statistics.startPartitions}\n  \
+        Maximum: {statistics.maximumPartitions}\n  Selected: {statistics.chosenPartitions}\n  \
+        Attempts: {statistics.attempts}"
+
 private def renderCertificates
     (certificates : Array CertificateObservation) : String :=
   if certificates.isEmpty then ""
@@ -312,13 +334,16 @@ def successReport (report : SolverReport) : String :=
       (fun value => s!"\nVerifier: {value}") |>.getD ""
   let optimization := renderOptimization report.execution.optimization
   let subdivision := renderSubdivision report.execution.subdivision
+  let finiteSum := renderFiniteSum report.execution.finiteSum
+  let integralPartitions := renderIntegralPartitions report.execution.integralPartitions
   let certificates := renderCertificates report.execution.certificates
   let advanced :=
     plan.dedicatedProof.map (fun proof =>
       s!"\n\nAdvanced control:\n  {renderProof proof}") |>.getD ""
   s!"LeanCert recognized: {intentLabel plan.intent}\n\n\
     Selected strategy:\n  {plan.strategy}{detail}{executionNotes}{backend}{verification}\
-    {checker}{verifier}{optimization}{subdivision}{certificates}\n\nSuggested proof:\n  {renderProof plan.primaryProof}\
+    {checker}{verifier}{optimization}{subdivision}{finiteSum}{integralPartitions}{certificates}\n\n\
+    Suggested proof:\n  {renderProof plan.primaryProof}\
     {advanced}{renderChildren report.execution.children}"
 
 end LeanCert.Tactic.Diagnostic
