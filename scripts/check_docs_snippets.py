@@ -348,24 +348,22 @@ def main() -> int:
         import_results = validate_import_catalogues(import_catalogues)
         # A worker killed by transient resource pressure produces no source
         # location, so `compile_batch` conservatively reports its whole batch.
-        # Retry such opaque failures after the parallel workers have exited.
-        # Genuine syntax/elaboration errors still fail on the retry.
+        # Lean can also attribute an import/elaboration interaction in a
+        # synthetic batch to otherwise-valid snippet source lines. Retry every
+        # reported failure after the parallel workers have exited and with no
+        # neighbouring snippets. Genuine syntax/elaboration errors still fail
+        # the isolated retry, while batch-only failures do not make valid
+        # documentation examples flaky in CI.
         retried_results = []
         for batch, snippets_failed, output in results:
-            if snippets_failed == batch.snippets:
-                # Retrying the same oversized batch cannot recover from a
-                # timeout, memory kill, or an import-level race reported before
-                # any snippet's source range.  The parallel workers have
-                # exited, so isolate its snippets now: a genuine snippet error
-                # remains attributable, while transient batch pressure no
-                # longer reports every otherwise-valid fence as broken.
-                for snippet in batch.snippets:
-                    isolated = Batch(batch.ordinal, [snippet])
-                    retried_results.append(
-                        compile_batch((isolated, work, args.timeout))
-                    )
-            else:
+            if not snippets_failed:
                 retried_results.append((batch, snippets_failed, output))
+                continue
+            for snippet in snippets_failed:
+                isolated = Batch(batch.ordinal, [snippet])
+                retried_results.append(
+                    compile_batch((isolated, work, args.timeout))
+                )
         results = retried_results
 
     failed: dict[str, tuple[Snippet, str]] = {}
