@@ -29,7 +29,7 @@ jobs:
         run: mkdocs build --strict
 
       - name: Build documented Lean import surfaces
-        run: lake build LeanCert LeanCert.Tactic
+        run: lake build LeanCert LeanCert.Tactic +LeanCert.Examples.Krawczyk
 
       - name: Compile every executable documentation snippet
         run: python3 scripts/check_docs_snippets.py
