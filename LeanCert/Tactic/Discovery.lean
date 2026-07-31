@@ -23,7 +23,7 @@ using discovery algorithms:
 
 * `interval_minimize` - Prove `∃ m, ∀ x ∈ I, f(x) ≥ m` by finding the minimum
 * `interval_maximize` - Prove `∃ M, ∀ x ∈ I, f(x) ≤ M` by finding the maximum
-* `interval_roots` - Prove `∃ x ∈ I, f(x) = 0` by finding roots (Stub)
+* `interval_roots` - Prove `∃ x ∈ I, f(x) = 0` from a checked sign change
 
 ## Usage
 
@@ -32,7 +32,7 @@ using discovery algorithms:
 example : ∃ m : ℚ, ∀ x ∈ I01, x^2 + Real.sin x ≥ m := by
   interval_minimize
 
--- Find a root (Not fully implemented yet)
+-- Certify a root from a sign change
 example : ∃ x ∈ Icc (-2 : ℝ) 2, x^3 - x = 0 := by
   interval_roots
 ```
@@ -1845,25 +1845,50 @@ structure RootDiscoveryOutcome where
   taylorDepth : Nat
   deriving Inhabited
 
-/-- Reporting-aware interval-roots implementation. -/
-def intervalRootsCoreReported (taylorDepth : Nat) : TacticM RootDiscoveryOutcome := do
-  LeanCert.Tactic.Auto.intervalNormCore
+/-- Expected and invariant failures from root existence and uniqueness
+certification. -/
+inductive RootDiscoveryFailure where
+  | unsupported (expression detail : String)
+  | rejected (detail : String)
+  | transportFailure (detail : String)
+  | internalFailure (detail : String)
+  deriving Inhabited, Repr
+
+private def throwRootDiscoveryFailure (tacticName : String) :
+    RootDiscoveryFailure → TacticM α
+  | .unsupported expression detail =>
+      throwError "{tacticName}: unsupported expression {expression}:\n{detail}"
+  | .rejected detail =>
+      throwError "{tacticName}: certificate rejected:\n{detail}"
+  | .transportFailure detail =>
+      throwError "{tacticName}: proof transport failed:\n{detail}"
+  | .internalFailure detail =>
+      throwError "{tacticName}: internal certificate failure:\n{detail}"
+
+private def intervalRootsCoreTypedImpl
+    (original : Lean.Elab.Tactic.SavedState) (taylorDepth : Nat) :
+    TacticM (Except RootDiscoveryFailure RootDiscoveryOutcome) := do
+  try LeanCert.Tactic.Auto.intervalNormCore
+  catch e =>
+    original.restore
+    return .error <| .unsupported "goal normalization" (← e.toMessageData.toString)
   let initialGoal ← getMainGoal
   let goalType ← initialGoal.getType
 
   -- 1. Parse the goal
   let some (.existsRoot _varName interval func reverseZeroEquality) ← parseRootExistsGoal goalType
-    | let diagReport ← LeanCert.Tactic.Auto.mkDiagnosticReport "interval_roots" goalType "parse"
-        (some m!"Expected form: ∃ x ∈ I, lhs(x) = rhs(x)\n\n\
-                 The function f must be continuous on interval I.\n\
-                 Uses intermediate value theorem to find roots.")
-      throwError "interval_roots: Could not parse goal.\n\n{diagReport}"
+    | original.restore
+      return .error <| .unsupported (toString goalType)
+        "expected `∃ x ∈ I, lhs x = rhs x`"
 
-  if reverseZeroEquality then
+  if reverseZeroEquality then try
     evalTactic (← `(tactic| conv => arg 1; ext x; arg 2; rw [eq_comm]))
+  catch e =>
+    original.restore
+    return .error <| .transportFailure (← e.toMessageData.toString)
   let goal ← getMainGoal
 
-  goal.withContext do
+  try goal.withContext do
     let mut fromSetIcc := false
     let intervalExpr ←
       match ← tryConvertSetIcc interval with
@@ -1875,18 +1900,32 @@ def intervalRootsCoreReported (taylorDepth : Nat) : TacticM RootDiscoveryOutcome
           if intervalTy.isConstOf ``IntervalRat then
             pure interval
           else
-            throwError "interval_roots: Only IntervalRat or literal Set.Icc intervals are supported"
+            original.restore
+            return .error <| .unsupported (toString interval)
+              "only IntervalRat or literal Set.Icc intervals are supported"
 
     -- 2. Get AST (either from Expr.eval or by reifying)
-    let reified ← getAstFromFuncWithReport func
+    let reified ←
+      try pure (← getAstFromFuncWithReport func)
+      catch e =>
+        original.restore
+        return .error <| .unsupported (toString func) (← e.toMessageData.toString)
     let ast := reified.expr
     LeanCert.Tactic.unfoldReifiedDefinitions reified.unfolded
 
     -- 3. Generate ExprSupportedCore proof
-    let supportProof ← mkSupportedCoreProof ast
+    let supportProof ←
+      try pure (← mkSupportedCoreProof ast)
+      catch e =>
+        original.restore
+        return .error <| .unsupported (toString func) (← e.toMessageData.toString)
 
     -- 4. Generate ContinuousOn proof
-    let contProof ← mkContinuousOnProofWithDomain ast intervalExpr
+    let contProof ←
+      try pure (← mkContinuousOnProofWithDomain ast intervalExpr)
+      catch e =>
+        original.restore
+        return .error <| .unsupported (toString func) (← e.toMessageData.toString)
 
     -- 5. Build config expression
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -1899,30 +1938,63 @@ def intervalRootsCoreReported (taylorDepth : Nat) : TacticM RootDiscoveryOutcome
       #[ast, intervalExpr, cfgExpr]
     let certType ← mkAppM ``Eq #[checker, mkConst ``Bool.true]
     let certificate ← mkFreshExprMVar certType
-    let event ← LeanCert.Tactic.closeCertificateGoalReported
-      (← LeanCert.Tactic.VerificationConfig.current) certificate.mvarId!
-      (tacticName := "interval_roots")
+    let event ←
+      match ← LeanCert.Tactic.closeCertificateGoalTyped
+          (← LeanCert.Tactic.VerificationConfig.current) certificate.mvarId!
+          (tacticName := "interval_roots") with
+      | .accepted event => pure event
+      | .rejected =>
+          original.restore
+          return .error <| .rejected "the sign-change checker evaluated to false"
+      | .failed failure =>
+          original.restore
+          return .error <| .internalFailure (failure.message "interval_roots")
     let conclusion ← mkAppM' proof #[certificate]
 
     if fromSetIcc then
       let proofSyntax ← Term.exprToSyntax conclusion
-      evalTactic (← `(tactic| exact (by
-        have h := $proofSyntax
-        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
-          add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
+      try
+        evalTactic (← `(tactic| exact (by
+          have h := $proofSyntax
+          simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
+            add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
+      catch e =>
+        original.restore
+        return .error <| .transportFailure (← e.toMessageData.toString)
     else
       goal.assign conclusion
       replaceMainGoal []
-    return {
+    return .ok {
       checker := ``LeanCert.Validity.RootFinding.checkSignChange
       verifier := ``LeanCert.Validity.RootFinding.verify_sign_change
       verification := event.toUsage
       taylorDepth := taylorDepth
     }
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Typed interval-roots implementation. Every non-success restores the
+caller's complete tactic state. -/
+def intervalRootsCoreTyped (taylorDepth : Nat) :
+    TacticM (Except RootDiscoveryFailure RootDiscoveryOutcome) := do
+  let original ← saveState
+  try intervalRootsCoreTypedImpl original taylorDepth
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Reporting compatibility entry point preserving the historical throwing API. -/
+def intervalRootsCoreReported (taylorDepth : Nat) : TacticM RootDiscoveryOutcome := do
+  match ← intervalRootsCoreTyped taylorDepth with
+  | .ok outcome => return outcome
+  | .error failure => throwRootDiscoveryFailure "interval_roots" failure
 
 /-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
 def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
-  discard <| intervalRootsCoreReported taylorDepth
+  match ← intervalRootsCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwRootDiscoveryFailure "interval_roots" failure
 
 /-- The interval_roots tactic.
 
@@ -2031,20 +2103,30 @@ def parseUniqueRootGoal (goalType : Lean.Expr) :
     (configured via `leancert.trust`) to work without noncomputable Real
     functions.
 -/
-unsafe def intervalUniqueRootCoreReported (taylorDepth : Nat) :
-    TacticM RootDiscoveryOutcome := do
-  LeanCert.Tactic.Auto.intervalNormCore
+private unsafe def intervalUniqueRootCoreTypedImpl
+    (original : Lean.Elab.Tactic.SavedState) (taylorDepth : Nat) :
+    TacticM (Except RootDiscoveryFailure RootDiscoveryOutcome) := do
+  try LeanCert.Tactic.Auto.intervalNormCore
+  catch e =>
+    original.restore
+    return .error <| .unsupported "goal normalization" (← e.toMessageData.toString)
   let initialGoal ← getMainGoal
   let goalType ← initialGoal.getType
 
   -- Parse goal: ∃! x, x ∈ I ∧ f(x) = 0
   let some (_varName, interval, func, reverseZeroEquality) ← parseUniqueRootGoal goalType
-    | throwError "interval_unique_root: Goal must be of form `∃! x, x ∈ I ∧ lhs(x) = rhs(x)`"
+    | original.restore
+      return .error <| .unsupported (toString goalType)
+        "expected `∃! x, x ∈ I ∧ lhs x = rhs x`"
 
-  if reverseZeroEquality then
+  if reverseZeroEquality then try
     evalTactic (← `(tactic| conv => arg 1; ext x; arg 2; rw [eq_comm]))
+  catch e =>
+    original.restore
+    return .error <| .transportFailure (← e.toMessageData.toString)
   let goal ← getMainGoal
 
+  try
   let mut fromSetIcc := false
   let intervalExpr ←
     match ← tryConvertSetIcc interval with
@@ -2056,21 +2138,39 @@ unsafe def intervalUniqueRootCoreReported (taylorDepth : Nat) :
         if intervalTy.isConstOf ``IntervalRat then
           pure interval
         else
-          throwError "interval_unique_root: Only IntervalRat or literal Set.Icc intervals are supported"
+          original.restore
+          return .error <| .unsupported (toString interval)
+            "only IntervalRat or literal Set.Icc intervals are supported"
 
   -- Extract AST
-  let reified ← getAstFromFuncWithReport func
+  let reified ←
+    try pure (← getAstFromFuncWithReport func)
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString func) (← e.toMessageData.toString)
   let ast := reified.expr
   LeanCert.Tactic.unfoldReifiedDefinitions reified.unfolded
 
   -- Generate ADSupported proof (required by verify_unique_root_computable)
-  let supportProof ← mkSupportedProof ast
+  let supportProof ←
+    try pure (← mkSupportedProof ast)
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString func) (← e.toMessageData.toString)
 
   -- Generate UsesOnlyVar0 proof
-  let var0Proof ← mkUsesOnlyVar0Proof ast
+  let var0Proof ←
+    try pure (← mkUsesOnlyVar0Proof ast)
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString func) (← e.toMessageData.toString)
 
   -- Generate ContinuousOn proof
-  let contProof ← LeanCert.Meta.mkContinuousOnProofWithDomain ast intervalExpr
+  let contProof ←
+    try pure (← LeanCert.Meta.mkContinuousOnProofWithDomain ast intervalExpr)
+    catch e =>
+      original.restore
+      return .error <| .unsupported (toString func) (← e.toMessageData.toString)
 
   -- Build EvalConfig (for the computable core check)
   let evalCfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -2083,30 +2183,64 @@ unsafe def intervalUniqueRootCoreReported (taylorDepth : Nat) :
     #[ast, intervalExpr, evalCfgExpr]
   let certType ← mkAppM ``Eq #[checker, mkConst ``Bool.true]
   let certificate ← mkFreshExprMVar certType
-  let event ← LeanCert.Tactic.closeCertificateGoalReported
-    (← LeanCert.Tactic.VerificationConfig.current) certificate.mvarId!
-    (tacticName := "interval_unique_root")
+  let event ←
+    match ← LeanCert.Tactic.closeCertificateGoalTyped
+        (← LeanCert.Tactic.VerificationConfig.current) certificate.mvarId!
+        (tacticName := "interval_unique_root") with
+    | .accepted event => pure event
+    | .rejected =>
+        original.restore
+        return .error <| .rejected "the interval-Newton checker evaluated to false"
+    | .failed failure =>
+        original.restore
+        return .error <| .internalFailure (failure.message "interval_unique_root")
   let conclusion ← mkAppM' proof #[certificate]
 
   if fromSetIcc then
     let proofSyntax ← Term.exprToSyntax conclusion
-    evalTactic (← `(tactic| exact (by
-      have h := $proofSyntax
-      simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
-        add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
+    try
+      evalTactic (← `(tactic| exact (by
+        have h := $proofSyntax
+        simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_zero, sub_eq_add_neg,
+          add_eq_zero_iff_eq_neg, sq, pow_two] using h)))
+    catch e =>
+      original.restore
+      return .error <| .transportFailure (← e.toMessageData.toString)
   else
     goal.assign conclusion
     replaceMainGoal []
-  return {
+  return .ok {
     checker := ``Validity.RootFinding.checkNewtonContractsCore
     verifier := ``Validity.RootFinding.verify_unique_root_computable
     verification := event.toUsage
     taylorDepth := taylorDepth
   }
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Typed interval-Newton implementation. Every non-success restores the
+caller's complete tactic state. -/
+unsafe def intervalUniqueRootCoreTyped (taylorDepth : Nat) :
+    TacticM (Except RootDiscoveryFailure RootDiscoveryOutcome) := do
+  let original ← saveState
+  try intervalUniqueRootCoreTypedImpl original taylorDepth
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Reporting compatibility entry point preserving the historical throwing API. -/
+unsafe def intervalUniqueRootCoreReported (taylorDepth : Nat) :
+    TacticM RootDiscoveryOutcome := do
+  match ← intervalUniqueRootCoreTyped taylorDepth with
+  | .ok outcome => return outcome
+  | .error failure => throwRootDiscoveryFailure "interval_unique_root" failure
 
 /-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
 unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
-  discard <| intervalUniqueRootCoreReported taylorDepth
+  match ← intervalUniqueRootCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwRootDiscoveryFailure "interval_unique_root" failure
 
 /-- The interval_unique_root tactic.
 

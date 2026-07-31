@@ -24,6 +24,7 @@ set_option linter.unusedTactic false
 private def checkerExpr : LeanCert.Core.Expr := .var 0
 private def checkerInterval : LeanCert.Core.IntervalRat := ⟨0, 1, by norm_num⟩
 private def checkerInterval35 : LeanCert.Core.IntervalRat := ⟨3, 5, by norm_num⟩
+private def checkerIntervalNeg11 : LeanCert.Core.IntervalRat := ⟨-1, 1, by norm_num⟩
 
 private def adapterTestPlan : SolverPlan := {
   intent := .pointInequality
@@ -74,6 +75,185 @@ elab "expect_terminal_outcome_stops" : tactic => do
       throwError "terminal outcome lost its diagnostic: {detail}"
   if continued then
     throwError "routing continued after a terminal outcome"
+
+syntax (name := expectRootTypedReport)
+  "expect_root_typed_report" ident : tactic
+
+private structure RootReportProbe where
+  checker : Name
+  verifier : Name
+  verification : LeanCert.Tactic.VerificationUsage
+  expectedChecker : Name
+  expectedVerifier : Name
+
+@[tactic expectRootTypedReport]
+unsafe def elabExpectRootTypedReport : Tactic := fun stx => do
+  let family := stx[1].getId
+  let probe : RootReportProbe ←
+    if family == `existence then
+      match ← Discovery.intervalRootsCoreTyped 10 with
+      | .ok outcome => pure {
+          checker := outcome.checker
+          verifier := outcome.verifier
+          verification := outcome.verification
+          expectedChecker := ``LeanCert.Validity.RootFinding.checkSignChange
+          expectedVerifier := ``LeanCert.Validity.RootFinding.verify_sign_change
+        }
+      | .error failure => throwError "typed root-existence route failed: {repr failure}"
+    else if family == `unique then
+      match ← Discovery.intervalUniqueRootCoreTyped 10 with
+      | .ok outcome => pure {
+          checker := outcome.checker
+          verifier := outcome.verifier
+          verification := outcome.verification
+          expectedChecker := ``LeanCert.Validity.RootFinding.checkNewtonContractsCore
+          expectedVerifier := ``LeanCert.Validity.RootFinding.verify_unique_root_computable
+        }
+      | .error failure => throwError "typed unique-root route failed: {repr failure}"
+    else
+      match ← Auto.rootBoundCoreTyped 10 with
+      | .ok outcome => pure {
+          checker := outcome.checker
+          verifier := outcome.verifier
+          verification := outcome.verification
+          expectedChecker := ``LeanCert.Validity.RootFinding.checkNoRoot
+          expectedVerifier := ``LeanCert.Validity.RootFinding.verify_no_root
+        }
+      | .error failure => throwError "typed no-root route failed: {repr failure}"
+  unless probe.checker == probe.expectedChecker &&
+      probe.verifier == probe.expectedVerifier do
+    throwError "root route retained the wrong checker/Golden Theorem: \
+      checker={probe.checker}, verifier={probe.verifier}"
+  unless probe.verification.nativeChecks + probe.verification.kernelChecks == 1 do
+    throwError "root route did not retain exactly one successful certificate check"
+
+syntax (name := expectRootRejectionRollback)
+  "expect_root_rejection_rollback" ident : tactic
+
+@[tactic expectRootRejectionRollback]
+unsafe def elabExpectRootRejectionRollback : Tactic := fun stx => do
+  let family := stx[1].getId
+  let originalGoals ← getGoals
+  let originalType ← (← getMainGoal).getType
+  let rejected ←
+    if family == `existence then
+      match ← Discovery.intervalRootsCoreTyped 10 with
+      | .error (.rejected _) => pure true
+      | .error failure => throwError "root existence returned wrong failure: {repr failure}"
+      | .ok _ => pure false
+    else if family == `unique then
+      match ← Discovery.intervalUniqueRootCoreTyped 10 with
+      | .error (.rejected _) => pure true
+      | .error failure => throwError "unique root returned wrong failure: {repr failure}"
+      | .ok _ => pure false
+    else
+      match ← Auto.rootBoundCoreTyped 10 with
+      | .error (.rejected _) => pure true
+      | .error failure => throwError "no-root route returned wrong failure: {repr failure}"
+      | .ok _ => pure false
+  unless rejected do
+    throwError "false root candidate was accepted"
+  let restoredGoals ← getGoals
+  unless restoredGoals == originalGoals do
+    throwError "typed root rejection did not restore the caller's goal list"
+  let restoredType ← (← getMainGoal).getType
+  unless ← isDefEq restoredType originalType do
+    throwError "typed root rejection changed the caller's goal"
+
+syntax (name := expectRootUnsupportedRollback)
+  "expect_root_unsupported_rollback" : tactic
+
+@[tactic expectRootUnsupportedRollback]
+unsafe def elabExpectRootUnsupportedRollback : Tactic := fun _ => do
+  let originalGoals ← getGoals
+  let checkRestored (family : String) : TacticM Unit := do
+    unless (← getGoals) == originalGoals do
+      throwError "{family} unsupported result did not restore the goal list"
+  match ← Discovery.intervalRootsCoreTyped 10 with
+  | .error (.unsupported ..) => checkRestored "root existence"
+  | .error failure => throwError "root existence returned wrong malformed-goal failure: {repr failure}"
+  | .ok _ => throwError "root existence accepted a malformed goal"
+  match ← Discovery.intervalUniqueRootCoreTyped 10 with
+  | .error (.unsupported ..) => checkRestored "unique root"
+  | .error failure => throwError "unique root returned wrong malformed-goal failure: {repr failure}"
+  | .ok _ => throwError "unique root accepted a malformed goal"
+  match ← Auto.rootBoundCoreTyped 10 with
+  | .error (.unsupported ..) => checkRestored "no root"
+  | .error failure => throwError "no-root returned wrong malformed-goal failure: {repr failure}"
+  | .ok _ => throwError "no-root accepted a malformed goal"
+
+syntax (name := expectRootRouterReport)
+  "expect_root_router_report" ident : tactic
+
+@[tactic expectRootRouterReport]
+unsafe def elabExpectRootRouterReport : Tactic := fun stx => do
+  let family := stx[1].getId
+  let result ← runLeanCert {} .compact
+  let (expectedChecker, expectedVerifier) :=
+    if family == `existence then
+      (``LeanCert.Validity.RootFinding.checkSignChange,
+        ``LeanCert.Validity.RootFinding.verify_sign_change)
+    else if family == `unique then
+      (``LeanCert.Validity.RootFinding.checkNewtonContractsCore,
+        ``LeanCert.Validity.RootFinding.verify_unique_root_computable)
+    else
+      (``LeanCert.Validity.RootFinding.checkNoRoot,
+        ``LeanCert.Validity.RootFinding.verify_no_root)
+  unless result.execution.checker == some expectedChecker &&
+      result.execution.verifier == some expectedVerifier do
+    throwError "front-door root route lost certificate provenance: \
+      checker={result.execution.checker}, verifier={result.execution.verifier}"
+  unless result.execution.verificationUsage.nativeChecks +
+      result.execution.verificationUsage.kernelChecks == 1 do
+    throwError "front-door root route did not retain exactly one certificate check"
+
+example : ∃ x ∈ checkerIntervalNeg11,
+    LeanCert.Core.Expr.eval (fun _ => x) (.var 0) = 0 := by
+  expect_root_typed_report existence
+
+example : ∃! x, x ∈ checkerIntervalNeg11 ∧
+    LeanCert.Core.Expr.eval (fun _ => x) (.var 0) = 0 := by
+  expect_root_typed_report unique
+
+example : ∀ x ∈ checkerInterval,
+    LeanCert.Core.Expr.eval (fun _ => x) (.add (.var 0) (.const 2)) ≠ 0 := by
+  expect_root_typed_report absent
+
+example (h : ∃ x ∈ checkerInterval,
+    LeanCert.Core.Expr.eval (fun _ => x)
+      (.add (.mul (.var 0) (.var 0)) (.const 1)) = 0) :
+    ∃ x ∈ checkerInterval,
+      LeanCert.Core.Expr.eval (fun _ => x)
+        (.add (.mul (.var 0) (.var 0)) (.const 1)) = 0 := by
+  expect_root_rejection_rollback existence
+  exact h
+
+example (h : ∃! x, x ∈ checkerInterval ∧
+    LeanCert.Core.Expr.eval (fun _ => x) (.const 1) = 0) :
+    ∃! x, x ∈ checkerInterval ∧
+      LeanCert.Core.Expr.eval (fun _ => x) (.const 1) = 0 := by
+  expect_root_rejection_rollback unique
+  exact h
+
+example (h : ∀ x ∈ checkerIntervalNeg11,
+    LeanCert.Core.Expr.eval (fun _ => x) (.var 0) ≠ 0) :
+    ∀ x ∈ checkerIntervalNeg11,
+      LeanCert.Core.Expr.eval (fun _ => x) (.var 0) ≠ 0 := by
+  expect_root_rejection_rollback absent
+  exact h
+
+example (h : True) : True := by
+  expect_root_unsupported_rollback
+  exact h
+
+example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x ^ 2 = 2 := by
+  expect_root_router_report existence
+
+example : ∃! x, x ∈ Set.Icc (1 : ℝ) 2 ∧ x ^ 2 = 2 := by
+  expect_root_router_report unique
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x + 2 ≠ 0 := by
+  expect_root_router_report absent
 
 syntax (name := expectRationalPointReport) "expect_rational_point_report" : tactic
 

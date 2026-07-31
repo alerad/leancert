@@ -326,6 +326,10 @@ example : ∃ x ∈ I12, Expr.eval (fun _ => x)
 2. Detects sign change (f(lo) < 0 < f(hi) or vice versa)
 3. Applies IVT to prove existence
 
+`intervalRootsCoreTyped` returns the retained checker and verifier identities,
+verification usage, and Taylor depth. A false sign-change check is typed
+rejection and restores the original tactic state.
+
 ---
 
 ### `interval_unique_root`
@@ -360,6 +364,10 @@ example : ∃! x ∈ I12, Expr.eval (fun _ => x) expr_x2_minus_2 = 0 := by
 2. Verifies N maps interval into itself
 3. Verifies |N'(x)| < 1 (contraction)
 4. Banach fixed-point theorem gives uniqueness
+
+`intervalUniqueRootCoreTyped` distinguishes unsupported goals, rejected
+Newton certificates, proof transport failures, and internal verification
+failures. Every failure is transactional.
 
 ---
 
@@ -609,6 +617,11 @@ example : ∀ x ∈ I01, Expr.eval (fun _ => x)
     (Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.const 1)) ≠ (0 : ℝ) := by
   root_bound
 ```
+
+`rootBoundCoreTyped` reports the exact `checkNoRoot`/`verify_no_root`
+certificate pair. A zero-exclusion checker returning false is a resumable
+rejection rather than an infrastructure exception, and the original goal is
+restored.
 
 ---
 

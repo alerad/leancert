@@ -31,28 +31,48 @@ structure RootBoundOutcome where
   taylorDepth : Nat
   deriving Inhabited
 
-/-- Reporting-aware root-bound implementation. -/
-def rootBoundCoreReported (taylorDepth : Nat) : TacticM RootBoundOutcome := do
+/-- Expected and invariant failures from no-root certification. -/
+inductive RootBoundFailure where
+  | unsupported (expression detail : String)
+  | rejected (detail : String)
+  | transportFailure (detail : String)
+  | internalFailure (detail : String)
+  deriving Inhabited, Repr
+
+private def throwRootBoundFailure : RootBoundFailure → TacticM α
+  | .unsupported expression detail =>
+      throwError "root_bound: unsupported expression {expression}:\n{detail}"
+  | .rejected detail => throwError "root_bound: certificate rejected:\n{detail}"
+  | .transportFailure detail => throwError "root_bound: proof transport failed:\n{detail}"
+  | .internalFailure detail => throwError "root_bound: internal certificate failure:\n{detail}"
+
+private def rootBoundCoreTypedImpl
+    (original : Lean.Elab.Tactic.SavedState) (taylorDepth : Nat) :
+    TacticM (Except RootBoundFailure RootBoundOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
   -- Parse the goal
   let some rootGoal ← parseRootGoal goalType
-    | let diagReport ← mkDiagnosticReport "root_bound" goalType "parse"
-        (some m!"Expected form: ∀ x ∈ I, f x ≠ 0\n\n\
-                 The function f must be continuous and supported by LeanCert.\n\
-                 The interval I must be Set.Icc or equivalent.")
-      throwError "root_bound: Could not parse goal as a root goal.\n\n{diagReport}"
+    | original.restore
+      return .error <| .unsupported (toString goalType)
+        "expected `∀ x ∈ I, f x ≠ 0`"
 
-  match rootGoal with
-  | .forallNeZero _name interval func =>
-    let event ← proveForallNeZero goal interval func taylorDepth
-    return {
-      checker := ``Validity.RootFinding.checkNoRoot
-      verifier := ``Validity.RootFinding.verify_no_root
-      verification := event.toUsage
-      taylorDepth := taylorDepth
-    }
+  try
+    match rootGoal with
+    | .forallNeZero _name interval func =>
+      match ← proveForallNeZero original goal interval func taylorDepth with
+      | .error failure => return .error failure
+      | .ok event =>
+        return .ok {
+          checker := ``Validity.RootFinding.checkNoRoot
+          verifier := ``Validity.RootFinding.verify_no_root
+          verification := event.toUsage
+          taylorDepth := taylorDepth
+        }
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
 
 where
   /-- Extract an AST and retain definitions unfolded during reification. -/
@@ -88,8 +108,9 @@ where
     return none
 
   /-- Prove ∀ x ∈ I, f x ≠ 0 using verify_no_root -/
-  proveForallNeZero (goal : MVarId) (interval func : Lean.Expr)
-      (taylorDepth : Nat) : TacticM LeanCert.Tactic.VerificationEvent := do
+  proveForallNeZero (original : Lean.Elab.Tactic.SavedState) (goal : MVarId)
+      (interval func : Lean.Expr) (taylorDepth : Nat) :
+      TacticM (Except RootBoundFailure LeanCert.Tactic.VerificationEvent) := do
     goal.withContext do
       -- 0. Try to convert Set.Icc to IntervalRat if needed
       let mut fromSetIcc := false
@@ -103,10 +124,16 @@ where
             if intervalTy.isConstOf ``IntervalRat then
               pure interval
             else
-              throwError "root_bound: Only IntervalRat or literal Set.Icc intervals are supported"
+              original.restore
+              return .error <| .unsupported (toString interval)
+                "only IntervalRat or literal Set.Icc intervals are supported"
 
       -- 1. Get AST
-      let reified ← getAst func
+      let reified ←
+        try pure (← getAst func)
+        catch e =>
+          original.restore
+          return .error <| .unsupported (toString func) (← e.toMessageData.toString)
       let ast := reified.expr
 
       -- Keep the user's goal synchronized with definitions delta-reduced by
@@ -115,7 +142,11 @@ where
       unfoldReifiedDefinitions reified.unfolded
 
       -- 2. Generate ExprSupportedCore proof
-      let supportProof ← mkSupportedCoreProof ast
+      let supportProof ←
+        try pure (← mkSupportedCoreProof ast)
+        catch e =>
+          original.restore
+          return .error <| .unsupported (toString func) (← e.toMessageData.toString)
 
       -- 3. Build config expression
       let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
@@ -127,25 +158,55 @@ where
         #[ast, intervalExpr, cfgExpr]
       let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
       let certGoal ← mkFreshExprMVar certTy
-      let event ← LeanCert.Tactic.closeCertificateGoalReported
-        (← LeanCert.Tactic.VerificationConfig.current) certGoal.mvarId!
-        (tacticName := "root_bound")
+      let event ←
+        match ← LeanCert.Tactic.closeCertificateGoalTyped
+            (← LeanCert.Tactic.VerificationConfig.current) certGoal.mvarId!
+            (tacticName := "root_bound") with
+        | .accepted event => pure event
+        | .rejected =>
+            original.restore
+            return .error <| .rejected "the zero-exclusion checker evaluated to false"
+        | .failed failure =>
+            original.restore
+            return .error <| .internalFailure (failure.message "root_bound")
       let conclusionProof ← mkAppM' proof #[certGoal]
 
       if fromSetIcc then
         -- Use simpa to bridge Set.Icc to IntervalRat
         let proofSyntax ← Term.exprToSyntax conclusionProof
-        evalTactic (← `(tactic| exact (by
-          have h := $proofSyntax
-          simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
+        try
+          evalTactic (← `(tactic| exact (by
+            have h := $proofSyntax
+            simpa [IntervalRat.mem_iff_mem_Icc, sub_eq_add_neg, sq, pow_two] using h)))
+        catch e =>
+          original.restore
+          return .error <| .transportFailure (← e.toMessageData.toString)
       else
         goal.assign conclusionProof
         replaceMainGoal []
-      return event
+      return .ok event
+
+/-- Typed root-bound implementation. Every non-success restores the caller's
+complete tactic state. -/
+def rootBoundCoreTyped (taylorDepth : Nat) :
+    TacticM (Except RootBoundFailure RootBoundOutcome) := do
+  let original ← saveState
+  try rootBoundCoreTypedImpl original taylorDepth
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Reporting compatibility entry point preserving the historical throwing API. -/
+def rootBoundCoreReported (taylorDepth : Nat) : TacticM RootBoundOutcome := do
+  match ← rootBoundCoreTyped taylorDepth with
+  | .ok outcome => return outcome
+  | .error failure => throwRootBoundFailure failure
 
 /-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
 def rootBoundCore (taylorDepth : Nat) : TacticM Unit := do
-  discard <| rootBoundCoreReported taylorDepth
+  match ← rootBoundCoreTyped taylorDepth with
+  | .ok _ => pure ()
+  | .error failure => throwRootBoundFailure failure
 
 /-- The root_bound tactic.
 
