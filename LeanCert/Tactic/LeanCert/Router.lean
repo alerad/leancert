@@ -401,24 +401,49 @@ private def checkedExecution (backend : Option NumericalBackend)
   notes
 }
 
-private def rootExistsAttemptReported (depth : Nat) : TacticM SolverExecution := do
-  let outcome ← intervalRootsCoreReported depth
-  return checkedExecution none
-    outcome.verification outcome.checker outcome.verifier
-    #[s!"Taylor depth: {outcome.taylorDepth}"]
+private def rootDiscoveryAttemptTyped
+    (solver : Name)
+    (attempt : TacticM (Except RootDiscoveryFailure RootDiscoveryOutcome)) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← attempt with
+  | .ok outcome =>
+      return .ok <| checkedExecution none
+        outcome.verification outcome.checker outcome.verifier
+        #[s!"Taylor depth: {outcome.taylorDepth}"]
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported { expression, detail := some detail }
+  | .error (.rejected detail) =>
+      return .error <| .rejected { detail }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError solver detail
+  | .error (.internalFailure detail) =>
+      return .error <| .internalError solver detail
 
-private unsafe def uniqueRootAttemptReported (depth : Nat) :
-    TacticM SolverExecution := do
-  let outcome ← intervalUniqueRootCoreReported depth
-  return checkedExecution none
-    outcome.verification outcome.checker outcome.verifier
-    #[s!"Taylor depth: {outcome.taylorDepth}"]
+private def rootExistsAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) :=
+  rootDiscoveryAttemptTyped `LeanCert.Tactic.Discovery.interval_roots
+    (intervalRootsCoreTyped depth)
 
-private def noRootAttemptReported (depth : Nat) : TacticM SolverExecution := do
-  let outcome ← Auto.rootBoundCoreReported depth
-  return checkedExecution none
-    outcome.verification outcome.checker outcome.verifier
-    #[s!"Taylor depth: {outcome.taylorDepth}"]
+private unsafe def uniqueRootAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) :=
+  rootDiscoveryAttemptTyped `LeanCert.Tactic.Discovery.interval_unique_root
+    (intervalUniqueRootCoreTyped depth)
+
+private def noRootAttemptTyped (depth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Auto.rootBoundCoreTyped depth with
+  | .ok outcome =>
+      return .ok <| checkedExecution none
+        outcome.verification outcome.checker outcome.verifier
+        #[s!"Taylor depth: {outcome.taylorDepth}"]
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported { expression, detail := some detail }
+  | .error (.rejected detail) =>
+      return .error <| .rejected { detail }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.root_bound detail
+  | .error (.internalFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.root_bound detail
 
 private unsafe def optimizationAttemptTyped (maxIterations : Nat)
     (useMonotonicity : Bool) (depth : Nat) :
@@ -565,58 +590,49 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (.policy "checked root certificate arithmetic")
           (some (suggestion "interval_roots" #[toString d])),
         solve := intervalRootsCore d
-        solveReported := some (rootExistsAttemptReported d)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (rootExistsAttemptTyped d) },
       { report := report intent "endpoint sign-change certificate" cfg mode
           (.policy "checked root certificate arithmetic")
           (some (suggestion "interval_roots" #[toString d2])),
         solve := intervalRootsCore d2
-        solveReported := some (rootExistsAttemptReported d2)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (rootExistsAttemptTyped d2) },
       { report := report intent "endpoint sign-change certificate" cfg mode
           (.policy "checked root certificate arithmetic")
           (some (suggestion "interval_roots" #[toString d3])),
         solve := intervalRootsCore d3
-        solveReported := some (rootExistsAttemptReported d3)
-        legacyExceptionAdapter := true }]
+        solveReportedResult := some (rootExistsAttemptTyped d3) }]
   | .uniqueRoot => #[
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
           (some (suggestion "interval_unique_root" #[toString d])),
         solve := intervalUniqueRootCore d
-        solveReported := some (uniqueRootAttemptReported d)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (uniqueRootAttemptTyped d) },
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
           (some (suggestion "interval_unique_root" #[toString d2])),
         solve := intervalUniqueRootCore d2
-        solveReported := some (uniqueRootAttemptReported d2)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (uniqueRootAttemptTyped d2) },
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
           (some (suggestion "interval_unique_root" #[toString d3])),
         solve := intervalUniqueRootCore d3
-        solveReported := some (uniqueRootAttemptReported d3)
-        legacyExceptionAdapter := true }]
+        solveReportedResult := some (uniqueRootAttemptTyped d3) }]
   | .noRoot => #[
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "root_bound" #[toString d])),
         solve := Auto.rootBoundCore d
-        solveReported := some (noRootAttemptReported d)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (noRootAttemptTyped d) },
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "root_bound" #[toString d2])),
         solve := Auto.rootBoundCore d2
-        solveReported := some (noRootAttemptReported d2)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (noRootAttemptTyped d2) },
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
           (some (suggestion "root_bound" #[toString d3])),
         solve := Auto.rootBoundCore d3
-        solveReported := some (noRootAttemptReported d3)
-        legacyExceptionAdapter := true }]
+        solveReportedResult := some (noRootAttemptTyped d3) }]
   | .existentialMinimum => #[
       { report := report intent "guided lower-bound discovery and certification" cfg mode
           (.policy "guided optimization followed by checked interval certification")

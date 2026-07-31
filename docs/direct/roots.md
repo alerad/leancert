@@ -33,6 +33,24 @@ interval_roots
 interval_unique_root
 root_bound
 ```
+
+All three dedicated tactics use typed, transactional certificate boundaries.
+A checker result of `false` is an ordinary rejected candidate; malformed
+input is unsupported; verifier or proof-transport failures remain terminal.
+Every non-success restores the complete caller tactic state. The retained
+success report records the actual checker, Golden Theorem, verification route,
+and Taylor depth without rerunning the certificate.
+
+The corresponding programmatic entry points are:
+
+```text
+intervalRootsCoreTyped
+intervalUniqueRootCoreTyped
+rootBoundCoreTyped
+```
+
+Their historical throwing entry points remain available for compatibility.
+
 ## Global algebraic simplicity and counts
 
 For an exact rational polynomial, `BezoutCert` checks an identity
