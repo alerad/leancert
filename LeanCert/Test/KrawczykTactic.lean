@@ -6,7 +6,7 @@ Authors: LeanCert Contributors
 import LeanCert.Examples.Krawczyk
 import LeanCert.Tactic
 
-/-! Generalized I1 regressions for the manual Krawczyk tactic front end. -/
+/-! Generalized I1/I2 regressions for manual and automatic Krawczyk front ends. -/
 
 namespace LeanCert.Test.KrawczykTactic
 
@@ -110,6 +110,51 @@ mathematical contract. -/
 example : ∃! p, SystemZero system p ∧ FinBoxMem p box := by
   system_unique_root using certificate
 
+/- I2 constructs midpoint-Jacobian candidates and replays them through the
+same checked theorem boundary as the manual tactic. -/
+example : ∃! p, FinBoxMem p translatedBox ∧ SystemZero translatedSystem p := by
+  system_unique_root (trust := kernel)
+
+example : ∃! p, FinBoxMem p mixedBox ∧ SystemZero mixedSystem p := by
+  system_unique_root (trust := native)
+
+example : ∃! p, FinBoxMem p cyclicBox ∧ SystemZero cyclicSystem p := by
+  system_unique_root (trust := auto)
+
+example : ∃! p, FinBoxMem p identityBox ∧ SystemZero identitySystem p := by
+  system_unique_root
+
+example : ∃! p, FinBoxMem p expBox ∧ SystemZero expSystem p := by
+  system_unique_root? (trust := kernel)
+
+#guard (generateAutomaticKrawczyk translatedSystem translatedBox).succeeded
+#guard (generateAutomaticKrawczyk mixedSystem mixedBox).succeeded
+#guard (generateAutomaticKrawczyk cyclicSystem cyclicBox).succeeded
+#guard (generateAutomaticKrawczyk identitySystem identityBox).succeeded
+
+/- An asymmetric exponential box makes the midpoint candidate fail while one
+bounded interval-Newton refinement produces a valid certificate. -/
+def shiftedExpSystem : Fin 1 → Expr :=
+  ![Expr.add (Expr.exp (Expr.var 0)) (Expr.const (-1 / 8))]
+
+def shiftedExpBox : Fin 1 → IntervalRat :=
+  ![⟨-57 / 20, -33 / 20, by norm_num⟩]
+
+def shiftedExpReport : AutomaticKrawczykReport :=
+  generateAutomaticKrawczyk shiftedExpSystem shiftedExpBox
+
+#guard shiftedExpReport.succeeded
+#guard shiftedExpReport.attempts == 2
+#guard shiftedExpReport.refinements == 1
+
+example : ∃! p, FinBoxMem p shiftedExpBox ∧ SystemZero shiftedExpSystem p := by
+  system_unique_root (maxIterations := 4) (trust := kernel)
+
+/- Exact pivoting is independent of the nonlinear search. -/
+#guard invertRatMatrix? (!![2, 1; 1, 2] : Matrix (Fin 2) (Fin 2) ℚ) ==
+  some !![2 / 3, -1 / 3; -1 / 3, 2 / 3]
+#guard invertRatMatrix? (!![1, 2; 2, 4] : Matrix (Fin 2) (Fin 2) ℚ) == none
+
 def singularCert : KrawczykCert 2 where
   center := ![1, 1]
   preconditioner := 0
@@ -157,12 +202,44 @@ example : ∃! p, FinBoxMem p box ∧ SystemZero system p := by
   | system_unique_root using singularCert
   | exact unique_root
 
-/- Plain semantic routing recognizes the family but does not pretend I1 can
-generate a candidate. -/
-example : True := by
-  fail_if_success
-    have : ∃! p, FinBoxMem p identityBox ∧ SystemZero identitySystem p := by
-      leancert?
-  trivial
+/- The semantic front door uses the automatic generator and retains its
+search statistics for `leancert?`. -/
+example : ∃! p, FinBoxMem p box ∧ SystemZero system p := by
+  leancert
+
+example : ∃! p, FinBoxMem p identityBox ∧ SystemZero identitySystem p := by
+  leancert? (trust := kernel)
+
+def dimensionFiveSystem : Fin 5 → Expr := fun i => Expr.var i
+def dimensionFiveBox : Fin 5 → IntervalRat := fun _ => ⟨-1 / 10, 1 / 10, by norm_num⟩
+
+#guard (generateAutomaticKrawczyk dimensionFiveSystem dimensionFiveBox).failure ==
+  some (.dimensionLimit 5 4)
+#guard (generateAutomaticKrawczyk unsupportedSystem box).failure == some .unsupportedAD
+#guard (generateAutomaticKrawczyk system box
+  (search := { maxIterations := 0 })).failure == some (.exhausted 0)
+
+def noRootSystem : Fin 1 → Expr :=
+  ![Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.const 1)]
+
+def symmetricUnitBox : Fin 1 → IntervalRat :=
+  ![⟨-1, 1, by norm_num⟩]
+
+#guard (generateAutomaticKrawczyk noRootSystem symmetricUnitBox).failure ==
+  some (.singularPointJacobian 1)
+#guard (generateAutomaticKrawczyk system wideBox).failure.isSome
+
+/-- error: Automatic Krawczyk candidate generation failed: candidate search exhausted its configured budget after 0 attempt(s).
+Last center: []
+Last checked contraction bound: 0 -/
+#guard_msgs in
+example : ∃! p, FinBoxMem p box ∧ SystemZero system p := by
+  system_unique_root (maxIterations := 0)
+
+/- Automatic failure is transactional too. -/
+example : ∃! p, FinBoxMem p box ∧ SystemZero system p := by
+  first
+  | system_unique_root (maxIterations := 0)
+  | exact unique_root
 
 end LeanCert.Test.KrawczykTactic

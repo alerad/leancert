@@ -5,10 +5,11 @@ For ordinary root existence, uniqueness, and no-root goals, start with
 controls or programmatic certificate APIs.
 
 For square multivariate systems in LeanCert's differentiable AD fragment, use
-`system_unique_root using cert`. The certificate supplies an untrusted rational
-center and approximate inverse Jacobian; LeanCert accepts it only after the
-existing `krawczykCheck` succeeds and the `verify_unique_system_root` Golden
-Theorem produces the requested proof. See the
+`system_unique_root`. It generates an untrusted rational center and approximate
+inverse Jacobian, then accepts it only after the existing `krawczykCheck`
+succeeds and the `verify_unique_system_root` Golden Theorem produces the
+requested proof. Use `system_unique_root using cert` to pin an explicit
+candidate. See the
 [system architecture and examples](../architecture/root-finding.md#nonlinear-systems-krawczyk).
 
 Typical goals:
@@ -32,9 +33,10 @@ interval_roots
 interval_unique_root
 root_bound
 system_unique_root using cert
+system_unique_root
 ```
 
-## Nonlinear systems with a manual Krawczyk certificate
+## Nonlinear systems with Krawczyk certificates
 
 The exact recognized goal is:
 
@@ -42,8 +44,7 @@ The exact recognized goal is:
 ∃! x : Fin n → ℝ, FinBoxMem x X ∧ SystemZero F x
 ```
 
-The conjunction may also be written in the opposite order. The certificate's
-dimension is checked while elaborating the tactic invocation.
+The conjunction may also be written in the opposite order.
 
 ```lean
 import LeanCert.Examples.Krawczyk
@@ -53,14 +54,33 @@ open LeanCert.Core LeanCert.Engine LeanCert.Validity
 open LeanCert.Examples.Krawczyk
 
 example : ∃! x, FinBoxMem x box ∧ SystemZero system x := by
-  system_unique_root using certificate (trust := kernel)
+  system_unique_root (trust := kernel)
 ```
 
-Use `system_unique_root?` for the dimension, center, checked contraction bound,
-checker, verifier, and effective verification route:
+Automatic search starts at the box midpoint, constructs a preconditioner from
+a singleton checked-AD Jacobian, and performs bounded interval-Newton center
+refinements when needed. Candidate values are dyadically rounded to control
+denominator growth, then checked exactly.
+
+Use `system_unique_root?` for attempts, refinements, generated center and
+preconditioner, checked contraction bound, checker, verifier, and effective
+verification route:
 
 ```text
-system_unique_root? using certificate (taylorDepth := 12) (trust := auto)
+system_unique_root? (maxIterations := 8) (taylorDepth := 12) (trust := auto)
+```
+
+The manual I1 path remains available:
+
+```lean
+import LeanCert.Examples.Krawczyk
+import LeanCert.Tactic
+
+open LeanCert.Core LeanCert.Engine
+open LeanCert.Examples.Krawczyk
+
+example : ∃! x, FinBoxMem x box ∧ SystemZero system x := by
+  system_unique_root using certificate (trust := kernel)
 ```
 
 A rejected certificate is inconclusive, not evidence that the system lacks a
@@ -69,11 +89,14 @@ outside the box, a singular preconditioner, a contraction bound not strictly
 below one, and failure of the strict self-map check. Every failure restores the
 original tactic state.
 
-I1 deliberately does not generate candidates. Centers and preconditioners may
-come from a separate numerical program, but no external computation enters the
-trusted proof: the checked Boolean certificate and Golden Theorem are the
-verification boundary. Automatic candidate construction is separate future
-frontend work.
+Automatic I2 candidates and manual I1 certificates pass through the same
+Boolean checker and Golden Theorem. Centers and preconditioners may still come
+from a separate numerical program; no external or search computation enters
+the trusted proof.
+
+Automatic generation defaults to dimensions at most four. Manual certificates
+remain dimension-generic. Automatic box subdivision is intentionally excluded:
+certifying one sub-box would not prove uniqueness over the original box.
 
 The scalar dedicated tactics use typed, transactional certificate boundaries.
 A checker result of `false` is an ordinary rejected candidate; malformed

@@ -107,9 +107,10 @@ def routerFailure (verbosity : DiagnosticVerbosity) : RouterFailure → String
         Increasing numerical precision does not repair an invalid domain."
   | .portfolioExhausted intent attempts spent budget =>
       if intent == .systemRoot then
-        s!"LeanCert recognized: {intentLabel intent}\n\nA manual `KrawczykCert` is required \
-          for this I1 theorem family.\n\nTry:\n  system_unique_root using cert\n\n\
-          Automatic center and preconditioner generation is reserved for I2."
+        s!"LeanCert recognized: {intentLabel intent}\n\nAutomatic Krawczyk candidate \
+          generation did not certify the original box.\n\nAttempts:\n{attemptLedger attempts}\n\n\
+          Next steps:\n  - narrow the target box;\n  - increase `(maxIterations := ...)`; or\n  \
+          - provide `system_unique_root using cert` from an external numerical solver."
       else match verbosity with
       | .compact =>
           s!"LeanCert recognized a {intentLabel intent}, but no strategy proved it \
@@ -299,6 +300,16 @@ Stable explicit proof:
   by
     eventual_bound using {statistics.cutoff}"
 
+private def renderKrawczyk (statistics : Option KrawczykStatistics) : String :=
+  match statistics with
+  | none => ""
+  | some statistics =>
+      s!"\n\nKrawczyk candidate search:\n  Dimension: {statistics.dimension}\n  \
+        Attempts: {statistics.attempts}\n  Newton refinements: {statistics.refinements}\n  \
+        Selected center: {statistics.center}\n  Generated preconditioner: \
+        {statistics.preconditioner}\n  Checked contraction bound: \
+        {statistics.contractionBound} < 1\n\nStable dedicated proof:\n  by\n    system_unique_root"
+
 private def renderCertificates
     (certificates : Array CertificateObservation) : String :=
   if certificates.isEmpty then ""
@@ -347,13 +358,14 @@ def successReport (report : SolverReport) : String :=
   let finiteSum := renderFiniteSum report.execution.finiteSum
   let integralPartitions := renderIntegralPartitions report.execution.integralPartitions
   let eventualBound := renderEventualBound report.execution.eventualBound
+  let krawczyk := renderKrawczyk report.execution.krawczyk
   let certificates := renderCertificates report.execution.certificates
   let advanced :=
     plan.dedicatedProof.map (fun proof =>
       s!"\n\nAdvanced control:\n  {renderProof proof}") |>.getD ""
   s!"LeanCert recognized: {intentLabel plan.intent}\n\n\
     Selected strategy:\n  {plan.strategy}{detail}{executionNotes}{backend}{verification}\
-    {checker}{verifier}{optimization}{subdivision}{finiteSum}{integralPartitions}{eventualBound}{certificates}\n\n\
+    {checker}{verifier}{optimization}{subdivision}{finiteSum}{integralPartitions}{eventualBound}{krawczyk}{certificates}\n\n\
     Suggested proof:\n  {renderProof plan.primaryProof}\
     {advanced}{renderChildren report.execution.children}"
 
