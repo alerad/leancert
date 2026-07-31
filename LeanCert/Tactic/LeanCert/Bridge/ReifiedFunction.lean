@@ -35,17 +35,8 @@ structure FunctionCapabilities where
   deriving Inhabited
 
 private def mkEnvironment (arguments : Array Lean.Expr) : MetaM Lean.Expr := do
-  if arguments.size == 1 then
-    withLocalDeclD `i (mkConst ``Nat) fun i => do
-      mkLambdaFVars #[i] arguments[0]!
-  else
-  withLocalDeclD `i (mkConst ``Nat) fun i => do
-    let zeroRat := toExpr (0 : ℚ)
-    let mut body ← mkAppOptM ``Rat.cast #[mkConst ``Real, none, zeroRat]
-    for index in (List.range arguments.size).reverse do
-      let condition ← mkAppM ``Eq #[i, toExpr index]
-      body ← mkAppM ``ite #[condition, arguments[index]!, body]
-    mkLambdaFVars #[i] body
+  let values ← mkListLit (mkConst ``Real) arguments.toList
+  mkAppM ``LeanCert.Tactic.Bridge.realEnvironment #[values]
 
 private def closeBridgeGoal (report : LeanCert.Meta.ReifyReport)
     (proposition : Lean.Expr) : TacticM Lean.Expr := do

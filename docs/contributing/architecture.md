@@ -55,7 +55,12 @@ theorem schema and rejects definitions, axioms, and theorems depending on
 downstream packages can declare rules through a lightweight import.
 
 Execution of a registered rule is a tactic strategy and therefore follows the
-typed transactional requirements below.
+typed transactional requirements below. When registered calls occur inside an
+ordinary supported expression, execution first produces a membership proof for
+each maximal registered subterm. Those results become proof-carrying variables
+in a separately reified core expression; `evalIntervalCore_correct` composes
+their enclosures. Do not splice unchecked candidate values directly into a
+semantic bridge.
 
 ## Tactic changes
 

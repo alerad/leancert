@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import Mathlib.Tactic
 import LeanCert.Meta.ToExpr
+import LeanCert.Tactic.LeanCert.Bridge.Environment
 
 /-!
 # Reification Bridge Normalization
@@ -57,6 +58,7 @@ def closeReificationBridge (report : LeanCert.Meta.ReifyReport) : TacticM Unit :
         LeanCert.Core.Expr.eval_tanh,
         LeanCert.Core.Expr.eval_sqrt,
         LeanCert.Core.Expr.eval_namedConst,
+        LeanCert.Tactic.Bridge.realEnvironment,
         LeanCert.Core.Expr.eval_sub,
         LeanCert.Core.Expr.eval_div,
         LeanCert.Core.Expr.eval_pow,

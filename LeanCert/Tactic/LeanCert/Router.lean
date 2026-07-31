@@ -202,8 +202,10 @@ private def registeredEnclosureExecution
     verificationUsage := Solver.VerificationUsage.ofEvents observation.verification
     enclosure := some observation.enclosure
   }
-  notes := outcome.observations.map fun observation =>
-    s!"extension used: {observation.rule.functionName} via {observation.rule.theoremName}"
+  notes := (outcome.observations.map fun observation =>
+    s!"extension used: {observation.rule.functionName} via {observation.rule.theoremName}") ++
+    if outcome.compositionSteps == 0 then #[] else
+      #[s!"proof-carrying composition: {outcome.compositionSteps} surrounding core layer(s)"]
 }
 
 private unsafe def registeredEnclosureAttemptTyped (prepared : Semantic.PreparedGoal)
@@ -1310,7 +1312,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
         "registered compositional enclosure" cfg verificationMode
         (.fixed .rationalInterval)
         none
-        (some "imported unary enclosure rule with a checked inner argument")
+        (some "imported unary enclosure rules with proof-carrying core composition")
         .registeredEnclosure
       let extensionSpec : SolverSpec := {
         report := extensionPlan

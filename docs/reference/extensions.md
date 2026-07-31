@@ -59,6 +59,10 @@ theorem positiveBranch_mem
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, positiveBranch (x + 1) ≤ 2 := by
   leancert (trust := kernel)
 
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    Real.exp (positiveBranch (x + 1)) + x < 9 := by
+  leancert (trust := kernel)
+
 end DownstreamExtensionExample
 ```
 
@@ -111,8 +115,12 @@ Metaprogramming clients may query `getUnaryEnclosureRules` for one function or
 
 The first protocol deliberately covers unary `ℝ → ℝ` enclosure rules in
 univariate interval bounds with rational endpoints and a rational constant on
-the other side of the comparison. Registered applications may be nested, and
-their innermost argument may use LeanCert's ordinary reifiable expression
-fragment. Surrounding unsupported operations, derivative rules, monotonicity
-rules, and adaptive subdivision of rejected or inconclusive downstream
-candidates remain future extensions.
+the other side of the comparison. Registered applications may be nested.
+LeanCert treats their checked results as proof-carrying atoms and reifies the
+surrounding expression against those atoms, so ordinary supported arithmetic
+and transcendental operations may appear outside registered calls. The
+quantified variable may also occur independently elsewhere in that expression.
+
+Operations outside LeanCert's core expression fragment and adaptive
+subdivision of rejected or inconclusive downstream candidates are not yet
+covered.
