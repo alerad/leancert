@@ -113,7 +113,9 @@ checker under the requested trust policy, and applies the registered soundness
 theorem. Checked results become proof-carrying atoms for the ordinary core
 evaluator, allowing supported operations around them. `leancert?` reports every
 retained downstream checker and theorem together with any surrounding
-composition. See [Downstream enclosure extensions](extensions.md).
+composition. Rejected or comparison-inconclusive registered candidates are
+retried by rational bisection up to `(subdivisions := n)`; domain obstructions
+remain terminal. See [Downstream enclosure extensions](extensions.md).
 
 Expected checker rejection, unsupported expressions, inconclusive enclosures,
 and certified counterexamples are rendered as separate diagnostic categories.

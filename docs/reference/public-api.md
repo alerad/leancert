@@ -75,7 +75,8 @@ verification without changing the numerical backend.
 downstream unary enclosure rules. Registration validates a candidate, checker,
 and soundness theorem. The semantic `leancert` front door can execute imported
 rules for unary interval bounds and compose their checked enclosures through
-ordinary supported expressions. See [Downstream enclosure extensions](extensions.md).
+ordinary supported expressions, with checked adaptive subdivision for rejected
+or inconclusive candidates. See [Downstream enclosure extensions](extensions.md).
 
 `LeanCert.CertifiedBounds` exposes stable numerical-result interfaces under:
 

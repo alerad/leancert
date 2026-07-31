@@ -12,10 +12,11 @@ below are convergence work, not features claimed as complete.
 theorems without modifying LeanCert's internal expression datatype. `leancert`
 executes imported rules for unary interval bounds, supports nested registered
 applications, and composes their checked results through ordinary core
-expressions.
+expressions. Rejected or comparison-inconclusive candidates are retried through
+checked rational subdivision with retained leaf provenance.
 
-**Possible next milestone:** add adaptive subdivision for inconclusive
-downstream candidates without weakening typed failure classification.
+**Possible next milestone:** extend the protocol beyond enclosure rules only
+when downstream use cases establish a concrete need for additional rule kinds.
 
 **Evidence:** an external function certified end to end through an imported
 rule, with rejected-candidate fallback and complete `leancert?` provenance.

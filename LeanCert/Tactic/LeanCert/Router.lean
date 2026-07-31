@@ -195,6 +195,13 @@ private def registeredEnclosureExecution
   backend := some .rationalInterval
   verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
   enclosure := some outcome.enclosure
+  subdivision := outcome.subdivision.map fun subdivision => {
+    taylorDepth := subdivision.taylorDepth
+    configuredMaxDepth := subdivision.configuredMaxDepth
+    deepestDepthUsed := subdivision.deepestDepthUsed
+    boxesExamined := subdivision.boxesExamined
+    certifiedLeaves := subdivision.certifiedLeaves
+  }
   certificates := outcome.observations.map fun observation => {
     role := s!"registered enclosure `{observation.rule.functionName}`"
     checker := observation.rule.checkerName
@@ -209,8 +216,9 @@ private def registeredEnclosureExecution
 }
 
 private unsafe def registeredEnclosureAttemptTyped (prepared : Semantic.PreparedGoal)
-    (depth : Nat) : TacticM (Except AttemptFailure SolverExecution) := do
-  match ← Extension.registeredEnclosureBoundCoreTyped prepared (-53) depth with
+    (depth maxDepth : Nat) : TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Extension.registeredEnclosureBoundSubdivCoreTyped
+      prepared (-53) depth maxDepth with
   | .ok outcome => return .ok (registeredEnclosureExecution outcome)
   | .error .notApplicable => return .error .notApplicable
   | .error (.unsupported expression detail) =>
@@ -225,9 +233,16 @@ private unsafe def registeredEnclosureAttemptTyped (prepared : Semantic.Prepared
       return .error <| .inconclusive { detail, enclosure }
   | .error (.rejected checker enclosure detail) =>
       return .error <| .rejected { checker, enclosure, detail }
+  | .error (.exhausted maxDepth boxes deepest leaves enclosure detail) =>
+      return .error <| .inconclusive {
+        enclosure
+        detail := s!"Registered enclosure subdivision reached its configured depth \
+          {maxDepth} after examining {boxes} boxes (deepest depth {deepest}; \
+          {leaves} certified leaves). Last failure: {detail}"
+      }
   | .error (.verificationFailure detail) =>
       return .error <| .internalError
-        `LeanCert.Tactic.Extension.registeredEnclosureBoundCoreTyped detail
+        `LeanCert.Tactic.Extension.registeredEnclosureBoundSubdivCoreTyped detail
 
 private unsafe def directBoundAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
@@ -1312,11 +1327,12 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
         "registered compositional enclosure" cfg verificationMode
         (.fixed .rationalInterval)
         none
-        (some "imported unary enclosure rules with proof-carrying core composition")
+        (some "imported unary enclosure rules with proof-carrying core composition \
+          and adaptive subdivision")
         .registeredEnclosure
       let extensionSpec : SolverSpec := {
         report := extensionPlan
-        solve := registeredEnclosureAttemptTyped prepared cfg.taylorDepth
+        solve := registeredEnclosureAttemptTyped prepared cfg.taylorDepth cfg.subdivisions
       }
       match ← trySolver extensionSpec with
       | .proved artifact => return ← commitArtifact artifact

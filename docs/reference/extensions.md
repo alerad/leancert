@@ -121,6 +121,14 @@ surrounding expression against those atoms, so ordinary supported arithmetic
 and transcendental operations may appear outside registered calls. The
 quantified variable may also occur independently elsewhere in that expression.
 
-Operations outside LeanCert's core expression fragment and adaptive
-subdivision of rejected or inconclusive downstream candidates are not yet
-covered.
+When a registered candidate is rejected, or when its checked enclosure is too
+coarse to prove the final comparison, `leancert` bisects the rational input
+interval and retries up to the configured `(subdivisions := n)` depth. Every
+retained leaf closes its own registered checker, and the resulting complete
+child theorems are combined by a generic interval-cover theorem. `leancert?`
+reports the configured and deepest depths, boxes examined, certified leaves,
+and each retained downstream certificate. Domain obstructions and unsupported
+operations remain terminal rather than being reclassified as numerical
+imprecision.
+
+Operations outside LeanCert's core expression fragment are not yet covered.

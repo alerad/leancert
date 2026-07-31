@@ -34,6 +34,8 @@ inductive RegisteredEnclosureFailure where
   | domainObstruction (operation detail : String)
   | inconclusive (detail : String) (enclosure : Option IntervalRat := none)
   | rejected (checker : Option Name) (enclosure : Option IntervalRat) (detail : String)
+  | exhausted (maxDepth boxesExamined deepestDepth certifiedLeaves : Nat)
+      (enclosure : Option IntervalRat) (detail : String)
   | verificationFailure (detail : String)
   deriving Inhabited
 
@@ -44,13 +46,45 @@ structure RegisteredEnclosureObservation where
   verification : LeanCert.Tactic.VerificationUsage
   deriving Inhabited
 
+/-- Runtime facts retained by adaptive registered-enclosure subdivision. -/
+structure RegisteredSubdivisionExecution where
+  taylorDepth : Nat
+  configuredMaxDepth : Nat
+  deepestDepthUsed : Nat := 0
+  boxesExamined : Nat := 0
+  certifiedLeaves : Nat := 0
+  deriving Inhabited
+
 /-- Retained facts from a successful registered enclosure proof. -/
 structure RegisteredEnclosureOutcome where
   enclosure : IntervalRat
   observations : Array RegisteredEnclosureObservation
   compositionSteps : Nat := 0
+  subdivision : Option RegisteredSubdivisionExecution := none
   verification : LeanCert.Tactic.VerificationUsage
   deriving Inhabited
+
+/-- Subdivision combines complete child theorems. It is independent of the
+internal expression AST, so downstream functions remain opaque to LeanCert. -/
+private theorem forall_mem_of_bisect
+    {predicate : ℝ → Prop} (interval : IntervalRat)
+    (left : ∀ x ∈ interval.bisect.1, predicate x)
+    (right : ∀ x ∈ interval.bisect.2, predicate x) :
+    ∀ x ∈ interval, predicate x := by
+  intro x hx
+  rcases IntervalRat.mem_bisect_or hx with hxLeft | hxRight
+  · exact left x hxLeft
+  · exact right x hxRight
+
+private structure RegisteredSubdivisionProof where
+  proof : Lean.Expr
+  enclosure : IntervalRat
+  observations : Array RegisteredEnclosureObservation
+  compositionSteps : Nat := 0
+  verification : LeanCert.Tactic.VerificationUsage := {}
+  deepestDepthUsed : Nat := 0
+  boxesExamined : Nat := 0
+  certifiedLeaves : Nat := 0
 
 private structure EnclosedTerm where
   value : Lean.Expr
@@ -454,6 +488,38 @@ private def containsRegisteredFunction (env : Environment) (expression : Lean.Ex
     subterm.getAppFn.constName?.any fun name =>
       !(getUnaryEnclosureRules env name).isEmpty).isSome
 
+private def boundProposition (spec : BoundSpec) (interval : Lean.Expr) : MetaM Lean.Expr := do
+  withLocalDeclD spec.boundVars[0]!.userName (mkConst ``Real) fun x => do
+    let membership ← mkAppM ``Membership.mem #[interval, x]
+    withLocalDeclD `hmem membership fun hmem => do
+      let lhs := (mkApp spec.lhs x).headBeta
+      let rhs := (mkApp spec.rhs x).headBeta
+      let conclusion ←
+        match spec.comparison with
+        | .le => mkAppM ``LE.le #[lhs, rhs]
+        | .lt => mkAppM ``LT.lt #[lhs, rhs]
+        | _ => throwError "registered enclosure subdivision expected an inequality"
+      mkForallFVars #[x, hmem] conclusion
+
+private def preparedOnInterval (prepared : PreparedGoal) (spec : BoundSpec)
+    (interval : Lean.Expr) : TacticM PreparedGoal := do
+  let domainSyntax : IntervalSyntax := {
+    original := interval
+    kind := .intervalRat
+  }
+  let domain ← prepareInterval domainSyntax
+  let proposition ← boundProposition spec interval
+  let boundVar := spec.boundVars[0]!
+  return {
+    semantic := .bound {
+      spec with
+      original := proposition
+      boundVars := #[{ boundVar with binderId := none, domain := domainSyntax }]
+    }
+    domains := #[domain]
+    functions := prepared.functions
+  }
+
 private def finalComparisonProof (comparison : Comparison) (functionOnLeft : Bool)
     (bound : ℚ) (boundExpr : Lean.Expr) (enclosed : EnclosedTerm) :
     TacticM (Except RegisteredEnclosureFailure Lean.Expr) := do
@@ -574,5 +640,165 @@ unsafe def registeredEnclosureBoundCoreTyped (prepared : PreparedGoal)
       compositionSteps := enclosed.compositionSteps
       verification := enclosed.verification
     }
+
+private unsafe def proveRegisteredLeaf (prepared : PreparedGoal)
+    (precision : Int) (taylorDepth : Nat) :
+    TacticM (Except RegisteredEnclosureFailure
+      (Lean.Expr × RegisteredEnclosureOutcome)) := do
+  let originalGoals ← getGoals
+  let saved ← saveState
+  let proposition := prepared.semantic.original
+  let proof ← mkFreshExprMVar proposition MetavarKind.syntheticOpaque
+  setGoals [proof.mvarId!]
+  try
+    match ← registeredEnclosureBoundCoreTyped prepared precision taylorDepth with
+    | .error failure =>
+        saved.restore
+        return .error failure
+    | .ok outcome =>
+        unless (← getGoals).isEmpty do
+          saved.restore
+          return .error <| .verificationFailure
+            "registered enclosure leaf left unresolved proof obligations"
+        let proof ← instantiateMVars proof
+        if proof.hasMVar then
+          saved.restore
+          return .error <| .verificationFailure
+            "registered enclosure leaf proof contains metavariables"
+        setGoals originalGoals
+        return .ok (proof, outcome)
+  catch exception =>
+    saved.restore
+    throw exception
+
+private def addExhaustedStatistics (priorBoxes priorDeepest priorLeaves : Nat) :
+    RegisteredEnclosureFailure → RegisteredEnclosureFailure
+  | .exhausted maxDepth boxes deepest leaves enclosure detail =>
+      .exhausted maxDepth (priorBoxes + boxes) (max priorDeepest deepest)
+        (priorLeaves + leaves) enclosure detail
+  | failure => failure
+
+private unsafe def proveRegisteredWithSubdiv
+    (prepared : PreparedGoal) (spec : BoundSpec)
+    (intervalExpr : Lean.Expr) (interval : IntervalRat)
+    (precision : Int) (taylorDepth configuredMaxDepth remainingDepth depthUsed : Nat) :
+    TacticM (Except RegisteredEnclosureFailure RegisteredSubdivisionProof) := do
+  let childPrepared ← preparedOnInterval prepared spec intervalExpr
+  match ← proveRegisteredLeaf childPrepared precision taylorDepth with
+  | .ok (proof, outcome) =>
+      return .ok {
+        proof
+        enclosure := outcome.enclosure
+        observations := outcome.observations
+        compositionSteps := outcome.compositionSteps
+        verification := outcome.verification
+        deepestDepthUsed := depthUsed
+        boxesExamined := 1
+        certifiedLeaves := 1
+      }
+  | .error failure =>
+      let (retryable, lastEnclosure, detail) :=
+        match failure with
+        | .inconclusive detail enclosure => (true, enclosure, detail)
+        | .rejected _ enclosure detail => (true, enclosure, detail)
+        | _ => (false, none, "")
+      unless retryable do return .error failure
+      if remainingDepth == 0 then
+        return .error <| .exhausted configuredMaxDepth 1 depthUsed 0
+          lastEnclosure detail
+
+  let bisectExpr ← mkAppM ``IntervalRat.bisect #[intervalExpr]
+  let leftExpr ← mkAppM ``Prod.fst #[bisectExpr]
+  let rightExpr ← mkAppM ``Prod.snd #[bisectExpr]
+  let (leftInterval, rightInterval) := interval.bisect
+
+  let left ← proveRegisteredWithSubdiv prepared spec leftExpr leftInterval
+    precision taylorDepth configuredMaxDepth (remainingDepth - 1) (depthUsed + 1)
+  let left ←
+    match left with
+    | .ok proof => pure proof
+    | .error failure =>
+        return .error <| addExhaustedStatistics 1 depthUsed 0 failure
+
+  let right ← proveRegisteredWithSubdiv prepared spec rightExpr rightInterval
+    precision taylorDepth configuredMaxDepth (remainingDepth - 1) (depthUsed + 1)
+  let right ←
+    match right with
+    | .ok proof => pure proof
+    | .error failure =>
+        return .error <| addExhaustedStatistics
+          (1 + left.boxesExamined)
+          (max depthUsed left.deepestDepthUsed)
+          left.certifiedLeaves failure
+
+  let proof ← mkAppM ``forall_mem_of_bisect
+    #[intervalExpr, left.proof, right.proof]
+  return .ok {
+    proof
+    enclosure := {
+      lo := min left.enclosure.lo right.enclosure.lo
+      hi := max left.enclosure.hi right.enclosure.hi
+      le := le_trans (min_le_left _ _)
+        (le_trans left.enclosure.le (le_max_left _ _))
+    }
+    observations := left.observations ++ right.observations
+    compositionSteps := left.compositionSteps + right.compositionSteps
+    verification := left.verification.combine right.verification
+    deepestDepthUsed := max depthUsed
+      (max left.deepestDepthUsed right.deepestDepthUsed)
+    boxesExamined := 1 + left.boxesExamined + right.boxesExamined
+    certifiedLeaves := left.certifiedLeaves + right.certifiedLeaves
+  }
+
+/-- Try registered enclosure execution at each node, bisecting only after an
+inconclusive or rejected candidate. Every retained leaf is independently
+checked before its theorem is combined into the result. -/
+unsafe def registeredEnclosureBoundSubdivCoreTyped (prepared : PreparedGoal)
+    (precision : Int) (taylorDepth maxDepth : Nat) :
+    TacticM (Except RegisteredEnclosureFailure RegisteredEnclosureOutcome) := do
+  let original ← saveState
+  try
+    let .bound spec := prepared.semantic
+      | return .error .notApplicable
+    unless spec.boundVars.size == 1 && prepared.domains.size == 1 do
+      return .error .notApplicable
+    let .closedRat _ intervalExpr membershipIff := prepared.domains[0]!
+      | return .error .notApplicable
+    let interval ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) intervalExpr
+    match ← proveRegisteredWithSubdiv prepared spec intervalExpr interval
+        precision taylorDepth maxDepth maxDepth 0 with
+    | .error failure =>
+        original.restore
+        return .error failure
+    | .ok proof =>
+        let goal ← getMainGoal
+        let (xId, goal) ← goal.intro1P
+        let (hxSourceId, goal) ← goal.intro1P
+        setGoals [goal]
+        goal.withContext do
+          let x := mkFVar xId
+          let hxSource := mkFVar hxSourceId
+          let iffAt ← mkAppM' membershipIff #[x]
+          let hx ← mkAppM ``Iff.mp #[iffAt, hxSource]
+          let pointProof := mkAppN proof.proof #[x, hx]
+          discard <| inferType pointProof
+          goal.assign pointProof
+          replaceMainGoal []
+        return .ok {
+          enclosure := proof.enclosure
+          observations := proof.observations
+          compositionSteps := proof.compositionSteps
+          subdivision := if proof.deepestDepthUsed == 0 then none else some {
+            taylorDepth
+            configuredMaxDepth := maxDepth
+            deepestDepthUsed := proof.deepestDepthUsed
+            boxesExamined := proof.boxesExamined
+            certifiedLeaves := proof.certifiedLeaves
+          }
+          verification := proof.verification
+        }
+  catch exception =>
+    original.restore
+    throw exception
 
 end LeanCert.Tactic.Extension

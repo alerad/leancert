@@ -182,7 +182,8 @@ does not imply that the theorem is false.
   logarithms or exclusion of zero from denominator intervals.
 - Downstream enclosure execution currently targets unary interval bounds.
   Existing core operations may surround proof-carrying registered subterms;
-  unsupported custom operations and adaptive subdivision are not yet covered.
+  rejected or inconclusive candidates are retried on rational bisections.
+  Unsupported custom operations are not yet covered.
 
 Native verification is faster but additionally trusts Lean's compiler/runtime;
 kernel-only verification may be substantially more expensive. See the
