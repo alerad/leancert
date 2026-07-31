@@ -15,6 +15,7 @@ proof strategy.
 | `multivariate_bound` | optional positional iteration count, followed by optional `(trust := ...)` |
 | `opt_bound` | optional positional iteration count, followed by optional `mono` and `(trust := ...)` |
 | `root_bound`, `interval_roots`, `interval_unique_root` | optional positional Taylor depth, followed by optional `(trust := ...)` |
+| `system_unique_root`, `system_unique_root?` | `using cert`, followed by optional `(taylorDepth := n)` and `(trust := native\|kernel\|auto)` in either order |
 | `interval_minimize`, `interval_maximize` | optional positional Taylor depth, followed by optional `(trust := ...)` |
 | `interval_minimize_mv`, `interval_maximize_mv` | optional positional Taylor depth, followed by optional `(trust := ...)` |
 | `interval_argmin`, `interval_argmax` | optional positional Taylor depth, followed by optional `(trust := ...)` |
@@ -378,6 +379,31 @@ example : ∃! x ∈ I12, Expr.eval (fun _ => x) expr_x2_minus_2 = 0 := by
 `intervalUniqueRootCoreTyped` distinguishes unsupported goals, rejected
 Newton certificates, proof transport failures, and internal verification
 failures. Every failure is transactional.
+
+---
+
+### `system_unique_root` and `system_unique_root?`
+
+Certifies a unique zero of a square nonlinear system using a user-supplied,
+dimension-indexed `KrawczykCert n`:
+
+```lean
+import LeanCert.Examples.Krawczyk
+import LeanCert.Tactic
+
+open LeanCert.Core LeanCert.Engine LeanCert.Validity
+open LeanCert.Examples.Krawczyk
+
+example : ∃! x, FinBoxMem x box ∧ SystemZero system x := by
+  system_unique_root using certificate (taylorDepth := 10) (trust := auto)
+```
+
+The tactic accepts the conjunction in either order. `system_unique_root?`
+proves the same goal and reports the supplied center, checked contraction
+bound, `krawczykCheck`, `verify_unique_system_root`, and observed verification
+route. Candidate rejection and dimension mismatch are typed, transactional
+failures. Candidate generation and box subdivision are not part of this manual
+I1 tactic.
 
 ---
 

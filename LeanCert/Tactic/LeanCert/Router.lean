@@ -750,6 +750,16 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
   let d2 := d + 10
   let d3 := d + 20
   match intent with
+  | .systemRoot => #[
+      { report := report intent "manual Krawczyk contraction certificate"
+          cfg mode .notApplicable
+          (some { tactic := "system_unique_root using", positionalArgs := #["cert"] })
+          (strategyId := .systemRoot),
+        solve := pure <| .error <| .inconclusive {
+          detail := "This I1 theorem family requires an explicit `KrawczykCert`. \
+            Use `system_unique_root using cert`; automatic candidate generation \
+            is reserved for I2."
+        } }]
   | .eventualBound => #[
       { report := report intent "reciprocal-power tail certificate"
           cfg mode (.fixed .exactRational)
@@ -1228,6 +1238,7 @@ private def intentOfSemanticGoal (goal : Semantic.SemanticGoal) : MetaM (Option 
   | .certificateCheck .. => return some .certificateCheck
   | .allOf .. => return some .conjunction
   | .eventualBound _ => return some .eventualBound
+  | .systemRoot _ => return some .systemRoot
   | .bound spec =>
       return some (if spec.boundVars.size > 1 then .multivariateBound else .intervalBound)
   | .root spec =>

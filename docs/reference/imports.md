@@ -64,6 +64,12 @@ import LeanCert.Engine.Chebyshev.Theta
 import LeanCert.Validity.Krawczyk
 ```
 
+For the manual certificate tactic, import the tactic umbrella:
+
+```lean
+import LeanCert.Tactic
+```
+
 ### Fixed-cutoff eventual bounds
 
 ```lean

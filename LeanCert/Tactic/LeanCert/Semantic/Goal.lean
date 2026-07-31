@@ -21,6 +21,7 @@ namespace LeanCert.Tactic.Semantic
 LeanCert.  This is reporting metadata, never a substitute for parsed payload. -/
 inductive GoalIntent where
   | integralBound
+  | systemRoot
   | uniqueRoot
   | rootExists
   | noRoot
@@ -142,6 +143,17 @@ structure EventualBoundSpec where
   discoverCutoff : Bool
   deriving Inhabited
 
+/-- A square nonlinear-system uniqueness theorem consumed by the Krawczyk
+certificate front end. `reversedConjunction` records the harmless source
+spelling `SystemZero F x ∧ FinBoxMem x X`. -/
+structure SystemRootSpec where
+  original : Lean.Expr
+  dimension : Lean.Expr
+  system : Lean.Expr
+  box : Lean.Expr
+  reversedConjunction : Bool := false
+  deriving Inhabited
+
 /-- Mathematical theorem shapes understood by the semantic front door. -/
 inductive SemanticGoal where
   | point (spec : PointSpec)
@@ -152,6 +164,7 @@ inductive SemanticGoal where
   | integral (spec : IntegralSpec)
   | finiteSum (spec : FiniteSumSpec)
   | eventualBound (spec : EventualBoundSpec)
+  | systemRoot (spec : SystemRootSpec)
   | certificateCheck (original checker : Lean.Expr)
   | allOf (original : Lean.Expr) (children : Array SemanticGoal)
   deriving Inhabited
@@ -166,6 +179,7 @@ def SemanticGoal.original : SemanticGoal → Lean.Expr
   | .integral spec => spec.original
   | .finiteSum spec => spec.original
   | .eventualBound spec => spec.original
+  | .systemRoot spec => spec.original
   | .certificateCheck original _ => original
   | .allOf original _ => original
 

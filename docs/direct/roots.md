@@ -4,13 +4,12 @@ For ordinary root existence, uniqueness, and no-root goals, start with
 [`leancert`](leancert.md). Use this page when you need the dedicated root
 controls or programmatic certificate APIs.
 
-For square multivariate systems in LeanCert's differentiable AD fragment, use the certificate API
-`KrawczykCert`, `krawczykCheck`, and `verify_unique_system_root`. See the
+For square multivariate systems in LeanCert's differentiable AD fragment, use
+`system_unique_root using cert`. The certificate supplies an untrusted rational
+center and approximate inverse Jacobian; LeanCert accepts it only after the
+existing `krawczykCheck` succeeds and the `verify_unique_system_root` Golden
+Theorem produces the requested proof. See the
 [system architecture and examples](../architecture/root-finding.md#nonlinear-systems-krawczyk).
-A tactic front end is not required: the intended proof is one checker theorem
-followed by a proof that its computable checker succeeds. Depending on the
-certificate API, that equality can be discharged by `decide`,
-`native_decide`, or LeanCert's configured verification route.
 
 Typical goals:
 
@@ -32,9 +31,51 @@ Advanced controls:
 interval_roots
 interval_unique_root
 root_bound
+system_unique_root using cert
 ```
 
-All three dedicated tactics use typed, transactional certificate boundaries.
+## Nonlinear systems with a manual Krawczyk certificate
+
+The exact recognized goal is:
+
+```text
+∃! x : Fin n → ℝ, FinBoxMem x X ∧ SystemZero F x
+```
+
+The conjunction may also be written in the opposite order. The certificate's
+dimension is checked while elaborating the tactic invocation.
+
+```lean
+import LeanCert.Examples.Krawczyk
+import LeanCert.Tactic
+
+open LeanCert.Core LeanCert.Engine LeanCert.Validity
+open LeanCert.Examples.Krawczyk
+
+example : ∃! x, FinBoxMem x box ∧ SystemZero system x := by
+  system_unique_root using certificate (trust := kernel)
+```
+
+Use `system_unique_root?` for the dimension, center, checked contraction bound,
+checker, verifier, and effective verification route:
+
+```text
+system_unique_root? using certificate (taylorDepth := 12) (trust := auto)
+```
+
+A rejected certificate is inconclusive, not evidence that the system lacks a
+unique root. Diagnostics distinguish an unsupported AD expression, a center
+outside the box, a singular preconditioner, a contraction bound not strictly
+below one, and failure of the strict self-map check. Every failure restores the
+original tactic state.
+
+I1 deliberately does not generate candidates. Centers and preconditioners may
+come from a separate numerical program, but no external computation enters the
+trusted proof: the checked Boolean certificate and Golden Theorem are the
+verification boundary. Automatic candidate construction is separate future
+frontend work.
+
+The scalar dedicated tactics use typed, transactional certificate boundaries.
 A checker result of `false` is an ordinary rejected candidate; malformed
 input is unsupported; verifier or proof-transport failures remain terminal.
 Every non-success restores the complete caller tactic state. The retained

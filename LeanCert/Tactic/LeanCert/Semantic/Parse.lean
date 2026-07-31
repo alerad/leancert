@@ -7,6 +7,7 @@ import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import LeanCert.Meta.Numeral
 import LeanCert.Tactic.FinSumBound
 import LeanCert.Tactic.LeanCert.Semantic.Goal
+import LeanCert.Validity.Krawczyk
 
 /-!
 # Parse-Once Semantic Goal Parser
@@ -215,6 +216,56 @@ private def parseEventual? (goal : Lean.Expr) : Option EventualBoundSpec := do
     parseEventualUniversal? goal (body.instantiate1 (toExpr (1 : Nat))) true
   else
     parseEventualUniversal? goal goal false
+
+private def parseFinBoxMem? (expression witness : Lean.Expr) :
+    MetaM (Option (Lean.Expr × Lean.Expr)) := do
+  unless expression.getAppFn.isConstOf ``LeanCert.Engine.FinBoxMem do return none
+  let args := expression.getAppArgs
+  unless args.size >= 3 do return none
+  let dimension := args[args.size - 3]!
+  let candidate := args[args.size - 2]!
+  let box := args[args.size - 1]!
+  unless ← isDefEq candidate witness do return none
+  return some (dimension, box)
+
+private def parseSystemZero? (expression witness : Lean.Expr) :
+    MetaM (Option (Lean.Expr × Lean.Expr)) := do
+  unless expression.getAppFn.isConstOf ``LeanCert.Engine.SystemZero do return none
+  let args := expression.getAppArgs
+  unless args.size >= 3 do return none
+  let dimension := args[args.size - 3]!
+  let system := args[args.size - 2]!
+  let candidate := args[args.size - 1]!
+  unless ← isDefEq candidate witness do return none
+  return some (dimension, system)
+
+/-- Recognize the stable Krawczyk Golden-Theorem target, accepting either
+order of the two conjuncts while retaining the source order for transport. -/
+private def parseSystemUniqueRoot? (goal : Lean.Expr) : MetaM (Option SystemRootSpec) := do
+  match_expr goal with
+  | ExistsUnique _ body =>
+      let .lam name type inner _ := body | return none
+      withLocalDeclD name type fun witness => do
+        let instantiated ← whnf (inner.instantiate1 witness)
+        unless instantiated.isAppOfArity ``And 2 do return none
+        let conjuncts := instantiated.getAppArgs
+        let parseOrder (membership zero : Lean.Expr) (reversed : Bool) := do
+          let some (membershipDimension, box) ← parseFinBoxMem? membership witness
+            | return none
+          let some (zeroDimension, system) ← parseSystemZero? zero witness
+            | return none
+          unless ← isDefEq membershipDimension zeroDimension do return none
+          return some {
+            original := goal
+            dimension := membershipDimension
+            system
+            box
+            reversedConjunction := reversed
+          }
+        if let some spec ← parseOrder conjuncts[0]! conjuncts[1]! false then
+          return some spec
+        parseOrder conjuncts[1]! conjuncts[0]! true
+  | _ => return none
 
 private def isZero (expression : Lean.Expr) : MetaM Bool := do
   return (← LeanCert.Meta.Numeral.toRealRatNormalized? expression) == some 0
@@ -439,6 +490,8 @@ partial def parseGoal (goal : Lean.Expr) : MetaM (Except ParseFailure SemanticGo
         composition is implemented"
     }
   if let some integral := parseIntegral? goal then return .ok (.integral integral)
+  if let some systemRoot ← parseSystemUniqueRoot? goal then
+    return .ok (.systemRoot systemRoot)
   if let some root ← parseUniqueRoot? goal then return .ok (.root root)
   if let some root ← parseRootExists? goal then return .ok (.root root)
   if let some root ← parseNoRoot? goal then return .ok (.root root)

@@ -39,6 +39,7 @@ def formatRatApprox (value : ℚ) (digits : Nat := 6) : String :=
 
 def intentLabel : GoalIntent → String
   | .integralBound => "definite integral bound"
+  | .systemRoot => "nonlinear system uniqueness"
   | .uniqueRoot => "unique real root"
   | .rootExists => "real root existence"
   | .noRoot => "nonvanishing on an interval"
@@ -105,7 +106,11 @@ def routerFailure (verbosity : DiagnosticVerbosity) : RouterFailure → String
         Narrow the domain or prove the required positivity/nonzero condition. \
         Increasing numerical precision does not repair an invalid domain."
   | .portfolioExhausted intent attempts spent budget =>
-      match verbosity with
+      if intent == .systemRoot then
+        s!"LeanCert recognized: {intentLabel intent}\n\nA manual `KrawczykCert` is required \
+          for this I1 theorem family.\n\nTry:\n  system_unique_root using cert\n\n\
+          Automatic center and preconditioner generation is reserved for I2."
+      else match verbosity with
       | .compact =>
           s!"LeanCert recognized a {intentLabel intent}, but no strategy proved it \
             within cost budget {budget} (spent {spent}).\n\n\

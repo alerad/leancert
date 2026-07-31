@@ -159,7 +159,8 @@ The main verified numerical path includes:
 - Algebraic operations and supported transcendental functions including
   `exp`, `log`, `sin`, `cos`, `sqrt`, `atan`, `atanh`, and `erf`
 - Checked automatic differentiation and global bound certificates
-- Root existence, exclusion, and Newton-style uniqueness certificates
+- Root existence, exclusion, Newton-style uniqueness, and manual Krawczyk
+  system-root certificates
 - Exact rational polynomial integration and certified partition integration
 - Checked downstream unary enclosure rules consumed compositionally by `leancert`
 - Fixed and automatically discovered reciprocal-power bounds over infinite

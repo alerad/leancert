@@ -190,6 +190,7 @@ inductive StrategyId where
   | exactIntegral
   | partitionIntegral
   | eventualBound
+  | systemRoot
   | conjunction
   deriving DecidableEq, Repr, Inhabited
 
