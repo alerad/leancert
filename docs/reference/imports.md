@@ -33,6 +33,7 @@ loading tactic elaborators.
 ```lean
 import LeanCert.Tactic.IntervalAuto
 import LeanCert.Tactic.Bound
+import LeanCert.Tactic.Extension
 import LeanCert.Discovery.Commands
 import LeanCert.Tactic.Discovery
 ```

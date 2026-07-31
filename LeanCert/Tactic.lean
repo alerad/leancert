@@ -11,6 +11,7 @@ import LeanCert.Tactic.FinSumWitness
 import LeanCert.Tactic.VecSimp
 import LeanCert.Tactic.LeanCert
 import LeanCert.Tactic.Discovery
+import LeanCert.Tactic.Extension
 
 /-!
 # LeanCert tactic API
