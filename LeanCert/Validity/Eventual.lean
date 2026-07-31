@@ -31,7 +31,7 @@ structure ReciprocalPowerUpperCert
   checked : checkReciprocalPowerUpper q bound k cutoff = true
 
 /-- Self-contained fixed-cutoff certificate data. This is the stable payload
-that untrusted cutoff discovery can construct in a later layer. -/
+that untrusted cutoff discovery may construct before checker replay. -/
 structure EventualBoundCert where
   coefficient : ℚ
   bound : ℚ

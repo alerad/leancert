@@ -50,6 +50,7 @@ def intentLabel : GoalIntent → String
   | .multivariateBound => "multivariate bound"
   | .intervalBound => "univariate interval bound"
   | .pointInequality => "closed numerical comparison"
+  | .eventualBound => "eventual natural-number upper bound"
   | .certificateCheck => "closed certificate check"
   | .conjunction => "conjunction of numerical theorems"
 
@@ -278,6 +279,21 @@ private def renderIntegralPartitions
         Maximum: {statistics.maximumPartitions}\n  Selected: {statistics.chosenPartitions}\n  \
         Attempts: {statistics.attempts}"
 
+private def renderEventualBound (statistics : Option EventualBoundStatistics) : String :=
+  match statistics with
+  | none => ""
+  | some statistics =>
+      s!"\n\nCutoff search:\n  Configured check limit: {statistics.configuredLimit}\n  \
+        Candidates checked: {statistics.checks}\n  Exponential steps: {statistics.exponentialSteps}\n  \
+        Final bracket: [{statistics.lowerBracket}, {statistics.upperBracket}]\n  \
+        Binary refinement steps: {statistics.refinementSteps}\n  \
+        Discovered cutoff: N = {statistics.cutoff}\n  \
+        Minimality refinement complete: {statistics.refinementComplete}
+
+Stable explicit proof:
+  by
+    eventual_bound using {statistics.cutoff}"
+
 private def renderCertificates
     (certificates : Array CertificateObservation) : String :=
   if certificates.isEmpty then ""
@@ -325,13 +341,14 @@ def successReport (report : SolverReport) : String :=
   let subdivision := renderSubdivision report.execution.subdivision
   let finiteSum := renderFiniteSum report.execution.finiteSum
   let integralPartitions := renderIntegralPartitions report.execution.integralPartitions
+  let eventualBound := renderEventualBound report.execution.eventualBound
   let certificates := renderCertificates report.execution.certificates
   let advanced :=
     plan.dedicatedProof.map (fun proof =>
       s!"\n\nAdvanced control:\n  {renderProof proof}") |>.getD ""
   s!"LeanCert recognized: {intentLabel plan.intent}\n\n\
     Selected strategy:\n  {plan.strategy}{detail}{executionNotes}{backend}{verification}\
-    {checker}{verifier}{optimization}{subdivision}{finiteSum}{integralPartitions}{certificates}\n\n\
+    {checker}{verifier}{optimization}{subdivision}{finiteSum}{integralPartitions}{eventualBound}{certificates}\n\n\
     Suggested proof:\n  {renderProof plan.primaryProof}\
     {advanced}{renderChildren report.execution.children}"
 

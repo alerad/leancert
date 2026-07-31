@@ -13,6 +13,7 @@ import LeanCert.Tactic.LeanCert.Solver.Protocol
 import LeanCert.Tactic.Extension.Execute
 import LeanCert.Tactic.Discovery
 import LeanCert.Tactic.FinSumExpand
+import LeanCert.Tactic.EventualBound
 import LeanCert.Engine.Search.CounterExample
 
 /-!
@@ -696,6 +697,52 @@ private def certificateCheckAttemptTyped :
       return .error <| .internalError `LeanCert.Tactic.leancert
         (failure.message "leancert")
 
+private def eventualFailure : EventualBoundFailure → AttemptFailure
+  | .unsupportedTail expression detail =>
+      .unsupported { expression, detail := some detail }
+  | .invalidParameters detail =>
+      .rejected { detail }
+  | .rejectedCutoff cutoff =>
+      .rejected {
+        checker := some ``LeanCert.Validity.checkReciprocalPowerUpper
+        detail := s!"The fixed-cutoff checker rejected candidate N = {cutoff}."
+      }
+  | .searchExhausted checks lastCutoff =>
+      .inconclusive {
+        requested := some s!"at most {checks} candidate checks"
+        detail := s!"Cutoff discovery exhausted its configured check budget after \
+          {checks} candidate(s); last cutoff: {lastCutoff}. Increase \
+          `(maxIterations := ...)` or use `eventual_bound using N`."
+      }
+  | .transportFailure detail =>
+      .internalError `LeanCert.Tactic.eventualBoundCoreTyped detail
+  | .internalFailure detail =>
+      .internalError `LeanCert.Tactic.eventualBoundCoreTyped detail
+
+private def eventualBoundAttemptTyped (maxChecks : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← eventualBoundCoreTyped none maxChecks with
+  | .error failure => return .error (eventualFailure failure)
+  | .ok outcome =>
+      let statistics := outcome.search.map fun search => ({
+        cutoff := search.cutoff
+        checks := search.checks
+        configuredLimit := search.configuredLimit
+        exponentialSteps := search.exponentialSteps
+        refinementSteps := search.refinementSteps
+        lowerBracket := search.lowerBracket
+        upperBracket := search.upperBracket
+        refinementComplete := search.refinementComplete
+      } : Solver.EventualBoundStatistics)
+      return .ok {
+        backend := some .exactRational
+        verificationUsage := { kernelChecks := 1 }
+        checker := some outcome.checker
+        verifier := some outcome.verifier
+        eventualBound := statistics
+        notes := if outcome.discovered then #[] else #[s!"Explicit cutoff: N = {outcome.cutoff}"]
+      }
+
 /-- The deterministic strategy portfolio for a recognized goal intent. -/
 private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
     (mode : VerificationMode) : Array SolverSpec :=
@@ -703,6 +750,12 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
   let d2 := d + 10
   let d3 := d + 20
   match intent with
+  | .eventualBound => #[
+      { report := report intent "reciprocal-power tail certificate"
+          cfg mode (.fixed .exactRational)
+          none
+          (strategyId := .eventualBound),
+        solve := eventualBoundAttemptTyped cfg.maxIterations }]
   | .pointInequality => #[
       { report := report intent "exact normalization" cfg mode .notApplicable
           (some (suggestion "norm_num")) (strategyId := .exactNormalization),
@@ -1174,6 +1227,7 @@ private def intentOfSemanticGoal (goal : Semantic.SemanticGoal) : MetaM (Option 
   | .finiteSum _ => return some .finiteSum
   | .certificateCheck .. => return some .certificateCheck
   | .allOf .. => return some .conjunction
+  | .eventualBound _ => return some .eventualBound
   | .bound spec =>
       return some (if spec.boundVars.size > 1 then .multivariateBound else .intervalBound)
   | .root spec =>

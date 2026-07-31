@@ -110,11 +110,14 @@ Use `leancert` for portfolio routing and `certify_bound` when explicit interval
 engine control is desired. Trust is selected uniformly with
 `(trust := kernel)`, `(trust := native)`, or `(trust := auto)`.
 
-Use `eventual_bound` for explicit-cutoff natural-number tails in the initial
-reciprocal-power certificate language. The public validity boundary is
-`checkReciprocalPowerUpper` together with
-`verify_reciprocal_power_upper`; cutoff discovery is deliberately separate
-from this trusted checker and Golden Theorem.
+Use `eventual_bound` for natural-number tails in the reciprocal-power
+certificate language. Universal goals take their cutoff from the theorem;
+existential goals may use `eventual_bound using N` or ask LeanCert to discover
+a cutoff. The public validity boundary is `checkReciprocalPowerUpper` together
+with `verify_reciprocal_power_upper`. `discoverReciprocalPowerCutoff` is an
+untrusted candidate generator: its result is always replayed through that
+checker before proof construction. The `leancert` router recognizes the same
+eventual-bound goal family.
 
 The removed `LeanCert.Tactic.LeanCert.Types` and
 `LeanCert.Tactic.LeanCert.Transaction` modules were internal implementation
