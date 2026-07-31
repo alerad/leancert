@@ -11,11 +11,14 @@
 
 LeanCert turns numerical certificates into theorems about real-valued
 expressions. Its `leancert` tactic handles point inequalities, quantified
-bounds on boxes, root existence and uniqueness, global bounds, finite sums,
-and definite integrals. The library also exposes the checked interval,
-optimization, root-finding, and integration APIs underneath the tactic.
+bounds on boxes and natural-number tails, root existence and uniqueness,
+global bounds, finite sums, and definite integrals. Imported downstream
+functions can participate through checked enclosure rules without being added
+to LeanCert's internal expression language. The library also exposes the
+checked interval, optimization, root-finding, and integration APIs underneath
+the tactic.
 
-## Four proofs
+## Five proofs
 
 ```lean
 import LeanCert.Tactic
@@ -35,6 +38,10 @@ example : ∃! x, x ∈ Set.Icc (1 : ℝ) 2 ∧ x ^ 2 - 2 = 0 := by
 
 -- Polynomial integrals are normalized and checked exactly over ℚ.
 example : (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 := by
+  leancert
+
+-- LeanCert discovers and certifies a cutoff for this infinite tail.
+example : ∃ N : Nat, ∀ n ≥ N, (3 : ℝ) / n ^ 2 ≤ 1 / 1000 := by
   leancert
 ```
 
@@ -155,6 +162,8 @@ The main verified numerical path includes:
 - Root existence, exclusion, and Newton-style uniqueness certificates
 - Exact rational polynomial integration and certified partition integration
 - Checked downstream unary enclosure rules consumed compositionally by `leancert`
+- Fixed and automatically discovered reciprocal-power bounds over infinite
+  natural-number tails
 - Domain-specific Chebyshev, analytic-number-theory, q-product, table, and
   neural-network certificate infrastructure
 
@@ -184,6 +193,9 @@ does not imply that the theorem is false.
   Existing core operations may surround proof-carrying registered subterms;
   rejected or inconclusive candidates are retried on rational bisections.
   Unsupported custom operations are not yet covered.
+- Eventual-bound automation currently targets nonnegative rational multiples
+  of reciprocal powers over `Nat`; general logarithmic, exponential, and
+  AD-derived tail rules are not yet supported.
 
 Native verification is faster but additionally trusts Lean's compiler/runtime;
 kernel-only verification may be substantially more expensive. See the

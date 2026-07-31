@@ -68,6 +68,8 @@ The router currently recognizes:
 - exact rational-polynomial integral equalities;
 - supported definite-integral inequalities through one retained partition
   search followed by a fixed-candidate certificate;
+- fixed-cutoff and existential eventual upper bounds for supported
+  reciprocal-power tails over `Nat`;
 - closed LeanCert Boolean checker propositions;
 - conjunctions whose children are themselves recognized.
 
@@ -188,6 +190,7 @@ algorithm:
 - `certify_bound` and `interval_bound_subdiv` for interval bounds;
 - `multivariate_bound` and `opt_bound` for box bounds and optimization;
 - `interval_roots`, `interval_unique_root`, and `root_bound` for roots;
+- `eventual_bound` for fixed or discovered reciprocal-power tail bounds;
 - `interval_minimize`, `interval_maximize`, `interval_argmin`, and
   `interval_argmax` for extrema;
 - `finsum_bound` for finite sums;
