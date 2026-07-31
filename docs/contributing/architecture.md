@@ -62,6 +62,12 @@ in a separately reified core expression; `evalIntervalCore_correct` composes
 their enclosures. Do not splice unchecked candidate values directly into a
 semantic bridge.
 
+Adaptive execution retries only typed rejected or inconclusive results. Each
+retained child is a complete theorem over its child interval, and a generic
+predicate-level bisection theorem combines the children. Domain obstructions,
+unsupported syntax, and verification failures remain terminal. Failed or
+exhausted recursion must restore the complete caller tactic state.
+
 ## Tactic changes
 
 Every semantic-router extension returns

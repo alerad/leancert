@@ -85,6 +85,26 @@ theorem positiveBranch_mem
     exact lt_of_lt_of_le (by exact_mod_cast hpositive) hx.1
   simpa [positiveBranch, not_le.mpr hxpositive] using hx
 
+/-- A deliberately width-sensitive rule used to demonstrate that candidate
+rejection on a broad interval can be repaired by checked subdivision. -/
+noncomputable def narrowIdentity (x : ℝ) : ℝ := x
+
+def narrowIdentityCandidate (request : UnaryEnclosureRequest) :
+    Except EnclosureCandidateFailure IntervalRat := .ok request.input
+
+def checkNarrowIdentity (request : UnaryEnclosureRequest) (output : IntervalRat) : Bool :=
+  decide (request.input.hi - request.input.lo ≤ 1) && decide (output = request.input)
+
+@[leancert_enclosure narrowIdentityCandidate]
+theorem narrowIdentity_mem
+    {request : UnaryEnclosureRequest} {x : ℝ} {output : IntervalRat}
+    (hx : x ∈ request.input)
+    (hcheck : checkNarrowIdentity request output = true) :
+    narrowIdentity x ∈ output := by
+  simp only [checkNarrowIdentity, Bool.and_eq_true, decide_eq_true_eq] at hcheck
+  rcases hcheck with ⟨_, rfl⟩
+  simpa [narrowIdentity] using hx
+
 run_meta do
   let env ← getEnv
   let rules := getUnaryEnclosureRules env ``shifted
