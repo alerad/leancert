@@ -34,6 +34,7 @@ loading tactic elaborators.
 import LeanCert.Tactic.IntervalAuto
 import LeanCert.Tactic.Bound
 import LeanCert.Tactic.Extension
+import LeanCert.Tactic.EventualBound
 import LeanCert.Discovery.Commands
 import LeanCert.Tactic.Discovery
 ```
@@ -61,6 +62,12 @@ import LeanCert.Engine.Chebyshev.Theta
 
 ```lean
 import LeanCert.Validity.Krawczyk
+```
+
+### Fixed-cutoff eventual bounds
+
+```lean
+import LeanCert.Validity.Eventual
 ```
 
 ### Algebraic Root Simplicity

@@ -126,6 +126,7 @@ roots = [
   "LeanCert.Test.ChebyshevPsi",
   "LeanCert.Test.ChebyshevTheta",
   "LeanCert.Test.EulerMascheroni",
+  "LeanCert.Test.EventualBound",
   "LeanCert.Test.ExtensionProtocol",
   "LeanCert.Test.ExtensionExecution",
   "LeanCert.Test.FinSumBound",
