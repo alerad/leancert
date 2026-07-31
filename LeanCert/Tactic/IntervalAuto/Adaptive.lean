@@ -50,10 +50,14 @@ private def proveForallLeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
     let savedGoals ← getGoals
     let checkGoal ← mkFreshExprMVar checkTy
     setGoals [checkGoal.mvarId!]
-    try
-      discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "interval_bound_adaptive")
-    catch _ =>
-      throwError "interval_bound_adaptive: Adaptive verification failed - bound not tight enough"
+    match ← LeanCert.Tactic.closeCertificateGoalTyped
+        (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
+        (tacticName := "interval_bound_adaptive") with
+    | .accepted _ => pure ()
+    | .rejected =>
+        throwError "interval_bound_adaptive: Adaptive verification failed - bound not tight enough"
+    | .failed failure =>
+        throwError (failure.message "interval_bound_adaptive")
     let checkProof := checkGoal
 
     setGoals savedGoals
@@ -138,10 +142,14 @@ private def proveForallGeAdaptive (goal : MVarId) (intervalInfo : IntervalInfo)
     let savedGoals ← getGoals
     let checkGoal ← mkFreshExprMVar checkTy
     setGoals [checkGoal.mvarId!]
-    try
-      discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "interval_bound_adaptive")
-    catch _ =>
-      throwError "interval_bound_adaptive: Adaptive verification failed - bound not tight enough"
+    match ← LeanCert.Tactic.closeCertificateGoalTyped
+        (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
+        (tacticName := "interval_bound_adaptive") with
+    | .accepted _ => pure ()
+    | .rejected =>
+        throwError "interval_bound_adaptive: Adaptive verification failed - bound not tight enough"
+    | .failed failure =>
+        throwError (failure.message "interval_bound_adaptive")
     let checkProof := checkGoal
 
     setGoals savedGoals

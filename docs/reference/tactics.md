@@ -659,7 +659,7 @@ complete caller tactic state.
 
 ### `interval_bound_adaptive`
 
-Runs the legacy branch-and-bound bound prover with an optional maximum
+Runs the original branch-and-bound bound prover with an optional maximum
 iteration count:
 
 ```text

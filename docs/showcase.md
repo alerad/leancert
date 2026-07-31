@@ -43,7 +43,7 @@ module.
 | Example | Exact advanced control | Certificate/trust story | Median |
 | --- | --- | --- | ---: |
 | `log 2 < 0.7` | `interval_auto 10` | observed Dyadic checker; native default | 6.056 s |
-| nonlinear quantified bound | `certify_bound 10` | observed Rational fallback; legacy route unobserved | 6.198 s |
+| nonlinear quantified bound | `certify_bound 10` | observed Rational checker and verification route | 6.198 s |
 | two-variable box | `multivariate_bound` | checked branch-and-bound certificate | 6.311 s |
 | unique square root | `interval_unique_root` | checked interval-Newton certificate | 7.044 s |
 | polynomial integral | `integral_exact` | exact rational kernel proof | 6.149 s |

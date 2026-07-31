@@ -49,7 +49,8 @@ intervalUniqueRootCoreTyped
 rootBoundCoreTyped
 ```
 
-Their historical throwing entry points remain available for compatibility.
+Dedicated tactic syntax translates these typed failures into user-facing
+diagnostics at the elaborator boundary.
 
 ## Global algebraic simplicity and counts
 

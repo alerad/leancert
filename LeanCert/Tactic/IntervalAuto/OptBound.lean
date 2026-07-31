@@ -173,25 +173,6 @@ where
         let proof ← mkSupportedProof expr
         goal.assign proof
 
-/-- Reporting compatibility wrapper preserving the historical throwing API. -/
-unsafe def optBoundCoreReported (maxIters : Nat) (useMonotonicity : Bool)
-    (taylorDepth : Nat) : TacticM OptBoundOutcome := do
-  match ← optBoundCoreTyped maxIters useMonotonicity taylorDepth with
-  | .ok outcome => return outcome
-  | .error (.unsupported expression detail) =>
-      throwError "opt_bound: unsupported goal {expression}:\n{detail}"
-  | .error (.rejected detail) =>
-      throwError "opt_bound: certificate rejected:\n{detail}"
-  | .error (.transportFailure detail) =>
-      throwError "opt_bound: proof transport failed:\n{detail}"
-  | .error (.internalFailure detail) =>
-      throwError "opt_bound: internal verification failure:\n{detail}"
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-unsafe def optBoundCore (maxIters : Nat) (useMonotonicity : Bool)
-    (taylorDepth : Nat) : TacticM Unit := do
-  discard <| optBoundCoreReported maxIters useMonotonicity taylorDepth
-
 /-- The opt_bound tactic.
 
     Automatically proves global bounds on expressions over boxes using
@@ -220,6 +201,15 @@ unsafe def elabOptBound : Tactic := fun stx => do
       | some n => n.toNat
       | none => 1000
     let useMonotonicity := monoOpt.isSome
-    optBoundCore maxIters useMonotonicity 10
+    match ← optBoundCoreTyped maxIters useMonotonicity 10 with
+    | .ok _ => pure ()
+    | .error (.unsupported expression detail) =>
+        throwError "opt_bound: unsupported goal {expression}:\n{detail}"
+    | .error (.rejected detail) =>
+        throwError "opt_bound: certificate rejected:\n{detail}"
+    | .error (.transportFailure detail) =>
+        throwError "opt_bound: proof transport failed:\n{detail}"
+    | .error (.internalFailure detail) =>
+        throwError "opt_bound: internal verification failure:\n{detail}"
 
 end LeanCert.Tactic.Auto

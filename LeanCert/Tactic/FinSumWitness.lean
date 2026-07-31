@@ -372,11 +372,6 @@ def finSumWitnessCoreTyped (evalTermSyn hmemSyn : Syntax) (prec : Int) :
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit := do
-  match ← finSumWitnessCoreTyped evalTermSyn hmemSyn prec with
-  | .ok _ => pure ()
-  | .error failure => throwError "finsum_witness: {repr failure}"
-
 /-- Try to auto-prove an hmem metavar using several strategies.
     Works best when the evaluator returns singletons or tight intervals
     where membership reduces to decidable ℚ comparisons. -/
@@ -650,11 +645,6 @@ def finSumWitnessAutoCoreTyped (evalTermSyn : Syntax) (prec : Int) :
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-def finSumWitnessAutoCore (evalTermSyn : Syntax) (prec : Int) : TacticM Unit := do
-  match ← finSumWitnessAutoCoreTyped evalTermSyn prec with
-  | .ok _ => pure ()
-  | .error failure => throwError "finsum_bound auto: {repr failure}"
-
 /-! ## Main Tactic -/
 
 /-- Prove bounds on finite sums using a witness evaluator.
@@ -670,6 +660,8 @@ elab "finsum_witness" evalTerm:term "using" hmem:term prec:(num)? : tactic => do
   let precision : Int := match prec with
     | some n => -(n.getNat : Int)
     | none => -53
-  finSumWitnessCore evalTerm hmem precision
+  match ← finSumWitnessCoreTyped evalTerm hmem precision with
+  | .ok _ => pure ()
+  | .error failure => throwError "finsum_witness: {repr failure}"
 
 end LeanCert.Tactic

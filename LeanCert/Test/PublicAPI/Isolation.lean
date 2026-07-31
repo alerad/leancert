@@ -14,7 +14,7 @@ open Lean Elab Command
 run_meta do
   let env ← getEnv
   for name in [
-      `LeanCert.Tactic.closeCertificateGoal,
+      `LeanCert.Tactic.closeCertificateGoalTyped,
       `LeanCert.Tactic.Auto.intervalDecideCore] do
     if env.contains name then
       throwError "programmatic API leaked tactic declaration {name}"

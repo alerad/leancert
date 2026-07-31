@@ -538,17 +538,6 @@ def finSumBoundCoreTyped (prec : Int) (taylorDepth : Nat) :
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Reporting compatibility wrapper preserving the historical result API. -/
-def finSumBoundCoreReported (prec : Int) (taylorDepth : Nat) :
-    TacticM FinSumOutcome := do
-  match ← finSumBoundCoreTyped prec taylorDepth with
-  | .ok outcome => return outcome
-  | .error failure => throwError "finsum_bound: {repr failure}"
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-def finSumBoundCore (prec : Int) (taylorDepth : Nat) : TacticM Unit := do
-  discard <| finSumBoundCoreReported prec taylorDepth
-
 /-- Transactional typed entry for the `finsum_bound using ...` syntax,
 including a possible `Fin n` rewrite. -/
 def finSumWitnessBoundCoreTyped (evalTermSyn hmemSyn : Syntax) (prec : Int) :
@@ -623,7 +612,9 @@ elab_rules : tactic
       | some n => -(n.getNat : Int)
       | none => -53
     withTrustMode (← elabTrustItem? trust) do
-      finSumBoundCore precision 10
+      match ← finSumBoundCoreTyped precision 10 with
+      | .ok _ => pure ()
+      | .error failure => throwError "finsum_bound: {repr failure}"
   | `(tactic| finsum_bound auto $evalTerm:term $[$prec:num]?
       $[$trust:leancertTrustItem]?) => do
     let precision : Int := match prec with

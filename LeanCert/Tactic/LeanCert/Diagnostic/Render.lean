@@ -151,13 +151,11 @@ private def renderBackend :
     Option NumericalBackend × BackendPolicy → Option String
   | (some backend, _) => some (numericalBackend backend)
   | (none, .fixed backend) =>
-      some s!"Configured backend: {numericalBackend backend}\n  Execution was not \
-        observed by the legacy solver adapter."
+      some s!"Configured backend: {numericalBackend backend}"
   | (none, .policy description) =>
-      some s!"Policy: {description}\n  The legacy adapter does not yet expose \
-        the winning backend."
+      some s!"Policy: {description}"
   | (none, .notApplicable) => none
-  | (none, .unknown) => some "not observed by the legacy solver adapter"
+  | (none, .unknown) => none
 
 private def verificationMode : VerificationMode → String
   | .native => "native"
@@ -173,7 +171,7 @@ private def renderVerification (report : SolverReport) : Option String :=
     | .exactIntegral =>
         some "kernel proof construction; trust selection not applicable"
     | _ =>
-        some s!"requested {requested}; actual route not observed by the legacy adapter"
+        some s!"requested {requested}; no certificate checks retained"
   else
     let used :=
       if usage.kernelChecks > 0 && usage.nativeChecks > 0 then
@@ -327,10 +325,10 @@ def successReport (report : SolverReport) : String :=
     | some value => s!"\n\nCertificate verification:\n  {value}"
     | none => ""
   let checker :=
-    (report.execution.checker <|> plan.checker).map
+    report.execution.checker.map
       (fun value => s!"\nChecker: {value}") |>.getD ""
   let verifier :=
-    (report.execution.verifier <|> plan.verifier).map
+    report.execution.verifier.map
       (fun value => s!"\nVerifier: {value}") |>.getD ""
   let optimization := renderOptimization report.execution.optimization
   let subdivision := renderSubdivision report.execution.subdivision

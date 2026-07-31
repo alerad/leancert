@@ -8,7 +8,7 @@ import LeanCert.Tactic
 /-!
 # Trust-mode regression tests (`leancert.trust`)
 
-Guards the verification choke point (`LeanCert.Tactic.closeCertificateGoal`)
+Guards the verification choke point (`LeanCert.Tactic.closeCertificateGoalTyped`)
 behind `interval_decide`:
 
 * default (native) behavior is unchanged;
@@ -31,8 +31,12 @@ private def closeAndExpectVerificationEvent
     (used : LeanCert.Tactic.VerificationUsed)
     (cause : LeanCert.Tactic.VerificationCause) : TacticM Unit := do
   let goal ← getMainGoal
-  let event ← LeanCert.Tactic.closeCertificateGoalReported cfg goal
-    "trust telemetry test"
+  let event ←
+    match ← LeanCert.Tactic.closeCertificateGoalTyped cfg goal
+        "trust telemetry test" with
+    | .accepted event => pure event
+    | .rejected => throwError "trust telemetry certificate was rejected"
+    | .failed failure => throwError (failure.message "trust telemetry test")
   unless event.requested == requested do
     throwError "wrong requested verification mode: {repr event}"
   unless event.used == used do

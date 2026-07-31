@@ -443,12 +443,6 @@ unsafe def intervalMinimizeCoreTyped (taylorDepth : Nat) :
     taylorDepth := taylorDepth
   }
 
-/-- Compatibility entry point preserving the dedicated tactic's throwing API. -/
-unsafe def intervalMinimizeCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← intervalMinimizeCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwDiscoveryFailure "interval_minimize" failure
-
 /-- The interval_minimize tactic.
 
 Proves goals of the form `∃ m, ∀ x ∈ I, f(x) ≥ m` by:
@@ -465,7 +459,9 @@ unsafe def elabIntervalMinimize : Tactic := fun stx => do
     | some n => n.toNat
     | none => 10
   withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
-    intervalMinimizeCore depth
+    match ← intervalMinimizeCoreTyped depth with
+    | .ok _ => pure ()
+    | .error failure => throwDiscoveryFailure "interval_minimize" failure
 
 /-! ## Maximization Tactic -/
 
@@ -588,12 +584,6 @@ unsafe def intervalMaximizeCoreTyped (taylorDepth : Nat) :
     taylorDepth := taylorDepth
   }
 
-/-- Compatibility entry point preserving the dedicated tactic's throwing API. -/
-unsafe def intervalMaximizeCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← intervalMaximizeCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwDiscoveryFailure "interval_maximize" failure
-
 /-- The interval_maximize tactic.
 
 Proves goals of the form `∃ M, ∀ x ∈ I, f(x) ≤ M`.
@@ -607,7 +597,9 @@ unsafe def elabIntervalMaximize : Tactic := fun stx => do
     | some n => n.toNat
     | none => 10
   withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
-    intervalMaximizeCore depth
+    match ← intervalMaximizeCoreTyped depth with
+    | .ok _ => pure ()
+    | .error failure => throwDiscoveryFailure "interval_maximize" failure
 
 /-! ## Argmax/Argmin Tactics -/
 
@@ -811,7 +803,7 @@ private def throwAttainedExtremumFailure (tacticName : String) :
       throwError "{tacticName}: internal certificate failure:\n{detail}"
 
 /-- The interval_argmax tactic implementation -/
-private unsafe def intervalArgmaxCoreReported
+private unsafe def intervalArgmaxCoreImpl
     (taylorDepth : Nat) :
     TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
   LeanCert.Tactic.Auto.intervalNormCore
@@ -1060,7 +1052,7 @@ unsafe def intervalArgmaxCoreTyped (taylorDepth : Nat) :
     TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
   let original ← saveState
   try
-    match ← intervalArgmaxCoreReported taylorDepth with
+    match ← intervalArgmaxCoreImpl taylorDepth with
     | .ok outcome => return .ok outcome
     | .error failure =>
         original.restore
@@ -1068,12 +1060,6 @@ unsafe def intervalArgmaxCoreTyped (taylorDepth : Nat) :
   catch e =>
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
-
-/-- Compatibility wrapper preserving the historical throwing API. -/
-unsafe def intervalArgmaxCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← intervalArgmaxCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwAttainedExtremumFailure "interval_argmax" failure
 
 /-- The interval_argmax tactic.
 
@@ -1092,10 +1078,12 @@ unsafe def elabIntervalArgmax : Tactic := fun stx => do
     | some n => n.toNat
     | none => 10
   withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
-    intervalArgmaxCore depth
+    match ← intervalArgmaxCoreTyped depth with
+    | .ok _ => pure ()
+    | .error failure => throwAttainedExtremumFailure "interval_argmax" failure
 
 /-- The interval_argmin tactic implementation -/
-private unsafe def intervalArgminCoreReported
+private unsafe def intervalArgminCoreImpl
     (taylorDepth : Nat) :
     TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
   LeanCert.Tactic.Auto.intervalNormCore
@@ -1339,7 +1327,7 @@ unsafe def intervalArgminCoreTyped (taylorDepth : Nat) :
     TacticM (Except AttainedExtremumFailure AttainedExtremumOutcome) := do
   let original ← saveState
   try
-    match ← intervalArgminCoreReported taylorDepth with
+    match ← intervalArgminCoreImpl taylorDepth with
     | .ok outcome => return .ok outcome
     | .error failure =>
         original.restore
@@ -1347,12 +1335,6 @@ unsafe def intervalArgminCoreTyped (taylorDepth : Nat) :
   catch e =>
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
-
-/-- Compatibility wrapper preserving the historical throwing API. -/
-unsafe def intervalArgminCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← intervalArgminCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwAttainedExtremumFailure "interval_argmin" failure
 
 /-- The interval_argmin tactic.
 
@@ -1371,7 +1353,9 @@ unsafe def elabIntervalArgmin : Tactic := fun stx => do
     | some n => n.toNat
     | none => 10
   withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
-    intervalArgminCore depth
+    match ← intervalArgminCoreTyped depth with
+    | .ok _ => pure ()
+    | .error failure => throwAttainedExtremumFailure "interval_argmin" failure
 
 /-! ## Multivariate Minimization/Maximization Tactics -/
 
@@ -1539,87 +1523,6 @@ unsafe def intervalMaximizeMvCoreTyped (taylorDepth : Nat) :
     TacticM (Except DiscoveryFailure DiscoveryOutcome) :=
   intervalMvCoreTyped .maximum taylorDepth
 
-/-- Legacy implementation retained temporarily for source comparison. -/
-private unsafe def intervalMinimizeMvCoreLegacy (taylorDepth : Nat) : TacticM Unit := do
-  LeanCert.Tactic.Auto.intervalNormCore
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-
-  let some (.minimize varType vars funcExpr) ← parseMultivariateExistentialGoal goalType
-    | throwError "interval_minimize_mv: Goal must be of form `∃ m, ∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≥ m`"
-
-  trace[LeanCert.discovery] "Parsing multivariate goal: ∃ m, ∀ vars ∈ domains, f(...) ≥ m"
-  trace[LeanCert.discovery] "Number of variables: {vars.size}"
-  trace[LeanCert.discovery] "Function expression: {funcExpr}"
-
-  -- 1. Reify the function
-  let ast := (← getAstFromFuncWithReport funcExpr).expr
-  trace[LeanCert.discovery] "Reified AST: {ast}"
-
-  -- 2. Build the box from all variable intervals
-  let mut boxVals : Array IntervalRat := #[]
-  for v in vars do
-    let intervalVal ← evalExpr IntervalRat (mkConst ``IntervalRat) v.intervalRat
-    boxVals := boxVals.push intervalVal
-    trace[LeanCert.discovery] "Variable {v.varName}: [{intervalVal.lo}, {intervalVal.hi}]"
-
-  let boxVal : Box := boxVals.toList
-
-  -- 3. Prepare config for multivariate guided optimization
-  let cfg : GuidedOptConfig := {
-    maxIterations := 2000,  -- More iterations for multivariate
-    tolerance := 1/1000,
-    taylorDepth := taylorDepth,
-    useMonotonicity := true,
-    heuristicSamples := 300,  -- More samples for higher dimensions
-    seed := 12345,
-    useGridSearch := true,
-    gridPointsPerDim := 5  -- Fewer points per dim for multivariate
-  }
-
-  -- 4. Run float-guided optimization
-  trace[LeanCert.discovery] "Running multivariate float-guided optimization..."
-  let astVal ← evalExpr LExpr (mkConst ``LeanCert.Core.Expr) ast
-  let result := globalMinimizeGuided astVal boxVal cfg
-  let boundVal := result.bound.lo
-
-  trace[LeanCert.discovery] "Optimization complete: {result.bound.iterations} iterations"
-  trace[LeanCert.discovery] "Found minimum bound: {boundVal}"
-  trace[LeanCert.discovery] "Gap: [{result.bound.lo}, {result.bound.hi}]"
-
-  -- Check if optimization converged well
-  let gap := result.bound.hi - result.bound.lo
-  if gap > cfg.tolerance then
-    logWarning m!"⚠️ Optimization gap [{result.bound.lo}, {result.bound.hi}] exceeds tolerance {cfg.tolerance}.\n\
-                  Consider increasing maxIterations or taylorDepth."
-
-  -- 5. Provide witness and prove the bound
-  -- Note: Coerce to ℝ since Expr.eval returns ℝ
-  let boundRatExpr := toExpr boundVal
-  let boundTerm ←
-    match (← whnf varType) with
-    | ty =>
-      if ty.isConstOf ``Rat then
-        pure boundRatExpr
-      else if ty.isConstOf ``Real then
-        mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
-      else
-        throwError "interval_minimize_mv: Unsupported bound type. Use ℚ or ℝ."
-  let boundSyntax ← Term.exprToSyntax boundTerm
-  trace[LeanCert.discovery] "Providing witness: m = {boundVal}"
-  evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
-
-  -- 6. Now we have a multivariate goal `∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≥ bound`
-  trace[LeanCert.discovery] "Proving multivariate universal bound with certify_bound..."
-  LeanCert.Tactic.Auto.multivariateBoundCore cfg.maxIterations cfg.tolerance cfg.useMonotonicity taylorDepth
-  trace[LeanCert.discovery] "✓ Proof complete"
-
-/-- Compatibility entry point preserving the dedicated tactic's throwing API. -/
-unsafe def intervalMinimizeMvCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← intervalMinimizeMvCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwDiscoveryFailure "interval_minimize_mv" failure
-
 /-- The interval_minimize_mv tactic.
 
 Proves multivariate goals of the form `∃ m, ∀ x ∈ I, ∀ y ∈ J, f(x,y) ≥ m` by:
@@ -1636,88 +1539,9 @@ unsafe def elabIntervalMinimizeMv : Tactic := fun stx => do
     | some n => n.toNat
     | none => 10
   withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
-    intervalMinimizeMvCore depth
-
-/-- Legacy implementation retained temporarily for source comparison. -/
-private unsafe def intervalMaximizeMvCoreLegacy (taylorDepth : Nat) : TacticM Unit := do
-  LeanCert.Tactic.Auto.intervalNormCore
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-
-  let some (.maximize varType vars funcExpr) ← parseMultivariateExistentialGoal goalType
-    | throwError "interval_maximize_mv: Goal must be of form `∃ M, ∀ x ∈ I, ∀ y ∈ J, ..., f(...) ≤ M`"
-
-  trace[LeanCert.discovery] "Parsing multivariate goal: ∃ M, ∀ vars ∈ domains, f(...) ≤ M"
-  trace[LeanCert.discovery] "Number of variables: {vars.size}"
-  trace[LeanCert.discovery] "Function expression: {funcExpr}"
-
-  -- 1. Reify the function
-  let ast := (← getAstFromFuncWithReport funcExpr).expr
-  trace[LeanCert.discovery] "Reified AST: {ast}"
-
-  -- 2. Build the box from all variable intervals
-  let mut boxVals : Array IntervalRat := #[]
-  for v in vars do
-    let intervalVal ← evalExpr IntervalRat (mkConst ``IntervalRat) v.intervalRat
-    boxVals := boxVals.push intervalVal
-    trace[LeanCert.discovery] "Variable {v.varName}: [{intervalVal.lo}, {intervalVal.hi}]"
-
-  let boxVal : Box := boxVals.toList
-
-  -- 3. Prepare config
-  let cfg : GuidedOptConfig := {
-    maxIterations := 2000,
-    tolerance := 1/1000,
-    taylorDepth := taylorDepth,
-    useMonotonicity := true,
-    heuristicSamples := 300,
-    seed := 12345,
-    useGridSearch := true,
-    gridPointsPerDim := 5
-  }
-
-  -- 4. Run float-guided optimization
-  trace[LeanCert.discovery] "Running multivariate float-guided optimization..."
-  let astVal ← evalExpr LExpr (mkConst ``LeanCert.Core.Expr) ast
-  let result := globalMaximizeGuided astVal boxVal cfg
-  let boundVal := result.bound.hi
-
-  trace[LeanCert.discovery] "Optimization complete: {result.bound.iterations} iterations"
-  trace[LeanCert.discovery] "Found maximum bound: {boundVal}"
-  trace[LeanCert.discovery] "Gap: [{result.bound.lo}, {result.bound.hi}]"
-
-  -- Check convergence
-  let gap := result.bound.hi - result.bound.lo
-  if gap > cfg.tolerance then
-    logWarning m!"⚠️ Optimization gap [{result.bound.lo}, {result.bound.hi}] exceeds tolerance {cfg.tolerance}.\n\
-                  Consider increasing maxIterations or taylorDepth."
-
-  -- 5. Provide witness
-  -- Note: Coerce to ℝ since Expr.eval returns ℝ
-  let boundRatExpr := toExpr boundVal
-  let boundTerm ←
-    match (← whnf varType) with
-    | ty =>
-      if ty.isConstOf ``Rat then
-        pure boundRatExpr
-      else if ty.isConstOf ``Real then
-        mkAppOptM ``Rat.cast #[mkConst ``Real, none, boundRatExpr]
-      else
-        throwError "interval_maximize_mv: Unsupported bound type. Use ℚ or ℝ."
-  let boundSyntax ← Term.exprToSyntax boundTerm
-  trace[LeanCert.discovery] "Providing witness: M = {boundVal}"
-  evalTactic (← `(tactic| refine ⟨$boundSyntax, ?_⟩))
-
-  -- 6. Prove the multivariate bound
-  trace[LeanCert.discovery] "Proving multivariate universal bound with certify_bound..."
-  LeanCert.Tactic.Auto.multivariateBoundCore cfg.maxIterations cfg.tolerance cfg.useMonotonicity taylorDepth
-  trace[LeanCert.discovery] "✓ Proof complete"
-
-/-- Compatibility entry point preserving the dedicated tactic's throwing API. -/
-unsafe def intervalMaximizeMvCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← intervalMaximizeMvCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwDiscoveryFailure "interval_maximize_mv" failure
+    match ← intervalMinimizeMvCoreTyped depth with
+    | .ok _ => pure ()
+    | .error failure => throwDiscoveryFailure "interval_minimize_mv" failure
 
 /-- The interval_maximize_mv tactic.
 
@@ -1735,7 +1559,9 @@ unsafe def elabIntervalMaximizeMv : Tactic := fun stx => do
     | some n => n.toNat
     | none => 10
   withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
-    intervalMaximizeMvCore depth
+    match ← intervalMaximizeMvCoreTyped depth with
+    | .ok _ => pure ()
+    | .error failure => throwDiscoveryFailure "interval_maximize_mv" failure
 
 /-! ## Roots Tactic -/
 
@@ -1984,18 +1810,6 @@ def intervalRootsCoreTyped (taylorDepth : Nat) :
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Reporting compatibility entry point preserving the historical throwing API. -/
-def intervalRootsCoreReported (taylorDepth : Nat) : TacticM RootDiscoveryOutcome := do
-  match ← intervalRootsCoreTyped taylorDepth with
-  | .ok outcome => return outcome
-  | .error failure => throwRootDiscoveryFailure "interval_roots" failure
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-def intervalRootsCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← intervalRootsCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwRootDiscoveryFailure "interval_roots" failure
-
 /-- The interval_roots tactic.
 
 Proves goals of the form `∃ x ∈ I, f(x) = 0` by:
@@ -2024,7 +1838,9 @@ elab "interval_roots" depth:(num)? t:(leancertTrustItem)? : tactic => do
     | some n => n.getNat
     | none => 10
   withTrustMode (← elabTrustItem? t) do
-    intervalRootsCore taylorDepth
+    match ← intervalRootsCoreTyped taylorDepth with
+    | .ok _ => pure ()
+    | .error failure => throwRootDiscoveryFailure "interval_roots" failure
 
 /-! ## Unique Root Tactic -/
 
@@ -2229,19 +2045,6 @@ unsafe def intervalUniqueRootCoreTyped (taylorDepth : Nat) :
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Reporting compatibility entry point preserving the historical throwing API. -/
-unsafe def intervalUniqueRootCoreReported (taylorDepth : Nat) :
-    TacticM RootDiscoveryOutcome := do
-  match ← intervalUniqueRootCoreTyped taylorDepth with
-  | .ok outcome => return outcome
-  | .error failure => throwRootDiscoveryFailure "interval_unique_root" failure
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-unsafe def intervalUniqueRootCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← intervalUniqueRootCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwRootDiscoveryFailure "interval_unique_root" failure
-
 /-- The interval_unique_root tactic.
 
 Proves goals of the form `∃! x ∈ I, f(x) = 0` by:
@@ -2268,7 +2071,9 @@ unsafe def elabIntervalUniqueRoot : Tactic := fun stx => do
     | some n => n.toNat
     | none => 10
   withTrustMode (← elabTrustItem? (stx[2].getOptional?.map (⟨·⟩))) do
-    intervalUniqueRootCore taylorDepth
+    match ← intervalUniqueRootCoreTyped taylorDepth with
+    | .ok _ => pure ()
+    | .error failure => throwRootDiscoveryFailure "interval_unique_root" failure
 
 /-! ## Discover Tactic -/
 
@@ -2288,8 +2093,14 @@ unsafe def elabDiscover : Tactic := fun stx => do
 
   if let some goalKind ← parseExistentialGoal goalType then
     match goalKind with
-    | .minimize .. => intervalMinimizeCore depth
-    | .maximize .. => intervalMaximizeCore depth
+    | .minimize .. =>
+        match ← intervalMinimizeCoreTyped depth with
+        | .ok _ => pure ()
+        | .error failure => throwDiscoveryFailure "discover" failure
+    | .maximize .. =>
+        match ← intervalMaximizeCoreTyped depth with
+        | .ok _ => pure ()
+        | .error failure => throwDiscoveryFailure "discover" failure
   else
     throwError "discover: Goal not recognized. Supported forms:\n\
                 - ∃ m, ∀ x ∈ I, f(x) ≥ m\n\

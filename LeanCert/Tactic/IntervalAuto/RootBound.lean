@@ -196,18 +196,6 @@ def rootBoundCoreTyped (taylorDepth : Nat) :
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Reporting compatibility entry point preserving the historical throwing API. -/
-def rootBoundCoreReported (taylorDepth : Nat) : TacticM RootBoundOutcome := do
-  match ← rootBoundCoreTyped taylorDepth with
-  | .ok outcome => return outcome
-  | .error failure => throwRootBoundFailure failure
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-def rootBoundCore (taylorDepth : Nat) : TacticM Unit := do
-  match ← rootBoundCoreTyped taylorDepth with
-  | .ok _ => pure ()
-  | .error failure => throwRootBoundFailure failure
-
 /-- The root_bound tactic.
 
     Automatically proves root-related properties using interval arithmetic.
@@ -224,6 +212,8 @@ elab "root_bound" depth:(num)? t:(leancertTrustItem)? : tactic => do
     let taylorDepth := match depth with
       | some n => n.getNat
       | none => 10
-    rootBoundCore taylorDepth
+    match ← rootBoundCoreTyped taylorDepth with
+    | .ok _ => pure ()
+    | .error failure => throwRootBoundFailure failure
 
 end LeanCert.Tactic.Auto

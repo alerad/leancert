@@ -50,7 +50,7 @@ inductive PointInequalityFailure where
 def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
     (taylorDepth : Nat) :
     TacticM (Except PointInequalityFailure PointInequalityOutcome) := do
-  trace[interval_decide] "proveClosedExpressionBound: Starting with goal {goalType}"
+  trace[interval_decide] "typed point bound: starting with goal {goalType}"
   goal.withContext do
     -- Parse the inequality
     let some (lhs, rhs, isStrict, isReversedOrig) ← parsePointIneq goalType
@@ -454,27 +454,20 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
     return .error <| .transportFailure
       "certified Rational proof did not close the original point inequality"
 
-/-- Reporting-aware compatibility entry point. Expected typed failures retain
-the historical exception behavior for direct tactic callers. -/
-def proveClosedExpressionBoundReported (goal : MVarId) (goalType : Lean.Expr)
-    (taylorDepth : Nat) : TacticM PointInequalityOutcome := do
-  match ← proveClosedExpressionBoundTyped goal goalType taylorDepth with
-  | .ok outcome => return outcome
-  | .error (.unsupported expression detail) =>
-      throwError "proveClosedExpressionBound: unsupported expression {expression}:\n{detail}"
-  | .error (.rejected detail) =>
-      throwError "proveClosedExpressionBound: certificate rejected:\n{detail}"
-  | .error (.inconclusive detail) =>
-      throwError "proveClosedExpressionBound: inconclusive:\n{detail}"
-  | .error (.transportFailure detail) =>
-      throwError "proveClosedExpressionBound: proof transport failed:\n{detail}"
-  | .error (.internalFailure detail) =>
-      throwError "proveClosedExpressionBound: certificate verification failed:\n{detail}"
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-def proveClosedExpressionBound (goal : MVarId) (goalType : Lean.Expr)
+private def proveClosedExpressionBoundOrThrow (goal : MVarId) (goalType : Lean.Expr)
     (taylorDepth : Nat) : TacticM Unit := do
-  discard <| proveClosedExpressionBoundReported goal goalType taylorDepth
+  match ← proveClosedExpressionBoundTyped goal goalType taylorDepth with
+  | .ok _ => pure ()
+  | .error (.unsupported expression detail) =>
+      throwError "interval_decide: unsupported expression {expression}:\n{detail}"
+  | .error (.rejected detail) =>
+      throwError "interval_decide: certificate rejected:\n{detail}"
+  | .error (.inconclusive detail) =>
+      throwError "interval_decide: inconclusive:\n{detail}"
+  | .error (.transportFailure detail) =>
+      throwError "interval_decide: proof transport failed:\n{detail}"
+  | .error (.internalFailure detail) =>
+      throwError "interval_decide: certificate verification failed:\n{detail}"
 
 /-- The interval_decide tactic implementation. -/
 def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
@@ -521,7 +514,7 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
     if !hasFreeVars then
       trace[interval_decide] "No free variables, trying closed expression path"
       try
-        proveClosedExpressionBound goal goalType taylorDepth
+        proveClosedExpressionBoundOrThrow goal goalType taylorDepth
         return
       catch e =>
         trace[interval_decide] "Closed expression path on original goal failed: {e.toMessageData}"
@@ -540,7 +533,7 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
       catch _ => pure ()
 
       try
-        proveClosedExpressionBound currentGoal currentGoalType taylorDepth
+        proveClosedExpressionBoundOrThrow currentGoal currentGoalType taylorDepth
         return
       catch _ => pure ()
 

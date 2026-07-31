@@ -372,16 +372,6 @@ partial def integralExactCoreTyped : TacticM (Except IntegralFailure (Array Inte
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Throwing compatibility wrapper for the historical reported API. -/
-partial def integralExactCoreReported : TacticM (Array IntegralOutcome) := do
-  match ← integralExactCoreTyped with
-  | .ok outcomes => return outcomes
-  | .error failure => throwError "integral_exact: {repr failure}"
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-partial def integralExactCore : TacticM Unit := do
-  discard <| integralExactCoreReported
-
 /-- Checked partition-search strategy used by the semantic router. -/
 partial def integralSearchCoreTyped (startN maxN : Nat) :
     TacticM (Except IntegralFailure (Array IntegralOutcome)) := do
@@ -416,20 +406,12 @@ partial def integralSearchCoreTyped (startN maxN : Nat) :
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Throwing compatibility wrapper for the historical reported API. -/
-partial def integralSearchCoreReported (startN maxN : Nat) :
-    TacticM (Array IntegralOutcome) := do
-  match ← integralSearchCoreTyped startN maxN with
-  | .ok outcomes => return outcomes
-  | .error failure => throwError "integral_search: {repr failure}"
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-partial def integralSearchCore (startN maxN : Nat) : TacticM Unit := do
-  discard <| integralSearchCoreReported startN maxN
-
 syntax (name := integralExactTac) "integral_exact" : tactic
 
 @[tactic integralExactTac]
-unsafe def elabIntegralExact : Tactic := fun _ => integralExactCore
+unsafe def elabIntegralExact : Tactic := fun _ => do
+  match ← integralExactCoreTyped with
+  | .ok _ => pure ()
+  | .error failure => throwError "integral_exact: {repr failure}"
 
 end LeanCert.Tactic

@@ -11,7 +11,7 @@ import LeanCert.Tactic.Verification
 
 Common pattern for `finsum_bound`, `finsum_witness`, and `finmatrix_bound`:
 apply a bridge proof term, close the Bool/ℚ check via the verification
-choke point (`closeCertificateGoal`, honoring `leancert.trust`), and handle
+boundary (`closeCertificateGoalTyped`, honoring `leancert.trust`), and handle
 the case where the bridge's type isn't defEq to the goal via a
 suffices + converter fallback.
 -/
@@ -26,14 +26,6 @@ inductive BridgeFailure where
   | verificationFailure (detail : String)
   | transportFailure (detail : String)
   deriving Inhabited, Repr
-
-private def throwBridgeFailure (tacticName : String) : BridgeFailure → TacticM α
-  | .rejected =>
-      throwError "{tacticName}: the bridge certificate was rejected"
-  | .verificationFailure detail =>
-      throwError "{tacticName}: certificate verification failed:\n{detail}"
-  | .transportFailure detail =>
-      throwError "{tacticName}: could not transport the checked bridge theorem:\n{detail}"
 
 /-- Apply a bridge proof and close its certificate through the configured
 verification route.
@@ -132,26 +124,5 @@ def closeBridgeWithVerificationTyped
   catch e =>
     original.restore
     return .error <| .transportFailure (← e.toMessageData.toString)
-
-/-- Reporting compatibility wrapper preserving the historical throwing API. -/
-def closeBridgeWithVerificationReported
-    (goal : MVarId) (goalType : Lean.Expr)
-    (proof checkMVar : Lean.Expr)
-    (tacticName : String)
-    (converterSteps : Array (TacticM Unit))
-    : TacticM VerificationEvent := do
-  match ← closeBridgeWithVerificationTyped goal goalType proof checkMVar
-      tacticName converterSteps with
-  | .ok event => return event
-  | .error failure => throwBridgeFailure tacticName failure
-
-/-- Compatibility wrapper retaining the historical API name and result type. -/
-def closeBridgeWithNativeDecide
-    (goal : MVarId) (goalType : Lean.Expr)
-    (proof checkMVar : Lean.Expr)
-    (tacticName : String)
-    (converterSteps : Array (TacticM Unit)) : TacticM Unit := do
-  discard <| closeBridgeWithVerificationReported goal goalType proof checkMVar
-    tacticName converterSteps
 
 end LeanCert.Tactic

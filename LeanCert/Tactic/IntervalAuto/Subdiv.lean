@@ -406,20 +406,6 @@ unsafe def intervalBoundSubdivCoreTyped
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Reporting compatibility wrapper preserving the historical throwing API. -/
-unsafe def intervalBoundSubdivWithDepthReported
-    (depth : Option Nat) (maxSubdiv : Nat) : TacticM SubdivisionOutcome := do
-  match ← intervalBoundSubdivCoreTyped depth maxSubdiv with
-  | .ok outcome => return outcome
-  | .error failure => throwSubdivisionFailure failure
-
-/-- Compatibility core retaining the historical `TacticM Unit` shape. -/
-unsafe def intervalBoundSubdivWithDepth (depth : Option Nat) (maxSubdiv : Nat) :
-    TacticM Unit := do
-  match ← intervalBoundSubdivCoreTyped depth maxSubdiv with
-  | .ok _ => pure ()
-  | .error failure => throwSubdivisionFailure failure
-
 /-- The interval_bound_subdiv tactic. -/
 syntax (name := intervalBoundSubdivTac) "interval_bound_subdiv" (num)? (num)?
   (leancertTrustItem)? : tactic
@@ -435,6 +421,8 @@ unsafe def elabIntervalBoundSubdiv : Tactic := fun stx => do
       | some n => n.toNat
       | none => 3
     let depth := depthSyntax.map (·.toNat)
-    intervalBoundSubdivWithDepth depth maxSubdiv
+    match ← intervalBoundSubdivCoreTyped depth maxSubdiv with
+    | .ok _ => pure ()
+    | .error failure => throwSubdivisionFailure failure
 
 end LeanCert.Tactic.Auto

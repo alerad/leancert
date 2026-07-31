@@ -44,10 +44,13 @@ imports retained for downstream users.
 
 ## Tactic changes
 
-The semantic router should return proof-bearing results and structured
-execution metadata. Strategy, numerical backend, and verification route are
-separate concepts. Failed speculative attempts must not leak proof state or
-telemetry. Prefer typed identifiers over matching user-facing display text.
+Every semantic-router extension returns
+`Except AttemptFailure SolverExecution`. Expected unsupported inputs,
+rejections, domain obstructions, and exhausted searches must not use
+exceptions. Strategy, numerical backend, and verification route are separate
+concepts. Failed speculative attempts must restore the complete tactic state
+and must not leak proof assignments or telemetry. Prefer typed identifiers over
+matching user-facing display text.
 
 Changes to a router path should normally include:
 

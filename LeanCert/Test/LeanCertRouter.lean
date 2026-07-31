@@ -29,6 +29,7 @@ private def checkerIntervalNeg11 : LeanCert.Core.IntervalRat := ⟨-1, 1, by nor
 private def adapterTestPlan : SolverPlan := {
   intent := .pointInequality
   solver := `typedAdapterTest
+  strategyId := .pointEnclosure
   strategy := "typed adapter preservation test"
   cost := 0
   backendPolicy := .notApplicable
@@ -48,9 +49,7 @@ private def expectTypedAdapterFailure : TacticM Unit := do
     | .error failure => throwError "test goal did not prepare: {failure.detail}"
   let spec : SolverSpec := {
     report := adapterTestPlan
-    solve := throwError "legacy Unit adapter ran"
-    solveReported := some (throwError "legacy reported adapter ran")
-    solveReportedResult := some <| pure <|
+    solve := pure <|
       .error (.routerFailure (.internalError "typed result survived semantic transport"))
   }
   match ← spec.toSemanticSolver.attempt prepared {} with

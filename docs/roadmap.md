@@ -5,18 +5,6 @@ LeanCert's current public claims are documented in the
 [verification-status table](architecture/verification-status.md). The items
 below are convergence work, not features claimed as complete.
 
-## Direct typed semantic solvers
-
-**Current state:** the semantic router has structured plans, reports, and
-execution metadata, while several historical tactics still enter through
-compatibility adapters.
-
-**Milestone:** migrate the remaining point, monolithic bound-fallback, and
-extrema paths to direct typed outcomes without changing public tactic syntax.
-
-**Evidence:** structural protocol tests show that failed attempts cannot leak
-proof state or telemetry, and reports identify observed execution only.
-
 ## Checked-backend capability parity
 
 **Current state:** Rational, Dyadic, and Affine backends deliberately have

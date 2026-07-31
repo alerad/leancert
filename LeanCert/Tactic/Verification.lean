@@ -542,33 +542,17 @@ def VerificationFailure.message (tacticName : String) :
   | .internalError detail =>
       s!"{tacticName}: internal certificate verification error:\n{detail}"
 
-/-- Throwing compatibility wrapper for callers that have not yet migrated to
-the typed verification protocol. New reporting-aware callers should use
-`closeCertificateGoalTyped`. -/
-def closeCertificateGoalReported (cfg : VerificationConfig) (certGoal : MVarId)
-    (tacticName : String := "leancert") : TacticM VerificationEvent := do
-  match ← closeCertificateGoalTyped cfg certGoal tacticName with
-  | .accepted event => return event
-  | .rejected =>
-      throwError "{tacticName}: certificate checker evaluated to false"
-  | .failed failure =>
-      throwError (failure.message tacticName)
-
-/-- Compatibility wrapper returning only the route that closed the
-certificate. New reporting-aware callers should use
-`closeCertificateGoalReported`. -/
-def closeCertificateGoal (cfg : VerificationConfig) (certGoal : MVarId)
-    (tacticName : String := "leancert") : TacticM VerificationUsed := do
-  return (← closeCertificateGoalReported cfg certGoal tacticName).used
-
 /-- Close the current goal as a LeanCert certificate check according to the
 configured verification route (`leancert.trust`, or a `(trust := …)` override
 active via `withTrustMode`). For tactic implementations that embed certificate
 obligations inside quoted proof terms — `(by leancert_verify_cert)` — where
-`closeCertificateGoal` cannot be called directly. Not intended for end users. -/
+the typed boundary cannot be called directly. Not intended for end users. -/
 elab "leancert_verify_cert" : tactic => do
-  discard <| closeCertificateGoal (← VerificationConfig.current) (← getMainGoal)
-    (tacticName := "leancert")
+  match ← closeCertificateGoalTyped (← VerificationConfig.current) (← getMainGoal)
+      (tacticName := "leancert") with
+  | .accepted _ => pure ()
+  | .rejected => throwError "leancert: certificate checker evaluated to false"
+  | .failed failure => throwError (failure.message "leancert")
 
 /-! ## Public per-invocation syntax: `(trust := kernel|native|auto)`
 
