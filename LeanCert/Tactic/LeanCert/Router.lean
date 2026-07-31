@@ -34,22 +34,11 @@ open LeanCert.Engine.Search
 
 initialize registerTraceClass `LeanCert.router
 
-/-- Transitional description of one router strategy. Exposed so the adapter
-contract can be regression-tested; it is not part of the stable tactic API. -/
+/-- Description of one typed router strategy. Exposed so the protocol contract
+can be regression-tested; it is not part of the stable tactic API. -/
 structure SolverSpec where
   report : SolverPlan
-  solve : TacticM Unit
-  /-- Migrated cores can return execution facts. Legacy cores leave this empty
-  and are reported as policy/unknown rather than fabricating telemetry. -/
-  solveReported : Option (TacticM SolverExecution) := none
-  /-- Recursive routes can return a typed public failure without converting it
-  into an implementation exception inside speculative execution. -/
-  solveReportedResult :
-    Option (TacticM (Except AttemptFailure SolverExecution)) := none
-  /-- Existing engine adapters still signal ordinary numerical rejection by
-  throwing. They remain explicitly quarantined behind the compatibility
-  exception policy until their PR2 migration returns typed outcomes directly. -/
-  legacyExceptionAdapter : Bool := false
+  solve : TacticM (Except AttemptFailure SolverExecution)
   cost : Nat := 1
   /-- Comparisons accepted by this solver. `none` means the solver accepts the
   full comparison language for its intent. -/
@@ -80,7 +69,7 @@ private def report (intent : GoalIntent) (strategy : String)
     (backendPolicy : BackendPolicy := .unknown)
     (dedicatedProof : Option ProofSuggestion := none)
     (strategyDetail : Option String := none)
-    (strategyId : StrategyId := .legacy) : SolverPlan :=
+    (strategyId : StrategyId) : SolverPlan :=
   let dedicatedProof := dedicatedProof.map fun proof =>
     if proof.tactic == "norm_num" || proof.tactic == "integral_exact" then proof
     else {
@@ -99,14 +88,6 @@ private def report (intent : GoalIntent) (strategy : String)
     backendPolicy
     verificationRequested := mode
   }
-
-private def numSyntax (n : Nat) : TSyntax `num :=
-  ⟨Syntax.mkNumLit (toString n)⟩
-
-private def subdivisionAttempt (cfg : LeanCertConfig) : TacticM Unit := do
-  let depth := numSyntax cfg.taylorDepth
-  let subdivisions := numSyntax cfg.subdivisions
-  evalTactic (← `(tactic| interval_bound_subdiv $depth:num $subdivisions:num))
 
 private def subdivisionExecution
     (outcome : Auto.SubdivisionOutcome) : SolverExecution := {
@@ -154,10 +135,6 @@ private unsafe def subdivisionAttemptTyped (cfg : LeanCertConfig) :
       (some cfg.taylorDepth) cfg.subdivisions with
   | .ok outcome => return .ok (subdivisionExecution outcome)
   | .error failure => return .error (subdivisionFailure failure)
-
-private def pointAttempt (depth : Nat) : TacticM Unit := do
-  let depth := numSyntax depth
-  evalTactic (← `(tactic| interval_auto $depth:num))
 
 private def pointExecution (outcome : Auto.PointInequalityOutcome) :
     SolverExecution := Id.run do
@@ -636,6 +613,35 @@ private unsafe def multivariateAttemptTyped (maxIterations : Nat)
       return .error <| .internalError
         `LeanCert.Tactic.Auto.multivariate_bound detail
 
+/-- Run an exact, non-certificate tactic through the typed solver boundary.
+
+Ordinary tactical inability is represented by retained proof obligations and
+classified as inconclusive by `proveWithTypedSolver`. Unexpected exceptions
+must escape this helper so the same boundary classifies them as terminal
+internal errors. -/
+def exactTacticAttemptTyped (tactic : TacticM Unit) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  tactic
+  return .ok {}
+
+private def certificateCheckAttemptTyped :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  let cfg ← LeanCert.Tactic.VerificationConfig.current
+  let goal ← getMainGoal
+  match ← LeanCert.Tactic.closeCertificateGoalTyped cfg goal
+      (tacticName := "leancert") with
+  | .accepted event =>
+      return .ok {
+        verificationUsage := Solver.VerificationUsage.ofEvents event.toUsage
+      }
+  | .rejected =>
+      return .error <| .rejected {
+        detail := "The closed Boolean certificate evaluated to false."
+      }
+  | .failed failure =>
+      return .error <| .internalError `LeanCert.Tactic.leancert
+        (failure.message "leancert")
+
 /-- The deterministic strategy portfolio for a recognized goal intent. -/
 private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
     (mode : VerificationMode) : Array SolverSpec :=
@@ -646,36 +652,36 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
   | .pointInequality => #[
       { report := report intent "exact normalization" cfg mode .notApplicable
           (some (suggestion "norm_num")) (strategyId := .exactNormalization),
-        solve := do evalTactic (← `(tactic| norm_num)) },
+        solve := exactTacticAttemptTyped
+          (do evalTactic (← `(tactic| norm_num))) },
       { report := report intent s!"direct point enclosure (Taylor depth {d})" cfg mode
           (.policy "checked interval tactic portfolio")
-          (some (suggestion "interval_auto" #[toString d])),
-        solve := pointAttempt d
-        solveReportedResult := some (pointAttemptTyped d) },
+          (some (suggestion "interval_auto" #[toString d]))
+          (strategyId := .pointEnclosure),
+        solve := pointAttemptTyped d },
       { report := report intent s!"direct point enclosure (Taylor depth {d2})" cfg mode
           (.policy "checked interval tactic portfolio")
-          (some (suggestion "interval_auto" #[toString d2])),
-        solve := pointAttempt d2
-        solveReportedResult := some (pointAttemptTyped d2) }]
+          (some (suggestion "interval_auto" #[toString d2]))
+          (strategyId := .pointEnclosure),
+        solve := pointAttemptTyped d2 }]
   | .intervalBound => #[
       { report := report intent s!"direct interval enclosure (Taylor depth {d})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
-          (some (suggestion "certify_bound" #[toString d])),
-        solve := Auto.intervalBoundCore d
-        solveReportedResult := some (directBoundAttemptTyped d) },
+          (some (suggestion "certify_bound" #[toString d]))
+          (strategyId := .intervalEnclosure),
+        solve := directBoundAttemptTyped d },
       { report := report intent s!"direct interval enclosure (Taylor depth {d2})" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
-          (some (suggestion "certify_bound" #[toString d2])),
-        solve := Auto.intervalBoundCore d2
-        solveReportedResult := some (directBoundAttemptTyped d2) },
+          (some (suggestion "certify_bound" #[toString d2]))
+          (strategyId := .intervalEnclosure),
+        solve := directBoundAttemptTyped d2 },
       { report := report intent "recursive interval subdivision" cfg mode
           (.fixed .rationalInterval)
           (some (suggestion "interval_bound_subdiv"
             #[toString d, toString cfg.subdivisions]))
           (some s!"Taylor depth {d}; maximum recursive depth {cfg.subdivisions}")
           .subdivision,
-        solve := subdivisionAttempt cfg
-        solveReportedResult := some (subdivisionAttemptTyped cfg) },
+        solve := subdivisionAttemptTyped cfg },
       { report := report intent
           (if cfg.useMonotonicity then s!"opt_bound {cfg.maxIterations} mono"
            else s!"opt_bound {cfg.maxIterations}") cfg mode
@@ -686,9 +692,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
                else #[toString cfg.maxIterations]))
            else none)
           (strategyId := .globalOptimization),
-        solve := Auto.optBoundCore cfg.maxIterations cfg.useMonotonicity d
-        solveReportedResult := some
-          (optimizationAttemptTyped cfg.maxIterations cfg.useMonotonicity d)
+        solve := optimizationAttemptTyped cfg.maxIterations cfg.useMonotonicity d
         cost := 3 }]
   | .multivariateBound => #[
       { report := report intent s!"multivariate_bound {cfg.maxIterations}"
@@ -696,167 +700,146 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (if !cfg.useMonotonicity && d == 10 then
             some (suggestion "multivariate_bound" #[toString cfg.maxIterations])
            else none)
-          (strategyId := .globalOptimization),
-        solve := Auto.multivariateBoundCore cfg.maxIterations (1 / 1000)
+          (strategyId := .multivariateOptimization),
+        solve := multivariateAttemptTyped cfg.maxIterations (1 / 1000)
           cfg.useMonotonicity d
-        solveReportedResult := some <|
-          multivariateAttemptTyped cfg.maxIterations (1 / 1000)
-            cfg.useMonotonicity d
         cost := 3 },
       { report := report intent s!"multivariate_bound {2 * cfg.maxIterations}"
           cfg mode (.policy "checked global-optimization certificate")
-          none (strategyId := .globalOptimization),
-        solve := Auto.multivariateBoundCore (2 * cfg.maxIterations) (1 / 10000)
+          none (strategyId := .multivariateOptimization),
+        solve := multivariateAttemptTyped (2 * cfg.maxIterations) (1 / 10000)
           cfg.useMonotonicity d2
-        solveReportedResult := some <|
-          multivariateAttemptTyped (2 * cfg.maxIterations) (1 / 10000)
-            cfg.useMonotonicity d2
         cost := 4 }]
   | .rootExists => #[
       { report := report intent "endpoint sign-change certificate" cfg mode
           (.policy "checked root certificate arithmetic")
-          (some (suggestion "interval_roots" #[toString d])),
-        solve := intervalRootsCore d
-        solveReportedResult := some (rootExistsAttemptTyped d) },
+          (some (suggestion "interval_roots" #[toString d]))
+          (strategyId := .rootExistence),
+        solve := rootExistsAttemptTyped d },
       { report := report intent "endpoint sign-change certificate" cfg mode
           (.policy "checked root certificate arithmetic")
-          (some (suggestion "interval_roots" #[toString d2])),
-        solve := intervalRootsCore d2
-        solveReportedResult := some (rootExistsAttemptTyped d2) },
+          (some (suggestion "interval_roots" #[toString d2]))
+          (strategyId := .rootExistence),
+        solve := rootExistsAttemptTyped d2 },
       { report := report intent "endpoint sign-change certificate" cfg mode
           (.policy "checked root certificate arithmetic")
-          (some (suggestion "interval_roots" #[toString d3])),
-        solve := intervalRootsCore d3
-        solveReportedResult := some (rootExistsAttemptTyped d3) }]
+          (some (suggestion "interval_roots" #[toString d3]))
+          (strategyId := .rootExistence),
+        solve := rootExistsAttemptTyped d3 }]
   | .uniqueRoot => #[
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
-          (some (suggestion "interval_unique_root" #[toString d])),
-        solve := intervalUniqueRootCore d
-        solveReportedResult := some (uniqueRootAttemptTyped d) },
+          (some (suggestion "interval_unique_root" #[toString d]))
+          (strategyId := .rootUniqueness),
+        solve := uniqueRootAttemptTyped d },
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
-          (some (suggestion "interval_unique_root" #[toString d2])),
-        solve := intervalUniqueRootCore d2
-        solveReportedResult := some (uniqueRootAttemptTyped d2) },
+          (some (suggestion "interval_unique_root" #[toString d2]))
+          (strategyId := .rootUniqueness),
+        solve := uniqueRootAttemptTyped d2 },
       { report := report intent "interval Newton contraction" cfg mode
           (.policy "checked Newton certificate arithmetic")
-          (some (suggestion "interval_unique_root" #[toString d3])),
-        solve := intervalUniqueRootCore d3
-        solveReportedResult := some (uniqueRootAttemptTyped d3) }]
+          (some (suggestion "interval_unique_root" #[toString d3]))
+          (strategyId := .rootUniqueness),
+        solve := uniqueRootAttemptTyped d3 }]
   | .noRoot => #[
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
-          (some (suggestion "root_bound" #[toString d])),
-        solve := Auto.rootBoundCore d
-        solveReportedResult := some (noRootAttemptTyped d) },
+          (some (suggestion "root_bound" #[toString d]))
+          (strategyId := .rootExclusion),
+        solve := noRootAttemptTyped d },
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
-          (some (suggestion "root_bound" #[toString d2])),
-        solve := Auto.rootBoundCore d2
-        solveReportedResult := some (noRootAttemptTyped d2) },
+          (some (suggestion "root_bound" #[toString d2]))
+          (strategyId := .rootExclusion),
+        solve := noRootAttemptTyped d2 },
       { report := report intent "zero-exclusion enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
-          (some (suggestion "root_bound" #[toString d3])),
-        solve := Auto.rootBoundCore d3
-        solveReportedResult := some (noRootAttemptTyped d3) }]
+          (some (suggestion "root_bound" #[toString d3]))
+          (strategyId := .rootExclusion),
+        solve := noRootAttemptTyped d3 }]
   | .existentialMinimum => #[
       { report := report intent "guided lower-bound discovery and certification" cfg mode
           (.policy "guided optimization followed by checked interval certification")
           (some (suggestion "interval_minimize" #[toString d]))
-        solve := intervalMinimizeCore d
-        solveReportedResult := some (minimizeAttemptTyped d) },
+          (strategyId := .globalOptimization)
+        solve := minimizeAttemptTyped d },
       { report := report intent "multivariate lower-bound discovery and certification" cfg mode
           (.policy "guided Rational optimization followed by checked multivariate certification")
           (some (suggestion "interval_minimize_mv" #[toString d]))
-        solve := intervalMinimizeMvCore d
-        solveReportedResult := some (minimizeMvAttemptTyped d) },
+          (strategyId := .multivariateOptimization)
+        solve := minimizeMvAttemptTyped d },
       { report := report intent "guided lower-bound discovery and certification" cfg mode
           (.policy "guided optimization followed by checked interval certification")
           (some (suggestion "interval_minimize" #[toString d2]))
-        solve := intervalMinimizeCore d2
-        solveReportedResult := some (minimizeAttemptTyped d2) }]
+          (strategyId := .globalOptimization)
+        solve := minimizeAttemptTyped d2 }]
   | .existentialMaximum => #[
       { report := report intent "guided upper-bound discovery and certification" cfg mode
           (.policy "guided optimization followed by checked interval certification")
           (some (suggestion "interval_maximize" #[toString d]))
-        solve := intervalMaximizeCore d
-        solveReportedResult := some (maximizeAttemptTyped d) },
+          (strategyId := .globalOptimization)
+        solve := maximizeAttemptTyped d },
       { report := report intent "multivariate upper-bound discovery and certification" cfg mode
           (.policy "guided Rational optimization followed by checked multivariate certification")
           (some (suggestion "interval_maximize_mv" #[toString d]))
-        solve := intervalMaximizeMvCore d
-        solveReportedResult := some (maximizeMvAttemptTyped d) },
+          (strategyId := .multivariateOptimization)
+        solve := maximizeMvAttemptTyped d },
       { report := report intent "guided upper-bound discovery and certification" cfg mode
           (.policy "guided optimization followed by checked interval certification")
           (some (suggestion "interval_maximize" #[toString d2]))
-        solve := intervalMaximizeCore d2
-        solveReportedResult := some (maximizeAttemptTyped d2) }]
+          (strategyId := .globalOptimization)
+        solve := maximizeAttemptTyped d2 }]
   | .argmin => #[
       { report := report intent "attained minimum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
           (some (suggestion "interval_argmin" #[toString d]))
-        solve := intervalArgminCore d
-        solveReportedResult := some (argminAttemptTyped d) },
+          (strategyId := .attainedExtremum)
+        solve := argminAttemptTyped d },
       { report := report intent "attained minimum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
           (some (suggestion "interval_argmin" #[toString d2]))
-        solve := intervalArgminCore d2
-        solveReportedResult := some (argminAttemptTyped d2) }]
+          (strategyId := .attainedExtremum)
+        solve := argminAttemptTyped d2 }]
   | .argmax => #[
       { report := report intent "attained maximum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
           (some (suggestion "interval_argmax" #[toString d]))
-        solve := intervalArgmaxCore d
-        solveReportedResult := some (argmaxAttemptTyped d) },
+          (strategyId := .attainedExtremum)
+        solve := argmaxAttemptTyped d },
       { report := report intent "attained maximum certification" cfg mode
           (.policy "candidate search followed by checked bounds")
           (some (suggestion "interval_argmax" #[toString d2]))
-        solve := intervalArgmaxCore d2
-        solveReportedResult := some (argmaxAttemptTyped d2) }]
+          (strategyId := .attainedExtremum)
+        solve := argmaxAttemptTyped d2 }]
   | .finiteSum => #[
       { report := report intent "reflective finite-sum certificate" cfg mode
-          (.fixed .dyadicInterval) (some (suggestion "finsum_bound")),
-        solve := finSumBoundCore (-53) 10
-        solveReportedResult := some (finSumAttemptTyped (-53) 10) },
+          (.fixed .dyadicInterval) (some (suggestion "finsum_bound"))
+          (strategyId := .finiteSum),
+        solve := finSumAttemptTyped (-53) 10 },
       { report := report intent "reflective finite-sum certificate" cfg mode
-          (.fixed .dyadicInterval) (some (suggestion "finsum_bound" #["80"])),
-        solve := finSumBoundCore (-80) 10
-        solveReportedResult := some (finSumAttemptTyped (-80) 10) }]
+          (.fixed .dyadicInterval) (some (suggestion "finsum_bound" #["80"]))
+          (strategyId := .finiteSum),
+        solve := finSumAttemptTyped (-80) 10 }]
   | .certificateCheck => #[
       { report := report intent "closed Boolean certificate verification" cfg mode
-          .notApplicable,
-        solve := do
-          discard <| LeanCert.Tactic.closeCertificateGoal
-            (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-            (tacticName := "leancert"),
-        solveReported := some do
-          let event ← LeanCert.Tactic.closeCertificateGoalReported
-            (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-            (tacticName := "leancert")
-          return {
-            verificationUsage :=
-              Solver.VerificationUsage.ofEvents event.toUsage
-          }
+          .notApplicable (strategyId := .certificateCheck),
+        solve := certificateCheckAttemptTyped
         cost := 0 }]
   | .integralBound => #[
       { report := report intent "integral_exact" cfg mode (.fixed .exactRational)
           (some (suggestion "integral_exact")) (strategyId := .exactIntegral),
-        solve := integralExactCore
-        solveReportedResult := some integralExactAttemptTyped
+        solve := integralExactAttemptTyped
         cost := 0 },
       { report := report intent "integral_search 16 512" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
-        solve := integralSearchCore 16 512
-        solveReportedResult := some (integralSearchAttemptTyped 16 512) },
+        solve := integralSearchAttemptTyped 16 512 },
       { report := report intent "integral_search 16 4096" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
-        solve := integralSearchCore 16 4096
-        solveReportedResult := some (integralSearchAttemptTyped 16 4096) },
+        solve := integralSearchAttemptTyped 16 4096 },
       { report := report intent "integral_search 16 16384" cfg mode
           (.fixed .checkedRationalPartitions) (strategyId := .partitionIntegral),
-        solve := integralSearchCore 16 16384
-        solveReportedResult := some (integralSearchAttemptTyped 16 16384) }]
+        solve := integralSearchAttemptTyped 16 16384 }]
   | .conjunction => #[]
 
 private def Semantic.SemanticGoal.comparison? :
@@ -912,17 +895,8 @@ def enforceAttemptDisposition
 private def trySolver (spec : SolverSpec) : TacticM AttemptOutcome := do
   let goal ← getMainGoal
   let proposition ← goal.getType
-  match spec.solveReportedResult, spec.solveReported with
-  | some solve, _ =>
-      Solver.proveWithTacticReportedResult { spec.report with cost := spec.cost }
-        proposition solve
-        (if spec.legacyExceptionAdapter then .legacyInconclusive else .internalError)
-  | none, some solve =>
-      Solver.proveWithTacticReportedResult { spec.report with cost := spec.cost }
-        proposition (do return .ok (← solve))
-        (if spec.legacyExceptionAdapter then .legacyInconclusive else .internalError)
-  | none, none =>
-      Solver.proveWithTactic { spec.report with cost := spec.cost } proposition spec.solve
+  Solver.proveWithTypedSolver { spec.report with cost := spec.cost }
+    proposition spec.solve
 
 private partial def normalizedBoundProposition (spec : Semantic.BoundSpec) :
     MetaM Lean.Expr := do
@@ -973,18 +947,12 @@ private def canonicalExtremumProposition (spec : Semantic.ExtremumSpec) :
     let predicate ← mkAppM ``And #[xMembership, extremalBody]
     mkAppM ``Exists #[← mkLambdaFVars #[x] predicate]
 
-/-- Adapt a legacy numerical engine to the comparison normalized by the
+/-- Adapt a numerical engine to the comparison normalized by the
 semantic parser. The numerical engine sees `lhs - rhs ⋚ 0`; the resulting proof
 is transported back with the ordinary ordered-ring equivalence. -/
 private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) :
     TacticM AttemptOutcome := do
-  let runSpec : TacticM (Except AttemptFailure SolverExecution) :=
-    match spec.solveReportedResult, spec.solveReported with
-    | some solve, _ => solve
-    | none, some solve => do return .ok (← solve)
-    | none, none => do
-        spec.solve
-        return .ok {}
+  let runSpec := spec.solve
   let action ←
     match semantic with
     | .bound boundSpec =>
@@ -1022,17 +990,10 @@ private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) 
     | _ => pure runSpec
   let goal ← getMainGoal
   let proposition ← goal.getType
-  Solver.proveWithTacticReportedResult { spec.report with cost := spec.cost }
+  Solver.proveWithTypedSolver { spec.report with cost := spec.cost }
     proposition action
-    (if (spec.solveReportedResult.isNone && spec.solveReported.isNone) ||
-        spec.legacyExceptionAdapter then
-      .legacyInconclusive
-    else
-      .internalError)
 
-/-- Temporary adapter for the existing numerical engines. The production
-router speaks only the typed `SemanticSolver` protocol; individual engines can
-then migrate from this adapter to consuming prepared payloads directly. -/
+/-- Adapt a typed family solver to the semantic solver interface. -/
 def SolverSpec.toSemanticSolver (spec : SolverSpec) : SemanticSolver := {
   plan := { spec.report with cost := spec.cost }
   supports := spec.isApplicableTo
@@ -1189,7 +1150,8 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
   let normalizationSpec : SolverSpec := {
     report := normalizationReport
     cost := 0
-    solve := do evalTactic (← `(tactic| norm_num))
+    solve := exactTacticAttemptTyped
+      (do evalTactic (← `(tactic| norm_num)))
   }
   match ← trySolver normalizationSpec with
   | .proved artifact => return ← commitArtifact artifact
@@ -1213,14 +1175,9 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
   if let .allOf _ _ := semantic then
     let conjunctionSpec : SolverSpec := {
       report := report .conjunction "recursive semantic routing"
-        cfg verificationMode .notApplicable
+        cfg verificationMode .notApplicable (strategyId := .conjunction)
       cost := 0
       solve := do
-        evalTactic (← `(tactic| try simp only [forall_and]))
-        evalTactic (← `(tactic| constructor))
-        while !(← getGoals).isEmpty do
-          discard <| runLeanCert cfg verbosity
-      solveReportedResult := some do
         evalTactic (← `(tactic| try simp only [forall_and]))
         evalTactic (← `(tactic| constructor))
         let childGoals ← getGoals
@@ -1265,8 +1222,10 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
       let vacuitySpec : SolverSpec := {
         report := report .intervalBound "empty-domain normalization"
           cfg verificationMode .notApplicable
+          (strategyId := .exactNormalization)
         cost := 0
-        solve := do evalTactic (← `(tactic| simp [Set.mem_Icc]))
+        solve := exactTacticAttemptTyped
+          (do evalTactic (← `(tactic| simp [Set.mem_Icc])))
       }
       match ← trySolver vacuitySpec
       with
@@ -1361,23 +1320,28 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
           (if spec.kind == .exists then .rootExists else .uniqueRoot)
           "exact rational root candidate" cfg verificationMode
           (.fixed .exactRational)
+          (strategyId := if spec.kind == .exists then .rootExistence else .rootUniqueness)
         let exactSpec : SolverSpec := {
           report := exactReport
           cost := 0
-          solve := do
+          solve := exactTacticAttemptTyped do
             if spec.kind == .exists then
               evalTactic (← `(tactic|
-                refine ⟨$candidateSyntax, ?_, ?_⟩ <;>
-                  norm_num [Set.mem_Icc]))
+                first
+                | (refine ⟨$candidateSyntax, ?_, ?_⟩ <;>
+                    norm_num [Set.mem_Icc])
+                | skip))
             else
               evalTactic (← `(tactic|
-                refine ⟨$candidateSyntax,
-                  (by constructor <;> norm_num [Set.mem_Icc]), ?_⟩;
-                intro y hy;
-                rcases hy with ⟨hyMem, hyRoot⟩;
-                simp only [Set.mem_Icc] at hyMem;
-                norm_num at hyRoot ⊢;
-                nlinarith))
+                first
+                | (refine ⟨$candidateSyntax,
+                    (by constructor <;> norm_num [Set.mem_Icc]), ?_⟩;
+                   intro y hy;
+                   rcases hy with ⟨hyMem, hyRoot⟩;
+                   simp only [Set.mem_Icc] at hyMem;
+                   norm_num at hyRoot ⊢;
+                   nlinarith)
+                | skip))
         }
         match ← trySolver exactSpec with
         | .proved artifact => return ← commitArtifact artifact
@@ -1406,11 +1370,11 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
       let evtReport := report intent
         (if spec.kind == .minimum then "compact extreme-value theorem (minimum)"
          else "compact extreme-value theorem (maximum)")
-        cfg verificationMode .notApplicable
+        cfg verificationMode .notApplicable (strategyId := .attainedExtremum)
       let evtSpec : SolverSpec := {
         report := evtReport
         cost := 0
-        solve := do
+        solve := exactTacticAttemptTyped do
           evalTactic (← `(tactic|
             suffices hnormalized : $canonicalSyntax by
               simpa only [and_comm] using hnormalized))
@@ -1461,10 +1425,12 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
       let equalityReport := report .finiteSum "exact finite-sum expansion"
         cfg verificationMode (.fixed .exactRational)
         (some (suggestion "finsum_expand"))
+        (strategyId := .finiteSum)
       let equalitySpec : SolverSpec := {
         report := equalityReport
         cost := 0
-        solve := do evalTactic (← `(tactic| finsum_expand; norm_num))
+        solve := exactTacticAttemptTyped
+          (do evalTactic (← `(tactic| finsum_expand; norm_num)))
       }
       match ← trySolver equalitySpec with
       | .proved artifact => return ← commitArtifact artifact

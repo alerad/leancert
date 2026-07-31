@@ -865,7 +865,7 @@ The canonical extractor (in `Meta/Numeral.lean`) handles all arithmetic patterns
 `HAdd`, `HMul`, `HSub`, `Neg`, `OfScientific`, etc.), so it correctly parses
 `HDiv.hDiv (OfNat 9) (OfNat 500)` as `9/500 : ℚ`.
 
-## BridgeNative: shared bridge+native_decide infrastructure (Mar 2026)
+## BridgeNative: shared transactional bridge infrastructure (Mar 2026)
 
 ### Problem
 
@@ -873,23 +873,26 @@ The "try defEq → suffices + converter → native_decide" pattern was duplicate
 **6 times** across `finSumBound{Icc,List}Core` and `finSumWitness{Icc,List,AutoIcc,AutoList}Core`
 (~35 lines each, ~210 total). Adding `finmatrix_bound` would create a 7th copy.
 
-### Solution: `closeBridgeWithNativeDecide`
+### Current solution: `closeBridgeWithVerificationTyped`
 
 Extracted into `Tactic/BridgeNative.lean`:
 
 ```lean
-def closeBridgeWithNativeDecide
+def closeBridgeWithVerificationTyped
     (goal : MVarId) (goalType : Lean.Expr)
     (proof checkMVar : Lean.Expr)
     (tacticName : String)
     (converterSteps : Array (TacticM Unit))
-    : TacticM Unit
+    : TacticM (Except BridgeFailure VerificationEvent)
 ```
 
 Logic:
 1. `inferType proof` → `proofTy`
-2. If `isDefEq proofTy goalType`: direct assign + `native_decide` on checkMVar
-3. Else: suffMVar + converterMVar pattern, try converterSteps in sequence
+2. Close `checkMVar` through the configured typed verification boundary.
+3. If `isDefEq proofTy goalType`, assign only after verification succeeds.
+4. Otherwise use the suffices/converter pattern and try converter steps.
+5. Restore the complete tactic state on rejection, verification failure, or
+   proof-transport failure.
 
 Each caller provides its own converter steps inline:
 - `finsum_bound`: `simp [Expr.eval, sumBodyRealEnv, ...] + norm_num`, then `push_cast + linarith`
@@ -897,8 +900,8 @@ Each caller provides its own converter steps inline:
 
 ### Refactored files
 
-- `FinSumBound.lean` — 2 blocks → 2 calls to `closeBridgeWithNativeDecide`
-- `FinSumWitness.lean` — 4 blocks → 4 calls to `closeBridgeWithNativeDecide`
+- `FinSumBound.lean` — 2 blocks → typed bridge calls
+- `FinSumWitness.lean` — 4 blocks → typed bridge calls
 - Net: ~210 lines of duplication → ~40-line shared helper
 
 ## finmatrix_bound: matrix norm tactic (Mar 2026)
@@ -932,7 +935,7 @@ The tactic:
 1. Elaborates the bridge term
 2. Infers its type — should be `(hle : X ≤ C) → goalType`
 3. Creates mvar for `hle`, applies `bridgeExpr checkMVar`
-4. Calls `closeBridgeWithNativeDecide` to close with `native_decide`
+4. Calls `closeBridgeWithVerificationTyped` using the selected trust mode
 
 ### Block extension (RadiiPolynomial — separate project)
 

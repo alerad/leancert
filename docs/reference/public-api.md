@@ -105,11 +105,13 @@ spellings remain as deprecated compatibility aliases:
 The removed `LeanCert.Tactic.LeanCert.Types` and
 `LeanCert.Tactic.LeanCert.Transaction` modules were internal implementation
 details. Solver extensions use
-`LeanCert.Tactic.LeanCert.Solver.Protocol`, consume a proof-bearing
-`PreparedGoal`, return typed `AttemptOutcome` values, and hand back validated
-`ProofArtifact`s. Existing dedicated tactics enter this protocol through an
-internal adapter while their numerical engines are migrated to consume prepared
-payloads directly; this adapter is not a public compatibility API.
+`LeanCert.Tactic.LeanCert.Solver.Protocol`. Portfolio strategies return
+`Except AttemptFailure SolverExecution`; the sole protocol runner isolates the
+attempt, validates the resulting proof artifact, and converts it to an
+`AttemptOutcome`. Expected unsupported, rejected, exhausted, and domain cases
+must be returned as typed failures rather than exceptions. Dedicated tactic
+syntax calls the same typed family cores and translates failures only at the
+user-facing elaborator boundary.
 
 ## Checked automatic differentiation
 

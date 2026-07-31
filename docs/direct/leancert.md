@@ -30,9 +30,9 @@ example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x ^ 2 = 2 := by
 
 It proves the same goal as `leancert` and reports the recognized theorem shape,
 winning strategy, numerical computation, certificate checker and verifier, and
-effective verification route. Legacy adapters that do not yet expose a runtime
-winner report their backend policy or leave it unspecified rather than
-guessing.
+effective verification route. Static backend policy and observed runtime
+metadata remain distinct; reports never infer a checker, verifier, or backend
+that the winning strategy did not retain.
 
 When ordinary `leancert` does not close a goal, retrying with `leancert?`
 requests the detailed diagnosis and attempted-strategy ledger. Enable the

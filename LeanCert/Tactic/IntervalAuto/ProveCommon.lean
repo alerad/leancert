@@ -391,14 +391,14 @@ def certCheckSucceeds (checkFn : Lean.Expr) : TacticM Bool := do
   let certGoal ← mkFreshExprMVar certTy
   let certGoalId := certGoal.mvarId!
   let savedState ← saveState
-  try
-    setGoals [certGoalId]
-    discard <| LeanCert.Tactic.closeCertificateGoal (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal) (tacticName := "leancert")
-    restoreState savedState
-    return true
-  catch _ =>
-    restoreState savedState
-    return false
+  setGoals [certGoalId]
+  let result ← LeanCert.Tactic.closeCertificateGoalTyped
+    (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
+    (tacticName := "leancert")
+  restoreState savedState
+  return match result with
+    | .accepted _ => true
+    | .rejected | .failed _ => false
 
 /-- Extract bounds from IntervalInfo for subdivision -/
 def getSubdivBounds (intervalInfo : IntervalInfo) :

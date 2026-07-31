@@ -379,27 +379,6 @@ where
         return .error <| .transportFailure (← e.toMessageData.toString)
       return .ok event
 
-/-- Reporting compatibility wrapper preserving the historical throwing API. -/
-unsafe def multivariateBoundCoreReported (maxIters : Nat) (tolerance : ℚ)
-    (useMonotonicity : Bool) (taylorDepth : Nat) :
-    TacticM MultivariateBoundOutcome := do
-  match ← multivariateBoundCoreTyped maxIters tolerance useMonotonicity
-      taylorDepth with
-  | .ok outcome => return outcome
-  | .error (.unsupported expression detail) =>
-      throwError "multivariate_bound: unsupported expression {expression}:\n{detail}"
-  | .error (.rejected detail) =>
-      throwError "multivariate_bound: certificate rejected:\n{detail}"
-  | .error (.transportFailure detail) =>
-      throwError "multivariate_bound: proof transport failed:\n{detail}"
-  | .error (.internalFailure detail) =>
-      throwError "multivariate_bound: internal verification failure:\n{detail}"
-
-/-- Compatibility wrapper retaining the historical `TacticM Unit` API. -/
-unsafe def multivariateBoundCore (maxIters : Nat) (tolerance : ℚ)
-    (useMonotonicity : Bool) (taylorDepth : Nat) : TacticM Unit := do
-  discard <| multivariateBoundCoreReported maxIters tolerance useMonotonicity taylorDepth
-
 /-- The multivariate_bound tactic.
 
     Automatically proves bounds on multivariate expressions using global optimization.
@@ -424,6 +403,15 @@ unsafe def elabMultivariateBound : Tactic := fun stx => do
     let maxIters := match iters with
       | some n => n.toNat
       | none => 1000
-    multivariateBoundCore maxIters (1/1000) false 10
+    match ← multivariateBoundCoreTyped maxIters (1/1000) false 10 with
+    | .ok _ => pure ()
+    | .error (.unsupported expression detail) =>
+        throwError "multivariate_bound: unsupported expression {expression}:\n{detail}"
+    | .error (.rejected detail) =>
+        throwError "multivariate_bound: certificate rejected:\n{detail}"
+    | .error (.transportFailure detail) =>
+        throwError "multivariate_bound: proof transport failed:\n{detail}"
+    | .error (.internalFailure detail) =>
+        throwError "multivariate_bound: internal verification failure:\n{detail}"
 
 end LeanCert.Tactic.Auto

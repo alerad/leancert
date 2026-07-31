@@ -49,8 +49,9 @@ policy. A policy is not presented as the backend that actually ran.
 ## Qualifications
 
 Primary tactic paths and checked APIs use checker/Golden-Theorem boundaries.
-Some historical adapters are still being migrated to expose complete runtime
-metadata; their reports say that a route is unobserved instead of inferring it.
+Every semantic-router strategy uses a transactional typed result and reports
+only execution metadata observed on its retained successful path. Exact and
+normalization strategies may correctly retain zero Boolean-certificate checks.
 Exact polynomial integration constructs an ordinary kernel proof, so its trust
 selection is not applicable.
 
@@ -67,4 +68,3 @@ runs on every push and pull request. It rejects unauthorized axioms, `sorry`
 uses, and synthetic proof holes, then checks the exported trust manifest and
 representative Golden Theorems. Its README badge links to public run history;
 reviewers do not need to recreate CI locally.
-

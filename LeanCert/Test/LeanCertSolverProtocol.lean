@@ -21,6 +21,7 @@ set_option linter.unusedTactic false
 private def testPlan : SolverPlan := {
   intent := .intervalBound
   solver := `syntheticSolver
+  strategyId := .intervalEnclosure
   strategy := "synthetic protocol test"
   cost := 0
   backendPolicy := .policy "Dyadic-first with Rational fallback"
@@ -37,17 +38,21 @@ private def localEnvironmentSize : TacticM Nat := do
 
 private def runSynthetic (solver : TacticM Unit) : TacticM AttemptOutcome := do
   let goal ← getMainGoal
-  proveWithTactic testPlan (← goal.getType) solver
+  proveWithTypedSolver testPlan (← goal.getType) do
+    solver
+    return .ok {}
 
-private def runSyntheticWithPlan (plan : SolverPlan) (solver : TacticM Unit) :
+private def runSyntheticWithPlan (plan : SolverPlan)
+    (solver : TacticM (Except AttemptFailure SolverExecution)) :
     TacticM AttemptOutcome := do
   let goal ← getMainGoal
-  proveWithTactic plan (← goal.getType) solver
+  proveWithTypedSolver plan (← goal.getType) solver
 
-private def runSyntheticReported (solver : TacticM SolverExecution) :
+private def runSyntheticExecution (solver : TacticM SolverExecution) :
     TacticM AttemptOutcome := do
   let goal ← getMainGoal
-  proveWithTacticReported testPlan (← goal.getType) solver
+  proveWithTypedSolver testPlan (← goal.getType) do
+    return .ok (← solver)
 
 elab "expect_partial_attempt" : tactic => do
   let before ← getGoals
@@ -67,43 +72,44 @@ elab "expect_throwing_attempt" : tactic => do
     evalTactic (← `(tactic| constructor))
     throwError "synthetic failure after mutation"
   match result with
-  | .inconclusive evidence =>
-      unless evidence.detail.contains "could not construct a complete certificate" do
-        throwError "expected a sanitized backend failure"
-  | _ => throwError "expected an inconclusive outcome"
+  | .internalError solver detail =>
+      unless solver == testPlan.solver &&
+          detail.contains "synthetic failure after mutation" do
+        throwError "unexpected exception diagnostic: {detail}"
+  | _ => throwError "unexpected solver exception was not classified as internal"
   assertOriginalGoals before
 
-elab "expect_reported_exception_is_internal" : tactic => do
+elab "expect_typed_exception_is_internal" : tactic => do
   let before ← getGoals
   let intended := before.head!
   let environmentSizeBefore ← localEnvironmentSize
-  let result ← runSyntheticReported do
+  let result ← runSyntheticExecution do
     evalTactic (← `(tactic| native_decide))
-    throwError "unexpected reported-core exception"
+    throwError "unexpected typed-core exception"
   match result with
   | .internalError solver detail =>
       unless solver == testPlan.solver &&
-          detail.contains "unexpected reported-core exception" do
-        throwError "reported exception lost its typed internal-error context"
-  | _ => throwError "reported-core exception was not classified as internal"
+          detail.contains "unexpected typed-core exception" do
+        throwError "typed exception lost its internal-error context"
+  | _ => throwError "typed-core exception was not classified as internal"
   assertOriginalGoals before
   if ← intended.isAssigned then
-    throwError "failed reported attempt assigned the caller's goal"
+    throwError "failed typed attempt assigned the caller's goal"
   let environmentSizeAfter ← localEnvironmentSize
   unless environmentSizeAfter == environmentSizeBefore do
     throwError "failed native attempt leaked a generated environment declaration"
 
-elab "expect_reported_error_message_is_internal" : tactic => do
+elab "expect_typed_error_message_is_internal" : tactic => do
   let before ← getGoals
-  let result ← runSyntheticReported do
-    logError "unexpected reported-core diagnostic"
+  let result ← runSyntheticExecution do
+    logError "unexpected typed-core diagnostic"
     return {}
   match result with
   | .internalError solver detail =>
       unless solver == testPlan.solver &&
-          detail.contains "unexpected reported-core diagnostic" do
-        throwError "reported error diagnostic lost its internal-error context"
-  | _ => throwError "reported-core error diagnostic was classified as rejection"
+          detail.contains "unexpected typed-core diagnostic" do
+        throwError "typed error diagnostic lost its internal-error context"
+  | _ => throwError "typed-core error diagnostic was classified as rejection"
   assertOriginalGoals before
 
 elab "expect_subdivision_failure_detail" : tactic => do
@@ -114,8 +120,9 @@ elab "expect_subdivision_failure_detail" : tactic => do
     -- Deliberately unrelated display text: diagnostics must use the stable kind.
     strategy := "polished user-facing name"
   }
-  let result ← runSyntheticWithPlan plan do
-    throwError "synthetic subdivision failure"
+  let result ← runSyntheticWithPlan plan <| pure <| .error <| .inconclusive {
+    detail := "Subdivision reached its configured depth."
+  }
   match result with
   | .inconclusive evidence =>
       unless evidence.detail.contains "configured depth" do
@@ -143,14 +150,14 @@ elab "close_with_artifact" : tactic => do
         throwError "successful solver returned the wrong report"
       match artifact.report.execution.backend with
       | none => pure ()
-      | _ => throwError "legacy compatibility solver fabricated execution metadata"
+      | _ => throwError "typed solver fabricated execution metadata"
       let goal ← getMainGoal
       goal.assign artifact.proof
       replaceMainGoal []
   | _ => throwError "isolated solver unexpectedly failed"
 
-elab "close_with_reported_artifact" : tactic => do
-  let result ← runSyntheticReported do
+elab "close_with_typed_artifact" : tactic => do
+  let result ← runSyntheticExecution do
     evalTactic (← `(tactic| exact True.intro))
     return {
       backend := some .rationalInterval
@@ -178,7 +185,7 @@ elab "close_with_reported_artifact" : tactic => do
 
 elab "expect_failed_metadata_isolated" : tactic => do
   let before ← getGoals
-  let failed ← runSyntheticReported do
+  let failed ← runSyntheticExecution do
     evalTactic (← `(tactic| constructor))
     return {
       backend := some .dyadicInterval
@@ -189,7 +196,7 @@ elab "expect_failed_metadata_isolated" : tactic => do
   | .inconclusive _ => pure ()
   | _ => throwError "expected the Dyadic attempt to be inconclusive"
   assertOriginalGoals before
-  let successful ← runSyntheticReported do
+  let successful ← runSyntheticExecution do
     evalTactic (← `(tactic| exact And.intro True.intro True.intro))
     return {
       backend := some .rationalInterval
@@ -278,10 +285,9 @@ elab "expect_metadata_irrelevant_to_acceptance" : tactic => do
     plan := {
       testPlan with
       intent := .uniqueRoot
+      strategyId := .rootUniqueness
       strategy := "deliberately false metadata"
       backendPolicy := .fixed .affineArithmetic
-      checker := some `NotARealChecker
-      verifier := some `NotAGoldenTheorem
     }
     execution := {
       backend := some .dyadicInterval
@@ -323,11 +329,11 @@ example : True ∧ True := by
   constructor <;> trivial
 
 example : True ∧ True := by
-  expect_reported_exception_is_internal
+  expect_typed_exception_is_internal
   constructor <;> trivial
 
 example : True := by
-  expect_reported_error_message_is_internal
+  expect_typed_error_message_is_internal
   trivial
 
 example : True := by
@@ -357,7 +363,7 @@ example : True := by
   trivial
 
 example : True := by
-  close_with_reported_artifact
+  close_with_typed_artifact
 
 example : True := by
   trivial

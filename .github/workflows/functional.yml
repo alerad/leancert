@@ -17,6 +17,9 @@ jobs:
       - name: Check every test module is wired
         run: python3 scripts/check_test_wiring.py
 
+      - name: Enforce typed solver protocol
+        run: python3 scripts/check_solver_protocol_policy.py
+
       - name: Build complete functional suite
         run: lake build FunctionalTests
 

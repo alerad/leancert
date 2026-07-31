@@ -10,6 +10,11 @@ use two explicitly allowlisted placeholders. Their matching proofs are built in
 a separate CI target, but the aliases are not kernel-linked to those proof
 constants. See the final row for the exact qualification.
 
+At the tactic layer, every portfolio strategy returns a transactional typed
+result. Expected non-successes restore the caller state and are classified
+before the router decides whether to continue; unexpected exceptions and
+logged errors are terminal internal failures.
+
 ## Production Verification Status
 
 | Component | Checked entry point | Correctness bridge | Qualification |

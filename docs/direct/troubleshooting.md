@@ -136,6 +136,10 @@ set_option trace.LeanCert.router true
 set_option trace.leancert.verification true
 ```
 
+Unexpected exceptions and error-level log messages are always classified as
+internal failures. They are never silently reinterpreted as certificate
+rejection or numerical exhaustion.
+
 Report the theorem, Lean/LeanCert revisions, full diagnostic, and relevant
 trace. Do not work around an artifact-validation failure by weakening the trust
 route.

@@ -29,6 +29,7 @@ private def checkerIntervalNeg11 : LeanCert.Core.IntervalRat := ⟨-1, 1, by nor
 private def adapterTestPlan : SolverPlan := {
   intent := .pointInequality
   solver := `typedAdapterTest
+  strategyId := .pointEnclosure
   strategy := "typed adapter preservation test"
   cost := 0
   backendPolicy := .notApplicable
@@ -48,9 +49,7 @@ private def expectTypedAdapterFailure : TacticM Unit := do
     | .error failure => throwError "test goal did not prepare: {failure.detail}"
   let spec : SolverSpec := {
     report := adapterTestPlan
-    solve := throwError "legacy Unit adapter ran"
-    solveReported := some (throwError "legacy reported adapter ran")
-    solveReportedResult := some <| pure <|
+    solve := pure <|
       .error (.routerFailure (.internalError "typed result survived semantic transport"))
   }
   match ← spec.toSemanticSolver.attempt prepared {} with
@@ -62,6 +61,30 @@ private def expectTypedAdapterFailure : TacticM Unit := do
 
 elab "expect_typed_adapter_failure" : tactic =>
   expectTypedAdapterFailure
+
+private def expectExactRouteExceptionTerminal : TacticM Unit := do
+  let goal ← getMainGoal
+  let proposition ← goal.getType
+  let plan : SolverPlan := {
+    intent := .pointInequality
+    solver := `syntheticExactRoute
+    strategyId := .exactNormalization
+    strategy := "synthetic throwing exact route"
+    cost := 0
+    backendPolicy := .notApplicable
+    verificationRequested := .kernel
+  }
+  match ← proveWithTypedSolver plan proposition <|
+      exactTacticAttemptTyped (throwError "synthetic exact-route exception") with
+  | .internalError solver detail =>
+      unless solver == `syntheticExactRoute &&
+          detail.contains "synthetic exact-route exception" do
+        throwError "exact-route exception lost its terminal diagnostic: {detail}"
+  | outcome =>
+      throwError "exact-route exception was not terminal: {repr outcome.disposition}"
+
+elab "expect_exact_route_exception_terminal" : tactic =>
+  expectExactRouteExceptionTerminal
 
 elab "expect_terminal_outcome_stops" : tactic => do
   let mut continued := false
@@ -852,6 +875,10 @@ example : ∃ x ∈ Set.Icc (0 : ℝ) 1, x = 0 := by
 
 example : True := by
   expect_terminal_outcome_stops
+  trivial
+
+example : True := by
+  expect_exact_route_exception_terminal
   trivial
 
 example : Real.log 2 < Real.exp 1 := by

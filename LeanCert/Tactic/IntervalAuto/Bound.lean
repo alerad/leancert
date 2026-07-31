@@ -186,8 +186,11 @@ private def boundCheckerName (isStrict isLower useChecked : Bool) : Name :=
 
 private def closeBoundCertificate (_verifier : Name) (goal : MVarId) :
     TacticM Unit := do
-  discard <| closeCertificateGoalReported (← VerificationConfig.current) goal
-    (tacticName := "certify_bound")
+  match ← closeCertificateGoalTyped (← VerificationConfig.current) goal
+      (tacticName := "certify_bound") with
+  | .accepted _ => pure ()
+  | .rejected => throwError "certify_bound: certificate checker evaluated to false"
+  | .failed failure => throwError (failure.message "certify_bound")
 
 private def closeBoundTransport (goal : MVarId) (proof : Lean.Expr)
     (reified? : Option LeanCert.Meta.ReifyReport := none) :
@@ -247,7 +250,7 @@ private def closeBoundTransport (goal : MVarId) (proof : Lean.Expr)
 /-- Try to prove a forall-bound goal using the Dyadic backend.
     Returns metadata if the entire goal was closed, `none` otherwise.
     Uses the checked Dyadic evaluator for arbitrary expressions. -/
-def tryDyadicBoundReported (goal : MVarId) (reified : LeanCert.Meta.ReifyReport)
+def tryDyadicBoundImpl (goal : MVarId) (reified : LeanCert.Meta.ReifyReport)
     (boundRat : Lean.Expr)
     (intervalInfo : IntervalInfo) (taylorDepth : Nat)
     (isStrict isLower : Bool) :
@@ -310,7 +313,7 @@ private def tryDyadicBoundCompatibility (goal : MVarId)
     (reified : LeanCert.Meta.ReifyReport) (boundRat : Lean.Expr)
     (intervalInfo : IntervalInfo) (taylorDepth : Nat)
     (isStrict isLower : Bool) : TacticM (Option DyadicBoundOutcome) := do
-  match ← tryDyadicBoundReported goal reified boundRat intervalInfo taylorDepth
+  match ← tryDyadicBoundImpl goal reified boundRat intervalInfo taylorDepth
       isStrict isLower with
   | .ok outcome => return outcome
   | .error (.transportFailure detail) =>
@@ -1190,7 +1193,7 @@ def intervalBoundCoreTyped (taylorDepth : Nat) :
         | original.restore
           return .error <| .unsupported (toString func)
             "Dyadic preparation produced no expression"
-      tryDyadicBoundReported normalizedGoal reified boundRat intervalInfo taylorDepth
+      tryDyadicBoundImpl normalizedGoal reified boundRat intervalInfo taylorDepth
         isStrict isLower
   let dyadicResult ←
     match boundGoal with
@@ -1218,25 +1221,6 @@ def intervalBoundCoreTyped (taylorDepth : Nat) :
   | .ok none => pure ()
   original.restore
   intervalBoundRationalCoreTyped taylorDepth
-
-/-- Reporting-aware direct-bound entry point.
-
-The checked Dyadic attempt already returns complete telemetry. If it does not
-close the goal, the original state is restored and the Rational core runs
-without retrying Dyadic. Only the winning branch's observation is returned. -/
-def intervalBoundCoreReported (taylorDepth : Nat) :
-    TacticM IntervalBoundOutcome := do
-  match ← intervalBoundCoreTyped taylorDepth with
-  | .ok outcome => return outcome
-  | .error (.unsupported expression detail) =>
-      throwError "reported direct bound: unsupported expression {expression}:\n{detail}"
-  | .error (.inconclusive detail) =>
-      throwError "reported direct bound: {detail}"
-  | .error (.transportFailure detail) =>
-      throwError "reported direct bound: proof transport failed:\n{detail}"
-  | .error (.internalFailure detail) =>
-      throwError "reported direct bound: certificate verification failed:\n{detail}"
-
 
 /-! ## Tactic Syntax -/
 

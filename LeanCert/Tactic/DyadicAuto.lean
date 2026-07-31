@@ -94,7 +94,7 @@ theorem verify_lower_bound_dyadic (e : Core.Expr) (hsupp : ExprSupportedCore e)
 /-! ## Deprecated tactics
 
 The original `certify_kernel` family predates the trust choke point
-(`LeanCert.Tactic.closeCertificateGoal`) and its strict kernel path had
+(`LeanCert.Tactic.closeCertificateGoalTyped`) and its strict kernel path had
 rotted: it required a `Decidable` instance for `evalDomainValidDyadic` that
 no longer exists, so every invocation failed. The spellings below are kept
 as deprecated aliases over `certify_bound`'s trust modes, which subsume them:

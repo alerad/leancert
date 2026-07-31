@@ -165,12 +165,21 @@ structure IntegralPartitionStatistics where
 /-- Stable algorithm identity for reporting and failure classification.
 User-facing `strategy` text may be polished without changing control flow. -/
 inductive StrategyId where
-  | legacy
   | exactNormalization
-  | exactIntegral
-  | partitionIntegral
+  | certificateCheck
+  | pointEnclosure
+  | intervalEnclosure
   | subdivision
   | globalOptimization
+  | multivariateOptimization
+  | rootExistence
+  | rootUniqueness
+  | rootExclusion
+  | attainedExtremum
+  | finiteSum
+  | exactIntegral
+  | partitionIntegral
+  | conjunction
   deriving DecidableEq, Repr, Inhabited
 
 /-- Static solver intent.  It may state a backend policy, but cannot claim a
@@ -178,7 +187,7 @@ runtime winner. -/
 structure SolverPlan where
   intent : GoalIntent
   solver : Name
-  strategyId : StrategyId := .legacy
+  strategyId : StrategyId
   strategy : String
   strategyDetail : Option String := none
   cost : Nat
@@ -186,13 +195,9 @@ structure SolverPlan where
   dedicatedProof : Option ProofSuggestion := none
   backendPolicy : BackendPolicy := .unknown
   verificationRequested : VerificationMode := .native
-  checker : Option Name := none
-  verifier : Option Name := none
   deriving Inhabited
 
-/-- Runtime facts returned only by the successful isolated execution. Empty
-execution data is the honest compatibility result for a legacy `TacticM Unit`
-solver.
+/-- Runtime facts returned only by the successful isolated execution.
 
 Reporting invariants:
 
@@ -288,29 +293,6 @@ structure SemanticSolver where
   attempt : Semantic.PreparedGoal → LeanCertConfig →
     Elab.Tactic.TacticM AttemptOutcome
 
-private def backendInconclusiveDetail (plan : SolverPlan) : String :=
-  match plan.strategyId with
-  | .exactNormalization =>
-      "Exact normalization did not close the prepared proposition."
-  | .exactIntegral =>
-      "Exact integration did not recognize the integrand as a rational polynomial \
-        with supported constant divisions."
-  | .partitionIntegral =>
-      "Checked partition enclosures did not establish the requested integral comparison."
-  | .subdivision =>
-      "Subdivision reached its configured depth without obtaining a decisive enclosure."
-  | .globalOptimization =>
-      "Global optimization did not produce a verifier-ready bound within its iteration limit."
-  | .legacy =>
-      "The backend could not construct a complete certificate with the current settings."
-
-/-- Compatibility policy for exception-based legacy tactic cores. New reported
-cores must use `.internalError`; only the opaque `TacticM Unit` adapter may
-translate an exception into the historical inconclusive result. -/
-inductive ExceptionPolicy where
-  | internalError
-  | legacyInconclusive
-
 /-- Validate a proof against the immutable proposition prepared for the
 attempt, rather than trusting a proposition returned by solver code. -/
 def validateProofArtifact (preparedProposition : Lean.Expr)
@@ -342,9 +324,8 @@ def validateProofArtifact (preparedProposition : Lean.Expr)
 /-- Run a report-producing proof procedure on an isolated metavariable and turn
 a complete proof into a validated artifact. The execution metadata is retained
 only if the proof and all transport goals succeed. -/
-def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
-    (solver : Elab.Tactic.TacticM (Except AttemptFailure SolverExecution))
-    (exceptionPolicy : ExceptionPolicy := .internalError) :
+def proveWithTypedSolver (plan : SolverPlan) (proposition : Lean.Expr)
+    (solver : Elab.Tactic.TacticM (Except AttemptFailure SolverExecution)) :
     Elab.Tactic.TacticM AttemptOutcome := do
   let originalGoals ← Elab.Tactic.getGoals
   let saved ← Elab.Tactic.saveState
@@ -358,16 +339,8 @@ def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
       trace[LeanCert.solver] "{plan.strategy} checker output:\n\
         {detail}"
       saved.restore
-      match exceptionPolicy with
-      | .internalError =>
-          return .internalError plan.solver
-            s!"solver logged error diagnostics without returning a typed failure:\n{detail}"
-      | .legacyInconclusive =>
-          return .rejected {
-            checker := plan.checker
-            detail := "The generated certificate was not accepted at the current \
-              precision or strategy settings."
-          }
+      return .internalError plan.solver
+        s!"solver logged error diagnostics without returning a typed failure:\n{detail}"
     let some result := captured.result?
       | saved.restore
         return .internalError plan.solver
@@ -407,27 +380,6 @@ def proveWithTacticReportedResult (plan : SolverPlan) (proposition : Lean.Expr)
     let detail ← exception.toMessageData.toString
     trace[LeanCert.solver] "{plan.strategy} raised during speculative execution:\n{detail}"
     saved.restore
-    match exceptionPolicy with
-    | .internalError => return .internalError plan.solver detail
-    | .legacyInconclusive =>
-        return .inconclusive { detail := backendInconclusiveDetail plan }
-
-/-- Convenience wrapper for the common case where a reported solver can only
-fail through the ordinary tactic protocol. -/
-def proveWithTacticReported (plan : SolverPlan) (proposition : Lean.Expr)
-    (solver : Elab.Tactic.TacticM SolverExecution) :
-    Elab.Tactic.TacticM AttemptOutcome :=
-  proveWithTacticReportedResult plan proposition do
-    return .ok (← solver)
-
-/-- Compatibility adapter for legacy tactic cores that do not yet expose
-runtime metadata. Their static plan may describe a backend policy, but the
-execution remains explicitly unknown. -/
-def proveWithTactic (plan : SolverPlan) (proposition : Lean.Expr)
-    (solver : Elab.Tactic.TacticM Unit) :
-    Elab.Tactic.TacticM AttemptOutcome :=
-  proveWithTacticReportedResult plan proposition (do
-    solver
-    return .ok {}) .legacyInconclusive
+    return .internalError plan.solver detail
 
 end LeanCert.Tactic.Solver
