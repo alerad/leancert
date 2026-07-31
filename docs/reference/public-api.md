@@ -64,14 +64,19 @@ verification without changing the numerical backend.
 `leancert` / `leancert?` front door and the dedicated `interval_auto`,
 `interval_decide`, `certify_bound`, root, optimization, and finite-sum tactics.
 
-`LeanCert.CertifiedBounds` exposes pre-verified numerical results under:
+`LeanCert.CertifiedBounds` exposes stable numerical-result interfaces under:
 
 - `LeanCert.CertifiedBounds.Li2`;
 - `LeanCert.CertifiedBounds.BKLNW`;
 - `LeanCert.CertifiedBounds.Chebyshev`.
 
-The Li₂ namespace includes the symmetric integrand and its basic bounds as
-well as the certified `li(2)` value and numerical enclosure.
+The BKLNW and Chebyshev declarations are linked directly to their checked proof
+terms. `CertifiedBounds.Li2` is instead a lightweight statement interface: its
+two allowlisted placeholder theorems have statement-identical proofs built by
+the separate `Li2Verified` target, but the public constants are not
+kernel-linked to those proofs. See
+[Verification Status](../architecture/verification-status.md) for the precise
+trust boundary.
 
 `LeanCert.ANT` exposes reusable analytic-number-theory certificate machinery
 and explicit-PNT compiler schemas.
@@ -81,6 +86,9 @@ covered by the PrimeNumberTheoremAnd-derived interface and behavioral pattern
 suites. Direct `LeanCert.Engine.*` imports remain available for
 implementation-level work, but downstream proofs should prefer a stable
 certified-bounds alias where one exists.
+
+For historical names removed after their deprecation period, see
+[Removed APIs and migration](compatibility.md).
 
 ## Semantic tactic API
 
