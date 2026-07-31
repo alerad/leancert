@@ -74,6 +74,7 @@ roots = [
   "LeanCert.Test.DownstreamPatterns.PNTCompilers",
   "LeanCert.Test.DownstreamPatterns.Table4Ext",
   "LeanCert.Test.DownstreamPatterns.Li2",
+  "LeanCert.Test.DownstreamPatterns.Extension",
 ]
 precompileModules = false
 
@@ -125,6 +126,7 @@ roots = [
   "LeanCert.Test.ChebyshevPsi",
   "LeanCert.Test.ChebyshevTheta",
   "LeanCert.Test.EulerMascheroni",
+  "LeanCert.Test.ExtensionProtocol",
   "LeanCert.Test.FinSumBound",
   "LeanCert.Test.FinSumExpandTest",
   "LeanCert.Test.Hardening",
@@ -145,6 +147,7 @@ roots = [
   "LeanCert.Test.PublicAPI.Bounds",
   "LeanCert.Test.PublicAPI.CertifiedBoundsImport",
   "LeanCert.Test.PublicAPI.DomainUmbrellas",
+  "LeanCert.Test.PublicAPI.Extension",
   "LeanCert.Test.PublicAPI.TrustAxes",
   "LeanCert.Test.ReadmeTest",
   "LeanCert.Test.ReleaseTest",

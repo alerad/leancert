@@ -113,6 +113,7 @@ nav:
     - Roadmap: roadmap.md
   - Reference:
     - Supported Public API: reference/public-api.md
+    - Downstream Enclosure Extensions: reference/extensions.md
     - Removed APIs and Migration: reference/compatibility.md
     - Imports: reference/imports.md
     - Tactics: reference/tactics.md

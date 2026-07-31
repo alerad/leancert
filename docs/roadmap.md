@@ -5,6 +5,19 @@ LeanCert's current public claims are documented in the
 [verification-status table](architecture/verification-status.md). The items
 below are convergence work, not features claimed as complete.
 
+## Extensible checked enclosures
+
+**Current state:** downstream modules can register and inspect typed unary
+`ℝ → ℝ` enclosure candidates, Boolean checkers, and `sorry`-free soundness
+theorems without modifying LeanCert's internal expression datatype.
+
+**Milestone:** execute registered rules compositionally through `leancert`,
+with transactional typed failures, subdivision support, and complete
+`leancert?` provenance.
+
+**Evidence:** an external function certified end to end through an imported
+rule, including rejected-candidate and unsupported-function reports.
+
 ## Checked-backend capability parity
 
 **Current state:** Rational, Dyadic, and Affine backends deliberately have

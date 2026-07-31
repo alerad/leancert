@@ -40,6 +40,23 @@ See [Supported Public API](../reference/public-api.md) for the exact boundary.
 - Remove superseded internal names when their callers migrate; public additions
   should have one canonical owner from the start.
 
+## Downstream enclosure extensions
+
+Unary real enclosure rules defined outside LeanCert register through
+`LeanCert.Tactic.Extension`. A registration stores declaration metadata in a
+persistent environment extension; it must not add downstream functions to
+`LeanCert.Core.Expr` or hard-code them in the router.
+
+The candidate generator is untrusted and returns
+`Except EnclosureCandidateFailure IntervalRat`. The registered checker and
+soundness theorem are the checked boundary. The attribute validates the exact
+theorem schema and rejects definitions, axioms, and theorems depending on
+`sorry`. Keep registry construction independent of the semantic router so
+downstream packages can declare rules through a lightweight import.
+
+Execution of a registered rule is a tactic strategy and therefore follows the
+typed transactional requirements below.
+
 ## Tactic changes
 
 Every semantic-router extension returns
