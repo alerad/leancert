@@ -613,15 +613,16 @@ private unsafe def multivariateAttemptTyped (maxIterations : Nat)
       return .error <| .internalError
         `LeanCert.Tactic.Auto.multivariate_bound detail
 
-/-- Run an exact, non-certificate tactic as an expected portfolio attempt.
-Failure means that the tactic did not recognize or close the proposition. -/
-private def exactTacticAttempt (detail : String) (tactic : TacticM Unit) :
+/-- Run an exact, non-certificate tactic through the typed solver boundary.
+
+Ordinary tactical inability is represented by retained proof obligations and
+classified as inconclusive by `proveWithTypedSolver`. Unexpected exceptions
+must escape this helper so the same boundary classifies them as terminal
+internal errors. -/
+def exactTacticAttemptTyped (tactic : TacticM Unit) :
     TacticM (Except AttemptFailure SolverExecution) := do
-  try
-    tactic
-    return .ok {}
-  catch _ =>
-    return .error <| .inconclusive { detail }
+  tactic
+  return .ok {}
 
 private def certificateCheckAttemptTyped :
     TacticM (Except AttemptFailure SolverExecution) := do
@@ -651,8 +652,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
   | .pointInequality => #[
       { report := report intent "exact normalization" cfg mode .notApplicable
           (some (suggestion "norm_num")) (strategyId := .exactNormalization),
-        solve := exactTacticAttempt
-          "Exact normalization did not close the prepared proposition."
+        solve := exactTacticAttemptTyped
           (do evalTactic (← `(tactic| norm_num))) },
       { report := report intent s!"direct point enclosure (Taylor depth {d})" cfg mode
           (.policy "checked interval tactic portfolio")
@@ -1150,8 +1150,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
   let normalizationSpec : SolverSpec := {
     report := normalizationReport
     cost := 0
-    solve := exactTacticAttempt
-      "Exact normalization did not close the prepared proposition."
+    solve := exactTacticAttemptTyped
       (do evalTactic (← `(tactic| norm_num)))
   }
   match ← trySolver normalizationSpec with
@@ -1225,8 +1224,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
           cfg verificationMode .notApplicable
           (strategyId := .exactNormalization)
         cost := 0
-        solve := exactTacticAttempt
-          "Empty-domain normalization did not close the prepared proposition."
+        solve := exactTacticAttemptTyped
           (do evalTactic (← `(tactic| simp [Set.mem_Icc])))
       }
       match ← trySolver vacuitySpec
@@ -1326,21 +1324,24 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
         let exactSpec : SolverSpec := {
           report := exactReport
           cost := 0
-          solve := exactTacticAttempt
-            "The exact rational candidate did not prove the root proposition." do
+          solve := exactTacticAttemptTyped do
             if spec.kind == .exists then
               evalTactic (← `(tactic|
-                refine ⟨$candidateSyntax, ?_, ?_⟩ <;>
-                  norm_num [Set.mem_Icc]))
+                first
+                | (refine ⟨$candidateSyntax, ?_, ?_⟩ <;>
+                    norm_num [Set.mem_Icc])
+                | skip))
             else
               evalTactic (← `(tactic|
-                refine ⟨$candidateSyntax,
-                  (by constructor <;> norm_num [Set.mem_Icc]), ?_⟩;
-                intro y hy;
-                rcases hy with ⟨hyMem, hyRoot⟩;
-                simp only [Set.mem_Icc] at hyMem;
-                norm_num at hyRoot ⊢;
-                nlinarith))
+                first
+                | (refine ⟨$candidateSyntax,
+                    (by constructor <;> norm_num [Set.mem_Icc]), ?_⟩;
+                   intro y hy;
+                   rcases hy with ⟨hyMem, hyRoot⟩;
+                   simp only [Set.mem_Icc] at hyMem;
+                   norm_num at hyRoot ⊢;
+                   nlinarith)
+                | skip))
         }
         match ← trySolver exactSpec with
         | .proved artifact => return ← commitArtifact artifact
@@ -1373,8 +1374,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
       let evtSpec : SolverSpec := {
         report := evtReport
         cost := 0
-        solve := exactTacticAttempt
-          "The compact extreme-value theorem route could not construct the proof." do
+        solve := exactTacticAttemptTyped do
           evalTactic (← `(tactic|
             suffices hnormalized : $canonicalSyntax by
               simpa only [and_comm] using hnormalized))
@@ -1429,8 +1429,7 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
       let equalitySpec : SolverSpec := {
         report := equalityReport
         cost := 0
-        solve := exactTacticAttempt
-          "Exact finite-sum expansion did not close the proposition."
+        solve := exactTacticAttemptTyped
           (do evalTactic (← `(tactic| finsum_expand; norm_num)))
       }
       match ← trySolver equalitySpec with

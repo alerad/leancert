@@ -372,48 +372,92 @@ def finSumWitnessCoreTyped (evalTermSyn hmemSyn : Syntax) (prec : Int) :
     original.restore
     return .error <| .internalFailure (← e.toMessageData.toString)
 
-/-- Try to auto-prove an hmem metavar using several strategies.
-    Works best when the evaluator returns singletons or tight intervals
-    where membership reduces to decidable ℚ comparisons. -/
-private def tryAutoProveHmem (hmemMVar : MVarId) : TacticM Unit := do
-  -- Strategy 1: simp [mem_def] + split into ≤ components + cast to ℚ + native_decide
-  -- Works for constant evaluators (no free variables in the comparison)
+/-- Run one structural membership-synthesis strategy, then close every closed
+decidable obligation through the typed verification boundary.
+
+The caller selects a strategy that matches the already parsed range or explicit
+Finset shape. Structural exceptions therefore remain unexpected and escape to
+the outer transactional core as internal failures. Once certificate
+obligations exist, rejection and verification failures are retained as typed
+failures and never reinterpreted as unsupported syntax. -/
+private def tryAutoHmemStrategy (hmemMVar : MVarId) (strategy : Syntax) :
+    TacticM (Except FinSumFailure (Option VerificationUsage)) := do
+  let strategyState ← saveState
+  let surroundingGoals ← getGoals
   setGoals [hmemMVar]
-  try
-    evalTactic (← `(tactic|
+  evalTactic strategy
+
+  let cfg ← VerificationConfig.current
+  let mut usage : VerificationUsage := {}
+  while !(← getGoals).isEmpty do
+    let certGoal ← getMainGoal
+    let certType ← instantiateMVars (← certGoal.getType)
+    -- A strategy that leaves the quantified index in its obligation has not
+    -- reached a certificate boundary yet; allow the enumerating strategies
+    -- below to try instead.
+    if certType.hasFVar || certType.hasMVar then
+      strategyState.restore
+      return .ok none
+    match ← closeCertificateGoalTyped cfg certGoal
+        (tacticName := "finsum_bound auto membership") with
+    | .accepted event =>
+        usage := usage.combine event.toUsage
+    | .rejected =>
+        strategyState.restore
+        return .error <| .rejected
+          `LeanCert.Tactic.finsum_bound_auto_membership none
+    | .failed failure =>
+        strategyState.restore
+        let detail := failure.message "finsum_bound auto membership"
+        match failure with
+        | .malformedCertificateGoal _ | .internalError _ =>
+            return .error <| .internalFailure detail
+        | .kernelFailure _ | .nativeFailure _ =>
+            return .error <| .verificationFailure detail
+
+  unless ← hmemMVar.isAssigned do
+    strategyState.restore
+    return .error <| .internalFailure
+      "membership synthesis discharged its subgoals without assigning the membership proof"
+  setGoals surroundingGoals
+  return .ok (some usage)
+
+/-- Parsed shape of an automatically synthesized membership theorem. -/
+private inductive AutoHmemShape where
+  | range
+  | explicit
+
+/-- Try to auto-prove an hmem metavar using shape-specific structural strategies.
+Works best when the evaluator returns singletons or tight intervals whose
+membership reduces to closed decidable comparisons. -/
+private def tryAutoProveHmemTyped (shape : AutoHmemShape) (hmemMVar : MVarId) :
+    TacticM (Except FinSumFailure VerificationUsage) := do
+  let constantStrategy ← `(tactic|
       intros;
       simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
-      refine ⟨?_, ?_⟩ <;> exact_mod_cast (by leancert_verify_cert)))
-    return
-  catch _ => pure ()
-  -- Strategy 2: interval_cases to enumerate k, then per-case native_decide
-  -- Works for k-dependent evaluators on Icc (bounds are concrete literals)
-  setGoals [hmemMVar]
-  try
-    evalTactic (← `(tactic|
+      constructor <;> norm_cast)
+  let rangeStrategy ← `(tactic|
       intro k hlo hhi;
-      interval_cases k <;> {
-        simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
-        refine ⟨?_, ?_⟩ <;> exact_mod_cast (by leancert_verify_cert)
-      }))
-    return
-  catch _ => pure ()
-  -- Strategy 3: fin_cases for list path (1 premise: k ∈ S)
-  setGoals [hmemMVar]
-  try
-    evalTactic (← `(tactic|
+      interval_cases k <;>
+      simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton] <;>
+      constructor <;> norm_cast)
+  let explicitStrategy ← `(tactic|
       intro k hk;
-      fin_cases hk <;> {
-        simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton];
-        refine ⟨?_, ?_⟩ <;> exact_mod_cast (by leancert_verify_cert)
-      }))
-    return
-  catch _ => pure ()
-  -- All strategies failed
+      fin_cases hk <;>
+      simp only [IntervalDyadic.mem_def, IntervalDyadic.singleton] <;>
+      constructor <;> norm_cast)
+  let strategies : Array Syntax := match shape with
+    | .range => #[constantStrategy, rangeStrategy]
+    | .explicit => #[constantStrategy, explicitStrategy]
+  for strategy in strategies do
+    match ← tryAutoHmemStrategy hmemMVar strategy with
+    | .ok (some usage) => return .ok usage
+    | .ok none => pure ()
+    | .error failure => return .error failure
   let hmemTy ← hmemMVar.getType
-  throwError "finsum_bound auto: could not auto-prove membership.\n\
-    Expected type: {← ppExpr hmemTy}\n\
-    Provide hmem explicitly: `finsum_bound using evalTerm hmemProof`"
+  return .error <| .unsupported
+    s!"could not auto-prove membership.\nExpected type: {← ppExpr hmemTy}\n\
+      Provide hmem explicitly: `finsum_bound using evalTerm hmemProof`"
 
 /-- Core implementation of `finsum_bound auto` for Icc goals. -/
 private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax)
@@ -452,13 +496,10 @@ private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax
 
     -- Auto-prove hmem
     let hmemMVar ← mkFreshExprMVar (some hmemTy) (kind := .syntheticOpaque)
-    let savedGoals ← getGoals
-    try
-      tryAutoProveHmem hmemMVar.mvarId!
-    catch e =>
-      return .error <| .unsupported
-        s!"could not synthesize the witness membership proof: {← e.toMessageData.toString}"
-    setGoals savedGoals
+    let membershipUsage ←
+      match ← tryAutoProveHmemTyped .range hmemMVar.mvarId! with
+      | .ok usage => pure usage
+      | .error failure => return .error failure
 
     let hmemExpr := hmemMVar
 
@@ -517,7 +558,7 @@ private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax
         enclosure := enclosureRat
         checker := checkerName
         verifier := verifierName
-        verification := event.toUsage
+        verification := membershipUsage.combine event.toUsage
       }
 
 /-- Core implementation of `finsum_bound auto` for arbitrary Finsets (list path). -/
@@ -556,13 +597,10 @@ private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : S
 
     -- Auto-prove hmem
     let hmemMVar ← mkFreshExprMVar (some hmemTy) (kind := .syntheticOpaque)
-    let savedGoals ← getGoals
-    try
-      tryAutoProveHmem hmemMVar.mvarId!
-    catch e =>
-      return .error <| .unsupported
-        s!"could not synthesize the witness membership proof: {← e.toMessageData.toString}"
-    setGoals savedGoals
+    let membershipUsage ←
+      match ← tryAutoProveHmemTyped .explicit hmemMVar.mvarId! with
+      | .ok usage => pure usage
+      | .error failure => return .error failure
 
     let hmemExpr := hmemMVar
 
@@ -619,7 +657,7 @@ private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : S
         enclosure := enclosureRat
         checker := checkerName
         verifier := verifierName
-        verification := event.toUsage
+        verification := membershipUsage.combine event.toUsage
       }
 
 /-- Main dispatch for auto-hmem mode: try Icc path first, then list path. -/

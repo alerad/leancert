@@ -62,6 +62,30 @@ private def expectTypedAdapterFailure : TacticM Unit := do
 elab "expect_typed_adapter_failure" : tactic =>
   expectTypedAdapterFailure
 
+private def expectExactRouteExceptionTerminal : TacticM Unit := do
+  let goal ← getMainGoal
+  let proposition ← goal.getType
+  let plan : SolverPlan := {
+    intent := .pointInequality
+    solver := `syntheticExactRoute
+    strategyId := .exactNormalization
+    strategy := "synthetic throwing exact route"
+    cost := 0
+    backendPolicy := .notApplicable
+    verificationRequested := .kernel
+  }
+  match ← proveWithTypedSolver plan proposition <|
+      exactTacticAttemptTyped (throwError "synthetic exact-route exception") with
+  | .internalError solver detail =>
+      unless solver == `syntheticExactRoute &&
+          detail.contains "synthetic exact-route exception" do
+        throwError "exact-route exception lost its terminal diagnostic: {detail}"
+  | outcome =>
+      throwError "exact-route exception was not terminal: {repr outcome.disposition}"
+
+elab "expect_exact_route_exception_terminal" : tactic =>
+  expectExactRouteExceptionTerminal
+
 elab "expect_terminal_outcome_stops" : tactic => do
   let mut continued := false
   try
@@ -851,6 +875,10 @@ example : ∃ x ∈ Set.Icc (0 : ℝ) 1, x = 0 := by
 
 example : True := by
   expect_terminal_outcome_stops
+  trivial
+
+example : True := by
+  expect_exact_route_exception_terminal
   trivial
 
 example : Real.log 2 < Real.exp 1 := by

@@ -165,38 +165,31 @@ For programmatic use, start with the stable `LeanCert` APIs:
 - the checked AD, root, and integration APIs described in the
   [documentation](https://docs.leancert.io)
 
-## Honest limitations
+## Limitations
 
-- `leancert` is automation over a supported expression and goal fragment, not
-  a general decision procedure for real analysis.
-- Interval dependency and coarse enclosures can make a true tight bound
-  inconclusive. Increasing Taylor depth, subdividing, or choosing a dedicated
-  tactic may help, but success is not guaranteed.
-- Root existence by sign change misses even-multiplicity/tangent roots.
-  Uniqueness additionally needs the hypotheses certified by the Newton
-  contraction argument.
-- Exact integral equality automation is for rational polynomials. Other
-  supported integrands use certified partitions and are generally suited to
-  inequalities or enclosures rather than symbolic antiderivatives.
-- Partial functions require a certified valid domain; for example, logarithm
-  intervals must be positive and a denominator interval must exclude zero.
-- Kernel verification can be slower or exceed resources on large
-  certificates. The faster default native route explicitly adds trust in
-  Lean's compiler/runtime.
-- Some high-level frameworks require mathematical premises supplied by the
-  downstream project. In particular, theorem names in experimental optimized
-  ML components should not be read as end-to-end model soundness without
-  checking their exact statements.
-- The production imports are placeholder-free, but
-  `LeanCert.Examples.Li2Bounds` contains two explicitly allowlisted
-  compatibility placeholders. Their statements are matched in CI against the
-  separately built verified implementation; do not use that lightweight
-  interface as a trust-free production dependency.
+LeanCert provides sound automation for a supported fragment; it is not a
+complete decision procedure for real analysis. A failed or inconclusive search
+does not imply that the theorem is false.
 
-See [Verification Status](https://docs.leancert.io/architecture/verification-status/),
-[Choosing Tactics](https://docs.leancert.io/tactics/choosing-tactics/), and
+- Tight bounds can require greater Taylor depth, subdivision, or a dedicated
+  optimization tactic, and may still remain inconclusive.
+- Sign-change certificates miss even-multiplicity roots, while Newton
+  uniqueness requires additional certified hypotheses.
+- Exact integral equalities are automated for rational polynomials; other
+  supported integrands generally use certified partition bounds.
+- Supported evaluators may require domain certificates, such as positivity for
+  logarithms or exclusion of zero from denominator intervals.
+
+Native verification is faster but additionally trusts Lean's compiler/runtime;
+kernel-only verification may be substantially more expensive. See the
+[trust model](https://docs.leancert.io/architecture/trust-model/) and
+[verification status](https://docs.leancert.io/architecture/verification-status/)
+for precise trust boundaries, experimental subsystem qualifications, and the
+Li₂ compatibility exception.
+
+See [Choosing Tactics](https://docs.leancert.io/tactics/choosing-tactics/) and
 [Troubleshooting](https://docs.leancert.io/direct/troubleshooting/) for the
-full support matrix and audit details.
+full support matrix and practical guidance.
 
 ## Repository promises
 

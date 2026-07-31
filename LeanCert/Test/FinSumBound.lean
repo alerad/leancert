@@ -15,6 +15,11 @@ with O(1) proof size via `native_decide`. Covers auto-reify mode, witness mode
 
 namespace LeanCert.Test.FinSumBound
 
+open Lean Meta Elab Tactic
+open LeanCert.Tactic
+
+set_option linter.unusedTactic false
+
 /-! ### Basic Icc sums -/
 
 -- Sum of constants (upper)
@@ -289,8 +294,49 @@ This works when the evaluator returns singletons where membership reduces to
 def constOneEval (_k : Nat) (_cfg : DyadicConfig) : IntervalDyadic :=
   IntervalDyadic.singleton ⟨1, 0⟩
 
+/-- Deliberately excludes the constant body value, so auto-membership reaches
+the typed verifier and receives a conclusive rejection. -/
+def rejectingOneEval (_k : Nat) (_cfg : DyadicConfig) : IntervalDyadic :=
+  IntervalDyadic.singleton ⟨0, 0⟩
+
+/-- Deliberately noncomputable evaluator used to exercise membership
+verification infrastructure failure rather than ordinary synthesis failure. -/
+noncomputable def unavailableOneEval (_k : Nat) (_cfg : DyadicConfig) :
+    IntervalDyadic :=
+  Classical.choice (show Nonempty IntervalDyadic from
+    ⟨IntervalDyadic.singleton ⟨1, 0⟩⟩)
+
+elab "expect_auto_membership_rejected" : tactic => do
+  let original ← getMainGoal
+  let originalType ← original.getType
+  match ← finSumWitnessAutoCoreTyped (← `(term| rejectingOneEval)) (-53) with
+  | .error (.rejected _ _) =>
+      let restored ← getMainGoal
+      unless restored == original && (← isDefEq (← restored.getType) originalType) do
+        throwError "auto-membership rejection did not restore the original goal"
+  | .error failure =>
+      throwError "auto-membership rejection was misclassified: {repr failure}"
+  | .ok _ =>
+      throwError "invalid auto-membership certificate was accepted"
+
+elab "expect_auto_membership_verification_failure" : tactic => do
+  match ← finSumWitnessAutoCoreTyped (← `(term| unavailableOneEval)) (-53) with
+  | .error (.verificationFailure _) => pure ()
+  | .error failure =>
+      throwError "auto-membership infrastructure failure was misclassified: {repr failure}"
+  | .ok _ =>
+      throwError "noncomputable auto-membership certificate unexpectedly succeeded"
+
 -- Constant body, singleton evaluator
 example : ∑ _k ∈ Finset.Icc (1 : ℕ) 5, (1 : ℝ) ≤ 6 := by
+  finsum_bound auto constOneEval
+
+example : ∑ _k ∈ Finset.Icc (1 : ℕ) 5, (1 : ℝ) ≤ 6 := by
+  expect_auto_membership_rejected
+  finsum_bound auto constOneEval
+
+example : ∑ _k ∈ Finset.Icc (1 : ℕ) 5, (1 : ℝ) ≤ 6 := by
+  expect_auto_membership_verification_failure
   finsum_bound auto constOneEval
 
 /-! ### Rational bound targets (`extractRatFromReal` with `toRat?` fallback) -/
