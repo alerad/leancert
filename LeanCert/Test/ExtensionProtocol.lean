@@ -38,7 +38,7 @@ def wrongCandidate (_request : UnaryEnclosureRequest) : Nat := 0
 /-- error: invalid @[leancert_enclosure] candidate `LeanCert.Test.ExtensionProtocol.wrongCandidate`: expected type `UnaryEnclosureCandidate`, found
   UnaryEnclosureRequest → ℕ -/
 #guard_msgs in
-@[leancert_enclosure candidate := wrongCandidate]
+@[leancert_enclosure wrongCandidate]
 theorem rejectsWrongCandidate
     {request : UnaryEnclosureRequest} {x : ℝ} {output : IntervalRat}
     (hx : x ∈ request.input)
@@ -51,7 +51,7 @@ def impossibleChecker (_request : UnaryEnclosureRequest) (_output : IntervalRat)
 
 /-- error: invalid @[leancert_enclosure] theorem `LeanCert.Test.ExtensionProtocol.rejectsWrongInput`: input-membership hypothesis must use `request.input` -/
 #guard_msgs in
-@[leancert_enclosure candidate := identityCandidate]
+@[leancert_enclosure identityCandidate]
 theorem rejectsWrongInput
     {request : UnaryEnclosureRequest} {x : ℝ} {output : IntervalRat}
     (hx : x ∈ output)
@@ -63,7 +63,7 @@ def alwaysTrueChecker (_request : UnaryEnclosureRequest) (_output : IntervalRat)
 
 /-- error: invalid @[leancert_enclosure] theorem `LeanCert.Test.ExtensionProtocol.rejectsFalseComparison`: checker hypothesis must compare against `true` -/
 #guard_msgs in
-@[leancert_enclosure candidate := identityCandidate]
+@[leancert_enclosure identityCandidate]
 theorem rejectsFalseComparison
     {request : UnaryEnclosureRequest} {x : ℝ} {output : IntervalRat}
     (_hx : x ∈ request.input)
@@ -73,7 +73,7 @@ theorem rejectsFalseComparison
 
 /-- error: invalid @[leancert_enclosure] declaration `LeanCert.Test.ExtensionProtocol.rejectsDefinition`: soundness boundary must be a proved theorem, not an axiom or definition -/
 #guard_msgs in
-@[leancert_enclosure candidate := identityCandidate]
+@[leancert_enclosure identityCandidate]
 def rejectsDefinition
     {request : UnaryEnclosureRequest} {x : ℝ} {output : IntervalRat}
     (hx : x ∈ request.input)

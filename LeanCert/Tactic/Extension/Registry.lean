@@ -10,7 +10,7 @@ import Lean.Elab.Term
 /-!
 # Persistent registry for downstream enclosure rules
 
-`@[leancert_enclosure candidate := c]` registers a theorem with the exact shape
+`@[leancert_enclosure c]` registers a theorem with the exact shape
 
 ```lean
 theorem rule
@@ -31,7 +31,7 @@ namespace LeanCert.Tactic.Extension
 open LeanCert.Core
 
 /-- Attribute syntax for registering a unary enclosure theorem and its candidate generator. -/
-syntax (name := leancertEnclosureAttr) "leancert_enclosure" ppSpace "candidate" " := " ident
+syntax (name := leancertEnclosureAttr) "leancert_enclosure" ppSpace ident
   ("," ppSpace "priority" " := " num)? : attr
 
 private def insertRule (rules : Array UnaryEnclosureRule) (rule : UnaryEnclosureRule) :
@@ -188,9 +188,9 @@ initialize registerBuiltinAttribute {
       throwError "invalid @[leancert_enclosure] theorem `{theoremName}`: soundness theorem depends \
         on sorry declaration `{sorryDecl}`"
     let (candidateStx, rulePriority) ← match stx with
-      | `(attr| leancert_enclosure candidate := $candidateStx:ident) =>
+      | `(attr| leancert_enclosure $candidateStx:ident) =>
           pure (candidateStx, 1000)
-      | `(attr| leancert_enclosure candidate := $candidateStx:ident, priority := $priorityStx:num) =>
+      | `(attr| leancert_enclosure $candidateStx:ident, priority := $priorityStx:num) =>
           pure (candidateStx, priorityStx.getNat)
       | _ => throwUnsupportedSyntax
     let candidateName ← resolveGlobalConstNoOverload candidateStx

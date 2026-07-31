@@ -154,6 +154,7 @@ The main verified numerical path includes:
 - Checked automatic differentiation and global bound certificates
 - Root existence, exclusion, and Newton-style uniqueness certificates
 - Exact rational polynomial integration and certified partition integration
+- Checked downstream unary enclosure rules consumed compositionally by `leancert`
 - Domain-specific Chebyshev, analytic-number-theory, q-product, table, and
   neural-network certificate infrastructure
 
@@ -179,6 +180,9 @@ does not imply that the theorem is false.
   supported integrands generally use certified partition bounds.
 - Supported evaluators may require domain certificates, such as positivity for
   logarithms or exclusion of zero from denominator intervals.
+- Downstream enclosure execution currently targets unary interval bounds with
+  checked, reifiable inner arguments; surrounding custom operations and
+  adaptive subdivision remain follow-up work.
 
 Native verification is faster but additionally trusts Lean's compiler/runtime;
 kernel-only verification may be substantially more expensive. See the

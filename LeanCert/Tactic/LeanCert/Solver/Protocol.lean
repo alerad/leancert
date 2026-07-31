@@ -166,6 +166,7 @@ inductive StrategyId where
   | certificateCheck
   | pointEnclosure
   | intervalEnclosure
+  | registeredEnclosure
   | subdivision
   | globalOptimization
   | multivariateOptimization

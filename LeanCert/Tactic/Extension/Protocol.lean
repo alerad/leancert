@@ -12,8 +12,8 @@ This module defines the data shared by downstream unary enclosure rules.  Candid
 generation is deliberately untrusted: a candidate becomes usable only after its
 registered Boolean checker and soundness theorem validate it.
 
-Execution of registered rules is not part of this module.  The registry is the stable
-boundary consumed by the semantic tactic in a follow-up layer.
+Execution of registered rules is not part of this lightweight module. The registry is
+the stable boundary consumed by the semantic tactic in a separate execution layer.
 -/
 
 namespace LeanCert.Tactic.Extension

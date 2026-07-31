@@ -9,14 +9,16 @@ below are convergence work, not features claimed as complete.
 
 **Current state:** downstream modules can register and inspect typed unary
 `ℝ → ℝ` enclosure candidates, Boolean checkers, and `sorry`-free soundness
-theorems without modifying LeanCert's internal expression datatype.
+theorems without modifying LeanCert's internal expression datatype. `leancert`
+executes imported rules for unary interval bounds whose registered applications
+have checked, reifiable inner arguments.
 
-**Milestone:** execute registered rules compositionally through `leancert`,
-with transactional typed failures, subdivision support, and complete
-`leancert?` provenance.
+**Milestone:** extend compositional execution through surrounding registered or
+built-in operations, then add adaptive subdivision for inconclusive downstream
+candidates.
 
 **Evidence:** an external function certified end to end through an imported
-rule, including rejected-candidate and unsupported-function reports.
+rule, with rejected-candidate fallback and complete `leancert?` provenance.
 
 ## Checked-backend capability parity
 

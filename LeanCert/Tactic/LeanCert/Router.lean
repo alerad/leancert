@@ -10,6 +10,7 @@ import LeanCert.Tactic.LeanCert.Integral
 import LeanCert.Tactic.LeanCert.Semantic.Parse
 import LeanCert.Tactic.LeanCert.Semantic.Prepare
 import LeanCert.Tactic.LeanCert.Solver.Protocol
+import LeanCert.Tactic.Extension.Execute
 import LeanCert.Tactic.Discovery
 import LeanCert.Tactic.FinSumExpand
 import LeanCert.Engine.Search.CounterExample
@@ -188,6 +189,43 @@ private def directBoundExecution (outcome : Auto.IntervalBoundOutcome) :
     verifier := outcome.verifier
     notes
   }
+
+private def registeredEnclosureExecution
+    (outcome : Extension.RegisteredEnclosureOutcome) : SolverExecution := {
+  backend := some .rationalInterval
+  verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
+  enclosure := some outcome.enclosure
+  certificates := outcome.observations.map fun observation => {
+    role := s!"registered enclosure `{observation.rule.functionName}`"
+    checker := observation.rule.checkerName
+    verifier := some observation.rule.theoremName
+    verificationUsage := Solver.VerificationUsage.ofEvents observation.verification
+    enclosure := some observation.enclosure
+  }
+  notes := outcome.observations.map fun observation =>
+    s!"extension used: {observation.rule.functionName} via {observation.rule.theoremName}"
+}
+
+private unsafe def registeredEnclosureAttemptTyped (prepared : Semantic.PreparedGoal)
+    (depth : Nat) : TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Extension.registeredEnclosureBoundCoreTyped prepared (-53) depth with
+  | .ok outcome => return .ok (registeredEnclosureExecution outcome)
+  | .error .notApplicable => return .error .notApplicable
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported { expression, detail := some detail }
+  | .error (.domainObstruction operation detail) =>
+      return .error <| .domainObstruction {
+        source := { original := mkConst ``True, kind := .intervalRat }
+        operation := some operation
+        reason := detail
+      }
+  | .error (.inconclusive detail enclosure) =>
+      return .error <| .inconclusive { detail, enclosure }
+  | .error (.rejected checker enclosure detail) =>
+      return .error <| .rejected { checker, enclosure, detail }
+  | .error (.verificationFailure detail) =>
+      return .error <| .internalError
+        `LeanCert.Tactic.Extension.registeredEnclosureBoundCoreTyped detail
 
 private unsafe def directBoundAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
@@ -1170,6 +1208,8 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
             {failure.detail}\n\nThis is a LeanCert bug: semantic normalization failed \
             before any numerical strategy ran."
     return (semantic, prepared)
+  let mut preliminaryFailures : Array (String × AttemptOutcome) := #[]
+  let mut preliminarySpent := 0
 
   if let .allOf _ _ := semantic then
     let conjunctionSpec : SolverSpec := {
@@ -1265,26 +1305,46 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
           "  • at least one endpoint is symbolic; current certificate backends \
             require rational endpoints"
         ]
+    if cfg.budget > 0 then
+      let extensionPlan := report .intervalBound
+        "registered compositional enclosure" cfg verificationMode
+        (.fixed .rationalInterval)
+        none
+        (some "imported unary enclosure rule with a checked inner argument")
+        .registeredEnclosure
+      let extensionSpec : SolverSpec := {
+        report := extensionPlan
+        solve := registeredEnclosureAttemptTyped prepared cfg.taylorDepth
+      }
+      match ← trySolver extensionSpec with
+      | .proved artifact => return ← commitArtifact artifact
+      | .notApplicable => pure ()
+      | outcome =>
+          preliminarySpent := 1
+          preliminaryFailures := preliminaryFailures.push
+            (extensionPlan.strategy, outcome)
+          enforceAttemptDisposition verbosity .intervalBound outcome
     rejectUnsupportedPreparedFunctions prepared verbosity
     -- Domain validity is an executable precondition of the checked Rational
     -- evaluator. Diagnose its failure before treating a rejected certificate
     -- as mere numerical imprecision. This evaluation influences diagnostics
     -- only; proof acceptance still goes through the checked tactic core.
     for function in prepared.functions do
-      let source := match function with
-        | .ready source .. | .unsupported source .. | .deferred source .. => source
-      let ast := (← LeanCert.Meta.reifyWithReport source).expr
-      for domain in prepared.domains do
-        if let .closedRat _ interval _ := domain then
-          let cfgExpr ← mkAppM ``LeanCert.Engine.EvalConfig.mk
-            #[toExpr cfg.taylorDepth]
-          let check ← mkAppM ``LeanCert.Engine.checkDomainValid1
-            #[ast, interval, cfgExpr]
-          let valid ← unsafe evalExpr Bool (mkConst ``Bool) check
-          unless valid do
-            throwRouterFailure verbosity <|
-              Diagnostic.RouterFailure.domainObstruction .intervalBound
-                "the checked evaluator rejected a partial operation on this interval"
+      match function with
+      | .unsupported .. | .deferred .. => pure ()
+      | .ready source .. =>
+          let ast := (← LeanCert.Meta.reifyWithReport source).expr
+          for domain in prepared.domains do
+            if let .closedRat _ interval _ := domain then
+              let cfgExpr ← mkAppM ``LeanCert.Engine.EvalConfig.mk
+                #[toExpr cfg.taylorDepth]
+              let check ← mkAppM ``LeanCert.Engine.checkDomainValid1
+                #[ast, interval, cfgExpr]
+              let valid ← unsafe evalExpr Bool (mkConst ``Bool) check
+              unless valid do
+                throwRouterFailure verbosity <|
+                  Diagnostic.RouterFailure.domainObstruction .intervalBound
+                    "the checked evaluator rejected a partial operation on this interval"
 
   if let .root spec := semantic then
     if prepared.domains.any (fun domain => domain.isProvablyEmpty) then
@@ -1443,8 +1503,8 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
     | throwError "leancert: parsed a semantic goal whose solver has not been migrated"
 
   let solvers := (portfolio intent cfg verificationMode).map SolverSpec.toSemanticSolver
-  let mut failures : Array (String × AttemptOutcome) := #[]
-  let mut spent := 0
+  let mut failures : Array (String × AttemptOutcome) := preliminaryFailures
+  let mut spent := preliminarySpent
   for solver in solvers do
     unless solver.supports semantic do
       continue

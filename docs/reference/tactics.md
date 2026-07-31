@@ -106,6 +106,13 @@ to the theorem stated by the user. Numerical interval certificates currently
 operate over `ℝ`; another carrier is reported as an unsupported domain rather
 than an internal verifier failure.
 
+Imported unary enclosure rules registered through
+`LeanCert.Tactic.Extension` participate in univariate interval bounds. The
+router first certifies a reifiable inner argument, verifies the downstream
+Boolean checker under the requested trust policy, and applies the registered
+soundness theorem. `leancert?` reports every retained downstream checker and
+theorem. See [Downstream enclosure extensions](extensions.md).
+
 Expected checker rejection, unsupported expressions, inconclusive enclosures,
 and certified counterexamples are rendered as separate diagnostic categories.
 Raw checker propositions are available only through

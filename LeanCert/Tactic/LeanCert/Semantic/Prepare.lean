@@ -6,6 +6,7 @@ Authors: LeanCert Contributors
 import Mathlib.Tactic
 import LeanCert.Core.IntervalRat.Basic
 import LeanCert.Meta.Numeral
+import LeanCert.Tactic.Extension.Registry
 import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
 import LeanCert.Tactic.LeanCert.Semantic.Goal
 
@@ -130,6 +131,12 @@ private def prepareFunction (function : Lean.Expr) : TacticM PreparedFunction :=
   try
     discard <| LeanCert.Meta.reifyWithReport function
   catch exception =>
+    let env ← getEnv
+    let containsRegisteredRule := function.find? fun expression =>
+      expression.getAppFn.constName?.any fun name =>
+        !(LeanCert.Tactic.Extension.getUnaryEnclosureRules env name).isEmpty
+    if containsRegisteredRule.isSome then
+      return .deferred function "contains a registered downstream enclosure function"
     return .unsupported function (← exception.toMessageData.toString)
   try
     let reified ← LeanCert.Tactic.Bridge.reifyFunction function

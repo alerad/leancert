@@ -73,8 +73,8 @@ verification without changing the numerical backend.
 `interval_decide`, `certify_bound`, root, optimization, and finite-sum tactics.
 `LeanCert.Tactic.Extension` exposes the typed, persistent registry for
 downstream unary enclosure rules. Registration validates a candidate, checker,
-and soundness theorem but does not yet make the semantic router execute that
-rule. See [Downstream enclosure extensions](extensions.md).
+and soundness theorem. The semantic `leancert` front door can execute imported
+rules for unary interval bounds. See [Downstream enclosure extensions](extensions.md).
 
 `LeanCert.CertifiedBounds` exposes stable numerical-result interfaces under:
 
