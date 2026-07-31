@@ -61,6 +61,23 @@ Three golden theorems expose the same successful check in the common goal
 shapes: `verify_system_root_exists`, `verify_system_root_unique`, and
 `verify_unique_system_root`.
 
+The manual I1 front end exposes the last shape directly:
+
+```lean
+import LeanCert.Examples.Krawczyk
+import LeanCert.Tactic
+
+open LeanCert.Core LeanCert.Engine LeanCert.Validity
+open LeanCert.Examples.Krawczyk
+
+example : ∃! x, FinBoxMem x box ∧ SystemZero system x := by
+  system_unique_root using certificate (trust := auto)
+```
+
+The center and preconditioner remain untrusted candidate data. The tactic
+checks dimensions, runs the same monolithic checker, and reaches the theorem
+only through the configured certificate-verification route.
+
 ### Current limits
 
 - Systems must be square and use the `ADSupported` expression fragment.
@@ -68,7 +85,8 @@ shapes: `verify_system_root_exists`, `verify_system_root_unique`, and
 - The norm-form enclosure is intentionally conservative; a rejected
   certificate is inconclusive.
 - LeanCert checks but does not currently generate the approximate center or
-  inverse-Jacobian preconditioner. Those remain untrusted frontend/CAS data.
+  inverse-Jacobian preconditioner. Those remain untrusted frontend/CAS data and
+  are supplied to `system_unique_root using cert`.
 - The theorem is over real boxes. Complex systems must first be represented as
   coupled real and imaginary coordinates.
 

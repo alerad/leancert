@@ -183,6 +183,8 @@ partial def prepareGoal (semantic : SemanticGoal) :
         return .ok { semantic, functions }
     | .eventualBound _ =>
         return .ok { semantic }
+    | .systemRoot _ =>
+        return .ok { semantic }
     | .allOf _ children =>
         let preparedChildren ← children.mapM prepareGoal
         let mut domains := #[]

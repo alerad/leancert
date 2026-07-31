@@ -50,6 +50,26 @@ carefully scoped logarithmic and exponential tails.
 budget-limited search tests, rejected cutoff tests, semantic-router coverage,
 and `eventual_bound?`/`leancert?` provenance.
 
+## Nonlinear-system roots
+
+**Current state:** `system_unique_root using cert` checks an explicit,
+dimension-indexed Krawczyk center and preconditioner for square systems in the
+checked-AD fragment. The semantic router recognizes the canonical `∃!` system
+goal, while the dedicated tactic provides typed dimension and rejection
+diagnostics, transactional failure, all verification modes, and transparent
+`system_unique_root?` provenance. Candidate data is untrusted; proof acceptance
+still passes through `krawczykCheck` and `verify_unique_system_root`.
+
+**Possible next milestone:** generate centers and rational preconditioners in
+an untrusted frontend, then replay every candidate through the same manual I1
+boundary. Adaptive box refinement should be justified by concrete systems and
+must preserve the distinction between local uniqueness and uniqueness in the
+original box.
+
+**Evidence:** successful translated, coupled transcendental, cyclic 3D, and
+generic 4D systems; mutation tests for every checker stage; dimension mismatch,
+conjunction-order, local-certificate, trust-route, and rollback regressions.
+
 ## Stronger quantified ML theorems
 
 **Current state:** ML certificate components prove the precise structural and
