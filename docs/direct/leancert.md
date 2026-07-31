@@ -135,6 +135,13 @@ Numerical computation:
 Certificate verification:
   requested auto → used kernel (several checks)
 
+Subdivision:
+  Taylor depth: 10
+  Configured maximum depth: 8
+  Deepest depth used: 5
+  Boxes examined: 27
+  Certified leaves: 14
+
 Suggested proof:
   by
     leancert (subdivisions := 8) (trust := auto)
@@ -149,6 +156,13 @@ cost-gate decision from a failed kernel attempt. A strategy may close several
 certificates, so its observed route can also be mixed. The suggested proof
 preserves the requested policy (`auto` above), rather than replacing it with
 the route observed in one execution.
+
+Subdivision's search enclosures are candidates, not proofs. Search evaluates a
+box to decide whether to retain or bisect it; every retained leaf then closes
+one fixed checker through the configured verification route. Exhaustion is a
+resumable inconclusive result, while a domain obstruction or internal transport
+failure stops the portfolio. All non-successes restore the complete tactic
+state.
 
 Likewise, a verbose failure report has this shape:
 
