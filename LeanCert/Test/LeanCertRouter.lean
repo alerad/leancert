@@ -1022,6 +1022,313 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) < (27 / 100 : ℚ) := by
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, (-27 / 100 : ℚ) < x * x - x := by
   leancert (subdivisions := 8)
 
+/-! ## Typed finite sums and integrals -/
+
+syntax (name := expectTypedFinSumRollback)
+  "expect_typed_finsum_rollback" : tactic
+
+@[tactic expectTypedFinSumRollback]
+unsafe def elabExpectTypedFinSumRollback : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let environmentBefore := (← getEnv).constants.toList.length
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  match ← finSumBoundCoreTyped (-53) 10 with
+  | .error (.rejected checker (some _)) =>
+      unless checker == ``LeanCert.Engine.checkFinSumUpperBoundFull do
+        throwError "finite-sum rejection retained the wrong checker"
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) do
+        throwError "finite-sum rejection retained a partial proof"
+      unless ← isDefEq (← goal.getType) goalType do
+        throwError "finite-sum rejection changed the goal type"
+      unless (← getEnv).constants.toList.length == environmentBefore do
+        throwError "finite-sum rejection leaked an environment declaration"
+      unless (← Core.getMessageLog).toList.length == messagesBefore do
+        throwError "finite-sum rejection leaked a message"
+  | .error failure =>
+      throwError "finite-sum rejection had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "false finite-sum bound unexpectedly succeeded"
+
+syntax (name := expectFinSumRouterReport)
+  "expect_finsum_router_report" : tactic
+
+@[tactic expectFinSumRouterReport]
+unsafe def elabExpectFinSumRouterReport : Tactic := fun _ => do
+  let result ← runLeanCert {} .compact
+  let some statistics := result.execution.finiteSum
+    | throwError "front-door finite-sum route returned no structured statistics"
+  unless statistics.path == .reifiedRange && statistics.termCount == 3 &&
+      statistics.precision == -53 && !statistics.rewrittenFin do
+    throwError "front-door finite-sum route retained incorrect execution facts"
+  unless result.execution.checker ==
+      some ``LeanCert.Engine.checkFinSumUpperBoundFull &&
+      result.execution.verifier ==
+      some ``LeanCert.Engine.verify_finsum_upper_full_checked do
+    throwError "front-door finite-sum route lost checker provenance"
+  unless result.execution.enclosure.isSome do
+    throwError "front-door finite-sum route lost its retained enclosure"
+
+syntax (name := expectIntegralPartitionReport)
+  "expect_integral_partition_report" : tactic
+
+@[tactic expectIntegralPartitionReport]
+unsafe def elabExpectIntegralPartitionReport : Tactic := fun _ => do
+  let result ← runLeanCert {} .compact
+  let some statistics := result.execution.integralPartitions
+    | throwError "partition integral returned no structured search statistics"
+  unless statistics.startPartitions == 16 &&
+      statistics.chosenPartitions ≤ statistics.maximumPartitions &&
+      statistics.attempts > 0 do
+    throwError "partition integral retained invalid search statistics"
+  unless result.execution.checker ==
+      some ``LeanCert.Validity.Integration.checkIntegralPartitionUpperBound &&
+      result.execution.verifier ==
+      some ``LeanCert.Validity.Integration.integral_partition_upper_of_check do
+    throwError "partition integral certified the search instead of its fixed candidate"
+  unless result.execution.enclosure.isSome do
+    throwError "partition integral lost its selected enclosure"
+
+syntax (name := expectIntegralConjunctionRollback)
+  "expect_integral_conjunction_rollback" : tactic
+
+@[tactic expectIntegralConjunctionRollback]
+unsafe def elabExpectIntegralConjunctionRollback : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let environmentBefore := (← getEnv).constants.toList.length
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  match ← integralExactCoreTyped with
+  | .error (.unsupported _) =>
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) do
+        throwError "failed exact-integral conjunction retained its first child"
+      unless ← isDefEq (← goal.getType) goalType do
+        throwError "failed exact-integral conjunction changed the goal type"
+      unless (← getEnv).constants.toList.length == environmentBefore do
+        throwError "failed exact-integral conjunction leaked an environment declaration"
+      unless (← Core.getMessageLog).toList.length == messagesBefore do
+        throwError "failed exact-integral conjunction leaked a message"
+  | .error failure =>
+      throwError "exact-integral conjunction had wrong failure: {repr failure}"
+  | .ok _ =>
+      throwError "non-polynomial exact-integral conjunction unexpectedly succeeded"
+
+syntax (name := expectTypedFinRewriteReport)
+  "expect_typed_fin_rewrite_report" : tactic
+
+@[tactic expectTypedFinRewriteReport]
+unsafe def elabExpectTypedFinRewriteReport : Tactic := fun _ => do
+  match ← finSumBoundCoreTyped (-53) 10 with
+  | .ok outcome =>
+      unless outcome.rewrittenFin && outcome.path == .reifiedExplicit &&
+          outcome.termCount == 3 do
+        throwError "typed finite-sum route lost its Fin rewrite provenance"
+  | .error failure =>
+      throwError "typed Fin sum unexpectedly failed: {repr failure}"
+
+syntax (name := expectTypedFinSumDomainRollback)
+  "expect_typed_finsum_domain_rollback" : tactic
+
+@[tactic expectTypedFinSumDomainRollback]
+unsafe def elabExpectTypedFinSumDomainRollback : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← finSumBoundCoreTyped (-53) 10 with
+  | .error (.domainObstruction (some 0) _) =>
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "finite-sum domain obstruction changed the caller state"
+  | .error failure =>
+      throwError "finite-sum domain obstruction had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "division-by-zero finite sum unexpectedly succeeded"
+
+syntax (name := expectTypedFinSumUnsupported)
+  "expect_typed_finsum_unsupported" : tactic
+
+@[tactic expectTypedFinSumUnsupported]
+unsafe def elabExpectTypedFinSumUnsupported : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← finSumBoundCoreTyped (-53) 10 with
+  | .error (.unsupported _) =>
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "unsupported finite sum changed the caller state"
+  | .error failure =>
+      throwError "unsupported finite sum had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "unsupported finite sum unexpectedly succeeded"
+
+syntax (name := expectTypedFinSumWitnessUnsupported)
+  "expect_typed_finsum_witness_unsupported" : tactic
+
+@[tactic expectTypedFinSumWitnessUnsupported]
+unsafe def elabExpectTypedFinSumWitnessUnsupported : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let badEvaluator ← `(term| (0 : Nat))
+  let irrelevantProof ← `(term| by simp)
+  match ← finSumWitnessBoundCoreTyped badEvaluator irrelevantProof (-53) with
+  | .error (.unsupported detail) =>
+      unless detail.contains "malformed witness evaluator" do
+        throwError "malformed witness evaluator lost its intentional diagnostic"
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "malformed witness input changed the caller state"
+  | .error failure =>
+      throwError "malformed witness input had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "malformed witness evaluator unexpectedly succeeded"
+  let evaluator ← `(term|
+    fun k (_cfg : LeanCert.Engine.DyadicConfig) =>
+      LeanCert.Core.IntervalDyadic.singleton
+        (LeanCert.Core.Dyadic.ofInt (Int.ofNat k)))
+  let badProof ← `(term| (0 : Nat))
+  match ← finSumWitnessBoundCoreTyped evaluator badProof (-53) with
+  | .error (.unsupported detail) =>
+      unless detail.contains "malformed witness proof" do
+        throwError "malformed witness proof lost its intentional diagnostic"
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "malformed witness proof changed the caller state"
+  | .error failure =>
+      throwError "malformed witness proof had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "malformed witness proof unexpectedly succeeded"
+
+syntax (name := expectIntegralExhaustionRollback)
+  "expect_integral_exhaustion_rollback" : tactic
+
+@[tactic expectIntegralExhaustionRollback]
+unsafe def elabExpectIntegralExhaustionRollback : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  match ← integralSearchCoreTyped 16 64 with
+  | .error (.exhausted 16 64 (some _) (some _) attempts) =>
+      unless attempts == 3 do
+        throwError "partition exhaustion retained the wrong attempt count"
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "partition exhaustion changed the caller state"
+      unless (← Core.getMessageLog).toList.length == messagesBefore do
+        throwError "partition exhaustion leaked a message"
+  | .error failure =>
+      throwError "partition exhaustion had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "false integral bound unexpectedly succeeded"
+
+syntax (name := expectTypedIntegralUnsupported)
+  "expect_typed_integral_unsupported" : tactic
+
+@[tactic expectTypedIntegralUnsupported]
+unsafe def elabExpectTypedIntegralUnsupported : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← integralSearchCoreTyped 16 64 with
+  | .error (.unsupported _) =>
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "unsupported integral changed the caller state"
+  | .error failure =>
+      throwError "unsupported integral had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "unsupported integral unexpectedly succeeded"
+
+syntax (name := expectTypedIntegralDomainObstruction)
+  "expect_typed_integral_domain_obstruction" : tactic
+
+@[tactic expectTypedIntegralDomainObstruction]
+unsafe def elabExpectTypedIntegralDomainObstruction : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← integralSearchCoreTyped 16 64 with
+  | .error (.domainObstruction _) =>
+      unless (← getMainGoal) == goal && !(← goal.isAssigned) &&
+          (← isDefEq (← goal.getType) goalType) do
+        throwError "domain-obstructed integral changed the caller state"
+  | .error failure =>
+      throwError "integral domain obstruction had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "domain-obstructed integral unexpectedly succeeded"
+
+syntax (name := expectReversedIntegralReport)
+  "expect_reversed_integral_report" : tactic
+
+@[tactic expectReversedIntegralReport]
+unsafe def elabExpectReversedIntegralReport : Tactic := fun _ => do
+  match ← integralSearchCoreTyped 16 512 with
+  | .ok #[outcome] =>
+      let some enclosure := outcome.enclosure
+        | throwError "reversed integral report lost its retained enclosure"
+      unless enclosure.hi < 0 do
+        throwError "reversed integral telemetry describes the swapped integral: {repr enclosure}"
+  | .ok outcomes =>
+      throwError "reversed integral produced {outcomes.size} outcomes instead of one"
+  | .error failure =>
+      throwError "reversed integral unexpectedly failed: {repr failure}"
+
+example (h : ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 1) :
+    ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 1 := by
+  expect_typed_finsum_rollback
+  fail_if_success finsum_bound
+  exact h
+
+example : ∑ k ∈ Finset.Icc (1 : Nat) 3, Real.exp (-(k : ℝ)) ≤ 1 := by
+  expect_finsum_router_report
+
+example : ∑ i : Fin 3, Real.exp (-(i : ℝ)) ≤ 2 := by
+  expect_typed_fin_rewrite_report
+
+example (h : ∑ k ∈ Finset.Icc (0 : Nat) 1, (1 : ℝ) / k ≤ 2) :
+    ∑ k ∈ Finset.Icc (0 : Nat) 1, (1 : ℝ) / k ≤ 2 := by
+  expect_typed_finsum_domain_rollback
+  exact h
+
+example (f : Nat → ℝ) (h : ∑ k ∈ Finset.Icc (0 : Nat) 1, f k ≤ 0) :
+    ∑ k ∈ Finset.Icc (0 : Nat) 1, f k ≤ 0 := by
+  expect_typed_finsum_unsupported
+  exact h
+
+example (c : ℝ) (h : ∑ k ∈ Finset.Icc (0 : Nat) 1, (k : ℝ) ≤ c) :
+    ∑ k ∈ Finset.Icc (0 : Nat) 1, (k : ℝ) ≤ c := by
+  expect_typed_finsum_unsupported
+  exact h
+
+example (h : ∑ k ∈ Finset.Icc (0 : Nat) 1, (k : ℝ) ≤ 2) :
+    ∑ k ∈ Finset.Icc (0 : Nat) 1, (k : ℝ) ≤ 2 := by
+  expect_typed_finsum_witness_unsupported
+  exact h
+
+example : (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by
+  expect_integral_partition_report
+
+example (f : ℝ → ℝ) (h : (∫ x in (0 : ℝ)..1, f x) ≤ 0) :
+    (∫ x in (0 : ℝ)..1, f x) ≤ 0 := by
+  expect_typed_integral_unsupported
+  exact h
+
+example (h : (∫ x in (-1 : ℝ)..1, Real.log x) ≤ 0) :
+    (∫ x in (-1 : ℝ)..1, Real.log x) ≤ 0 := by
+  expect_typed_integral_domain_obstruction
+  exact h
+
+example : (∫ x in (1 : ℝ)..0, Real.exp x) ≤ 0 := by
+  expect_reversed_integral_report
+
+example (h : (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 ∧
+    (∫ x in (0 : ℝ)..1, Real.exp x) = 1) :
+    (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 ∧
+    (∫ x in (0 : ℝ)..1, Real.exp x) = 1 := by
+  expect_integral_conjunction_rollback
+  exact h
+
+example (h : (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 1) :
+    (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 1 := by
+  expect_integral_exhaustion_rollback
+  exact h
+
 -- Failed portfolios restore the original goal and its local context.
 example (h : ∀ x ∈ Set.Icc (-1 : ℝ) 1, x ^ 2 ≤ 0) :
     ∀ x ∈ Set.Icc (-1 : ℝ) 1, x ^ 2 ≤ 0 := by

@@ -41,7 +41,12 @@ example : (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by
 The exact path recognizes rational polynomials, computes their antiderivative
 with `QPoly`, and checks the endpoint result using exact rational arithmetic.
 For supported non-polynomial inequalities, the router uses the existing
-certified Rational partition search. Exact rational arithmetic and partition
+certified Rational partition search. Search retains the first successful
+partition count, attempt count, and enclosure; verification then checks that
+fixed partition candidate rather than rerunning the search procedure.
+Search exhaustion, domain obstruction, certificate rejection, and
+infrastructure failure are distinct typed outcomes, and failed routes restore
+the complete tactic state. Exact rational arithmetic and partition
 search describe computation strategies; they are not certificate-verification
 routes. Exact transcendental equalities are intentionally not inferred from an
 interval enclosure.

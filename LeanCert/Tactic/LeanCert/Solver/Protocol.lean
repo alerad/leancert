@@ -137,6 +137,31 @@ structure SubdivisionStatistics where
   certifiedLeaves : Nat
   deriving Inhabited, Repr
 
+/-- Computational route used to construct a finite-sum certificate. -/
+inductive FiniteSumPath where
+  | reifiedRange
+  | reifiedExplicit
+  | witnessRange
+  | witnessExplicit
+  deriving DecidableEq, Repr, Inhabited
+
+/-- Structured facts retained from a finite-sum evaluation. -/
+structure FiniteSumStatistics where
+  path : FiniteSumPath
+  rewrittenFin : Bool := false
+  termCount : Nat
+  precision : Int
+  taylorDepth : Nat
+  deriving Inhabited, Repr
+
+/-- Structured facts retained from checked partition integration. -/
+structure IntegralPartitionStatistics where
+  startPartitions : Nat
+  maximumPartitions : Nat
+  chosenPartitions : Nat
+  attempts : Nat
+  deriving Inhabited, Repr
+
 /-- Stable algorithm identity for reporting and failure classification.
 User-facing `strategy` text may be polished without changing control flow. -/
 inductive StrategyId where
@@ -185,6 +210,8 @@ structure SolverExecution where
   enclosure : Option LeanCert.Core.IntervalRat := none
   optimization : Option OptimizationStatistics := none
   subdivision : Option SubdivisionStatistics := none
+  finiteSum : Option FiniteSumStatistics := none
+  integralPartitions : Option IntegralPartitionStatistics := none
   /-- Constituent checker proofs retained by composite artifacts.  The
   singular `checker`/`verifier` fields remain the compatibility presentation
   for one-certificate solvers. -/

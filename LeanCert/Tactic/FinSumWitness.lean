@@ -57,6 +57,43 @@ open LeanCert.Engine
 
 initialize registerTraceClass `finsum_witness
 
+/-- Computational route used for a finite-sum certificate. -/
+inductive FinSumPath where
+  | reifiedRange
+  | reifiedExplicit
+  | witnessRange
+  | witnessExplicit
+  deriving Repr, Inhabited, BEq
+
+/-- Runtime facts retained from a successful finite-sum proof. -/
+structure FinSumOutcome where
+  path : FinSumPath
+  isUpper : Bool
+  rewrittenFin : Bool := false
+  termCount : Nat
+  precision : Int
+  taylorDepth : Nat
+  enclosure : IntervalRat
+  checker : Name
+  verifier : Name
+  verification : VerificationUsage
+  deriving Inhabited
+
+/-- Typed finite-sum failures shared by reified and witness routes. -/
+inductive FinSumFailure where
+  | unsupported (detail : String)
+  | domainObstruction (index : Option Nat) (detail : String)
+  | rejected (checker : Name) (enclosure : Option IntervalRat)
+  | verificationFailure (detail : String)
+  | transportFailure (detail : String)
+  | internalFailure (detail : String)
+  deriving Inhabited, Repr
+
+private def bridgeFailureToFinSum : BridgeFailure → FinSumFailure
+  | .rejected => .rejected Name.anonymous none
+  | .verificationFailure detail => .verificationFailure detail
+  | .transportFailure detail => .transportFailure detail
+
 /-! ## Goal Parsing -/
 
 /-- Result of parsing a finite sum bound goal. -/
@@ -115,15 +152,15 @@ private def parseWitnessGoalList (goalType : Lean.Expr) : MetaM (Option WitnessG
 
 /-- Core implementation of `finsum_witness` for Icc goals. -/
 private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Syntax)
-    (prec : Int) : TacticM Unit := do
+    (prec : Int) : TacticM (Except FinSumFailure FinSumOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
   goal.withContext do
     -- Extract target as rational
     let some target ← Auto.extractRatFromReal wGoal.targetExpr
-      | throwError "finsum_witness: could not extract rational from bound \
-          `{← ppExpr wGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr wGoal.targetExpr}"
     let targetExpr := toExpr target
 
     -- Build configuration
@@ -134,7 +171,11 @@ private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Sy
     -- Elaborate user's evalTerm
     let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
       (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
-    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+    let evalTermExpr ←
+      try Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness evaluator: {← e.toMessageData.toString}"
 
     -- Build the expected type for hmem:
     --   ∀ k, a ≤ k → k ≤ b → f k ∈ evalTerm k cfg
@@ -150,8 +191,26 @@ private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Sy
 
     trace[finsum_witness] "Expected hmem type: {hmemTy}"
 
-    let hmemExpr ← Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+    let hmemExpr ←
+      try Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness proof: {← e.toMessageData.toString}"
 
+    let some a ← extractNatLit wGoal.aExpr
+      | return .error <| .unsupported "range lower endpoint is not a natural literal"
+    let some b ← extractNatLit wGoal.bExpr
+      | return .error <| .unsupported "range upper endpoint is not a natural literal"
+    let checkerName := if wGoal.isUpper then
+      ``checkWitnessSumUpperBound else ``checkWitnessSumLowerBound
+    let verifierName := if wGoal.isUpper then
+      ``verify_witness_sum_upper else ``verify_witness_sum_lower
+    let enclosureExpr ← mkAppM ``witnessSumDyadic
+      #[evalTermExpr, wGoal.aExpr, wGoal.bExpr, cfgExpr]
+    let enclosure ← unsafe evalExpr IntervalDyadic (mkConst ``IntervalDyadic) enclosureExpr
+    let enclosureRat := enclosure.toIntervalRat
+    unless (if wGoal.isUpper then enclosureRat.hi ≤ target else target ≤ enclosureRat.lo) do
+      return .error <| .rejected checkerName (some enclosureRat)
     let checkExpr ← if wGoal.isUpper then
       mkAppM ``checkWitnessSumUpperBound
         #[evalTermExpr, wGoal.aExpr, wGoal.bExpr, targetExpr, cfgExpr]
@@ -171,21 +230,36 @@ private def finSumWitnessIccCore (wGoal : WitnessGoal) (evalTermSyn hmemSyn : Sy
         targetExpr, cfgExpr, hmemExpr, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
-    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_witness" #[
+    let result ← closeBridgeWithVerificationTyped goal goalType proof checkMVar "finsum_witness" #[
       do evalTactic (← `(tactic| intro h; exact h)),
       do evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
     ]
+    match result with
+    | .error .rejected => return .error <| .rejected checkerName (some enclosureRat)
+    | .error failure => return .error (bridgeFailureToFinSum failure)
+    | .ok event =>
+      return .ok {
+        path := .witnessRange
+        isUpper := wGoal.isUpper
+        termCount := if b < a then 0 else b + 1 - a
+        precision := prec
+        taylorDepth := 10
+        enclosure := enclosureRat
+        checker := checkerName
+        verifier := verifierName
+        verification := event.toUsage
+      }
 
 /-- Core implementation of `finsum_witness` for arbitrary Finsets (list path). -/
 private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn : Syntax)
-    (prec : Int) : TacticM Unit := do
+    (prec : Int) : TacticM (Except FinSumFailure FinSumOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
   goal.withContext do
     let some target ← Auto.extractRatFromReal wGoal.targetExpr
-      | throwError "finsum_witness: could not extract rational from bound \
-          `{← ppExpr wGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr wGoal.targetExpr}"
     let targetExpr := toExpr target
 
     let precExpr := toExpr prec
@@ -194,7 +268,11 @@ private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn
 
     let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
       (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
-    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+    let evalTermExpr ←
+      try Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness evaluator: {← e.toMessageData.toString}"
 
     -- Build hmem type: ∀ k, k ∈ S → f k ∈ evalTerm k cfg
     let natTy := Lean.mkConst ``Nat
@@ -208,9 +286,25 @@ private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn
 
     trace[finsum_witness] "Expected hmem type (list path): {hmemTy}"
 
-    let hmemExpr ← Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+    let hmemExpr ←
+      try Tactic.elabTermEnsuringType hmemSyn (some hmemTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness proof: {← e.toMessageData.toString}"
 
+    let indices ← unsafe evalExpr (List Nat)
+      (mkApp (mkConst ``List [0]) (mkConst ``Nat)) wGoal.indicesExpr
     -- Build combined check (S = indices.toFinset ∧ Nodup ∧ bound)
+    let checkerName := if wGoal.isUpper then
+      ``checkWitnessSumUpperBoundListFull else ``checkWitnessSumLowerBoundListFull
+    let verifierName := if wGoal.isUpper then
+      ``verify_witness_sum_upper_list_full else ``verify_witness_sum_lower_list_full
+    let enclosureExpr ← mkAppM ``witnessSumDyadicList
+      #[evalTermExpr, wGoal.indicesExpr, cfgExpr]
+    let enclosure ← unsafe evalExpr IntervalDyadic (mkConst ``IntervalDyadic) enclosureExpr
+    let enclosureRat := enclosure.toIntervalRat
+    unless (if wGoal.isUpper then enclosureRat.hi ≤ target else target ≤ enclosureRat.lo) do
+      return .error <| .rejected checkerName (some enclosureRat)
     let checkExpr ← if wGoal.isUpper then
       mkAppM ``checkWitnessSumUpperBoundListFull
         #[evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr, targetExpr, cfgExpr]
@@ -230,29 +324,58 @@ private def finSumWitnessListCore (wGoal : WitnessGoalList) (evalTermSyn hmemSyn
         targetExpr, cfgExpr, hmemExpr, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
-    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_witness" #[
+    let result ← closeBridgeWithVerificationTyped goal goalType proof checkMVar "finsum_witness" #[
       do evalTactic (← `(tactic| intro h; exact h)),
       do evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
     ]
+    match result with
+    | .error .rejected => return .error <| .rejected checkerName (some enclosureRat)
+    | .error failure => return .error (bridgeFailureToFinSum failure)
+    | .ok event =>
+      return .ok {
+        path := .witnessExplicit
+        isUpper := wGoal.isUpper
+        termCount := indices.length
+        precision := prec
+        taylorDepth := 10
+        enclosure := enclosureRat
+        checker := checkerName
+        verifier := verifierName
+        verification := event.toUsage
+      }
 
 /-- Main dispatch: try Icc path first, then list path. -/
+def finSumWitnessCoreTyped (evalTermSyn hmemSyn : Syntax) (prec : Int) :
+    TacticM (Except FinSumFailure FinSumOutcome) := do
+  let original ← saveState
+  try
+    let goal ← getMainGoal
+    let goalType ← goal.getType
+
+    if let some wGoal := parseWitnessGoal goalType then
+      match ← finSumWitnessIccCore wGoal evalTermSyn hmemSyn prec with
+      | .ok outcome => return .ok outcome
+      | .error failure =>
+          original.restore
+          return .error failure
+
+    if let some wGoalList := ← parseWitnessGoalList goalType then
+      match ← finSumWitnessListCore wGoalList evalTermSyn hmemSyn prec with
+      | .ok outcome => return .ok outcome
+      | .error failure =>
+          original.restore
+          return .error failure
+
+    original.restore
+    return .error <| .unsupported "goal is not a recognized finite-sum bound"
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
 def finSumWitnessCore (evalTermSyn hmemSyn : Syntax) (prec : Int) : TacticM Unit := do
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-
-  -- Try Icc path first
-  if let some wGoal := parseWitnessGoal goalType then
-    finSumWitnessIccCore wGoal evalTermSyn hmemSyn prec
-    return
-
-  -- Fall back to general list path
-  if let some wGoalList := ← parseWitnessGoalList goalType then
-    finSumWitnessListCore wGoalList evalTermSyn hmemSyn prec
-    return
-
-  throwError "finsum_witness: goal is not of the form \
-    `∑ k ∈ S, f k ≤ target` or `target ≤ ∑ k ∈ S, f k` \
-    where S is a recognized Finset (Icc, Ico, Ioc, Ioo, range, or explicit)"
+  match ← finSumWitnessCoreTyped evalTermSyn hmemSyn prec with
+  | .ok _ => pure ()
+  | .error failure => throwError "finsum_witness: {repr failure}"
 
 /-- Try to auto-prove an hmem metavar using several strategies.
     Works best when the evaluator returns singletons or tight intervals
@@ -299,14 +422,14 @@ private def tryAutoProveHmem (hmemMVar : MVarId) : TacticM Unit := do
 
 /-- Core implementation of `finsum_bound auto` for Icc goals. -/
 private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax)
-    (prec : Int) : TacticM Unit := do
+    (prec : Int) : TacticM (Except FinSumFailure FinSumOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
   goal.withContext do
     let some target ← Auto.extractRatFromReal wGoal.targetExpr
-      | throwError "finsum_bound auto: could not extract rational from bound \
-          `{← ppExpr wGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr wGoal.targetExpr}"
     let targetExpr := toExpr target
 
     let precExpr := toExpr prec
@@ -315,7 +438,11 @@ private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax
 
     let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
       (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
-    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+    let evalTermExpr ←
+      try Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness evaluator: {← e.toMessageData.toString}"
 
     -- Build hmem type: ∀ k, a ≤ k → k ≤ b → f k ∈ evalTerm k cfg
     let natTy := Lean.mkConst ``Nat
@@ -331,12 +458,27 @@ private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax
     -- Auto-prove hmem
     let hmemMVar ← mkFreshExprMVar (some hmemTy) (kind := .syntheticOpaque)
     let savedGoals ← getGoals
-    tryAutoProveHmem hmemMVar.mvarId!
+    try
+      tryAutoProveHmem hmemMVar.mvarId!
+    catch e =>
+      return .error <| .unsupported
+        s!"could not synthesize the witness membership proof: {← e.toMessageData.toString}"
     setGoals savedGoals
 
     let hmemExpr := hmemMVar
 
     -- Rest is identical to finSumWitnessIccCore
+    let checkerName := if wGoal.isUpper then
+      ``checkWitnessSumUpperBound else ``checkWitnessSumLowerBound
+    let verifierName := if wGoal.isUpper then
+      ``verify_witness_sum_upper else ``verify_witness_sum_lower
+    let enclosureExpr ← mkAppM ``witnessSumDyadic
+      #[evalTermExpr, wGoal.aExpr, wGoal.bExpr, cfgExpr]
+    let enclosure ← unsafe evalExpr IntervalDyadic (mkConst ``IntervalDyadic) enclosureExpr
+    let enclosureRat := enclosure.toIntervalRat
+    unless (if wGoal.isUpper then enclosureRat.hi ≤ target else target ≤ enclosureRat.lo) do
+      return .error <| .rejected checkerName (some enclosureRat)
+
     let checkExpr ← if wGoal.isUpper then
       mkAppM ``checkWitnessSumUpperBound
         #[evalTermExpr, wGoal.aExpr, wGoal.bExpr, targetExpr, cfgExpr]
@@ -356,21 +498,43 @@ private def finSumWitnessAutoIccCore (wGoal : WitnessGoal) (evalTermSyn : Syntax
         targetExpr, cfgExpr, hmemExpr, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
-    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound auto" #[
+    let result ← closeBridgeWithVerificationTyped goal goalType proof checkMVar "finsum_bound auto" #[
       do evalTactic (← `(tactic| intro h; exact h)),
       do evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
     ]
+    match result with
+    | .error .rejected => return .error <| .rejected checkerName (some enclosureRat)
+    | .error (.verificationFailure detail) =>
+        return .error <| .verificationFailure detail
+    | .error (.transportFailure detail) =>
+        return .error <| .transportFailure detail
+    | .ok event =>
+      let some a ← extractNatLit wGoal.aExpr
+        | return .error <| .unsupported "range lower endpoint is not a natural literal"
+      let some b ← extractNatLit wGoal.bExpr
+        | return .error <| .unsupported "range upper endpoint is not a natural literal"
+      return .ok {
+        path := .witnessRange
+        isUpper := wGoal.isUpper
+        termCount := if b < a then 0 else b + 1 - a
+        precision := prec
+        taylorDepth := 10
+        enclosure := enclosureRat
+        checker := checkerName
+        verifier := verifierName
+        verification := event.toUsage
+      }
 
 /-- Core implementation of `finsum_bound auto` for arbitrary Finsets (list path). -/
 private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : Syntax)
-    (prec : Int) : TacticM Unit := do
+    (prec : Int) : TacticM (Except FinSumFailure FinSumOutcome) := do
   let goal ← getMainGoal
   let goalType ← goal.getType
 
   goal.withContext do
     let some target ← Auto.extractRatFromReal wGoal.targetExpr
-      | throwError "finsum_bound auto: could not extract rational from bound \
-          `{← ppExpr wGoal.targetExpr}`"
+      | return .error <| .unsupported
+          s!"bound is not rational: {← ppExpr wGoal.targetExpr}"
     let targetExpr := toExpr target
 
     let precExpr := toExpr prec
@@ -379,7 +543,11 @@ private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : S
 
     let evalTermTy ← mkArrow (Lean.mkConst ``Nat)
       (← mkArrow (Lean.mkConst ``DyadicConfig) (Lean.mkConst ``IntervalDyadic))
-    let evalTermExpr ← Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+    let evalTermExpr ←
+      try Tactic.elabTermEnsuringType evalTermSyn (some evalTermTy)
+      catch e =>
+        return .error <| .unsupported
+          s!"malformed witness evaluator: {← e.toMessageData.toString}"
 
     -- Build hmem type: ∀ k, k ∈ S → f k ∈ evalTerm k cfg
     let natTy := Lean.mkConst ``Nat
@@ -394,12 +562,27 @@ private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : S
     -- Auto-prove hmem
     let hmemMVar ← mkFreshExprMVar (some hmemTy) (kind := .syntheticOpaque)
     let savedGoals ← getGoals
-    tryAutoProveHmem hmemMVar.mvarId!
+    try
+      tryAutoProveHmem hmemMVar.mvarId!
+    catch e =>
+      return .error <| .unsupported
+        s!"could not synthesize the witness membership proof: {← e.toMessageData.toString}"
     setGoals savedGoals
 
     let hmemExpr := hmemMVar
 
     -- Rest is identical to finSumWitnessListCore
+    let checkerName := if wGoal.isUpper then
+      ``checkWitnessSumUpperBoundListFull else ``checkWitnessSumLowerBoundListFull
+    let verifierName := if wGoal.isUpper then
+      ``verify_witness_sum_upper_list_full else ``verify_witness_sum_lower_list_full
+    let enclosureExpr ← mkAppM ``witnessSumDyadicList
+      #[evalTermExpr, wGoal.indicesExpr, cfgExpr]
+    let enclosure ← unsafe evalExpr IntervalDyadic (mkConst ``IntervalDyadic) enclosureExpr
+    let enclosureRat := enclosure.toIntervalRat
+    unless (if wGoal.isUpper then enclosureRat.hi ≤ target else target ≤ enclosureRat.lo) do
+      return .error <| .rejected checkerName (some enclosureRat)
+
     let checkExpr ← if wGoal.isUpper then
       mkAppM ``checkWitnessSumUpperBoundListFull
         #[evalTermExpr, wGoal.finsetExpr, wGoal.indicesExpr, targetExpr, cfgExpr]
@@ -419,27 +602,58 @@ private def finSumWitnessAutoListCore (wGoal : WitnessGoalList) (evalTermSyn : S
         targetExpr, cfgExpr, hmemExpr, checkMVar]
 
     -- Apply bridge + native_decide (with converter fallback)
-    closeBridgeWithNativeDecide goal goalType proof checkMVar "finsum_bound auto" #[
+    let result ← closeBridgeWithVerificationTyped goal goalType proof checkMVar "finsum_bound auto" #[
       do evalTactic (← `(tactic| intro h; exact h)),
       do evalTactic (← `(tactic| intro h; push_cast at h ⊢; linarith))
     ]
+    match result with
+    | .error .rejected => return .error <| .rejected checkerName (some enclosureRat)
+    | .error (.verificationFailure detail) =>
+        return .error <| .verificationFailure detail
+    | .error (.transportFailure detail) =>
+        return .error <| .transportFailure detail
+    | .ok event =>
+      let indices ← unsafe evalExpr (List Nat)
+        (mkApp (mkConst ``List [0]) (mkConst ``Nat)) wGoal.indicesExpr
+      return .ok {
+        path := .witnessExplicit
+        isUpper := wGoal.isUpper
+        termCount := indices.length
+        precision := prec
+        taylorDepth := 10
+        enclosure := enclosureRat
+        checker := checkerName
+        verifier := verifierName
+        verification := event.toUsage
+      }
 
 /-- Main dispatch for auto-hmem mode: try Icc path first, then list path. -/
+def finSumWitnessAutoCoreTyped (evalTermSyn : Syntax) (prec : Int) :
+    TacticM (Except FinSumFailure FinSumOutcome) := do
+  let original ← saveState
+  try
+    let goal ← getMainGoal
+    let goalType ← goal.getType
+    let result ←
+      if let some wGoal := parseWitnessGoal goalType then
+        finSumWitnessAutoIccCore wGoal evalTermSyn prec
+      else if let some wGoalList := ← parseWitnessGoalList goalType then
+        finSumWitnessAutoListCore wGoalList evalTermSyn prec
+      else
+        pure <| .error <| .unsupported "goal is not a recognized finite-sum bound"
+    match result with
+    | .ok outcome => return .ok outcome
+    | .error failure =>
+        original.restore
+        return .error failure
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
 def finSumWitnessAutoCore (evalTermSyn : Syntax) (prec : Int) : TacticM Unit := do
-  let goal ← getMainGoal
-  let goalType ← goal.getType
-
-  if let some wGoal := parseWitnessGoal goalType then
-    finSumWitnessAutoIccCore wGoal evalTermSyn prec
-    return
-
-  if let some wGoalList := ← parseWitnessGoalList goalType then
-    finSumWitnessAutoListCore wGoalList evalTermSyn prec
-    return
-
-  throwError "finsum_bound auto: goal is not of the form \
-    `∑ k ∈ S, f k ≤ target` or `target ≤ ∑ k ∈ S, f k` \
-    where S is a recognized Finset (Icc, Ico, Ioc, Ioo, range, or explicit)"
+  match ← finSumWitnessAutoCoreTyped evalTermSyn prec with
+  | .ok _ => pure ()
+  | .error failure => throwError "finsum_bound auto: {repr failure}"
 
 /-! ## Main Tactic -/
 

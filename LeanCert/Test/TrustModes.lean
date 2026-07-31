@@ -306,6 +306,21 @@ theorem trustAutoSmallSum :
 
 #assert_trust kernel trustAutoSmallSum
 
+-- Partition integration certifies the retained fixed partition candidate
+-- through the same trust boundary.
+set_option leancert.trust "kernel" in
+theorem trustKernelPartitionIntegral :
+    (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by
+  leancert
+
+set_option leancert.trust "auto" in
+theorem trustAutoPartitionIntegral :
+    (∫ x in (0 : ℝ)..1, Real.exp x) ≤ 2 := by
+  leancert
+
+#assert_trust kernel trustKernelPartitionIntegral
+#assert_trust kernel trustAutoPartitionIntegral
+
 /-! ### `#assert_trust`: the CI manifest command -/
 
 #assert_trust kernel trustSyntaxKernel

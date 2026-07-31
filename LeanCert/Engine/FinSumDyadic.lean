@@ -262,6 +262,31 @@ def checkDomainValidAllAux (body : Expr) (current limit : Nat)
 def checkDomainValidAll (body : Expr) (a b : Nat) (cfg : DyadicConfig) : Bool :=
   checkDomainValidAllAux body a b cfg
 
+/-- Structured candidate evaluation used by the tactic to distinguish a
+mathematical domain obstruction from an enclosure that is merely too wide.
+This result is untrusted; successful candidates are still certified by the
+existing combined Boolean checker and Golden Theorem. -/
+inductive FinSumEvaluation where
+  | success (enclosure : IntervalDyadic)
+  | domainObstruction (index : Nat)
+  deriving Repr, Inhabited
+
+def firstInvalidFinSumIndex (body : Expr) (current limit : Nat)
+    (cfg : DyadicConfig) : Option Nat :=
+  if current > limit then none
+  else if checkDomainValidDyadic body (sumBodyEnvSimple current cfg.precision) cfg then
+    firstInvalidFinSumIndex body (current + 1) limit cfg
+  else some current
+  termination_by limit + 1 - current
+
+/-- Evaluate one range candidate exactly once for classification and
+telemetry. -/
+def evaluateFinSumCandidate (body : Expr) (a b : Nat)
+    (cfg : DyadicConfig) : FinSumEvaluation :=
+  match firstInvalidFinSumIndex body a b cfg with
+  | some index => .domainObstruction index
+  | none => .success (finSumDyadic body a b cfg)
+
 /-- Bridge theorem: if checkDomainValidAllAux returns true,
     domain validity holds for all indices in [current, limit]. -/
 theorem checkDomainValidAllAux_correct (body : Expr) (current limit : Nat)
@@ -478,6 +503,19 @@ def checkFinSumLowerBoundList (body : Expr) (indices : List Nat)
 def checkDomainValidAllList (body : Expr) (indices : List Nat)
     (cfg : DyadicConfig) : Bool :=
   indices.all fun k => checkDomainValidDyadic body (sumBodyEnvSimple k cfg.precision) cfg
+
+def firstInvalidFinSumListIndex (body : Expr) (indices : List Nat)
+    (cfg : DyadicConfig) : Option Nat :=
+  indices.find? fun k =>
+    !(checkDomainValidDyadic body (sumBodyEnvSimple k cfg.precision) cfg)
+
+/-- Evaluate one explicit-index candidate exactly once for classification and
+telemetry. -/
+def evaluateFinSumListCandidate (body : Expr) (indices : List Nat)
+    (cfg : DyadicConfig) : FinSumEvaluation :=
+  match firstInvalidFinSumListIndex body indices cfg with
+  | some index => .domainObstruction index
+  | none => .success (finSumDyadicList body indices cfg)
 
 /-- Domain validity correctness for list-based checker. -/
 theorem checkDomainValidAllList_correct (body : Expr) (indices : List Nat)
