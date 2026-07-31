@@ -44,9 +44,8 @@ structure SolverSpec where
   full comparison language for its intent. -/
   comparisons : Option (Array Semantic.Comparison) := none
 
-private def suggestion (tactic : String) (args : Array String := #[])
-    (acceptsInlineTrust : Bool := true) : ProofSuggestion :=
-  { tactic, positionalArgs := args, acceptsInlineTrust }
+private def suggestion (tactic : String) (args : Array String := #[]) : ProofSuggestion :=
+  { tactic, positionalArgs := args }
 
 private def primarySuggestion (cfg : LeanCertConfig)
     (mode : VerificationMode) : ProofSuggestion := Id.run do

@@ -1,6 +1,6 @@
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.Engine.Chebyshev.Theta
 
-open LeanCert.Engine.ChebyshevTheta
+open LeanCert.Engine.Chebyshev.Theta
 
 -- Quick test: theta(N) <= 1.11 * N for all N = 1..599
 -- (analogous to the psi test in ChebyshevPsiTest)

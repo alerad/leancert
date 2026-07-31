@@ -191,8 +191,7 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
 | `auto` | Kernel first, with calibrated gates and reported fallback | Depends on the route used |
 
 **Diagnostics:** Enable `set_option trace.leancert.verification true` to see
-the selected verification route. The historical `certify_kernel*` tactics are
-deprecated compatibility aliases.
+the selected verification route.
 
 ---
 
@@ -670,11 +669,6 @@ interval_bound_adaptive <maxIterations>
 It honors the scoped `leancert.trust` option and does not accept an inline
 trust item. Prefer `leancert` for automatic routing or `opt_bound` when working
 directly with explicit `Expr`/`Box` optimization goals.
-
-`interval_bound` is a compatibility alias for `certify_bound` and accepts the
-same optional depth and inline trust item. The `certify_kernel*` family is
-deprecated; use `certify_bound (trust := kernel)` or
-`certify_bound (trust := auto)`.
 
 ---
 

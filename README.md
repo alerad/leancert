@@ -185,7 +185,7 @@ kernel-only verification may be substantially more expensive. See the
 [trust model](https://docs.leancert.io/architecture/trust-model/) and
 [verification status](https://docs.leancert.io/architecture/verification-status/)
 for precise trust boundaries, experimental subsystem qualifications, and the
-Li₂ compatibility exception.
+Li₂ lightweight verification boundary.
 
 See [Choosing Tactics](https://docs.leancert.io/tactics/choosing-tactics/) and
 [Troubleshooting](https://docs.leancert.io/direct/troubleshooting/) for the
@@ -211,8 +211,6 @@ The visible source layout follows the same ownership model: stable checked
 entry points live in `LeanCert/API`, reusable numerical theorems in
 `LeanCert/CertifiedBounds`, automation in `LeanCert/Tactic`, supported
 demonstrations in `LeanCert/Examples`, and regressions in `LeanCert/Test`.
-Historical forwarding imports are listed in
-[Compatibility Surfaces](https://docs.leancert.io/reference/compatibility/).
 See the [contributor architecture guide](docs/contributing/architecture.md)
 and [roadmap](docs/roadmap.md) for current boundaries and convergence work.
 

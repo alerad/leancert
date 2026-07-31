@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert
-import LeanCert.Examples.Li2Bounds
+import LeanCert.CertifiedBounds.Li2
 import LeanCert.Engine.Integrate
 import LeanCert.Validity.IntegrationDyadic
 
@@ -31,7 +31,7 @@ The proof uses:
 ## Module Structure
 
 The shared definitions and analytic lemmas are in `Li2Base.lean`. The public
-interface is `Li2Bounds.lean`, which states the bounds with `sorry` so that
+interface is `LeanCert.CertifiedBounds.Li2`, which states the bounds with `sorry` so that
 downstream projects (e.g. PNT+) do not pay this file's build cost — the
 lightweight-interface/heavy-verification split agreed with PNT+ (PR #774).
 This file imports the interface and ends with a statement-identity check
@@ -49,7 +49,7 @@ open LeanCert.Core
 open LeanCert.Validity.Integration
 open scoped ENNReal
 
--- Re-export from Li2Bounds for convenience
+-- Use the underlying analytic definitions from the lightweight interface.
 open Li2
 
 /-! ### Dyadic configuration for fast integration -/
@@ -837,8 +837,8 @@ theorem g_integral_67_lower :
 
 /-- The main verified theorem: certified bounds on li(2).
 
-This proves the bounds re-exported as `Li2.li2_lower` and `Li2.li2_upper` in
-`Li2Bounds.lean`, with full numerical verification via interval arithmetic. -/
+This proves the bounds exposed by `LeanCert.CertifiedBounds.Li2`, with full
+numerical verification via interval arithmetic. -/
 theorem li2_bounds_verified : (1039:ℚ)/1000 ≤ li2 ∧ li2 ≤ (106:ℚ)/100 := by
   constructor
   · -- Lower bound: li(2) ≥ 1.039
@@ -912,10 +912,10 @@ end Li2Verified
 
 /-! ### Statement-identity check (drift protection)
 
-The lightweight interface `Li2Bounds.lean` states `Li2.li2_lower` and
-`Li2.li2_upper` with `sorry`. The check below fails compilation if the
+The lightweight interface states `LeanCert.CertifiedBounds.Li2.lower` and
+`.upper` with `sorry`. The check below fails compilation if the
 interface statements differ syntactically from the verified statements, so a
-statement edit in `Li2Bounds.lean` does not ship without re-verification
+statement edit in the canonical interface does not ship without re-verification
 here. -/
 
 open Lean in
@@ -930,6 +930,6 @@ run_meta do
       throwError "Statement drift between interface and verified theorem:\n\
         {iName} : {i.type}\n\
         {vName} : {v.type}\n\
-        Update the interface in Li2Bounds.lean and the verification here together."
-  check ``Li2.li2_lower ``Li2Verified.li2_lower_verified
-  check ``Li2.li2_upper ``Li2Verified.li2_upper_verified
+        Update LeanCert.CertifiedBounds.Li2 and the verification here together."
+  check ``LeanCert.CertifiedBounds.Li2.lower ``Li2Verified.li2_lower_verified
+  check ``LeanCert.CertifiedBounds.Li2.upper ``Li2Verified.li2_upper_verified

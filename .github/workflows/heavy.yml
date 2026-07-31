@@ -18,7 +18,7 @@ jobs:
       - run: |
           lake build \
             Li2Verified \
-            BKLNW_a2_reflective \
+            BKLNWVerified \
             ChebyshevPsiTest \
             ChebyshevThetaTest \
             TableTest

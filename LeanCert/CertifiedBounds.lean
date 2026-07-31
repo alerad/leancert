@@ -18,11 +18,11 @@ import LeanCert.CertifiedBounds
 ```
 
 and declarations below `LeanCert.CertifiedBounds` over implementation modules
-under `LeanCert.Engine` or historical interfaces under `LeanCert.Examples`.
+under `LeanCert.Engine`.
 
 ## Stability
 
 Names in `LeanCert.CertifiedBounds` are part of LeanCert's supported downstream
-API. Changes to their statements or removal require a compatibility period and
-must keep the downstream pattern suite green.
+API. Changes to their statements must be intentional and keep the downstream
+pattern suite green.
 -/

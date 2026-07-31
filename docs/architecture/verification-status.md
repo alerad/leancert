@@ -5,8 +5,8 @@ that lift successful checks to mathematical propositions. The table below
 states the actual boundary for each major subsystem. A successful checker is
 verified; search and certificate generation may still fail or be inconclusive.
 
-One compatibility exception is important: the lightweight imported Li₂ aliases
-use two explicitly allowlisted placeholders. Their matching proofs are built in
+One explicit verification boundary is important: the lightweight imported Li₂ bounds
+use two allowlisted placeholders. Their matching proofs are built in
 a separate CI target, but the aliases are not kernel-linked to those proof
 constants. See the final row for the exact qualification.
 
@@ -38,7 +38,7 @@ logged errors are terminal internal failures.
 | Dense and elementwise neural-network bounds | interval forward functions | `Layer.mem_forwardInterval`, `TwoLayerNet.mem_forwardInterval`, and activation membership theorems | Soundness requires the dimension, input-membership, and precision premises in each theorem. |
 | Transformer attention | `scaledDotProductAttention` | `mem_scaledDotProductAttention` in `ML/Attention.lean` | Currently proves an output-length relation, not elementwise semantic enclosure. |
 | Quantized inference | `QuantizedLayer.forwardQuantized` | `QuantizedLayer.forwardQuantized_sound` | Currently proves lower endpoints do not exceed upper endpoints; it is not a real-forward containment theorem. |
-| Lightweight Li₂ interface | `LeanCert.CertifiedBounds.Li2.lower`, `.upper` | matching `Li2Verified.li2_lower_verified`, `.li2_upper_verified` in the separate `Li2Verified` target | The imported aliases intentionally use two allowlisted placeholders. CI builds the matching proofs and checks statement identity, but this is not a kernel link between the aliases and those proof terms. |
+| Lightweight Li₂ interface | `LeanCert.CertifiedBounds.Li2.lower`, `.upper` | matching `Li2Verified.li2_lower_verified`, `.li2_upper_verified` in the separate `Li2Verified` target | The public bounds intentionally use two allowlisted placeholders. CI builds the matching proofs and checks statement identity, but this is not a kernel link between the interface and those proof terms. |
 
 Backend selection and certificate verification are independent. Rational,
 Dyadic, and Affine are numerical backends. `kernel`, `native`, and `auto`
@@ -64,7 +64,7 @@ checkers; others expose mathematical obligations that a project must supply.
 The repository's audit tests pin the expected axiom sets of representative
 public theorems and sweep the environment for locally introduced axioms.
 Textual guards reject unallowlisted `sorry` and `axiom` declarations. The two
-Li₂ compatibility placeholders are deliberately named in that allowlist; they
+Li₂ lightweight-interface placeholders are deliberately named in that allowlist; they
 must not be described as kernel-checked aliases.
 
 For a theorem in a downstream project, inspect its actual dependency set:

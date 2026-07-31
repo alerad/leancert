@@ -32,7 +32,6 @@ loading tactic elaborators.
 
 ```lean
 import LeanCert.Tactic.IntervalAuto
-import LeanCert.Tactic.DyadicAuto
 import LeanCert.Tactic.Bound
 import LeanCert.Discovery.Commands
 import LeanCert.Tactic.Discovery
@@ -53,8 +52,8 @@ import LeanCert.Analysis.ContourShift
 
 ```lean
 import LeanCert.ANT
-import LeanCert.Engine.ChebyshevPsi
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.Engine.Chebyshev.Psi
+import LeanCert.Engine.Chebyshev.Theta
 ```
 
 ### Nonlinear System Roots

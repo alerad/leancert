@@ -1,9 +1,9 @@
-import LeanCert.Engine.ChebyshevPsi
+import LeanCert.Engine.Chebyshev.Psi
 
-open LeanCert.Engine.ChebyshevPsi
+open LeanCert.Engine.Chebyshev.Psi
 
 -- Quick test: incremental checker (O(N), fast)
-example : allPsiBoundsHold 11723 20 = true := by native_decide
+example : checkAllPsiLeMulWith 11723 (111 / 100) 20 = true := by native_decide
 
 -- Eval the incremental checker result
-#eval allPsiBoundsHold 11723 20
+#eval checkAllPsiLeMulWith 11723 (111 / 100) 20

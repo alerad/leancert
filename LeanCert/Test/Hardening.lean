@@ -3,7 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.DyadicAuto
+import LeanCert.Tactic.IntervalAuto
 import LeanCert.Meta.ProveSupported
 import LeanCert.Engine.AD.Eval
 import LeanCert.Engine.IntervalEvalReal
@@ -164,6 +164,6 @@ example :
   rfl
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ (2 : ℚ) := by
-  certify_kernel_fallback
+  certify_bound (trust := auto)
 
 end LeanCert.Test.Hardening

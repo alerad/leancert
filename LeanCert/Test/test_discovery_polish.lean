@@ -5,7 +5,7 @@
 import LeanCert.Tactic.IntervalAuto
 import LeanCert.Tactic.Discovery
 import LeanCert.Tactic.Refute
-import LeanCert.Tactic.DyadicAuto
+import LeanCert.Tactic.IntervalAuto
 
 open LeanCert.Core
 open Set
@@ -173,7 +173,7 @@ example : ∃ x ∈ I34, Expr.eval (fun _ => x) (Expr.sin (Expr.var 0)) = 0 := b
 end RootFinding
 
 
-/-! ## Application 5: Dyadic Backend - certify_kernel_fallback
+/-! ## Application 5: Dyadic Backend - certify_bound (trust := auto)
 
 For kernel-verified proofs (uses decide instead of native_decide when possible)
 -/
@@ -182,18 +182,18 @@ section DyadicBackend
 
 -- Basic polynomial
 example : ∀ x ∈ Icc (0 : ℝ) 1, x * x + x ≤ 2 := by
-  certify_kernel_fallback
+  certify_bound (trust := auto)
 
 -- With transcendentals
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by
-  certify_kernel_fallback
+  certify_bound (trust := auto)
 
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.cos x ≤ 1 := by
-  certify_kernel_fallback
+  certify_bound (trust := auto)
 
 -- exp bounds
 example : ∀ x ∈ Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
-  certify_kernel_fallback 60
+  certify_bound (trust := auto)
 
 end DyadicBackend
 

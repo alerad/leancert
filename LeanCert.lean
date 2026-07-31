@@ -51,8 +51,8 @@ import LeanCert.Engine.FinSumDyadic
 import LeanCert.Engine.WitnessSum
 -- v1.4: Generic finite table certificates (row-wise native_decide loops)
 import LeanCert.Engine.Table
-import LeanCert.Engine.ChebyshevPsi
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.Engine.Chebyshev.Psi
+import LeanCert.Engine.Chebyshev.Theta
 
 -- Global Optimization
 import LeanCert.Engine.Optimization.Box
@@ -89,8 +89,6 @@ import LeanCert.Meta.ToExpr
 -- Tactics
 import LeanCert.Tactic.Interval
 import LeanCert.Tactic.Discovery
--- Dyadic kernel-verification tactics
-import LeanCert.Tactic.DyadicAuto
 -- Counter-example hunting
 import LeanCert.Tactic.Refute
 -- Additional tactics
@@ -125,7 +123,7 @@ import LeanCert.ML.Optimized.QuantizedLayer
 import LeanCert.ML.Optimized.MatrixNetwork
 
 -- Examples are separate from the default library build.
--- Both `lake build Examples` and the historical `lake build examples` work.
+-- Build supported examples explicitly with `lake build Examples`.
 
 -- Contrib (community contributions)
 import LeanCert.Contrib.Sinc
@@ -477,27 +475,22 @@ export LeanCert.Engine.SearchAPI (
 )
 
 -- Re-export Chebyshev certificate APIs
-export LeanCert.Engine.ChebyshevPsi (
+export LeanCert.Engine.Chebyshev.Psi (
   vonMangoldtUB
   psiUB
   checkPsiLeMulWith
   checkAllPsiLeMulWith
-  checkPsiBound
-  allPsiBoundsHold
   psi_le_psiUB
   psi_le_of_checkPsiLeMulWith
   psi_le_mul_real_of_checkPsiLeMulWith
   checkAllPsiLeMulWith_implies_checkPsiLeMulWith
-  allPsiBoundsHold_implies_checkPsiBound
   verify_psi_le_mul
   verify_psi_le_mul_real
   verify_all_psi_le_mul
   verify_all_psi_le_mul_real
-  verify_psi_bound
-  verify_all_psi_bound
 )
 
-export LeanCert.Engine.ChebyshevTheta (
+export LeanCert.Engine.Chebyshev.Theta (
   logPrimeUB
   logPrimeLB
   thetaUB

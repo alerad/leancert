@@ -17,14 +17,13 @@ The core checker is generalized by a rational slope `slope`:
 - `checkPsiLeMulWith N slope depth` checks `psiUB(N) <= slope * N`
 - `checkAllPsiLeMulWith bound slope depth` checks all `N = 1..bound`
 
-The original `1.11`-specific API is kept as thin wrappers:
-- `checkPsiBound`, `allPsiBoundsHold`, and their bridge theorems.
+Callers choose the rational slope explicitly; there is no slope-specific API.
 -/
 
-namespace LeanCert.Engine.ChebyshevPsi
+namespace LeanCert.Engine.Chebyshev.Psi
 
 open Finset Real ArithmeticFunction
-open Chebyshev (psi)
+open _root_.Chebyshev (psi)
 open LeanCert.Core (IntervalRat)
 open LeanCert.Core.IntervalRat (logPointComputable mem_logPointComputable mem_def)
 
@@ -111,28 +110,6 @@ theorem psi_le_mul_real_of_checkPsiLeMulWith
     psi (Nat.floor x : Real) <= (slope : Real) * Nat.floor x := hNat
     _ <= (slope : Real) * x := mul_le_mul_of_nonneg_left hfloor hslopeReal
 
-/-! ### Backwards-compatible wrappers for slope = 111/100 -/
-
-/-- Legacy check used by downstream code: `psiUB(N) <= 1.11 * N`. -/
-def checkPsiBound (N : Nat) (depth : Nat := 20) : Bool :=
-  checkPsiLeMulWith N (111 / 100) depth
-
-/-- Legacy theorem used by downstream code: `psi(N) <= 1.11 * N`. -/
-theorem psi_le_of_checkPsiBound (N depth : Nat)
-    (h : checkPsiBound N depth = true) :
-    psi (N : Real) <= 111 / 100 * N := by
-  simpa [checkPsiBound] using
-    (psi_le_of_checkPsiLeMulWith N depth (111 / 100) h)
-
-/-- Real-variable legacy theorem:
-`psi(x) <= 1.11 * x`, given `checkPsiBound floor(x) depth`. -/
-theorem psi_le_mul_real (x : Real) (depth : Nat) (hx : 0 < x)
-    (h : checkPsiBound (Nat.floor x) depth = true) :
-    psi x <= 111 / 100 * x := by
-  have hslope : (0 : Rat) <= (111 / 100 : Rat) := by norm_num
-  simpa [checkPsiBound] using
-    (psi_le_mul_real_of_checkPsiLeMulWith x (111 / 100) depth hslope hx h)
-
 /-! ### Efficient incremental checker (for #eval / native_decide testing) -/
 
 /-- Helper: accumulate `vonMangoldtUB` from `1` to `n-1`. -/
@@ -151,10 +128,6 @@ where
       if decide (acc' <= slope * (n : Rat)) then go bound slope depth (n + 1) acc'
       else false
   termination_by bound + 1 - n
-
-/-- Legacy O(N) checker for `slope = 111/100`. -/
-def allPsiBoundsHold (bound : Nat) (depth : Nat := 20) : Bool :=
-  checkAllPsiLeMulWith bound (111 / 100) depth
 
 /-! ### Bridge: checkAllPsiLeMulWith.go -> checkPsiLeMulWith -/
 
@@ -221,14 +194,6 @@ theorem checkAllPsiLeMulWith_implies_checkPsiLeMulWith
     checkPsiLeMulWith N slope depth = true :=
   go_true_implies_checkPsiLeMulWith bound slope depth 1 (by omega) 0 (by simp [psiUB]) h N hN hNb
 
-/-- Legacy bridge theorem for `slope = 111/100`. -/
-theorem allPsiBoundsHold_implies_checkPsiBound
-    (bound depth : Nat) (h : allPsiBoundsHold bound depth = true)
-    (N : Nat) (hN : 0 < N) (hNb : N <= bound) :
-    checkPsiBound N depth = true := by
-  simpa [allPsiBoundsHold, checkPsiBound] using
-    (checkAllPsiLeMulWith_implies_checkPsiLeMulWith bound (111 / 100) depth h N hN hNb)
-
 /-! ### Golden theorem aliases -/
 
 /-- Golden theorem: a successful `checkPsiLeMulWith` certificate proves
@@ -280,20 +245,4 @@ theorem verify_all_psi_le_mul_real
       (Nat.floor x) hfloor_pos hfloor_le).trans
       (mul_le_mul_of_nonneg_left (Nat.floor_le hnn) (by exact_mod_cast hslope))
 
-/-- Backwards-compatible Golden theorem for the legacy `1.11` checker. -/
-theorem verify_psi_bound (N depth : Nat)
-    (hcheck : checkPsiBound N depth = true) :
-    psi (N : Real) ≤ 111 / 100 * N :=
-  psi_le_of_checkPsiBound N depth hcheck
-
-/-- Backwards-compatible Golden theorem for the legacy incremental `1.11`
-checker. -/
-theorem verify_all_psi_bound
-    (bound depth : Nat) (hcheck : allPsiBoundsHold bound depth = true) :
-    ∀ N : Nat, 0 < N → N ≤ bound →
-      psi (N : Real) ≤ 111 / 100 * N := by
-  intro N hN hNb
-  exact verify_psi_bound N depth
-    (allPsiBoundsHold_implies_checkPsiBound bound depth hcheck N hN hNb)
-
-end LeanCert.Engine.ChebyshevPsi
+end LeanCert.Engine.Chebyshev.Psi

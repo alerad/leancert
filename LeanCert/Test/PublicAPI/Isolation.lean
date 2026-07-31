@@ -24,6 +24,6 @@ run_meta do
     if (`LeanCert.ANT).isPrefixOf moduleName ||
         (`LeanCert.ML).isPrefixOf moduleName ||
         (`LeanCert.Examples).isPrefixOf moduleName ||
-        (`LeanCert.Engine.ChebyshevPsi).isPrefixOf moduleName ||
-        (`LeanCert.Engine.ChebyshevTheta).isPrefixOf moduleName then
+        (`LeanCert.Engine.Chebyshev.Psi).isPrefixOf moduleName ||
+        (`LeanCert.Engine.Chebyshev.Theta).isPrefixOf moduleName then
       throwError "programmatic API imported heavyweight domain module {moduleName}"

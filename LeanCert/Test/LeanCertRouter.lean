@@ -858,8 +858,7 @@ example (h : ∀ x ∈ Set.Icc (-1 : ℝ) 1,
 example : (3 : ℝ) / 2 < 2 := by
   leancert (budget := 1)
 
--- Typed results take precedence over both reported and opaque compatibility
--- adapters, including through normalized bound/root transport.
+-- Typed failures remain visible through normalized bound/root transport.
 example : (3 : ℝ) / 2 < 2 := by
   expect_typed_adapter_failure
   norm_num
@@ -1393,7 +1392,7 @@ example : ((1 : ℝ) < 2) ∧ ((2 : ℝ) < 1) := by
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by
   leancert?
 
-/-! ## Suggested-proof and compatibility syntax
+/-! ## Suggested-proof syntax
 
 These are deliberately literal rather than generated-string tests.  Every
 primary or dedicated shape that the router may recommend must continue to
@@ -1410,7 +1409,7 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
 example : Real.log 2 < 7 / 10 := by
   leancert (trust := kernel)
 
--- Dedicated recipes retained for advanced use and legacy compatibility.
+-- Dedicated recipes retained for advanced use.
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
   certify_bound
 

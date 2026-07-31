@@ -4,9 +4,8 @@ Public modules are grouped by support level:
 
 | Level | Meaning |
 | --- | --- |
-| **Stable** | compatibility promise, covered by import and behavioral tests |
+| **Stable** | supported contract, covered by import and behavioral tests |
 | **Advanced** | supported expert interface whose lower-level details may evolve |
-| **Compatibility** | forwarding surface with a documented canonical replacement |
 | **Internal** | implementation module with no downstream stability promise |
 
 The stable front doors are `LeanCert`, `LeanCert.Tactic`,
@@ -55,52 +54,55 @@ example (h : API.Bounds.checkUpperBound logarithm positive 1 = true) :
   simpa using (API.Bounds.verifyUpperBound h)
 ```
 
-`API.Bounds` is currently and explicitly Dyadic-backed. Its checker includes
-domain and precision validity, so its Golden Theorems require no separate
-support or domain premise. Raw `check... = true` is part of the contract:
-tactic clients may close that certificate using kernel, native, or automatic
+`API.Bounds.checkUpperBoundBox` and `checkLowerBoundBox` use the public checked
+evaluator over a list-shaped box. Their structured result retains the enclosure,
+the concrete backend selected, and whether that enclosure proves the requested
+bound; evaluator and domain failures remain `EvalError` values. The matching
+verification theorems lift a retained successful result without rerunning the
+evaluator.
+
+The one-dimensional `checkUpperBound`, `checkLowerBound`, and `checkBounds`
+functions are explicitly Dyadic-backed Boolean certificates. They include
+domain and precision validity, so their Golden Theorems require no separate
+support or domain premise. Raw `check... = true` is part of that contract:
+tactic clients may close the certificate using kernel, native, or automatic
 verification without changing the numerical backend.
 
 `LeanCert.Tactic` exposes supported proof automation, including the semantic
 `leancert` / `leancert?` front door and the dedicated `interval_auto`,
 `interval_decide`, `certify_bound`, root, optimization, and finite-sum tactics.
 
-`LeanCert.CertifiedBounds` exposes pre-verified numerical results under:
+`LeanCert.CertifiedBounds` exposes stable numerical-result interfaces under:
 
 - `LeanCert.CertifiedBounds.Li2`;
 - `LeanCert.CertifiedBounds.BKLNW`;
 - `LeanCert.CertifiedBounds.Chebyshev`.
 
-The Li₂ namespace includes the symmetric integrand and its basic bounds as
-well as the certified `li(2)` value and numerical enclosure.
+The BKLNW and Chebyshev declarations are linked directly to their checked proof
+terms. `CertifiedBounds.Li2` is instead a lightweight statement interface: its
+two allowlisted placeholder theorems have statement-identical proofs built by
+the separate `Li2Verified` target, but the public constants are not
+kernel-linked to those proofs. See
+[Verification Status](../architecture/verification-status.md) for the precise
+trust boundary.
 
 `LeanCert.ANT` exposes reusable analytic-number-theory certificate machinery
 and explicit-PNT compiler schemas.
 
-Names under these namespaces carry the downstream stability promise: statement
-changes and removals require a compatibility period and must pass the
-PrimeNumberTheoremAnd-derived interface and behavioral pattern suites.
+Names under these namespaces carry the downstream stability promise and are
+covered by the PrimeNumberTheoremAnd-derived interface and behavioral pattern
+suites. Direct `LeanCert.Engine.*` imports remain available for
+implementation-level work, but downstream proofs should prefer a stable
+certified-bounds alias where one exists.
 
-Historical `LeanCert.Examples.Li2Bounds` and `LeanCert.Examples.BKLNW_*`
-imports continue to compile. Their legacy certificate declarations are
-deprecated with machine-readable replacements. Direct `LeanCert.Engine.*`
-imports remain available for implementation-level work, but downstream proofs
-should prefer the stable certified-bounds aliases where one exists.
+For historical names removed after their deprecation period, see
+[Removed APIs and migration](compatibility.md).
 
-## Semantic tactic API migration
+## Semantic tactic API
 
-The semantic-router release consolidated tactic-era entry points. Some
-spellings remain as deprecated compatibility aliases:
-
-| Deprecated or removed | Canonical replacement |
-| --- | --- |
-| `interval_bound` | `leancert`, or `certify_bound` for explicit engine control |
-| `certify_kernel*`, `fast_bound*` | `certify_bound (trust := kernel)` or `certify_bound (trust := auto)`, with an explicit depth when needed |
-| `interval_integrate` | state an ordinary integral equality/inequality and use `leancert` |
-| `#minimize`, `#maximize` | `#find_min`, `#find_max` |
-| `import LeanCert.Discovery.Types` | `import LeanCert.Validity.Types` |
-| `LeanCert.Meta.reify` | `LeanCert.Meta.reifyWithReport` |
-| `LeanCert.Meta.toRat?` and related numeric aliases | `LeanCert.Meta.Numeral.toRat?` and the corresponding `Numeral` function |
+Use `leancert` for portfolio routing and `certify_bound` when explicit interval
+engine control is desired. Trust is selected uniformly with
+`(trust := kernel)`, `(trust := native)`, or `(trust := auto)`.
 
 The removed `LeanCert.Tactic.LeanCert.Types` and
 `LeanCert.Tactic.LeanCert.Transaction` modules were internal implementation

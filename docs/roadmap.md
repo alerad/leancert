@@ -28,16 +28,6 @@ quantized-inference bounds.
 **Evidence:** exported quantified theorems over inputs, with explicit
 assumptions and trust-manifest entries.
 
-## Stable certified-result ownership
-
-**Current state:** stable results live under `LeanCert.CertifiedBounds`, while
-some historical downstream names remain under `LeanCert.Examples`.
-
-**Milestone:** give every reusable result a canonical stable owner and retain
-example paths only as deprecated compatibility aliases.
-
-**Evidence:** import-isolation tests and a complete compatibility inventory.
-
 ## Large integration certificates
 
 **Current state:** exact polynomial integration and checked partition

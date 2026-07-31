@@ -242,7 +242,7 @@ chokes on the giant proof term.
 
 `ReflectiveSum` (in Engine/ReflectiveSum.lean) solved this for BKLNW's specific
 function `x^(1/k - 1/3)` using an accumulator loop + `native_decide` for O(1)
-proofs. But it's hardcoded — 20+ nearly-identical theorems in BKLNW_a2_reflective.lean
+proofs. But it's hardcoded — 20+ nearly-identical theorems in CertifiedBounds/BKLNWVerified.lean
 for different parameter values.
 
 `finsum_bound` generalizes this: any function expressible as a `Core.Expr` gets
@@ -449,7 +449,7 @@ Proofs are identical — only the support predicate and correctness lemma differ
 `finsum_bound` (Tiers 1-2) auto-reifies sum bodies to `Core.Expr`. Functions NOT
 in `Core.Expr` (like `rpow` in BKLNW's `x^(1/k - 1/3)`) can't be handled. The
 existing `ReflectiveSum.lean` solves this for one hardcoded function, producing
-22 near-identical theorems in `BKLNW_a2_reflective.lean` for different parameters.
+22 near-identical theorems in `CertifiedBounds/BKLNWVerified.lean` for different parameters.
 
 ### Solution: Generic Witness API
 
@@ -505,7 +505,7 @@ bklnwTermDyadic x k cfg  →  evalTerm k cfg  (with x captured in closure)
 mem_bklnwTermDyadic       →  user provides hmem
 ```
 
-The 22 theorems in `BKLNW_a2_reflective.lean` could be unified as instances
+The 22 theorems in `CertifiedBounds/BKLNWVerified.lean` could be unified as instances
 of `verify_witness_sum_upper`. This is a follow-up task.
 
 ### Files

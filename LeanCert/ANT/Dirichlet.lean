@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.ANT.PrimeEuler
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.Engine.Chebyshev.Theta
 
 /-!
 # Certified finite Dirichlet-series truncations
@@ -21,7 +21,7 @@ coefficients such as Möbius-like data as well as nonnegative prime weights.
 namespace LeanCert.ANT
 
 open scoped BigOperators
-open LeanCert.Engine.ChebyshevTheta
+open LeanCert.Engine.Chebyshev.Theta
 
 /-- Semantic finite Dirichlet-style weighted sum. -/
 noncomputable def finiteDirichletSum

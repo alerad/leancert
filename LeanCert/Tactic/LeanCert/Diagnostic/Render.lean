@@ -199,21 +199,12 @@ private def invocation (proof : ProofSuggestion) : String :=
     if named.isEmpty then "" else " " ++ String.intercalate " " named
   let trust :=
     match proof.trust with
-    | some mode =>
-        if proof.acceptsInlineTrust then s!" (trust := {verificationMode mode})"
-        else ""
+    | some mode => s!" (trust := {verificationMode mode})"
     | none => ""
   s!"{proof.tactic}{positional}{named}{trust}"
 
 private def renderProof (proof : ProofSuggestion) : String :=
-  match proof.trust with
-  | some mode =>
-      if proof.acceptsInlineTrust then
-        s!"by\n    {invocation proof}"
-      else
-        s!"by\n    set_option leancert.trust \"{verificationMode mode}\" in\n\
-          {invocation proof}"
-  | none => s!"by\n    {invocation proof}"
+  s!"by\n    {invocation proof}"
 
 private def renderChildren (children : Array ChildReport) : String :=
   if children.isEmpty then ""

@@ -29,10 +29,10 @@ For the absolute-error checker we need *both* an upper and a lower bound on thet
 the lower bound uses `logPrimeLB` (the `.lo` endpoint of the interval enclosure).
 -/
 
-namespace LeanCert.Engine.ChebyshevTheta
+namespace LeanCert.Engine.Chebyshev.Theta
 
 open Finset Real
-open Chebyshev (theta)
+open _root_.Chebyshev (theta)
 open LeanCert.Core (IntervalRat)
 open LeanCert.Core.IntervalRat (logPointComputable mem_logPointComputable mem_def)
 
@@ -698,4 +698,4 @@ theorem verify_all_theta_rel_error
     (checkAllThetaRelError_implies_checkThetaRelError start limit bound depth hcheck
       N hN hN_start hNb)
 
-end LeanCert.Engine.ChebyshevTheta
+end LeanCert.Engine.Chebyshev.Theta

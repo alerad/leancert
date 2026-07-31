@@ -4,7 +4,7 @@ Quick reference for picking the right LeanCert tactic for a direct automation
 goal.  For the overall proof-shape chooser, start with
 [Choosing A Proof Shape](../choosing-proof-shape.md).
 
-> **Having issues?** See the [Troubleshooting Guide](troubleshooting.md) for common errors and solutions.
+> **Having issues?** See the [Troubleshooting Guide](../direct/troubleshooting.md) for common errors and solutions.
 
 For ordinary mathematical statements, start with `leancert`. The dedicated
 tactics below remain useful when you want to force a particular solver, select
@@ -97,8 +97,7 @@ proof-producing tactics accept the same per-invocation trust item:
 | `auto` | `certify_bound (trust := auto)` | Kernel first for suitably sized certificates; reported native fallback |
 
 Use `set_option leancert.trust "kernel"` to select a mode for a whole section
-or file. A per-invocation `(trust := ...)` item takes precedence. The historical
-`certify_kernel*` tactics remain only as deprecated compatibility aliases.
+or file. A per-invocation `(trust := ...)` item takes precedence.
 
 ## Common Patterns
 
@@ -179,7 +178,7 @@ example : ∀ x ∈ I01, Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var
   certify_bound
 ```
 
-**When native syntax fails:** If you get unification errors with complex expressions (especially with numeric coefficients like `2 * x * x`), switch to Expr AST. See [Troubleshooting](troubleshooting.md) for details.
+**When native syntax fails:** If you get unification errors with complex expressions (especially with numeric coefficients like `2 * x * x`), switch to Expr AST. See [Troubleshooting](../direct/troubleshooting.md) for details.
 
 ### "I have a sum over vectors/matrices"
 
