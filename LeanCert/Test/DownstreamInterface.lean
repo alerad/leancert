@@ -49,6 +49,11 @@ This inventory cannot see unqualified declarations brought into scope with
 #check @LeanCert.API.Bounds.verifyUpperBound
 #check @LeanCert.API.Bounds.verifyLowerBound
 #check @LeanCert.API.Bounds.verifyBounds
+#check @LeanCert.API.Bounds.BoundCheckOutcome
+#check @LeanCert.API.Bounds.checkUpperBoundBox
+#check @LeanCert.API.Bounds.checkLowerBoundBox
+#check @LeanCert.API.Bounds.verifyUpperBoundBox
+#check @LeanCert.API.Bounds.verifyLowerBoundBox
 
 -- Canonical certified Chebyshev API
 #check @LeanCert.CertifiedBounds.Chebyshev.abs_theta_sub_le_mul_of_checkThetaRelErrorReal

@@ -7,21 +7,91 @@ import LeanCert.API.Eval
 import LeanCert.Validity.Dyadic
 
 /-!
-# Public checked Boolean bound certificates
+# Public checked bound certificates
 
 This module is the proof-facing companion to `LeanCert.API.Eval`.
-`evalInterval` returns structured `EvalResult` data for programmatic callers;
-the checkers here return `Bool` so reflective tactics can close
-`check... = true` using their configured kernel/native verification route.
+The box checkers retain the enclosure and selected backend returned by
+`evalInterval`, together with the Boolean comparison result. This gives
+programmatic clients one-pass evaluation and structured domain failures.
 
-The first stable implementation is explicitly Dyadic-backed. Domain validity
-and precision validity are included in each Boolean certificate, so the Golden
-Theorems require no separate expression-support or domain premise.
+The one-dimensional `checkUpperBound`, `checkLowerBound`, and `checkBounds`
+functions remain explicitly Dyadic-backed Boolean certificates so reflective
+tactics can close `check... = true` using their configured kernel/native
+verification route. Domain and precision validity are included in those
+certificates, so their Golden Theorems require no separate support or domain
+premise.
 -/
 
 namespace LeanCert.API.Bounds
 
 open LeanCert Core
+
+/-- A retained one-pass bound-check result. The enclosure and selected backend
+are exactly those used to compute `verified`; clients never need to rerun the
+evaluator to report them. -/
+structure BoundCheckOutcome where
+  interval : IntervalRat
+  backend : ConcreteBackend
+  verified : Bool
+  deriving Repr, DecidableEq
+
+/-- Check an upper bound over a box using the public checked evaluator. -/
+def checkUpperBoundBox (e : Expr) (box : List IntervalRat) (bound : ℚ)
+    (options : EvalOptions := {}) : EvalResult BoundCheckOutcome :=
+  match evalInterval e box options with
+  | .error err => .error err
+  | .ok outcome => .ok {
+      interval := outcome.interval
+      backend := outcome.backend
+      verified := decide (outcome.interval.hi ≤ bound)
+    }
+
+/-- Check a lower bound over a box using the public checked evaluator. -/
+def checkLowerBoundBox (e : Expr) (box : List IntervalRat) (bound : ℚ)
+    (options : EvalOptions := {}) : EvalResult BoundCheckOutcome :=
+  match evalInterval e box options with
+  | .error err => .error err
+  | .ok outcome => .ok {
+      interval := outcome.interval
+      backend := outcome.backend
+      verified := decide (bound ≤ outcome.interval.lo)
+    }
+
+/-- A successful box upper-bound check proves the requested semantic bound. -/
+theorem verifyUpperBoundBox {e : Expr} {box : List IntervalRat} {bound : ℚ}
+    {options : EvalOptions} {outcome : BoundCheckOutcome}
+    (hcheck : checkUpperBoundBox e box bound options = .ok outcome)
+    (hverified : outcome.verified = true) :
+    ∀ rho, BoxEnvMem rho box → Expr.eval rho e ≤ bound := by
+  simp only [checkUpperBoundBox] at hcheck
+  split at hcheck
+  · contradiction
+  · next evalOutcome heval =>
+      cases hcheck
+      simp only at hverified
+      have hle : evalOutcome.interval.hi ≤ bound := by
+        exact of_decide_eq_true hverified
+      intro rho hrho
+      have hmem := evalInterval_correct heval hrho
+      exact le_trans hmem.2 (by exact_mod_cast hle)
+
+/-- A successful box lower-bound check proves the requested semantic bound. -/
+theorem verifyLowerBoundBox {e : Expr} {box : List IntervalRat} {bound : ℚ}
+    {options : EvalOptions} {outcome : BoundCheckOutcome}
+    (hcheck : checkLowerBoundBox e box bound options = .ok outcome)
+    (hverified : outcome.verified = true) :
+    ∀ rho, BoxEnvMem rho box → bound ≤ Expr.eval rho e := by
+  simp only [checkLowerBoundBox] at hcheck
+  split at hcheck
+  · contradiction
+  · next evalOutcome heval =>
+      cases hcheck
+      simp only at hverified
+      have hle : bound ≤ evalOutcome.interval.lo := by
+        exact of_decide_eq_true hverified
+      intro rho hrho
+      have hmem := evalInterval_correct heval hrho
+      exact le_trans (by exact_mod_cast hle) hmem.1
 
 /-- Concrete backend used by the first public Boolean bound checker. -/
 def backend : ConcreteBackend := .dyadic

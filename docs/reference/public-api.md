@@ -54,10 +54,18 @@ example (h : API.Bounds.checkUpperBound logarithm positive 1 = true) :
   simpa using (API.Bounds.verifyUpperBound h)
 ```
 
-`API.Bounds` is currently and explicitly Dyadic-backed. Its checker includes
-domain and precision validity, so its Golden Theorems require no separate
-support or domain premise. Raw `check... = true` is part of the contract:
-tactic clients may close that certificate using kernel, native, or automatic
+`API.Bounds.checkUpperBoundBox` and `checkLowerBoundBox` use the public checked
+evaluator over a list-shaped box. Their structured result retains the enclosure,
+the concrete backend selected, and whether that enclosure proves the requested
+bound; evaluator and domain failures remain `EvalError` values. The matching
+verification theorems lift a retained successful result without rerunning the
+evaluator.
+
+The one-dimensional `checkUpperBound`, `checkLowerBound`, and `checkBounds`
+functions are explicitly Dyadic-backed Boolean certificates. They include
+domain and precision validity, so their Golden Theorems require no separate
+support or domain premise. Raw `check... = true` is part of that contract:
+tactic clients may close the certificate using kernel, native, or automatic
 verification without changing the numerical backend.
 
 `LeanCert.Tactic` exposes supported proof automation, including the semantic

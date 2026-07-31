@@ -38,6 +38,8 @@ them unchanged. -/
 #assert_trust kernel LeanCert.Validity.Integration.verify_integral_bound
 #assert_trust kernel LeanCert.Engine.verify_finsum_upper_full
 #assert_trust kernel LeanCert.Engine.verify_finsum_lower_full
+#assert_trust kernel LeanCert.API.Bounds.verifyUpperBoundBox
+#assert_trust kernel LeanCert.API.Bounds.verifyLowerBoundBox
 
 /-! ## Euler–Mascheroni bounds: intentionally native-trusted
 
