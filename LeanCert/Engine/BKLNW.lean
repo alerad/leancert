@@ -17,7 +17,7 @@ contains no placeholder theorem interfaces.
 
 open Real Finset
 
-namespace LeanCert.Examples.BKLNW_a2_base
+namespace LeanCert.Engine.BKLNW
 
 /-- Standalone definition matching PNT+'s `BKLNW.f`. -/
 noncomputable def f (x : ℝ) : ℝ :=
@@ -108,4 +108,4 @@ theorem f_eq_bklnwF_exp (b : ℕ) :
   congr 1
   simp only [log_exp]
 
-end LeanCert.Examples.BKLNW_a2_base
+end LeanCert.Engine.BKLNW

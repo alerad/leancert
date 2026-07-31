@@ -51,9 +51,6 @@ structure ProofSuggestion where
   positionalArgs : Array String := #[]
   namedArgs : Array (String × String) := #[]
   trust : Option VerificationMode := none
-  /-- Some legacy dedicated tactics honor the scoped trust option but do not
-  yet accept inline `(trust := ...)` syntax. -/
-  acceptsInlineTrust : Bool := true
   deriving Inhabited, Repr
 
 /-- Aggregate of certificate closures retained by the final proof. Multiple
@@ -217,9 +214,8 @@ structure SolverExecution where
   subdivision : Option SubdivisionStatistics := none
   finiteSum : Option FiniteSumStatistics := none
   integralPartitions : Option IntegralPartitionStatistics := none
-  /-- Constituent checker proofs retained by composite artifacts.  The
-  singular `checker`/`verifier` fields remain the compatibility presentation
-  for one-certificate solvers. -/
+  /-- Constituent checker proofs retained by composite artifacts. The singular
+  `checker`/`verifier` fields describe ordinary one-certificate solvers. -/
   certificates : Array CertificateObservation := #[]
   notes : Array String := #[]
   children : Array ChildReport := #[]

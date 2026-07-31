@@ -11,7 +11,7 @@ rev = "v4.32.2"
 name = "LeanCert"
 roots = ["LeanCert", "LeanCertMathlibPin"]
 precompileModules = false
-# Note: LeanCert.Examples.Li2Bounds is the lightweight li(2) interface for
+# Note: LeanCert.CertifiedBounds.Li2 is the lightweight li(2) interface for
 # downstream projects (builds in seconds; its two bound statements are
 # intentionally `sorry` — see the file docstring). The machine-checked proofs
 # live in the Li2Verified target (under a minute of native_decide interval
@@ -25,13 +25,6 @@ name = "Examples"
 roots = ["LeanCert.Examples"]
 precompileModules = false
 
-# Compatibility target retained for existing scripts and downstream automation.
-# New documentation uses `Examples`, but `lake build examples` remains supported.
-[[lean_lib]]
-name = "examples"
-roots = ["LeanCert.Examples"]
-precompileModules = false
-
 # Public announcement examples. Keep this small, quick, and presentation-ready.
 # Build explicitly with: lake build Showcase
 [[lean_lib]]
@@ -40,7 +33,7 @@ roots = ["LeanCert.Examples.Showcase", "LeanCert.Test.ShowcaseFailures"]
 precompileModules = false
 
 # Heavy numerical verification - for CI validation. Proves the bounds stated
-# (with `sorry`) in the Li2Bounds interface and statement-identity-checks them.
+# (with `sorry`) in the canonical Li2 interface and statement-identity-checks them.
 # Build explicitly with: lake build Li2Verified
 [[lean_lib]]
 name = "Li2Verified"
@@ -48,16 +41,14 @@ roots = ["LeanCert.Examples.Li2Verified"]
 precompileModules = false
 
 # Heavy BKLNW a2 bounds verification - for CI validation.
-# BKLNW_a2_pow2 and BKLNW_a2_bounds are the stable re-export interfaces
-# imported by PrimeNumberTheoremAnd; they are roots here so CI keeps them
-# building (they bitrotted once while unwired from any target).
-# Build explicitly with: lake build BKLNW_a2_reflective
+# The explicit target keeps the reflective implementation and stable public
+# interface covered together, including when other build roots do not import it.
+# Build explicitly with: lake build BKLNWVerified
 [[lean_lib]]
-name = "BKLNW_a2_reflective"
+name = "BKLNWVerified"
 roots = [
-  "LeanCert.Examples.BKLNW_a2_reflective",
-  "LeanCert.Examples.BKLNW_a2_pow2",
-  "LeanCert.Examples.BKLNW_a2_bounds",
+  "LeanCert.CertifiedBounds.BKLNWVerified",
+  "LeanCert.CertifiedBounds.BKLNW",
 ]
 precompileModules = false
 

@@ -4,7 +4,7 @@ import LeanCert
 -- explicitly so the whole-library axiom sweep below actually covers them.
 -- `LeanCert.Test.*` and `LeanCert.Examples.*` are deliberately excluded:
 -- `native_decide` is a legitimate user-facing engine there.
--- Exception: `Li2Bounds` (the PNT+-facing lightweight interface) IS imported,
+-- Exception: the canonical Li2 lightweight interface IS imported,
 -- so the sorryAx sweep below can pin its sanctioned sorries exactly.
 -- `EulerMascheroniBounds` is also imported: it is sorry-free (native_decide
 -- inline), so the sweep verifies it stays that way, and its axiom set is
@@ -16,7 +16,7 @@ import LeanCert.Engine.TaylorModel.Log1p
 import LeanCert.Engine.TaylorModel.TrigReduced
 import LeanCert.Core.HermiteBounds
 import LeanCert.Core.LogBounds
-import LeanCert.Examples.Li2Bounds
+import LeanCert.CertifiedBounds.Li2
 import LeanCert.Examples.EulerMascheroniBounds
 import LeanCert.Bridge
 
@@ -294,9 +294,8 @@ run_meta do
 inline `:= by sorry` forms or tactic-generated holes. This sweep runs
 `collectAxioms` (the `#print axioms` engine) on every public constant declared
 in a `LeanCert.*` module and fails if any of them depends on `sorryAx` —
-except the four legacy `Li2` interface declarations and their four canonical
-`LeanCert.CertifiedBounds.Li2` aliases (the lightweight-interface/heavy-
-verification split used by PNT+; see `LeanCert/Examples/Li2Bounds.lean`).
+except the four canonical `LeanCert.CertifiedBounds.Li2` declarations (the
+lightweight-interface/heavy-verification split used by PNT+).
 Their verified counterparts and a statement-identity check live in the
 `Li2Verified` CI target.
 
@@ -308,8 +307,7 @@ open Lean in
 run_meta do
   let env ← getEnv
   let allowed : Array Name :=
-    #[``Li2.li2_lower, ``Li2.li2_upper, ``Li2.li2_bounds, ``Li2.li2_approx_1045,
-      ``LeanCert.CertifiedBounds.Li2.lower,
+    #[``LeanCert.CertifiedBounds.Li2.lower,
       ``LeanCert.CertifiedBounds.Li2.upper,
       ``LeanCert.CertifiedBounds.Li2.bounds,
       ``LeanCert.CertifiedBounds.Li2.approx_1045]
@@ -328,5 +326,5 @@ run_meta do
       if axs.contains ``sorryAx then
         offenders := offenders.push n
   unless offenders.isEmpty do
-    throwError "Declarations depending on sorryAx outside the sanctioned Li2 \
-      interface (see LeanCert/Examples/Li2Bounds.lean):\n{offenders.toList}"
+    throwError "Declarations depending on sorryAx outside the sanctioned \
+      LeanCert.CertifiedBounds.Li2 interface:\n{offenders.toList}"

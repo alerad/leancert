@@ -20,7 +20,7 @@ This file provides the shared analytic base for li(2) bounds. It contains:
 * `g_tendsto_one` - g(t) → 1 as t → 0⁺ (removable singularity)
 * `g_bounded` - |g(t)| ≤ 2 for t ∈ (0, 1/2)
 * `g_pos`, `g_le_two` - Positivity and upper bound on (0, 1)
-The public bounds are re-exported from `Li2Bounds.lean`, whose theorem bodies
+The public bounds are exposed from `LeanCert.CertifiedBounds.Li2`, whose theorem bodies
 refer to the verified numerical certificates in `Li2Verified.lean`.
 -/
 

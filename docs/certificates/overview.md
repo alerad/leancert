@@ -1,7 +1,6 @@
 # Certificate API Reference
 
-This page is a legacy API map for existing certificate pages.  It is not the
-conceptual starting point.  Start with
+This page maps the detailed certificate APIs. For a conceptual starting point, use
 [Proof Templates](../proof-templates/overview.md) or
 [Domain Libraries](../domains/overview.md) unless you already know the API
 family name.
@@ -40,8 +39,8 @@ import LeanCert.QProduct
 import LeanCert.ConstantFactory
 import LeanCert.ConstantFactory.IntervalBank
 import LeanCert.Analysis.ContourShift
-import LeanCert.Engine.ChebyshevPsi
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.Engine.Chebyshev.Psi
+import LeanCert.Engine.Chebyshev.Theta
 ```
 
 or through the aggregate API:

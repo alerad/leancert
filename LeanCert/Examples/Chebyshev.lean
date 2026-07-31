@@ -4,16 +4,16 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 
-import LeanCert.Engine.ChebyshevPsi
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.Engine.Chebyshev.Psi
+import LeanCert.Engine.Chebyshev.Theta
 
 /-!
 # Chebyshev certificate examples
 -/
 
 open Chebyshev (psi theta)
-open LeanCert.Engine.ChebyshevPsi
-open LeanCert.Engine.ChebyshevTheta
+open LeanCert.Engine.Chebyshev.Psi
+open LeanCert.Engine.Chebyshev.Theta
 
 namespace LeanCert.Examples.Chebyshev
 

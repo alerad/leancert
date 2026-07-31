@@ -24,7 +24,5 @@ import LeanCert.Examples.PNT_PsiBounds
 # Supported examples aggregate
 
 This module contains demonstrations only. Stable pre-proved results belong in
-`LeanCert.CertifiedBounds`; historical downstream shims remain available
-through their explicit compatibility imports but are deliberately excluded
-from this aggregate.
+`LeanCert.CertifiedBounds`.
 -/

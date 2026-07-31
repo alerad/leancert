@@ -114,8 +114,7 @@ nav:
   - Reference:
     - Supported Public API: reference/public-api.md
     - Imports: reference/imports.md
-    - Compatibility Surfaces: reference/compatibility.md
     - Tactics: reference/tactics.md
     - Certificate APIs: reference/certificate-apis.md
     - Algebraic Root Certificates: certificates/algebraic-roots.md
-    - Legacy Certificate Overview: certificates/overview.md
+    - Certificate API Overview: certificates/overview.md

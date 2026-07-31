@@ -5,7 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.ANT.Abel
 import LeanCert.ANT.EulerProduct
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.Engine.Chebyshev.Theta
 
 /-!
 # Finite Mertens-style certificates
@@ -17,7 +17,7 @@ prime-weighted sums that occur in Mertens/Euler-product arguments.
 namespace LeanCert.ANT
 
 open scoped BigOperators
-open LeanCert.Engine.ChebyshevTheta
+open LeanCert.Engine.Chebyshev.Theta
 
 /-- Semantic finite Mertens log sum `∑_{p ≤ N} log p / p`.
 The same sum as `LeanCert.ANT.logPrimeOverPrimeSum` in `Dirichlet.lean`. -/

@@ -8,8 +8,8 @@ checks into real-number bounds.
 ## Imports
 
 ```lean
-import LeanCert.Engine.ChebyshevPsi
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.Engine.Chebyshev.Psi
+import LeanCert.Engine.Chebyshev.Theta
 ```
 
 or use the aggregate import:
@@ -20,7 +20,7 @@ import LeanCert
 
 ## Psi Bounds
 
-`LeanCert.Engine.ChebyshevPsi` certifies upper bounds for the second Chebyshev
+`LeanCert.Engine.Chebyshev.Psi` certifies upper bounds for the second Chebyshev
 function `ψ`.
 
 Core checkers:
@@ -41,7 +41,7 @@ Real-variable form:
 ```
 ## Theta Bounds
 
-`LeanCert.Engine.ChebyshevTheta` certifies upper, absolute-error, and
+`LeanCert.Engine.Chebyshev.Theta` certifies upper, absolute-error, and
 relative-error bounds for the first Chebyshev function `θ`.
 
 Core checkers:
@@ -74,10 +74,10 @@ For real `x ∈ [N, N+1)`, use the strengthened interval certificate:
 ## Example
 
 ```lean
-import LeanCert.Engine.ChebyshevPsi
+import LeanCert.Engine.Chebyshev.Psi
 
 open Chebyshev (psi)
-open LeanCert.Engine.ChebyshevPsi
+open LeanCert.Engine.Chebyshev.Psi
 
 example :
     ∀ N : Nat, 0 < N → N ≤ 20 →

@@ -5,7 +5,7 @@ specific meaning; it is not one undifferentiated “build passed” signal.
 
 | Tier | Workflow | Local equivalent | Promise |
 | --- | --- | --- | --- |
-| **Core** | `Core` | `lake build LeanCert DownstreamInterface DownstreamPatterns` | The stable library, isolated public APIs, and downstream compatibility contracts compile. |
+| **Core** | `Core` | `lake build LeanCert DownstreamInterface DownstreamPatterns` | The stable library, isolated public APIs, and downstream API contracts compile. |
 | **Functional** | `Functional` | `lake build FunctionalTests` plus the repository Python tests | Every wired regression module and public executable smoke test passes. |
 | **Docs** | `Docs` | `lake build LeanCert LeanCert.Tactic`, then `python3 scripts/check_docs_snippets.py` and `mkdocs build --strict` | README and canonical documentation snippets compile, links/navigation resolve, and the site builds strictly. |
 | **Soundness** | `Soundness Guard` | `lake env lean Tests/AxiomAudit.lean` and `lake env lean Tests/TrustManifest.lean` | Unauthorized axioms, `sorry`, synthetic holes, and changes to the exported trust manifest are rejected. |
@@ -24,7 +24,7 @@ The expensive certificate check is:
 ```sh
 lake build \
   Li2Verified \
-  BKLNW_a2_reflective \
+  BKLNWVerified \
   ChebyshevPsiTest \
   ChebyshevThetaTest \
   TableTest

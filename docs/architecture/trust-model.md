@@ -55,8 +55,8 @@ normalization strategies may correctly retain zero Boolean-certificate checks.
 Exact polynomial integration constructs an ordinary kernel proof, so its trust
 selection is not applicable.
 
-The lightweight downstream Li₂ interface preserves a historical separation
-between its statement module and the expensive verification target. CI builds
+The lightweight downstream Li₂ interface intentionally separates its
+statement module from the expensive verification target. CI builds
 that target and checks statement identity. See the
 [production verification table](verification-status.md) for all subsystem
 qualifications.

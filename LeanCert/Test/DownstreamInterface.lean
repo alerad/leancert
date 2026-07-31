@@ -4,12 +4,10 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto
-import LeanCert.Engine.ChebyshevPsi
-import LeanCert.Engine.ChebyshevTheta
+import LeanCert.CertifiedBounds.Chebyshev
 import LeanCert.Engine.TaylorModel
-import LeanCert.Examples.Li2Bounds
-import LeanCert.Examples.BKLNW_a2_pow2
-import LeanCert.Examples.BKLNW_a2_bounds
+import LeanCert.CertifiedBounds.Li2
+import LeanCert.CertifiedBounds.BKLNW
 import LeanCert.ANT.PNTCompilers
 import LeanCert.ANT.Asymp.Pointwise
 import LeanCert.ANT.Asymp.Inequality
@@ -52,57 +50,54 @@ This inventory cannot see unqualified declarations brought into scope with
 #check @LeanCert.API.Bounds.verifyLowerBound
 #check @LeanCert.API.Bounds.verifyBounds
 
--- Engine.ChebyshevTheta
-#check @LeanCert.Engine.ChebyshevTheta.abs_theta_sub_le_mul_of_checkThetaRelErrorReal
-#check @LeanCert.Engine.ChebyshevTheta.checkAllThetaRelErrorReal_implies
+-- Canonical certified Chebyshev API
+#check @LeanCert.CertifiedBounds.Chebyshev.abs_theta_sub_le_mul_of_checkThetaRelErrorReal
+#check @LeanCert.CertifiedBounds.Chebyshev.checkAllThetaRelErrorReal_implies
+#check @LeanCert.CertifiedBounds.Chebyshev.checkAllPsiLeMulWith
+#check @LeanCert.CertifiedBounds.Chebyshev.checkAllPsiLeMulWith_implies_checkPsiLeMulWith
+#check @LeanCert.CertifiedBounds.Chebyshev.psi_le_of_checkPsiLeMulWith
 
--- Engine.ChebyshevPsi (used after opening the namespace downstream)
-#check @LeanCert.Engine.ChebyshevPsi.checkAllPsiLeMulWith
-#check @LeanCert.Engine.ChebyshevPsi.checkAllPsiLeMulWith_implies_checkPsiLeMulWith
-#check @LeanCert.Engine.ChebyshevPsi.psi_le_of_checkPsiLeMulWith
-
--- Engine.TaylorModel and the lightweight Li2 interface
+-- Engine.TaylorModel and the lightweight canonical Li2 interface
 #check @LeanCert.Engine.TaylorModel.symmetricLogCombination
 #check @Li2.li2
 #check @Li2.g_pos
 #check @Li2.g_le_two
-#check @Li2.li2_lower
-#check @Li2.li2_upper
+#check @LeanCert.CertifiedBounds.Li2.lower
+#check @LeanCert.CertifiedBounds.Li2.upper
 
--- Examples.BKLNW_a2_pow2
-#check @LeanCert.Examples.BKLNW_a2_pow2.f
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow29_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow37_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow44_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow51_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow58_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow63_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow145_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow217_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow289_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow361_upper
-#check @LeanCert.Examples.BKLNW_a2_pow2.pow433_upper
+-- Canonical BKLNW bounds
+#check @LeanCert.CertifiedBounds.BKLNW.f
+#check @LeanCert.CertifiedBounds.BKLNW.pow29_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow37_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow44_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow51_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow58_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow63_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow145_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow217_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow289_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow361_upper
+#check @LeanCert.CertifiedBounds.BKLNW.pow433_upper
 
--- Examples.BKLNW_a2_bounds
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_20_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_25_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_25_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_30_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_30_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_35_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_35_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_40_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_40_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_43_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_43_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_100_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_100_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_150_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_150_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_200_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_200_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_250_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_250_exp_upper
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_300_exp_lower
-#check @LeanCert.Examples.BKLNW_a2_bounds.a2_300_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_20_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_20_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_25_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_25_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_30_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_30_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_35_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_35_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_40_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_40_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_43_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_43_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_100_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_100_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_150_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_150_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_200_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_200_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_250_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_250_exp_upper
+#check @LeanCert.CertifiedBounds.BKLNW.a2_300_exp_lower
+#check @LeanCert.CertifiedBounds.BKLNW.a2_300_exp_upper

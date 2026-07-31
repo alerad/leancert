@@ -10,20 +10,18 @@ import LeanCert.Engine.Chebyshev.Theta
 # Chebyshev Validity Exports
 
 Stable Validity-layer import path for Chebyshev `ψ` and `θ` certificate bridge
-theorems. Definitions remain in their engine modules for compatibility.
+theorems. Definitions remain in their engine modules.
 -/
 
 namespace LeanCert.Validity.Chebyshev
 
-export LeanCert.Engine.ChebyshevPsi
+export LeanCert.Engine.Chebyshev.Psi
   ( verify_psi_le_mul
     verify_psi_le_mul_real
     verify_all_psi_le_mul
-    verify_all_psi_le_mul_real
-    verify_psi_bound
-    verify_all_psi_bound )
+    verify_all_psi_le_mul_real )
 
-export LeanCert.Engine.ChebyshevTheta
+export LeanCert.Engine.Chebyshev.Theta
   ( verify_theta_le_mul
     verify_theta_abs_error
     verify_theta_rel_error

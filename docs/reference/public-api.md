@@ -4,9 +4,8 @@ Public modules are grouped by support level:
 
 | Level | Meaning |
 | --- | --- |
-| **Stable** | compatibility promise, covered by import and behavioral tests |
+| **Stable** | supported contract, covered by import and behavioral tests |
 | **Advanced** | supported expert interface whose lower-level details may evolve |
-| **Compatibility** | forwarding surface with a documented canonical replacement |
 | **Internal** | implementation module with no downstream stability promise |
 
 The stable front doors are `LeanCert`, `LeanCert.Tactic`,
@@ -77,30 +76,17 @@ well as the certified `li(2)` value and numerical enclosure.
 `LeanCert.ANT` exposes reusable analytic-number-theory certificate machinery
 and explicit-PNT compiler schemas.
 
-Names under these namespaces carry the downstream stability promise: statement
-changes and removals require a compatibility period and must pass the
-PrimeNumberTheoremAnd-derived interface and behavioral pattern suites.
+Names under these namespaces carry the downstream stability promise and are
+covered by the PrimeNumberTheoremAnd-derived interface and behavioral pattern
+suites. Direct `LeanCert.Engine.*` imports remain available for
+implementation-level work, but downstream proofs should prefer a stable
+certified-bounds alias where one exists.
 
-Historical `LeanCert.Examples.Li2Bounds` and `LeanCert.Examples.BKLNW_*`
-imports continue to compile. Their legacy certificate declarations are
-deprecated with machine-readable replacements. Direct `LeanCert.Engine.*`
-imports remain available for implementation-level work, but downstream proofs
-should prefer the stable certified-bounds aliases where one exists.
+## Semantic tactic API
 
-## Semantic tactic API migration
-
-The semantic-router release consolidated tactic-era entry points. Some
-spellings remain as deprecated compatibility aliases:
-
-| Deprecated or removed | Canonical replacement |
-| --- | --- |
-| `interval_bound` | `leancert`, or `certify_bound` for explicit engine control |
-| `certify_kernel*`, `fast_bound*` | `certify_bound (trust := kernel)` or `certify_bound (trust := auto)`, with an explicit depth when needed |
-| `interval_integrate` | state an ordinary integral equality/inequality and use `leancert` |
-| `#minimize`, `#maximize` | `#find_min`, `#find_max` |
-| `import LeanCert.Discovery.Types` | `import LeanCert.Validity.Types` |
-| `LeanCert.Meta.reify` | `LeanCert.Meta.reifyWithReport` |
-| `LeanCert.Meta.toRat?` and related numeric aliases | `LeanCert.Meta.Numeral.toRat?` and the corresponding `Numeral` function |
+Use `leancert` for portfolio routing and `certify_bound` when explicit interval
+engine control is desired. Trust is selected uniformly with
+`(trust := kernel)`, `(trust := native)`, or `(trust := auto)`.
 
 The removed `LeanCert.Tactic.LeanCert.Types` and
 `LeanCert.Tactic.LeanCert.Transaction` modules were internal implementation

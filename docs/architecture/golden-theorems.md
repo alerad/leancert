@@ -531,5 +531,4 @@ syntax, domain obstructions, exhausted subdivision, and reported native
 fallback.
 
 Reusable theorems do not belong to the examples layer. Put them under
-`LeanCert.CertifiedBounds` and expose historical example paths only through
-documented [compatibility surfaces](../reference/compatibility.md).
+`LeanCert.CertifiedBounds`; example modules must not own downstream APIs.

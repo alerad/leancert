@@ -23,9 +23,7 @@ Downstream developments should begin with `LeanCert`, `LeanCert.Tactic`, a
 umbrella. Direct `LeanCert.Engine.*` imports are appropriate for expert
 extension work, but do not carry a general source-compatibility promise.
 
-See [Supported Public API](../reference/public-api.md) for the exact boundary
-and [Compatibility surfaces](../reference/compatibility.md) for forwarding
-imports retained for downstream users.
+See [Supported Public API](../reference/public-api.md) for the exact boundary.
 
 ## Where new work belongs
 
@@ -39,8 +37,8 @@ imports retained for downstream users.
   rejects unwired test files.
 - Keep benchmarks out of correctness tests and register reusable workloads
   with the compiled benchmark runner.
-- Preserve deprecated names through a small forwarding module or alias with a
-  documented canonical replacement.
+- Remove superseded internal names when their callers migrate; public additions
+  should have one canonical owner from the start.
 
 ## Tactic changes
 

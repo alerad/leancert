@@ -59,8 +59,8 @@ inductive DiagnosticVerbosity where
   | explain
   deriving DecidableEq, Inhabited
 
-/-- Sanitized record of one strategy attempt. Legacy-adapted solvers may only
-provide a generic typed outcome; raw exception strings remain trace-only. -/
+/-- Sanitized record of one strategy attempt. Raw exception strings remain
+trace-only and never become user-facing portfolio outcomes. -/
 structure AttemptDiagnostic where
   strategy : String
   outcome : String

@@ -979,7 +979,7 @@ theorem bklnwSumExpDyadicCached_eq (b : Nat) (limit : Nat) (cfg : BKLNWSumConfig
 
 /-! ### Alpha-scaled BKLNW bounds
 
-For PNT+ compatibility, checkers that include the (1+α) factor
+For the BKLNW certificates, checkers that include the (1+α) factor
 where α = 193571378/10^16 (the margin from BKLNW Table 8). -/
 
 /-- The PNT+ alpha constant: α = 193571378/10^16 -/

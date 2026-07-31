@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.ReflectiveSum
-import LeanCert.Examples.BKLNW_a2_base
+import LeanCert.Engine.BKLNW
 import LeanCert.Tactic.FinSumExpand
 
 /-!
@@ -13,9 +13,8 @@ import LeanCert.Tactic.FinSumExpand
 This module verifies the public BKLNW a₂ bounds using reflective interval
 arithmetic with `native_decide`.
 
-Downstream projects that need fully kernel-connected BKLNW bounds should import
-the public interface files `BKLNW_a2_bounds` and `BKLNW_a2_pow2`, which re-export
-these verified theorems under their historical names.
+Downstream projects should import `LeanCert.CertifiedBounds.BKLNW`, which exposes
+these verified theorems through the stable bounds API.
 
 ## How it works
 
@@ -25,17 +24,17 @@ these verified theorems under their historical names.
 4. Bridge theorems connect this to the mathematical statement
 -/
 
-namespace LeanCert.Examples.BKLNW_a2_reflective
+namespace LeanCert.CertifiedBounds.BKLNW.Verified
 
 open Real
 open LeanCert.Engine
 open LeanCert.Core
-open LeanCert.Examples.BKLNW_a2_base (bklnwF f_eq_bklnwF_exp f)
+open LeanCert.Engine.BKLNW (bklnwF f_eq_bklnwF_exp f)
 
-/-! ### Definition Compatibility -/
+/-! ### Engine bridge -/
 
 theorem bklnwF_eq_engine :
-    BKLNW_a2_base.bklnwF = LeanCert.Engine.bklnwF := rfl
+    BKLNW.bklnwF = LeanCert.Engine.bklnwF := rfl
 
 /-- The engine's alpha matches the PNT+ alpha -/
 private lemma one_plus_alpha_eq :
@@ -89,14 +88,14 @@ private lemma alpha_upper_bridge (b N : ℕ) (target : ℚ)
 
 theorem a2_20_exp_lower :
     (1.4262 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (20:ℝ)) := by
-  have h := alpha_lower_bridge 20 28 (14262/10000) BKLNW_a2_base.floor_20
+  have h := alpha_lower_bridge 20 28 (14262/10000) BKLNW.floor_20
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.4262 : ℝ) = ↑(14262 / 10000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_20_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (20:ℝ)) ≤ (1.4262 : ℝ) + (1:ℝ) / 10^4 := by
-  have h := alpha_upper_bridge 20 28 (14263/10000) BKLNW_a2_base.floor_20
+  have h := alpha_upper_bridge 20 28 (14263/10000) BKLNW.floor_20
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(14263 / 10000 : ℚ) := h
     _ = (1.4262 : ℝ) + (1:ℝ) / 10^4 := by push_cast; norm_num
@@ -105,14 +104,14 @@ theorem a2_20_exp_upper :
 
 theorem a2_25_exp_lower :
     (1.2195 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (25:ℝ)) := by
-  have h := alpha_lower_bridge 25 36 (12195/10000) BKLNW_a2_base.floor_25
+  have h := alpha_lower_bridge 25 36 (12195/10000) BKLNW.floor_25
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.2195 : ℝ) = ↑(12195 / 10000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_25_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (25:ℝ)) ≤ (1.2195 : ℝ) + (1:ℝ) / 10^4 := by
-  have h := alpha_upper_bridge 25 36 (12196/10000) BKLNW_a2_base.floor_25
+  have h := alpha_upper_bridge 25 36 (12196/10000) BKLNW.floor_25
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(12196 / 10000 : ℚ) := h
     _ = (1.2195 : ℝ) + (1:ℝ) / 10^4 := by push_cast; norm_num
@@ -121,14 +120,14 @@ theorem a2_25_exp_upper :
 
 theorem a2_30_exp_lower :
     (1.1210 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (30:ℝ)) := by
-  have h := alpha_lower_bridge 30 43 (11210/10000) BKLNW_a2_base.floor_30
+  have h := alpha_lower_bridge 30 43 (11210/10000) BKLNW.floor_30
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.1210 : ℝ) = ↑(11210 / 10000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_30_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (30:ℝ)) ≤ (1.1210 : ℝ) + (1:ℝ) / 10^4 := by
-  have h := alpha_upper_bridge 30 43 (11211/10000) BKLNW_a2_base.floor_30
+  have h := alpha_upper_bridge 30 43 (11211/10000) BKLNW.floor_30
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(11211 / 10000 : ℚ) := h
     _ = (1.1210 : ℝ) + (1:ℝ) / 10^4 := by push_cast; norm_num
@@ -137,14 +136,14 @@ theorem a2_30_exp_upper :
 
 theorem a2_35_exp_lower :
     (1.07086 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (35:ℝ)) := by
-  have h := alpha_lower_bridge 35 50 (107086/100000) BKLNW_a2_base.floor_35
+  have h := alpha_lower_bridge 35 50 (107086/100000) BKLNW.floor_35
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.07086 : ℝ) = ↑(107086 / 100000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_35_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (35:ℝ)) ≤ (1.07086 : ℝ) + (1:ℝ) / 10^5 := by
-  have h := alpha_upper_bridge 35 50 (107087/100000) BKLNW_a2_base.floor_35
+  have h := alpha_upper_bridge 35 50 (107087/100000) BKLNW.floor_35
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(107087 / 100000 : ℚ) := h
     _ = (1.07086 : ℝ) + (1:ℝ) / 10^5 := by push_cast; norm_num
@@ -153,14 +152,14 @@ theorem a2_35_exp_upper :
 
 theorem a2_40_exp_lower :
     (1.04319 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (40:ℝ)) := by
-  have h := alpha_lower_bridge 40 57 (104319/100000) BKLNW_a2_base.floor_40
+  have h := alpha_lower_bridge 40 57 (104319/100000) BKLNW.floor_40
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.04319 : ℝ) = ↑(104319 / 100000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_40_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (40:ℝ)) ≤ (1.04319 : ℝ) + (1:ℝ) / 10^5 := by
-  have h := alpha_upper_bridge 40 57 (104320/100000) BKLNW_a2_base.floor_40
+  have h := alpha_upper_bridge 40 57 (104320/100000) BKLNW.floor_40
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(104320 / 100000 : ℚ) := h
     _ = (1.04319 : ℝ) + (1:ℝ) / 10^5 := by push_cast; norm_num
@@ -169,14 +168,14 @@ theorem a2_40_exp_upper :
 
 theorem a2_43_exp_lower :
     (1.03252 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (43:ℝ)) := by
-  have h := alpha_lower_bridge 43 62 (103252/100000) BKLNW_a2_base.floor_43
+  have h := alpha_lower_bridge 43 62 (103252/100000) BKLNW.floor_43
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.03252 : ℝ) = ↑(103252 / 100000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_43_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (43:ℝ)) ≤ (1.03252 : ℝ) + (1:ℝ) / 10^5 := by
-  have h := alpha_upper_bridge 43 62 (103253/100000) BKLNW_a2_base.floor_43
+  have h := alpha_upper_bridge 43 62 (103253/100000) BKLNW.floor_43
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(103253 / 100000 : ℚ) := h
     _ = (1.03252 : ℝ) + (1:ℝ) / 10^5 := by push_cast; norm_num
@@ -185,14 +184,14 @@ theorem a2_43_exp_upper :
 
 theorem a2_100_exp_lower :
     (1.0002420 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (100:ℝ)) := by
-  have h := alpha_lower_bridge 100 144 (10002420/10000000) BKLNW_a2_base.floor_100
+  have h := alpha_lower_bridge 100 144 (10002420/10000000) BKLNW.floor_100
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.0002420 : ℝ) = ↑(10002420 / 10000000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_100_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (100:ℝ)) ≤ (1.0002420 : ℝ) + (1:ℝ) / 10^7 := by
-  have h := alpha_upper_bridge 100 144 (10002421/10000000) BKLNW_a2_base.floor_100
+  have h := alpha_upper_bridge 100 144 (10002421/10000000) BKLNW.floor_100
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(10002421 / 10000000 : ℚ) := h
     _ = (1.0002420 : ℝ) + (1:ℝ) / 10^7 := by push_cast; norm_num
@@ -201,14 +200,14 @@ theorem a2_100_exp_upper :
 
 theorem a2_150_exp_lower :
     (1.000003748 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (150:ℝ)) := by
-  have h := alpha_lower_bridge 150 216 (1000003748/1000000000) BKLNW_a2_base.floor_150
+  have h := alpha_lower_bridge 150 216 (1000003748/1000000000) BKLNW.floor_150
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.000003748 : ℝ) = ↑(1000003748 / 1000000000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_150_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (150:ℝ)) ≤ (1.000003748 : ℝ) + (1:ℝ) / 10^8 := by
-  have h := alpha_upper_bridge 150 216 (1000003758/1000000000) BKLNW_a2_base.floor_150
+  have h := alpha_upper_bridge 150 216 (1000003758/1000000000) BKLNW.floor_150
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(1000003758 / 1000000000 : ℚ) := h
     _ = (1.000003748 : ℝ) + (1:ℝ) / 10^8 := by push_cast; norm_num
@@ -217,14 +216,14 @@ theorem a2_150_exp_upper :
 
 theorem a2_200_exp_lower :
     (1.00000007713 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (200:ℝ)) := by
-  have h := alpha_lower_bridge 200 288 (100000007713/100000000000) BKLNW_a2_base.floor_200
+  have h := alpha_lower_bridge 200 288 (100000007713/100000000000) BKLNW.floor_200
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.00000007713 : ℝ) = ↑(100000007713 / 100000000000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_200_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (200:ℝ)) ≤ (1.00000007713 : ℝ) + (1:ℝ) / 10^9 := by
-  have h := alpha_upper_bridge 200 288 (100000007813/100000000000) BKLNW_a2_base.floor_200
+  have h := alpha_upper_bridge 200 288 (100000007813/100000000000) BKLNW.floor_200
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(100000007813 / 100000000000 : ℚ) := h
     _ = (1.00000007713 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
@@ -233,14 +232,14 @@ theorem a2_200_exp_upper :
 
 theorem a2_250_exp_lower :
     (1.00000002025 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (250:ℝ)) := by
-  have h := alpha_lower_bridge 250 360 (100000002025/100000000000) BKLNW_a2_base.floor_250
+  have h := alpha_lower_bridge 250 360 (100000002025/100000000000) BKLNW.floor_250
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.00000002025 : ℝ) = ↑(100000002025 / 100000000000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_250_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (250:ℝ)) ≤ (1.00000002025 : ℝ) + (1:ℝ) / 10^9 := by
-  have h := alpha_upper_bridge 250 360 (100000002125/100000000000) BKLNW_a2_base.floor_250
+  have h := alpha_upper_bridge 250 360 (100000002125/100000000000) BKLNW.floor_250
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(100000002125 / 100000000000 : ℚ) := h
     _ = (1.00000002025 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
@@ -249,14 +248,14 @@ theorem a2_250_exp_upper :
 
 theorem a2_300_exp_lower :
     (1.00000001937 : ℝ) ≤ (1 + 193571378 / (10:ℝ)^16) * f (exp (300:ℝ)) := by
-  have h := alpha_lower_bridge 300 432 (100000001937/100000000000) BKLNW_a2_base.floor_300
+  have h := alpha_lower_bridge 300 432 (100000001937/100000000000) BKLNW.floor_300
     (by norm_num) (by native_decide) (by native_decide)
   calc (1.00000001937 : ℝ) = ↑(100000001937 / 100000000000 : ℚ) := by norm_num
     _ ≤ _ := h
 
 theorem a2_300_exp_upper :
     (1 + 193571378 / (10:ℝ)^16) * f (exp (300:ℝ)) ≤ (1.00000001937 : ℝ) + (1:ℝ) / 10^9 := by
-  have h := alpha_upper_bridge 300 432 (100000002037/100000000000) BKLNW_a2_base.floor_300
+  have h := alpha_upper_bridge 300 432 (100000002037/100000000000) BKLNW.floor_300
     (by norm_num) (by native_decide) (by native_decide)
   calc _ ≤ ↑(100000002037 / 100000000000 : ℚ) := h
     _ = (1.00000001937 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
@@ -272,7 +271,7 @@ private lemma f_pow_to_engine (M : Nat) :
   have hfb := f_eq_bklnwF_exp M -- f(exp M) = bklnwF(exp M, ⌊M/log2⌋₊)
   -- Actually we need f(2^M) = bklnwF(2^M, M) directly
   unfold f
-  rw [BKLNW_a2_base.floor_log_two_pow M]
+  rw [BKLNW.floor_log_two_pow M]
   rfl
 
 private lemma alpha_pow_upper_bridge (M : Nat) (target : ℚ)
@@ -285,60 +284,60 @@ private lemma alpha_pow_upper_bridge (M : Nat) (target : ℚ)
 -- 2^29 (for b=20): direct expanded certificate
 theorem pow29_upper :
     (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(29:ℕ)) ≤ (1.4262 : ℝ) + (1:ℝ) / 10^4 := by
-  unfold BKLNW_a2_base.f
-  rw [show ⌊log ((2:ℝ)^(29:ℕ)) / log 2⌋₊ = 29 from BKLNW_a2_base.floor_log_two_pow 29]
+  unfold BKLNW.f
+  rw [show ⌊log ((2:ℝ)^(29:ℕ)) / log 2⌋₊ = 29 from BKLNW.floor_log_two_pow 29]
   finsum_expand
-  simp only [Nat.cast_ofNat, BKLNW_a2_base.two_pow_eq_exp_log, ← exp_mul]
+  simp only [Nat.cast_ofNat, BKLNW.two_pow_eq_exp_log, ← exp_mul]
   norm_num
   interval_decide 43
 
 -- 2^37 (for b=25): direct expanded certificate
 theorem pow37_upper :
     (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(37:ℕ)) ≤ (1.2195 : ℝ) + (1:ℝ) / 10^4 := by
-  unfold BKLNW_a2_base.f
-  rw [show ⌊log ((2:ℝ)^(37:ℕ)) / log 2⌋₊ = 37 from BKLNW_a2_base.floor_log_two_pow 37]
+  unfold BKLNW.f
+  rw [show ⌊log ((2:ℝ)^(37:ℕ)) / log 2⌋₊ = 37 from BKLNW.floor_log_two_pow 37]
   finsum_expand
-  simp only [Nat.cast_ofNat, BKLNW_a2_base.two_pow_eq_exp_log, ← exp_mul]
+  simp only [Nat.cast_ofNat, BKLNW.two_pow_eq_exp_log, ← exp_mul]
   norm_num
   interval_decide 55
 
 -- 2^44 (for b=30): direct expanded certificate
 theorem pow44_upper :
     (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(44:ℕ)) ≤ (1.1210 : ℝ) + (1:ℝ) / 10^4 := by
-  unfold BKLNW_a2_base.f
-  rw [show ⌊log ((2:ℝ)^(44:ℕ)) / log 2⌋₊ = 44 from BKLNW_a2_base.floor_log_two_pow 44]
+  unfold BKLNW.f
+  rw [show ⌊log ((2:ℝ)^(44:ℕ)) / log 2⌋₊ = 44 from BKLNW.floor_log_two_pow 44]
   finsum_expand
-  simp only [Nat.cast_ofNat, BKLNW_a2_base.two_pow_eq_exp_log, ← exp_mul]
+  simp only [Nat.cast_ofNat, BKLNW.two_pow_eq_exp_log, ← exp_mul]
   norm_num
   interval_decide 67
 
 -- 2^51 (for b=35): direct expanded certificate
 theorem pow51_upper :
     (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(51:ℕ)) ≤ (1.07086 : ℝ) + (1:ℝ) / 10^5 := by
-  unfold BKLNW_a2_base.f
-  rw [show ⌊log ((2:ℝ)^(51:ℕ)) / log 2⌋₊ = 51 from BKLNW_a2_base.floor_log_two_pow 51]
+  unfold BKLNW.f
+  rw [show ⌊log ((2:ℝ)^(51:ℕ)) / log 2⌋₊ = 51 from BKLNW.floor_log_two_pow 51]
   finsum_expand
-  simp only [Nat.cast_ofNat, BKLNW_a2_base.two_pow_eq_exp_log, ← exp_mul]
+  simp only [Nat.cast_ofNat, BKLNW.two_pow_eq_exp_log, ← exp_mul]
   norm_num
   interval_decide 78
 
 -- 2^58 (for b=40): direct expanded certificate
 theorem pow58_upper :
     (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(58:ℕ)) ≤ (1.04319 : ℝ) + (1:ℝ) / 10^5 := by
-  unfold BKLNW_a2_base.f
-  rw [show ⌊log ((2:ℝ)^(58:ℕ)) / log 2⌋₊ = 58 from BKLNW_a2_base.floor_log_two_pow 58]
+  unfold BKLNW.f
+  rw [show ⌊log ((2:ℝ)^(58:ℕ)) / log 2⌋₊ = 58 from BKLNW.floor_log_two_pow 58]
   finsum_expand
-  simp only [Nat.cast_ofNat, BKLNW_a2_base.two_pow_eq_exp_log, ← exp_mul]
+  simp only [Nat.cast_ofNat, BKLNW.two_pow_eq_exp_log, ← exp_mul]
   norm_num
   interval_decide 89
 
 -- 2^63 (for b=43): direct expanded certificate
 theorem pow63_upper :
     (1 + 193571378 / (10:ℝ)^16) * f ((2:ℝ)^(63:ℕ)) ≤ (1.03252 : ℝ) + (1:ℝ) / 10^5 := by
-  unfold BKLNW_a2_base.f
-  rw [show ⌊log ((2:ℝ)^(63:ℕ)) / log 2⌋₊ = 63 from BKLNW_a2_base.floor_log_two_pow 63]
+  unfold BKLNW.f
+  rw [show ⌊log ((2:ℝ)^(63:ℕ)) / log 2⌋₊ = 63 from BKLNW.floor_log_two_pow 63]
   finsum_expand
-  simp only [Nat.cast_ofNat, BKLNW_a2_base.two_pow_eq_exp_log, ← exp_mul]
+  simp only [Nat.cast_ofNat, BKLNW.two_pow_eq_exp_log, ← exp_mul]
   norm_num
   interval_decide 98
 
@@ -377,4 +376,4 @@ theorem pow433_upper :
   calc _ ≤ ↑(100000001948 / 100000000000 : ℚ) := h
     _ ≤ (1.00000001938 : ℝ) + (1:ℝ) / 10^9 := by push_cast; norm_num
 
-end LeanCert.Examples.BKLNW_a2_reflective
+end LeanCert.CertifiedBounds.BKLNW.Verified

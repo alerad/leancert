@@ -3,7 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.ChebyshevPsi
+import LeanCert.Engine.Chebyshev.Psi
 
 /-!
 # Certified ψ(N) ≤ 1.11 * N bounds
@@ -18,7 +18,7 @@ This corresponds to PNT issue #844 (`psi_num_2`).
 -/
 
 open Chebyshev (psi)
-open LeanCert.Engine.ChebyshevPsi
+open LeanCert.Engine.Chebyshev.Psi
 
 namespace LeanCert.Examples.PNT_PsiBounds
 

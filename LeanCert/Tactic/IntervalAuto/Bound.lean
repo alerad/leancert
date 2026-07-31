@@ -309,7 +309,7 @@ def tryDyadicBoundImpl (goal : MVarId) (reified : LeanCert.Meta.ReifyReport)
         "the verified Dyadic certificate did not close every transport goal"
     | none => saved.restore; return .ok none
 
-private def tryDyadicBoundCompatibility (goal : MVarId)
+private def tryDyadicBoundOrThrow (goal : MVarId)
     (reified : LeanCert.Meta.ReifyReport) (boundRat : Lean.Expr)
     (intervalInfo : IntervalInfo) (taylorDepth : Nat)
     (isStrict isLower : Bool) : TacticM (Option DyadicBoundOutcome) := do
@@ -405,7 +405,7 @@ where
       -- 2.5. Try Dyadic backend first
       let savedState ← saveState
       if useDyadic &&
-          (← tryDyadicBoundCompatibility goal reified boundRat intervalInfo taylorDepth false false).isSome then
+          (← tryDyadicBoundOrThrow goal reified boundRat intervalInfo taylorDepth false false).isSome then
         return
       restoreState savedState
 
@@ -590,7 +590,7 @@ where
       -- Try Dyadic backend first
       let savedState ← saveState
       if useDyadic &&
-          (← tryDyadicBoundCompatibility goal reified boundRat intervalInfo taylorDepth false true).isSome then
+          (← tryDyadicBoundOrThrow goal reified boundRat intervalInfo taylorDepth false true).isSome then
         return
       restoreState savedState
 
@@ -763,7 +763,7 @@ where
       -- Try Dyadic backend first
       let savedState ← saveState
       if useDyadic &&
-          (← tryDyadicBoundCompatibility goal reified boundRat intervalInfo taylorDepth true false).isSome then
+          (← tryDyadicBoundOrThrow goal reified boundRat intervalInfo taylorDepth true false).isSome then
         return
       restoreState savedState
 
@@ -898,7 +898,7 @@ where
       -- Try Dyadic backend first
       let savedState ← saveState
       if useDyadic &&
-          (← tryDyadicBoundCompatibility goal reified boundRat intervalInfo taylorDepth true true).isSome then
+          (← tryDyadicBoundOrThrow goal reified boundRat intervalInfo taylorDepth true true).isSome then
         return
       restoreState savedState
 
@@ -1289,14 +1289,6 @@ def certifyBoundWithDepth (depth : Option Nat) : TacticM Unit := do
     - `∀ x ∈ I, c < f x`
 -/
 elab "certify_bound" depth:(num)? t:(leancertTrustItem)? : tactic => do
-  discard <| VerificationConfig.current
-  withTrustMode (← elabTrustItem? t) do
-    certifyBoundWithDepth (depth.map (·.getNat))
-
-/-- Deprecated alias for `certify_bound`, kept for downstream compatibility
-(PrimeNumberTheoremAnd's IEANTN files predate the rename). Prefer
-`certify_bound`. -/
-elab "interval_bound" depth:(num)? t:(leancertTrustItem)? : tactic => do
   discard <| VerificationConfig.current
   withTrustMode (← elabTrustItem? t) do
     certifyBoundWithDepth (depth.map (·.getNat))

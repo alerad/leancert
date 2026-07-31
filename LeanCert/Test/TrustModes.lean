@@ -17,10 +17,8 @@ behind `interval_decide`:
   `*.native_decide.ax_*` auxiliary) ever sneaks back in;
 * `"auto"` stays foundational on goals the kernel can handle.
 
-The strict `certify_kernel` prototype rotted precisely because its kernel
-path had no test exercising it (only `_fallback` variants were tested, which
-silently used native verification). These pins are the guard against a
-repeat.
+Earlier kernel-only tactic paths rotted because no test exercised strict kernel
+verification. These pins are the guard against a repeat.
 -/
 
 open Lean Meta Elab Tactic
