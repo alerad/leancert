@@ -925,7 +925,7 @@ certificate-generating paths. It recognizes `Finset.Icc`, `Finset.Ico`,
 
 ## Common Patterns
 
-### Fixed-cutoff eventual bounds
+### Eventual bounds and cutoff discovery
 
 `eventual_bound` certifies natural-number tails of the form
 `q / (n : ℝ) ^ k ≤ c`, where `q` is nonnegative, `k` and the cutoff are
@@ -941,13 +941,27 @@ example : ∀ n : Nat, 100 ≤ n → (1 : ℝ) / n ≤ 1 / 100 := by
 
 example : ∃ N : Nat, ∀ n ≥ N, (3 : ℝ) / n ^ 2 ≤ 3 / 100 := by
   eventual_bound using 10
+
+example : ∃ N : Nat, ∀ n ≥ N, (3 : ℝ) / n ^ 2 ≤ 1 / 1000 := by
+  eventual_bound
+
+-- The semantic router recognizes the same existential theorem shape.
+example : ∃ N : Nat, ∀ n ≥ N, (3 : ℝ) / n ^ 2 ≤ 1 / 1000 := by
+  leancert
 ```
 
 `eventual_bound?` proves the same goal and reports the selected tail rule and
-cutoff source. Existential goals require `using N`; automated cutoff discovery
-is not part of this fixed-cutoff boundary. General logarithmic/exponential
-tails and AD-based tail rules are also outside this initial certificate
-language.
+cutoff source. For an existential goal without `using N`, LeanCert performs an
+untrusted exponential search followed by bounded binary refinement. The
+resulting cutoff is replayed through the exact checker before the Golden
+Theorem constructs the proof. Use `(maxIterations := n)` to bound candidate
+checks; if refinement exhausts the budget after finding a valid upper bracket,
+LeanCert safely returns the verified upper cutoff rather than claiming
+minimality.
+
+The current certificate language remains deliberately narrow: nonnegative
+rational multiples of reciprocal powers over `Nat`. General
+logarithmic/exponential tails and AD-based tail rules are follow-up work.
 
 ### Proving a function is bounded
 

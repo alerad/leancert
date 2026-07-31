@@ -32,6 +32,7 @@ inductive GoalIntent where
   | multivariateBound
   | intervalBound
   | pointInequality
+  | eventualBound
   | certificateCheck
   | conjunction
   deriving Repr, BEq, Inhabited
@@ -133,6 +134,14 @@ structure FiniteSumSpec where
   rhs : Lean.Expr
   deriving Inhabited
 
+/-- A natural-number tail theorem. The eventual-bound solver performs the
+certificate-language check so unsupported tails still receive semantic
+diagnostics instead of falling through to generic existential discovery. -/
+structure EventualBoundSpec where
+  original : Lean.Expr
+  discoverCutoff : Bool
+  deriving Inhabited
+
 /-- Mathematical theorem shapes understood by the semantic front door. -/
 inductive SemanticGoal where
   | point (spec : PointSpec)
@@ -142,6 +151,7 @@ inductive SemanticGoal where
   | discovery (spec : DiscoverySpec)
   | integral (spec : IntegralSpec)
   | finiteSum (spec : FiniteSumSpec)
+  | eventualBound (spec : EventualBoundSpec)
   | certificateCheck (original checker : Lean.Expr)
   | allOf (original : Lean.Expr) (children : Array SemanticGoal)
   deriving Inhabited
@@ -155,6 +165,7 @@ def SemanticGoal.original : SemanticGoal → Lean.Expr
   | .discovery spec => spec.original
   | .integral spec => spec.original
   | .finiteSum spec => spec.original
+  | .eventualBound spec => spec.original
   | .certificateCheck original _ => original
   | .allOf original _ => original
 

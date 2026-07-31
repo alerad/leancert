@@ -34,18 +34,21 @@ examples for each newly supported operation.
 
 ## Quantitative asymptotics
 
-**Current state:** `eventual_bound` checks explicit positive cutoffs for
-natural-number upper bounds on nonnegative rational multiples of reciprocal
-powers. The endpoint is an executable exact-rational check, while the Golden
-Theorem proves the infinite tail by symbolic monotonicity. Existential goals
-accept an explicit witness through `eventual_bound using N`.
+**Current state:** `eventual_bound` checks explicit positive cutoffs and can
+discover witnesses for existential natural-number upper bounds on nonnegative
+rational multiples of reciprocal powers. Discovery uses bounded exponential
+search and binary refinement, then replays the candidate through the same
+exact-rational checker. The Golden Theorem proves the infinite tail by
+symbolic monotonicity. The `leancert` router recognizes this theorem family,
+and reports preserve the cutoff and search provenance.
 
-**Possible next milestone:** add untrusted cutoff discovery over the same
-checker boundary, then grow the typed tail-rule language from demonstrated
-downstream needs.
+**Possible next milestone:** grow the typed tail-rule language from
+demonstrated downstream needs, starting with compositional domination rules or
+carefully scoped logarithmic and exponential tails.
 
-**Evidence:** fixed-cutoff and existential regression theorems, rejected
-cutoff tests, and `eventual_bound?` provenance.
+**Evidence:** fixed-cutoff and discovered-cutoff regression theorems, exact and
+budget-limited search tests, rejected cutoff tests, semantic-router coverage,
+and `eventual_bound?`/`leancert?` provenance.
 
 ## Stronger quantified ML theorems
 

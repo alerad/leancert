@@ -196,6 +196,26 @@ private def parseBound? (goal : Lean.Expr) : MetaM (Option BoundSpec) := do
     return some spec
   return none
 
+private def parseEventualUniversal? (original goal : Lean.Expr)
+    (discoverCutoff : Bool) : Option EventualBoundSpec := do
+  let .forallE _ indexType tailBody _ := goal | none
+  guard (indexType.isConstOf (Name.mkSimple "Nat"))
+  let .forallE _ tailHypothesis conclusion _ := tailBody | none
+  let hypothesisHead := tailHypothesis.getAppFn
+  guard (hypothesisHead.isConstOf ``LE.le || hypothesisHead.isConstOf ``GE.ge)
+  let comparison ← parseRawComparison? conclusion
+  guard (comparison.comparison == .le)
+  some { original, discoverCutoff }
+
+private def parseEventual? (goal : Lean.Expr) : Option EventualBoundSpec := do
+  if goal.isAppOfArity ``Exists 2 then
+    let args := goal.getAppArgs
+    guard (args[0]!.isConstOf (Name.mkSimple "Nat"))
+    let .lam _ _ body _ := args[1]! | none
+    parseEventualUniversal? goal (body.instantiate1 (toExpr (1 : Nat))) true
+  else
+    parseEventualUniversal? goal goal false
+
 private def isZero (expression : Lean.Expr) : MetaM Bool := do
   return (← LeanCert.Meta.Numeral.toRealRatNormalized? expression) == some 0
 
@@ -423,6 +443,7 @@ partial def parseGoal (goal : Lean.Expr) : MetaM (Except ParseFailure SemanticGo
   if let some root ← parseRootExists? goal then return .ok (.root root)
   if let some root ← parseNoRoot? goal then return .ok (.root root)
   if let some extremum ← parseExtremum? goal then return .ok (.extremum extremum)
+  if let some eventual := parseEventual? goal then return .ok (.eventualBound eventual)
   if let some discovery ← parseDiscovery? goal then return .ok (.discovery discovery)
   if let some finiteSum := parseFiniteSum? goal then return .ok (.finiteSum finiteSum)
   if let some checker := parseCertificateCheck? goal then

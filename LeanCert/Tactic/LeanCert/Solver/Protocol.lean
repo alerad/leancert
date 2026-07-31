@@ -159,6 +159,18 @@ structure IntegralPartitionStatistics where
   attempts : Nat
   deriving Inhabited, Repr
 
+/-- Structured facts from eventual-cutoff candidate generation. -/
+structure EventualBoundStatistics where
+  cutoff : Nat
+  checks : Nat
+  configuredLimit : Nat
+  exponentialSteps : Nat
+  refinementSteps : Nat
+  lowerBracket : Nat
+  upperBracket : Nat
+  refinementComplete : Bool
+  deriving Inhabited, Repr
+
 /-- Stable algorithm identity for reporting and failure classification.
 User-facing `strategy` text may be polished without changing control flow. -/
 inductive StrategyId where
@@ -177,6 +189,7 @@ inductive StrategyId where
   | finiteSum
   | exactIntegral
   | partitionIntegral
+  | eventualBound
   | conjunction
   deriving DecidableEq, Repr, Inhabited
 
@@ -215,6 +228,7 @@ structure SolverExecution where
   subdivision : Option SubdivisionStatistics := none
   finiteSum : Option FiniteSumStatistics := none
   integralPartitions : Option IntegralPartitionStatistics := none
+  eventualBound : Option EventualBoundStatistics := none
   /-- Constituent checker proofs retained by composite artifacts. The singular
   `checker`/`verifier` fields describe ordinary one-certificate solvers. -/
   certificates : Array CertificateObservation := #[]

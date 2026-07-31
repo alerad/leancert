@@ -179,6 +179,8 @@ partial def prepareGoal (semantic : SemanticGoal) :
     | .integral _ =>
         let functions ← (functionsOf semantic).mapM prepareFunction
         return .ok { semantic, functions }
+    | .eventualBound _ =>
+        return .ok { semantic }
     | .allOf _ children =>
         let preparedChildren ← children.mapM prepareGoal
         let mut domains := #[]
