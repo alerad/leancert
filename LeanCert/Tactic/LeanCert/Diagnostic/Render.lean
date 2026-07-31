@@ -257,6 +257,16 @@ private def renderOptimization (statistics : Option OptimizationStatistics) : St
       s!"\n\nOptimization:\n  Configured iteration limit: {statistics.configuredLimit}\n  \
         Tolerance: {statistics.tolerance}{actual}{gap}{converged}{remaining}{termination}"
 
+private def renderSubdivision (statistics : Option SubdivisionStatistics) : String :=
+  match statistics with
+  | none => ""
+  | some statistics =>
+      s!"\n\nSubdivision:\n  Taylor depth: {statistics.taylorDepth}\n  \
+        Configured maximum depth: {statistics.configuredMaxDepth}\n  \
+        Deepest depth used: {statistics.deepestDepthUsed}\n  \
+        Boxes examined: {statistics.boxesExamined}\n  \
+        Certified leaves: {statistics.certifiedLeaves}"
+
 private def renderCertificates
     (certificates : Array CertificateObservation) : String :=
   if certificates.isEmpty then ""
@@ -301,13 +311,14 @@ def successReport (report : SolverReport) : String :=
     (report.execution.verifier <|> plan.verifier).map
       (fun value => s!"\nVerifier: {value}") |>.getD ""
   let optimization := renderOptimization report.execution.optimization
+  let subdivision := renderSubdivision report.execution.subdivision
   let certificates := renderCertificates report.execution.certificates
   let advanced :=
     plan.dedicatedProof.map (fun proof =>
       s!"\n\nAdvanced control:\n  {renderProof proof}") |>.getD ""
   s!"LeanCert recognized: {intentLabel plan.intent}\n\n\
     Selected strategy:\n  {plan.strategy}{detail}{executionNotes}{backend}{verification}\
-    {checker}{verifier}{optimization}{certificates}\n\nSuggested proof:\n  {renderProof plan.primaryProof}\
+    {checker}{verifier}{optimization}{subdivision}{certificates}\n\nSuggested proof:\n  {renderProof plan.primaryProof}\
     {advanced}{renderChildren report.execution.children}"
 
 end LeanCert.Tactic.Diagnostic

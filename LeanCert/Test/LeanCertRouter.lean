@@ -469,6 +469,119 @@ unsafe def elabExpectTypedMultivariateRollback : Tactic := fun _ => do
   | .ok _ =>
       throwError "unsupported multivariate bound unexpectedly succeeded"
 
+syntax (name := expectTypedSubdivisionReport)
+  "expect_typed_subdivision_report" : tactic
+
+@[tactic expectTypedSubdivisionReport]
+unsafe def elabExpectTypedSubdivisionReport : Tactic := fun _ => do
+  match ← Auto.intervalBoundSubdivCoreTyped (some 10) 8 with
+  | .ok outcome =>
+      unless outcome.comparison == .upper do
+        throwError "typed subdivision retained the wrong comparison"
+      unless outcome.checker == ``LeanCert.Validity.checkUpperBound &&
+          outcome.verifier == ``LeanCert.Validity.verify_upper_bound_Icc_core do
+        throwError "typed subdivision retained the wrong checker or verifier"
+      unless outcome.execution.boxesExamined == 27 &&
+          outcome.execution.certifiedLeaves == 14 &&
+          outcome.execution.deepestDepthUsed == 5 do
+        throwError "typed subdivision retained incorrect search statistics"
+      let usage := outcome.execution.verification
+      unless usage.kernelChecks + usage.nativeChecks ==
+          outcome.execution.certifiedLeaves do
+        throwError "subdivision verification count does not match certified leaves"
+  | .error failure =>
+      throwError "typed subdivision unexpectedly failed: {repr failure}"
+
+syntax (name := expectTypedSubdivisionExhaustion)
+  "expect_typed_subdivision_exhaustion" : tactic
+
+@[tactic expectTypedSubdivisionExhaustion]
+unsafe def elabExpectTypedSubdivisionExhaustion : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let before ← goal.getType
+  let environmentBefore := (← getEnv).constants.toList.length
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  match ← Auto.intervalBoundSubdivCoreTyped (some 10) 0 with
+  | .error (.exhausted 0 1 0 (some _)) =>
+      let afterGoal ← getMainGoal
+      let after ← afterGoal.getType
+      unless goal == afterGoal && (← isDefEq before after) do
+        throwError "exhausted subdivision changed the caller's goal"
+      unless !(← goal.isAssigned) do
+        throwError "exhausted subdivision retained a partial proof assignment"
+      unless (← getEnv).constants.toList.length == environmentBefore do
+        throwError "exhausted subdivision leaked an environment declaration"
+      unless (← Core.getMessageLog).toList.length == messagesBefore do
+        throwError "exhausted subdivision leaked a message"
+  | .error failure =>
+      throwError "subdivision exhaustion had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "zero-depth subdivision unexpectedly certified the tight bound"
+
+syntax (name := expectTypedSubdivisionPartialRollback)
+  "expect_typed_subdivision_partial_rollback" : tactic
+
+@[tactic expectTypedSubdivisionPartialRollback]
+unsafe def elabExpectTypedSubdivisionPartialRollback : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let before ← goal.getType
+  let environmentBefore := (← getEnv).constants.toList.length
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  match ← Auto.intervalBoundSubdivCoreTyped (some 10) 4 with
+  | .error (.exhausted ..) =>
+      let afterGoal ← getMainGoal
+      let after ← afterGoal.getType
+      unless goal == afterGoal && (← isDefEq before after) do
+        throwError "partially certified subdivision changed the caller's goal"
+      unless !(← goal.isAssigned) do
+        throwError "partially certified subdivision retained a proof assignment"
+      unless (← getEnv).constants.toList.length == environmentBefore do
+        throwError "partially certified subdivision leaked an environment declaration"
+      unless (← Core.getMessageLog).toList.length == messagesBefore do
+        throwError "partially certified subdivision leaked a message"
+  | .error failure =>
+      throwError "partial subdivision rollback had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "exact quarter bound unexpectedly certified at finite subdivision depth"
+
+syntax (name := expectTypedSubdivisionUnsupported)
+  "expect_typed_subdivision_unsupported" : tactic
+
+@[tactic expectTypedSubdivisionUnsupported]
+unsafe def elabExpectTypedSubdivisionUnsupported : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let before ← goal.getType
+  match ← Auto.intervalBoundSubdivCoreTyped (some 10) 2 with
+  | .error (.unsupported ..) =>
+      let afterGoal ← getMainGoal
+      let after ← afterGoal.getType
+      unless goal == afterGoal && (← isDefEq before after) do
+        throwError "unsupported subdivision changed the caller's goal"
+  | .error failure =>
+      throwError "unsupported subdivision had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "unsupported subdivision unexpectedly succeeded"
+
+syntax (name := expectTypedSubdivisionDomain)
+  "expect_typed_subdivision_domain" : tactic
+
+@[tactic expectTypedSubdivisionDomain]
+unsafe def elabExpectTypedSubdivisionDomain : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let before ← goal.getType
+  match ← Auto.intervalBoundSubdivCoreTyped (some 10) 2 with
+  | .error (.domainObstruction _ "Rational interval evaluation" _) =>
+      let afterGoal ← getMainGoal
+      let after ← afterGoal.getType
+      unless goal == afterGoal && (← isDefEq before after) do
+        throwError "domain-obstructed subdivision changed the caller's goal"
+      unless !(← goal.isAssigned) do
+        throwError "domain-obstructed subdivision retained a partial assignment"
+  | .error failure =>
+      throwError "subdivision domain failure had wrong classification: {repr failure}"
+  | .ok _ =>
+      throwError "domain-obstructed subdivision unexpectedly succeeded"
+
 example : ∀ ρ, LeanCert.Engine.Optimization.Box.envMem ρ
       ([⟨0, 1, by norm_num⟩] : LeanCert.Engine.Optimization.Box) →
     (∀ i, i ≥
@@ -518,6 +631,27 @@ example : True := by
 example : True := by
   expect_typed_multivariate_rollback
   trivial
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
+  expect_typed_subdivision_report
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
+  expect_typed_subdivision_exhaustion
+  interval_bound_subdiv 10 8
+
+example (h : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (1 / 4 : ℚ)) :
+    ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (1 / 4 : ℚ) := by
+  expect_typed_subdivision_partial_rollback
+  exact h
+
+example : True := by
+  expect_typed_subdivision_unsupported
+  trivial
+
+example (h : ∀ x ∈ Set.Icc (-1 : ℝ) 1, Real.log x ≤ 2) :
+    ∀ x ∈ Set.Icc (-1 : ℝ) 1, Real.log x ≤ 2 := by
+  expect_typed_subdivision_domain
+  exact h
 
 syntax (name := expectTypedOptimizationRejection)
   "expect_typed_optimization_rejection" : tactic
@@ -851,8 +985,6 @@ info: LeanCert recognized: univariate interval bound
 Selected strategy:
   recursive interval subdivision
   Taylor depth 10; maximum recursive depth 8
-  deepest recursive depth used: 5
-  certified leaves: 14
 
 Numerical computation:
   Rational interval evaluation
@@ -861,6 +993,13 @@ Certificate verification:
   requested kernel → used kernel (14 checks)
 Checker: LeanCert.Validity.checkUpperBound
 Verifier: LeanCert.Validity.verify_upper_bound_Icc_core
+
+Subdivision:
+  Taylor depth: 10
+  Configured maximum depth: 8
+  Deepest depth used: 5
+  Boxes examined: 27
+  Certified leaves: 14
 
 Suggested proof:
   by
@@ -946,6 +1085,9 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
   interval_bound_subdiv 10 8 (trust := kernel)
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
+  interval_bound_subdiv 10 8 (trust := auto)
 
 example : ∃ x ∈ Set.Icc (1 : ℝ) 2, x ^ 2 = 2 := by
   interval_roots (trust := auto)

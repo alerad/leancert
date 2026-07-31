@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Bridge
+import LeanCert.Tactic.BridgeNative
 
 /-!
 # Lean-Side Unit Tests for Bridge (Tests 32-33)
@@ -14,7 +15,9 @@ These tests verify that the Bridge.lean serialization logic works correctly.
 
 namespace LeanCert.Test.BridgeTest
 
-open Lean LeanCert.Bridge LeanCert.Core
+open Lean LeanCert.Bridge LeanCert.Core Lean.Meta Lean.Elab Lean.Elab.Tactic
+
+set_option linter.unusedTactic false
 
 /-! ## Test 32: Expression Deserialization
 
@@ -238,6 +241,121 @@ def jsonNatFieldIs (field : String) (expected : Nat) (j : Json) : Bool :=
 #guard jsonStatusIs "certified" (handleEvalInterval {
   expr := Expr.arsinh (Expr.var 0), box := #[halfRaw], backend := .affine
 })
+
+/-! ## Transactional typed bridge closure -/
+
+syntax (name := expectTypedBridgeAccepted) "expect_typed_bridge_accepted" : tactic
+
+@[tactic expectTypedBridgeAccepted]
+def elabExpectTypedBridgeAccepted : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let proof ← Term.elabTerm (← `(True.intro)) (some goalType)
+  let checkType ← Term.elabTerm (← `(true = true)) none
+  let check ← mkFreshExprMVar checkType
+  match ← LeanCert.Tactic.closeBridgeWithVerificationTyped
+      goal goalType proof check "bridge_test" #[] with
+  | .ok _ =>
+      unless ← goal.isAssigned do
+        throwError "accepted bridge did not assign the caller goal"
+  | .error failure =>
+      throwError "valid typed bridge unexpectedly failed: {repr failure}"
+
+syntax (name := expectTypedBridgeRejected) "expect_typed_bridge_rejected" : tactic
+
+@[tactic expectTypedBridgeRejected]
+def elabExpectTypedBridgeRejected : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let proof ← Term.elabTerm (← `(True.intro)) (some goalType)
+  let checkType ← Term.elabTerm (← `(false = true)) none
+  let check ← mkFreshExprMVar checkType
+  let environmentBefore := (← getEnv).constants.toList.length
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  match ← LeanCert.Tactic.closeBridgeWithVerificationTyped
+      goal goalType proof check "bridge_test" #[] with
+  | .error .rejected =>
+      unless !(← goal.isAssigned) && !(← check.mvarId!.isAssigned) do
+        throwError "rejected bridge retained a partial assignment"
+      unless (← getEnv).constants.toList.length == environmentBefore do
+        throwError "rejected bridge leaked an environment declaration"
+      unless (← Core.getMessageLog).toList.length == messagesBefore do
+        throwError "rejected bridge leaked a message"
+  | .error failure =>
+      throwError "invalid bridge had wrong failure classification: {repr failure}"
+  | .ok _ =>
+      throwError "false bridge certificate unexpectedly succeeded"
+
+syntax (name := expectTypedBridgeTransportRollback)
+  "expect_typed_bridge_transport_rollback" : tactic
+
+@[tactic expectTypedBridgeTransportRollback]
+def elabExpectTypedBridgeTransportRollback : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let falseType ← Term.elabTerm (← `(False)) none
+  let impossibleProof ← mkFreshExprMVar falseType
+  let checkType ← Term.elabTerm (← `(true = true)) none
+  let check ← mkFreshExprMVar checkType
+  let environmentBefore := (← getEnv).constants.toList.length
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  match ← LeanCert.Tactic.closeBridgeWithVerificationTyped
+      goal goalType impossibleProof check "bridge_test" #[] with
+  | .error (.transportFailure _) =>
+      unless !(← goal.isAssigned) && !(← check.mvarId!.isAssigned) do
+        throwError "bridge transport failure retained a partial assignment"
+      unless (← getEnv).constants.toList.length == environmentBefore do
+        throwError "bridge transport failure leaked an environment declaration"
+      unless (← Core.getMessageLog).toList.length == messagesBefore do
+        throwError "bridge transport failure leaked a message"
+  | .error failure =>
+      throwError "bridge transport had wrong failure classification: {repr failure}"
+  | .ok _ =>
+      throwError "incompatible bridge theorem unexpectedly transported"
+
+noncomputable def bridgeOpaqueBool : Bool :=
+  Classical.choice ⟨true⟩
+
+syntax (name := expectTypedBridgeVerificationFailure)
+  "expect_typed_bridge_verification_failure" : tactic
+
+@[tactic expectTypedBridgeVerificationFailure]
+def elabExpectTypedBridgeVerificationFailure : Tactic := fun _ => do
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let proof ← Term.elabTerm (← `(True.intro)) (some goalType)
+  let checkType ← Term.elabTerm (← `(bridgeOpaqueBool = true)) none
+  let check ← mkFreshExprMVar checkType
+  let environmentBefore := (← getEnv).constants.toList.length
+  let messagesBefore := (← Core.getMessageLog).toList.length
+  match ← LeanCert.Tactic.closeBridgeWithVerificationTyped
+      goal goalType proof check "bridge_test" #[] with
+  | .error (.verificationFailure _) =>
+      unless !(← goal.isAssigned) && !(← check.mvarId!.isAssigned) do
+        throwError "bridge verification failure retained a partial assignment"
+      unless (← getEnv).constants.toList.length == environmentBefore do
+        throwError "bridge verification failure leaked an environment declaration"
+      unless (← Core.getMessageLog).toList.length == messagesBefore do
+        throwError "bridge verification failure leaked a message"
+  | .error failure =>
+      throwError "bridge verification had wrong failure classification: {repr failure}"
+  | .ok _ =>
+      throwError "opaque bridge certificate unexpectedly verified"
+
+example : True := by
+  expect_typed_bridge_accepted
+
+example : True := by
+  expect_typed_bridge_rejected
+  trivial
+
+example : True := by
+  expect_typed_bridge_transport_rollback
+  trivial
+
+example : True := by
+  expect_typed_bridge_verification_failure
+  trivial
 
 #guard jsonStatusIs "certified" (handleEvalInterval {
   expr := Expr.atanh (Expr.var 0), box := #[halfRaw]

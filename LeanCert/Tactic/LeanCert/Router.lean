@@ -108,21 +108,52 @@ private def subdivisionAttempt (cfg : LeanCertConfig) : TacticM Unit := do
   let subdivisions := numSyntax cfg.subdivisions
   evalTactic (← `(tactic| interval_bound_subdiv $depth:num $subdivisions:num))
 
-private def subdivisionAttemptReported (cfg : LeanCertConfig) :
-    TacticM SolverExecution := do
-  let outcome ← Auto.intervalBoundSubdivWithDepthReported
-    (some cfg.taylorDepth) cfg.subdivisions
-  return {
+private def subdivisionExecution
+    (outcome : Auto.SubdivisionOutcome) : SolverExecution := {
     backend := some .rationalInterval
     verificationUsage :=
       Solver.VerificationUsage.ofEvents outcome.execution.verification
     checker := some outcome.checker
     verifier := some outcome.verifier
-    notes := #[
-      s!"deepest recursive depth used: {outcome.execution.deepestDepthUsed}",
-      s!"certified leaves: {outcome.execution.leafChecks}"
-    ]
+    enclosure := some outcome.finalEnclosure
+    subdivision := some {
+      taylorDepth := outcome.taylorDepth
+      configuredMaxDepth := outcome.maxDepth
+      deepestDepthUsed := outcome.execution.deepestDepthUsed
+      boxesExamined := outcome.execution.boxesExamined
+      certifiedLeaves := outcome.execution.certifiedLeaves
+    }
   }
+
+private def subdivisionFailure :
+    Auto.SubdivisionFailure → AttemptFailure
+  | .unsupported expression detail =>
+      .unsupported { expression, detail := some detail }
+  | .domainObstruction domain operation detail =>
+      .domainObstruction {
+        source := { original := domain, kind := .intervalRat }
+        reason := detail
+        operation := some operation
+      }
+  | .exhausted maxDepth boxes deepest enclosure =>
+      .inconclusive {
+        enclosure
+        detail := s!"Subdivision reached its configured depth {maxDepth} after \
+          examining {boxes} boxes (deepest depth {deepest})"
+      }
+  | .rejected checker detail =>
+      .rejected { checker := some checker, detail }
+  | .transportFailure detail =>
+      .internalError `LeanCert.Tactic.Auto.intervalBoundSubdivCoreTyped detail
+  | .internalFailure detail =>
+      .internalError `LeanCert.Tactic.Auto.intervalBoundSubdivCoreTyped detail
+
+private unsafe def subdivisionAttemptTyped (cfg : LeanCertConfig) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Auto.intervalBoundSubdivCoreTyped
+      (some cfg.taylorDepth) cfg.subdivisions with
+  | .ok outcome => return .ok (subdivisionExecution outcome)
+  | .error failure => return .error (subdivisionFailure failure)
 
 private def pointAttempt (depth : Nat) : TacticM Unit := do
   let depth := numSyntax depth
@@ -547,8 +578,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (some s!"Taylor depth {d}; maximum recursive depth {cfg.subdivisions}")
           .subdivision,
         solve := subdivisionAttempt cfg
-        solveReported := some (subdivisionAttemptReported cfg)
-        legacyExceptionAdapter := true },
+        solveReportedResult := some (subdivisionAttemptTyped cfg) },
       { report := report intent
           (if cfg.useMonotonicity then s!"opt_bound {cfg.maxIterations} mono"
            else s!"opt_bound {cfg.maxIterations}") cfg mode

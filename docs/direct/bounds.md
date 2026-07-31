@@ -21,6 +21,7 @@ Advanced controls:
 
 ```text
 certify_bound
+interval_bound_subdiv
 multivariate_bound
 ```
 These tactics use the configured certificate-verification route. For example,
@@ -35,6 +36,13 @@ explicit Taylor-depth selection.
 backend: it tries a checked Dyadic path and can fall back to Rational interval
 evaluation. Verification mode is independent of that numerical selection.
 Subdivision and global optimization are strategies, not backends.
+
+`interval_bound_subdiv depth maxDepth` is transactional: it evaluates
+candidate boxes to decide where to split, then closes one fixed Boolean
+certificate for each retained leaf. If the configured depth is exhausted or
+the expression has a domain obstruction, the original proof state is restored.
+`leancert?` reports the configured and deepest depths, boxes examined,
+certified leaves, checker, Golden Theorem, and verification usage.
 
 Minimal example:
 

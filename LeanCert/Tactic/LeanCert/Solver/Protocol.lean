@@ -127,6 +127,16 @@ structure OptimizationStatistics where
   termination : Option OptimizationTermination := none
   deriving Inhabited, Repr
 
+/-- Structured facts from recursive interval subdivision. A box is counted
+when its enclosure is evaluated, including inconclusive internal nodes. -/
+structure SubdivisionStatistics where
+  taylorDepth : Nat
+  configuredMaxDepth : Nat
+  deepestDepthUsed : Nat
+  boxesExamined : Nat
+  certifiedLeaves : Nat
+  deriving Inhabited, Repr
+
 /-- Stable algorithm identity for reporting and failure classification.
 User-facing `strategy` text may be polished without changing control flow. -/
 inductive StrategyId where
@@ -174,6 +184,7 @@ structure SolverExecution where
   verifier : Option Name := none
   enclosure : Option LeanCert.Core.IntervalRat := none
   optimization : Option OptimizationStatistics := none
+  subdivision : Option SubdivisionStatistics := none
   /-- Constituent checker proofs retained by composite artifacts.  The
   singular `checker`/`verifier` fields remain the compatibility presentation
   for one-certificate solvers. -/

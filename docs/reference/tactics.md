@@ -646,6 +646,15 @@ example : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ (272/100 : ℚ) := by
 
 A trailing `(trust := native|kernel|auto)` is optional.
 
+The implementation separates untrusted search from proof validation. Each box
+is evaluated once for subdivision decisions, and each retained leaf closes one
+fixed Boolean certificate through the configured verification route. The typed
+core reports maximum/deepest depth, boxes examined, certified leaves, the exact
+checker and Golden Theorem, and aggregate verification usage. Exhaustion,
+certificate rejection, domain obstruction, proof transport failure, and
+unexpected internal failure are distinct outcomes; every failure restores the
+complete caller tactic state.
+
 ---
 
 ### `interval_bound_adaptive`

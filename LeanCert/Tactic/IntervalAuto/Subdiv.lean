@@ -12,7 +12,10 @@ import LeanCert.Engine.Optimization.BoundVerify
 /-!
 # Subdivision-aware Bound Proving
 
-The `interval_bound_subdiv` tactic uses interval subdivision when the direct approach fails.
+The `interval_bound_subdiv` tactic uses interval subdivision when the direct
+approach is too coarse. Candidate evaluation and certificate verification are
+separate: search evaluates each node once, while every retained leaf closes
+one fixed Boolean certificate exactly once.
 -/
 
 open Lean Meta Elab Tactic Term
@@ -24,545 +27,414 @@ open LeanCert.Core
 open LeanCert.Engine
 open LeanCert.Validity
 
+/-- Comparison certified by a subdivision proof tree. -/
+inductive SubdivisionComparison where
+  | upper
+  | lower
+  | strictUpper
+  | strictLower
+  deriving DecidableEq, Repr, Inhabited
+
 /-- Runtime facts retained by one successful subdivision proof tree. -/
 structure SubdivisionExecution where
   verification : LeanCert.Tactic.VerificationUsage := {}
   deepestDepthUsed : Nat := 0
-  leafChecks : Nat := 0
+  boxesExamined : Nat := 0
+  certifiedLeaves : Nat := 0
   deriving Inhabited
 
 /-- A proof together with the execution facts that produced it. -/
 structure SubdivisionProof where
   proof : Lean.Expr
+  enclosure : IntervalRat
   execution : SubdivisionExecution
 
-/-- Reported result of the public subdivision strategy. The numerical backend
-is Rational for every leaf checker in this module. -/
+/-- Reported result of the public subdivision strategy. Every retained leaf
+uses the Rational interval backend. -/
 structure SubdivisionOutcome where
+  comparison : SubdivisionComparison
   taylorDepth : Nat
   maxDepth : Nat
+  finalEnclosure : IntervalRat
   execution : SubdivisionExecution
   checker : Name
   verifier : Name
+  deriving Inhabited
 
-private def SubdivisionExecution.combine
-    (left right : SubdivisionExecution) : SubdivisionExecution := {
+/-- Typed failures from recursive subdivision. -/
+inductive SubdivisionFailure where
+  | unsupported (expression detail : String)
+  | domainObstruction (domain : Lean.Expr) (operation detail : String)
+  | exhausted (maxDepth boxesExamined deepestDepth : Nat)
+      (bestEnclosure : Option IntervalRat)
+  | rejected (checker : Name) (detail : String)
+  | transportFailure (detail : String)
+  | internalFailure (detail : String)
+  deriving Inhabited, Repr
+
+private def throwSubdivisionFailure : SubdivisionFailure → TacticM α
+  | .unsupported expression detail =>
+      throwError "interval_bound_subdiv: unsupported expression {expression}:\n{detail}"
+  | .domainObstruction _ operation detail =>
+      throwError "interval_bound_subdiv: domain obstruction while checking {operation}:\n{detail}"
+  | .exhausted maxDepth boxes deepest enclosure =>
+      let enclosureDetail := match enclosure with
+        | some I => s!"; last enclosure [{I.lo}, {I.hi}]"
+        | none => ""
+      throwError "interval_bound_subdiv: subdivision exhausted at configured depth \
+        {maxDepth} after examining {boxes} boxes (deepest depth {deepest})\
+        {enclosureDetail}"
+  | .rejected checker detail =>
+      throwError "interval_bound_subdiv: certificate {checker} was rejected:\n{detail}"
+  | .transportFailure detail =>
+      throwError "interval_bound_subdiv: proof transport failed:\n{detail}"
+  | .internalFailure detail =>
+      throwError "interval_bound_subdiv: internal certificate failure:\n{detail}"
+
+private def SubdivisionExecution.combineChildren
+    (depthUsed : Nat) (left right : SubdivisionExecution) : SubdivisionExecution := {
   verification := left.verification.combine right.verification
-  deepestDepthUsed := max left.deepestDepthUsed right.deepestDepthUsed
-  leafChecks := left.leafChecks + right.leafChecks
+  deepestDepthUsed := max depthUsed
+    (max left.deepestDepthUsed right.deepestDepthUsed)
+  boxesExamined := 1 + left.boxesExamined + right.boxesExamined
+  certifiedLeaves := left.certifiedLeaves + right.certifiedLeaves
 }
 
-/-- Try to prove upper bound with subdivision. -/
-private partial def proveUpperBoundWithSubdiv
-    (ast supportProof loRatExpr hiRatExpr leProof boundRat cfgExpr : Lean.Expr)
-    (taylorDepth maxSubdiv depthUsed : Nat) : TacticM (Option SubdivisionProof) := do
-  let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-  let checkExpr ← mkAppM ``LeanCert.Validity.checkUpperBound
-    #[ast, intervalRat, boundRat, cfgExpr]
+private def SubdivisionFailure.addExamined
+    (prior : SubdivisionExecution) : SubdivisionFailure → SubdivisionFailure
+  | .exhausted maxDepth boxes deepest enclosure =>
+      .exhausted maxDepth (prior.boxesExamined + boxes)
+        (max prior.deepestDepthUsed deepest) enclosure
+  | failure => failure
 
-  if ← certCheckSucceeds checkExpr then
-    trace[interval_decide] "Direct check succeeded"
+private def subdivisionChecker : SubdivisionComparison → Name
+  | .upper => ``LeanCert.Validity.checkUpperBound
+  | .lower => ``LeanCert.Validity.checkLowerBound
+  | .strictUpper => ``LeanCert.Validity.checkStrictUpperBound
+  | .strictLower => ``LeanCert.Validity.checkStrictLowerBound
+
+private def subdivisionVerifier : SubdivisionComparison → Name
+  | .upper => ``Validity.verify_upper_bound_Icc_core
+  | .lower => ``Validity.verify_lower_bound_Icc_core
+  | .strictUpper => ``Validity.verify_strict_upper_bound_Icc_core
+  | .strictLower => ``Validity.verify_strict_lower_bound_Icc_core
+
+private def subdivisionCombiner : SubdivisionComparison → Name
+  | .upper => ``Validity.combine_upper_bound_general_split
+  | .lower => ``Validity.combine_lower_bound_general_split
+  | .strictUpper => ``Validity.combine_strict_upper_bound_general_split
+  | .strictLower => ``Validity.combine_strict_lower_bound_general_split
+
+private def enclosureProves (comparison : SubdivisionComparison)
+    (enclosure : IntervalRat) (bound : ℚ) : Bool :=
+  match comparison with
+  | .upper => decide (enclosure.hi ≤ bound)
+  | .lower => decide (bound ≤ enclosure.lo)
+  | .strictUpper => decide (enclosure.hi < bound)
+  | .strictLower => decide (bound < enclosure.lo)
+
+/-- Evaluate one search node once, retaining a concrete enclosure for
+classification and telemetry. This is untrusted candidate generation; final
+acceptance still goes through the fixed Boolean checker. -/
+private unsafe def evaluateSubdivisionNode (ast interval cfgExpr : Lean.Expr) :
+    TacticM (Except SubdivisionFailure IntervalRat) := do
+  let domainCheck ← mkAppM ``LeanCert.Engine.checkDomainValid1 #[ast, interval, cfgExpr]
+  let domainValid ←
+    try unsafe evalExpr Bool (mkConst ``Bool) domainCheck
+    catch e =>
+      return .error <| .internalFailure (← e.toMessageData.toString)
+  unless domainValid do
+    return .error <| .domainObstruction interval
+      "Rational interval evaluation" "the checked evaluator rejected this interval"
+  let enclosureExpr ← mkAppM ``LeanCert.Internal.Rational.evalTotalCore1
+    #[ast, interval, cfgExpr]
+  try
+    return .ok <| ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) enclosureExpr
+  catch e =>
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Comparison-parameterized subdivision recursion. -/
+private unsafe def proveWithSubdiv
+    (comparison : SubdivisionComparison)
+    (ast supportProof loRatExpr hiRatExpr leProof boundRat cfgExpr : Lean.Expr)
+    (bound : ℚ) (configuredMaxDepth remainingDepth depthUsed : Nat) :
+    TacticM (Except SubdivisionFailure SubdivisionProof) := do
+  let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
+  let enclosure ←
+    match ← evaluateSubdivisionNode ast intervalRat cfgExpr with
+    | .ok enclosure => pure enclosure
+    | .error failure => return .error failure
+
+  if enclosureProves comparison enclosure bound then
+    let checkerName := subdivisionChecker comparison
+    let checkExpr ← mkAppM checkerName #[ast, intervalRat, boundRat, cfgExpr]
     let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
     let certGoal ← mkFreshExprMVar certTy
-    let certGoalId := certGoal.mvarId!
-    setGoals [certGoalId]
-    let event ← LeanCert.Tactic.closeCertificateGoalReported
-      (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-      (tacticName := "interval_bound_subdiv")
-    let certProof := certGoal
-    let proof ← mkAppM ``Validity.verify_upper_bound_Icc_core
-      #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certProof]
-    return some {
+    let event ←
+      match ← LeanCert.Tactic.closeCertificateGoalTyped
+          (← LeanCert.Tactic.VerificationConfig.current) certGoal.mvarId!
+          (tacticName := "interval_bound_subdiv") with
+      | .accepted event => pure event
+      | .rejected =>
+          return .error <| .rejected checkerName
+            "the fixed leaf checker evaluated to false"
+      | .failed failure =>
+          return .error <| .internalFailure
+            (failure.message "interval_bound_subdiv")
+    let proof ← mkAppM (subdivisionVerifier comparison)
+      #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certGoal]
+    return .ok {
       proof
+      enclosure
       execution := {
         verification := event.toUsage
         deepestDepthUsed := depthUsed
-        leafChecks := 1
+        boxesExamined := 1
+        certifiedLeaves := 1
       }
     }
 
-  if maxSubdiv == 0 then
-    trace[interval_decide] "Subdivision exhausted - giving up"
-    return none
-
-  trace[interval_decide] "Direct check failed, trying subdivision (depth {maxSubdiv})"
+  if remainingDepth == 0 then
+    return .error <| .exhausted configuredMaxDepth 1 depthUsed (some enclosure)
 
   let some lo ← getLiteral? loRatExpr
-    | trace[interval_decide] "Could not extract lo literal"; return none
+    | return .error <| .unsupported (toString loRatExpr)
+        "could not extract a rational lower endpoint"
   let some hi ← getLiteral? hiRatExpr
-    | trace[interval_decide] "Could not extract hi literal"; return none
+    | return .error <| .unsupported (toString hiRatExpr)
+        "could not extract a rational upper endpoint"
 
   let mid : ℚ := (lo + hi) / 2
   let midExpr := toExpr mid
   let loLeMidExpr ← mkDecideProof (← mkAppM ``LE.le #[loRatExpr, midExpr])
   let midLeHiExpr ← mkDecideProof (← mkAppM ``LE.le #[midExpr, hiRatExpr])
 
-  let leftProof ← proveUpperBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
-    boundRat cfgExpr taylorDepth (maxSubdiv - 1) (depthUsed + 1)
-  let some leftProof := leftProof
-    | trace[interval_decide] "Left half failed"; return none
+  let left ← proveWithSubdiv comparison ast supportProof loRatExpr midExpr
+    loLeMidExpr boundRat cfgExpr bound configuredMaxDepth
+    (remainingDepth - 1) (depthUsed + 1)
+  let left ←
+    match left with
+    | .ok proof => pure proof
+    | .error failure =>
+        return .error <| failure.addExamined {
+          deepestDepthUsed := depthUsed
+          boxesExamined := 1
+        }
 
-  let rightProof ← proveUpperBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
-    boundRat cfgExpr taylorDepth (maxSubdiv - 1) (depthUsed + 1)
-  let some rightProof := rightProof
-    | trace[interval_decide] "Right half failed"; return none
+  let right ← proveWithSubdiv comparison ast supportProof midExpr hiRatExpr
+    midLeHiExpr boundRat cfgExpr bound configuredMaxDepth
+    (remainingDepth - 1) (depthUsed + 1)
+  let right ←
+    match right with
+    | .ok proof => pure proof
+    | .error failure =>
+        return .error <| failure.addExamined {
+          verification := left.execution.verification
+          deepestDepthUsed := max depthUsed left.execution.deepestDepthUsed
+          boxesExamined := 1 + left.execution.boxesExamined
+          certifiedLeaves := left.execution.certifiedLeaves
+        }
 
-  trace[interval_decide] "Subdivision succeeded on both halves - combining proofs"
-
-  let proof ← mkAppM ``Validity.combine_upper_bound_general_split
+  let proof ← mkAppM (subdivisionCombiner comparison)
     #[ast, loRatExpr, midExpr, hiRatExpr, boundRat,
-      loLeMidExpr, midLeHiExpr, leftProof.proof, rightProof.proof]
-
-  return some {
+      loLeMidExpr, midLeHiExpr, left.proof, right.proof]
+  return .ok {
     proof
-    execution := leftProof.execution.combine rightProof.execution
-  }
-
-/-- Try to prove lower bound with subdivision. -/
-private partial def proveLowerBoundWithSubdiv
-    (ast supportProof loRatExpr hiRatExpr leProof boundRat cfgExpr : Lean.Expr)
-    (taylorDepth maxSubdiv depthUsed : Nat) : TacticM (Option SubdivisionProof) := do
-  let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-  let checkExpr ← mkAppM ``LeanCert.Validity.checkLowerBound
-    #[ast, intervalRat, boundRat, cfgExpr]
-
-  if ← certCheckSucceeds checkExpr then
-    trace[interval_decide] "Direct lower bound check succeeded"
-    let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
-    let certGoal ← mkFreshExprMVar certTy
-    let certGoalId := certGoal.mvarId!
-    setGoals [certGoalId]
-    let event ← LeanCert.Tactic.closeCertificateGoalReported
-      (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-      (tacticName := "interval_bound_subdiv")
-    let certProof := certGoal
-    let proof ← mkAppM ``Validity.verify_lower_bound_Icc_core
-      #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certProof]
-    return some {
-      proof
-      execution := {
-        verification := event.toUsage
-        deepestDepthUsed := depthUsed
-        leafChecks := 1
-      }
+    enclosure := {
+      lo := min left.enclosure.lo right.enclosure.lo
+      hi := max left.enclosure.hi right.enclosure.hi
+      le := le_trans (min_le_left _ _)
+        (le_trans left.enclosure.le (le_max_left _ _))
     }
-
-  if maxSubdiv == 0 then
-    trace[interval_decide] "Subdivision exhausted - giving up"
-    return none
-
-  trace[interval_decide] "Direct lower bound check failed, trying subdivision (depth {maxSubdiv})"
-
-  let some lo ← getLiteral? loRatExpr
-    | trace[interval_decide] "Could not extract lo literal"; return none
-  let some hi ← getLiteral? hiRatExpr
-    | trace[interval_decide] "Could not extract hi literal"; return none
-
-  let mid : ℚ := (lo + hi) / 2
-  let midExpr := toExpr mid
-  let loLeMidExpr ← mkDecideProof (← mkAppM ``LE.le #[loRatExpr, midExpr])
-  let midLeHiExpr ← mkDecideProof (← mkAppM ``LE.le #[midExpr, hiRatExpr])
-
-  let leftProof ← proveLowerBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
-    boundRat cfgExpr taylorDepth (maxSubdiv - 1) (depthUsed + 1)
-  let some leftProof := leftProof
-    | trace[interval_decide] "Left half failed"; return none
-
-  let rightProof ← proveLowerBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
-    boundRat cfgExpr taylorDepth (maxSubdiv - 1) (depthUsed + 1)
-  let some rightProof := rightProof
-    | trace[interval_decide] "Right half failed"; return none
-
-  trace[interval_decide] "Subdivision succeeded on both halves - combining lower bound proofs"
-
-  let proof ← mkAppM ``Validity.combine_lower_bound_general_split
-    #[ast, loRatExpr, midExpr, hiRatExpr, boundRat,
-      loLeMidExpr, midLeHiExpr, leftProof.proof, rightProof.proof]
-
-  return some {
-    proof
-    execution := leftProof.execution.combine rightProof.execution
+    execution := SubdivisionExecution.combineChildren depthUsed
+      left.execution right.execution
   }
 
-/-- Try to prove strict upper bound with subdivision. -/
-private partial def proveStrictUpperBoundWithSubdiv
-    (ast supportProof loRatExpr hiRatExpr leProof boundRat cfgExpr : Lean.Expr)
-    (taylorDepth maxSubdiv depthUsed : Nat) : TacticM (Option SubdivisionProof) := do
-  let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-  let checkExpr ← mkAppM ``LeanCert.Validity.checkStrictUpperBound
-    #[ast, intervalRat, boundRat, cfgExpr]
-
-  if ← certCheckSucceeds checkExpr then
-    trace[interval_decide] "Direct strict upper bound check succeeded"
-    let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
-    let certGoal ← mkFreshExprMVar certTy
-    let certGoalId := certGoal.mvarId!
-    setGoals [certGoalId]
-    let event ← LeanCert.Tactic.closeCertificateGoalReported
-      (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-      (tacticName := "interval_bound_subdiv")
-    let certProof := certGoal
-    let proof ← mkAppM ``Validity.verify_strict_upper_bound_Icc_core
-      #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certProof]
-    return some {
-      proof
-      execution := {
-        verification := event.toUsage
-        deepestDepthUsed := depthUsed
-        leafChecks := 1
-      }
-    }
-
-  if maxSubdiv == 0 then
-    trace[interval_decide] "Subdivision exhausted - giving up"
-    return none
-
-  trace[interval_decide] "Direct strict upper bound check failed, trying subdivision (depth {maxSubdiv})"
-
-  let some lo ← getLiteral? loRatExpr
-    | trace[interval_decide] "Could not extract lo literal"; return none
-  let some hi ← getLiteral? hiRatExpr
-    | trace[interval_decide] "Could not extract hi literal"; return none
-
-  let mid : ℚ := (lo + hi) / 2
-  let midExpr := toExpr mid
-  let loLeMidExpr ← mkDecideProof (← mkAppM ``LE.le #[loRatExpr, midExpr])
-  let midLeHiExpr ← mkDecideProof (← mkAppM ``LE.le #[midExpr, hiRatExpr])
-
-  let leftProof ← proveStrictUpperBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
-    boundRat cfgExpr taylorDepth (maxSubdiv - 1) (depthUsed + 1)
-  let some leftProof := leftProof
-    | trace[interval_decide] "Left half failed"; return none
-
-  let rightProof ← proveStrictUpperBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
-    boundRat cfgExpr taylorDepth (maxSubdiv - 1) (depthUsed + 1)
-  let some rightProof := rightProof
-    | trace[interval_decide] "Right half failed"; return none
-
-  trace[interval_decide] "Subdivision succeeded on both halves - combining strict upper bound proofs"
-
-  let proof ← mkAppM ``Validity.combine_strict_upper_bound_general_split
-    #[ast, loRatExpr, midExpr, hiRatExpr, boundRat,
-      loLeMidExpr, midLeHiExpr, leftProof.proof, rightProof.proof]
-
-  return some {
-    proof
-    execution := leftProof.execution.combine rightProof.execution
-  }
-
-/-- Try to prove strict lower bound with subdivision. -/
-private partial def proveStrictLowerBoundWithSubdiv
-    (ast supportProof loRatExpr hiRatExpr leProof boundRat cfgExpr : Lean.Expr)
-    (taylorDepth maxSubdiv depthUsed : Nat) : TacticM (Option SubdivisionProof) := do
-  let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
-  let checkExpr ← mkAppM ``LeanCert.Validity.checkStrictLowerBound
-    #[ast, intervalRat, boundRat, cfgExpr]
-
-  if ← certCheckSucceeds checkExpr then
-    trace[interval_decide] "Direct strict lower bound check succeeded"
-    let certTy ← mkAppM ``Eq #[checkExpr, mkConst ``Bool.true]
-    let certGoal ← mkFreshExprMVar certTy
-    let certGoalId := certGoal.mvarId!
-    setGoals [certGoalId]
-    let event ← LeanCert.Tactic.closeCertificateGoalReported
-      (← LeanCert.Tactic.VerificationConfig.current) (← getMainGoal)
-      (tacticName := "interval_bound_subdiv")
-    let certProof := certGoal
-    let proof ← mkAppM ``Validity.verify_strict_lower_bound_Icc_core
-      #[ast, supportProof, loRatExpr, hiRatExpr, leProof, boundRat, cfgExpr, certProof]
-    return some {
-      proof
-      execution := {
-        verification := event.toUsage
-        deepestDepthUsed := depthUsed
-        leafChecks := 1
-      }
-    }
-
-  if maxSubdiv == 0 then
-    trace[interval_decide] "Subdivision exhausted - giving up"
-    return none
-
-  trace[interval_decide] "Direct strict lower bound check failed, trying subdivision (depth {maxSubdiv})"
-
-  let some lo ← getLiteral? loRatExpr
-    | trace[interval_decide] "Could not extract lo literal"; return none
-  let some hi ← getLiteral? hiRatExpr
-    | trace[interval_decide] "Could not extract hi literal"; return none
-
-  let mid : ℚ := (lo + hi) / 2
-  let midExpr := toExpr mid
-  let loLeMidExpr ← mkDecideProof (← mkAppM ``LE.le #[loRatExpr, midExpr])
-  let midLeHiExpr ← mkDecideProof (← mkAppM ``LE.le #[midExpr, hiRatExpr])
-
-  let leftProof ← proveStrictLowerBoundWithSubdiv ast supportProof loRatExpr midExpr loLeMidExpr
-    boundRat cfgExpr taylorDepth (maxSubdiv - 1) (depthUsed + 1)
-  let some leftProof := leftProof
-    | trace[interval_decide] "Left half failed"; return none
-
-  let rightProof ← proveStrictLowerBoundWithSubdiv ast supportProof midExpr hiRatExpr midLeHiExpr
-    boundRat cfgExpr taylorDepth (maxSubdiv - 1) (depthUsed + 1)
-  let some rightProof := rightProof
-    | trace[interval_decide] "Right half failed"; return none
-
-  trace[interval_decide] "Subdivision succeeded on both halves - combining strict lower bound proofs"
-
-  let proof ← mkAppM ``Validity.combine_strict_lower_bound_general_split
-    #[ast, loRatExpr, midExpr, hiRatExpr, boundRat,
-      loLeMidExpr, midLeHiExpr, leftProof.proof, rightProof.proof]
-
-  return some {
-    proof
-    execution := leftProof.execution.combine rightProof.execution
-  }
-
-/-- Prove ∀ x ∈ I, f x ≤ c using subdivision as fallback -/
-private def proveForallLeSubdivReported (goal : MVarId) (intervalInfo : IntervalInfo)
-    (func bound : Lean.Expr) (taylorDepth maxSubdiv : Nat) :
-    TacticM SubdivisionExecution := do
-  goal.withContext do
-    let ast := (← getAstWithReport func).expr
-    let boundRat ← extractRatBound bound
-    let (supportProof, _useChecked) ← getSupportProof ast
-    let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
-
-    let some bounds ← getSubdivBounds intervalInfo
-      | throwError "interval_bound_subdiv: Only literal Set.Icc or IntervalRat intervals supported for subdivision"
-    let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
-
-    let savedGoals ← getGoals
-
-    let some proof ← proveUpperBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
-        leProof boundRat cfgExpr taylorDepth maxSubdiv 0
-      | throwError "interval_bound_subdiv: Failed even with subdivision"
-
-    setGoals savedGoals
-    let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof.proof
+private def closeSubdivisionTransport (proof : Lean.Expr) (fromSetIcc : Bool) :
+    TacticM (Except SubdivisionFailure Unit) := do
+  let proofSyntax ← Term.exprToSyntax proof
+  try
     if fromSetIcc then
-      evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+      evalTactic (← `(tactic| convert ($proofSyntax) using 3))
     else
-      evalTactic (← `(tactic| simpa [IntervalRat.mem_iff_mem_Icc] using $conclusionTerm))
+      evalTactic (← `(tactic|
+        simpa [IntervalRat.mem_iff_mem_Icc] using $proofSyntax))
 
-    let goals ← getGoals
-    for g in goals do
-      setGoals [g]
-      let tryClose (tac : TacticM Unit) : TacticM Bool := do
+    let sideGoals ← getGoals
+    for sideGoal in sideGoals do
+      setGoals [sideGoal]
+      let tryClose (tactic : TacticM Unit) : TacticM Bool := do
+        let saved ← saveState
         try
-          tac
-          let goalsEmpty := (← getGoals).isEmpty
-          return goalsEmpty
-        catch _ => return false
+          tactic
+          if (← getGoals).isEmpty then return true
+          saved.restore
+          return false
+        catch _ =>
+          saved.restore
+          return false
       if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
       if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
       if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic|
+          norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic|
+          simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
+      if ← tryClose (evalTactic (← `(tactic|
+          simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
       if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
-      logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
-    return proof.execution
-
-/-- Prove ∀ x ∈ I, c ≤ f x using subdivision as fallback -/
-private def proveForallGeSubdivReported (goal : MVarId) (intervalInfo : IntervalInfo)
-    (func bound : Lean.Expr) (taylorDepth maxSubdiv : Nat) :
-    TacticM SubdivisionExecution := do
-  goal.withContext do
-    let ast := (← getAstWithReport func).expr
-    let boundRat ← extractRatBound bound
-    let (supportProof, _useChecked) ← getSupportProof ast
-    let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
-
-    let some bounds ← getSubdivBounds intervalInfo
-      | throwError "interval_bound_subdiv: Only literal Set.Icc or IntervalRat intervals supported for subdivision"
-    let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
-
-    let savedGoals ← getGoals
-
-    let some proof ← proveLowerBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
-        leProof boundRat cfgExpr taylorDepth maxSubdiv 0
-      | throwError "interval_bound_subdiv: Failed even with subdivision (lower bound)"
-
-    setGoals savedGoals
-    let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof.proof
-    if fromSetIcc then
-      evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
-    else
-      evalTactic (← `(tactic| simpa [IntervalRat.mem_iff_mem_Icc] using $conclusionTerm))
-
-    let goals ← getGoals
-    for g in goals do
-      setGoals [g]
-      let tryClose (tac : TacticM Unit) : TacticM Bool := do
-        try
-          tac
-          let goalsEmpty := (← getGoals).isEmpty
-          return goalsEmpty
-        catch _ => return false
-      if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
-      logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
-    return proof.execution
-
-/-- Prove ∀ x ∈ I, f x < c using subdivision as fallback -/
-private def proveForallLtSubdivReported (goal : MVarId) (intervalInfo : IntervalInfo)
-    (func bound : Lean.Expr) (taylorDepth maxSubdiv : Nat) :
-    TacticM SubdivisionExecution := do
-  goal.withContext do
-    let ast := (← getAstWithReport func).expr
-    let boundRat ← extractRatBound bound
-    let (supportProof, _useChecked) ← getSupportProof ast
-    let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
-
-    let some bounds ← getSubdivBounds intervalInfo
-      | throwError "interval_bound_subdiv: Only literal Set.Icc or IntervalRat intervals supported for subdivision"
-    let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
-
-    let savedGoals ← getGoals
-
-    let some proof ← proveStrictUpperBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
-        leProof boundRat cfgExpr taylorDepth maxSubdiv 0
-      | throwError "interval_bound_subdiv: Failed even with subdivision (strict upper bound)"
-
-    setGoals savedGoals
-    let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof.proof
-    if fromSetIcc then
-      evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
-    else
-      evalTactic (← `(tactic| simpa [IntervalRat.mem_iff_mem_Icc] using $conclusionTerm))
-
-    let goals ← getGoals
-    for g in goals do
-      setGoals [g]
-      let tryClose (tac : TacticM Unit) : TacticM Bool := do
-        try
-          tac
-          let goalsEmpty := (← getGoals).isEmpty
-          return goalsEmpty
-        catch _ => return false
-      if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; ring))) then continue
-      if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
+      if ← tryClose (evalTactic (← `(tactic|
+          simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul,
+            mul_one]))) then continue
       if ← tryClose (evalTactic (← `(tactic| field_simp; ring))) then continue
-      logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
-    return proof.execution
+      return .error <| .transportFailure
+        s!"could not close side goal {← sideGoal.getType}"
+    unless (← getGoals).isEmpty do
+      return .error <| .transportFailure
+        "subdivision theorem transport left unresolved proof obligations"
+    return .ok ()
+  catch e =>
+    return .error <| .transportFailure (← e.toMessageData.toString)
 
-/-- Prove ∀ x ∈ I, c < f x using subdivision as fallback -/
-private def proveForallGtSubdivReported (goal : MVarId) (intervalInfo : IntervalInfo)
-    (func bound : Lean.Expr) (taylorDepth maxSubdiv : Nat) :
-    TacticM SubdivisionExecution := do
-  goal.withContext do
-    let ast := (← getAstWithReport func).expr
-    let boundRat ← extractRatBound bound
-    let (supportProof, _useChecked) ← getSupportProof ast
-    let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
+private def comparisonOfGoal : BoundGoal → SubdivisionComparison
+  | .forallLe .. => .upper
+  | .forallGe .. => .lower
+  | .forallLt .. => .strictUpper
+  | .forallGt .. => .strictLower
 
-    let some bounds ← getSubdivBounds intervalInfo
-      | throwError "interval_bound_subdiv: Only literal Set.Icc or IntervalRat intervals supported for subdivision"
-    let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
+private def partsOfGoal :
+    BoundGoal → IntervalInfo × Lean.Expr × Lean.Expr
+  | .forallLe _ interval func bound => (interval, func, bound)
+  | .forallGe _ interval func bound => (interval, func, bound)
+  | .forallLt _ interval func bound => (interval, func, bound)
+  | .forallGt _ interval func bound => (interval, func, bound)
 
-    let savedGoals ← getGoals
-
-    let some proof ← proveStrictLowerBoundWithSubdiv ast supportProof loRatExpr hiRatExpr
-        leProof boundRat cfgExpr taylorDepth maxSubdiv 0
-      | throwError "interval_bound_subdiv: Failed even with subdivision (strict lower bound)"
-
-    setGoals savedGoals
-    let conclusionTerm ← Lean.Elab.Term.exprToSyntax proof.proof
-    if fromSetIcc then
-      evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
-    else
-      evalTactic (← `(tactic| simpa [IntervalRat.mem_iff_mem_Icc] using $conclusionTerm))
-
-    let goals ← getGoals
-    for g in goals do
-      setGoals [g]
-      let tryClose (tac : TacticM Unit) : TacticM Bool := do
-        try
-          tac
-          let goalsEmpty := (← getGoals).isEmpty
-          return goalsEmpty
-        catch _ => return false
-      if ← tryClose (evalTactic (← `(tactic| rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_num))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_cast))) then continue
-      if ← tryClose (evalTactic (← `(tactic| norm_num; simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [Rat.divInt_eq_div]; push_cast; rfl))) then continue
-      if ← tryClose (evalTactic (← `(tactic| congr 1 <;> norm_num))) then continue
-      if ← tryClose (evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one]))) then continue
-      logWarning m!"interval_bound_subdiv: Could not close side goal: {← g.getType}"
-    return proof.execution
-
-/-- Run subdivision and return the facts retained by its successful proof. -/
-def intervalBoundSubdivWithDepthReported
-    (depth : Option Nat) (maxSubdiv : Nat) : TacticM SubdivisionOutcome := do
-  intervalNormCore
-  let depths : List Nat := match depth with
-    | some n => [n]
-    | none => [10, 15, 20, 25]
+private unsafe def intervalBoundSubdivCoreTypedImpl
+    (depth : Option Nat) (maxSubdiv : Nat) :
+    TacticM (Except SubdivisionFailure SubdivisionOutcome) := do
+  try intervalNormCore
+  catch e =>
+    return .error <| .unsupported "goal normalization" (← e.toMessageData.toString)
 
   try
-    evalTactic (← `(tactic| intro _x _hx; simp only [ge_iff_le, gt_iff_lt]; revert _x _hx))
+    evalTactic (← `(tactic|
+      intro _x _hx; simp only [ge_iff_le, gt_iff_lt]; revert _x _hx))
   catch _ =>
     try evalTactic (← `(tactic| simp only [ge_iff_le, gt_iff_lt]))
     catch _ => pure ()
-
   try
-    evalTactic (← `(tactic| simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one] at *))
+    evalTactic (← `(tactic|
+      simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul, mul_one] at *))
   catch _ => pure ()
 
-  let savedState ← saveState
-  let mut lastErr : Option MessageData := none
-  for taylorDepth in depths do
-    restoreState savedState
-    let goal ← getMainGoal
-    let goalType ← goal.getType
-    let some boundGoal ← parseBoundGoal goalType
-      | throwError "interval_bound_subdiv: Could not parse goal"
-    try
-      let (execution, checker, verifier) ← match boundGoal with
-      | .forallLe _name interval func bound =>
-        pure (← proveForallLeSubdivReported goal interval func bound taylorDepth maxSubdiv,
-          ``LeanCert.Validity.checkUpperBound, ``Validity.verify_upper_bound_Icc_core)
-      | .forallGe _name interval func bound =>
-        pure (← proveForallGeSubdivReported goal interval func bound taylorDepth maxSubdiv,
-          ``LeanCert.Validity.checkLowerBound, ``Validity.verify_lower_bound_Icc_core)
-      | .forallLt _name interval func bound =>
-        pure (← proveForallLtSubdivReported goal interval func bound taylorDepth maxSubdiv,
-          ``LeanCert.Validity.checkStrictUpperBound,
-          ``Validity.verify_strict_upper_bound_Icc_core)
-      | .forallGt _name interval func bound =>
-        pure (← proveForallGtSubdivReported goal interval func bound taylorDepth maxSubdiv,
-          ``LeanCert.Validity.checkStrictLowerBound,
-          ``Validity.verify_strict_lower_bound_Icc_core)
-      return { taylorDepth, maxDepth := maxSubdiv, execution, checker, verifier }
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  let some boundGoal ← parseBoundGoal goalType
+    | return .error <| .unsupported (toString goalType)
+        "expected a univariate interval bound"
+  let comparison := comparisonOfGoal boundGoal
+  let (intervalInfo, func, boundExpr) := partsOfGoal boundGoal
+
+  let ast ←
+    try pure (← getAstWithReport func).expr
     catch e =>
-      lastErr := some e.toMessageData
-  throwError m!"interval_bound_subdiv: All precision levels failed\n{lastErr.getD ""}"
+      return .error <| .unsupported (toString func) (← e.toMessageData.toString)
+  let boundRat ←
+    try extractRatBound boundExpr
+    catch e =>
+      return .error <| .unsupported (toString boundExpr) (← e.toMessageData.toString)
+  let some bound ← getLiteral? boundRat
+    | return .error <| .unsupported (toString boundExpr)
+        "the requested bound is not rational"
+  let supportProof ←
+    try pure (← mkSupportedCoreProof ast)
+    catch e =>
+      return .error <| .unsupported (toString func) (← e.toMessageData.toString)
+  let some bounds ← getSubdivBounds intervalInfo
+    | return .error <| .unsupported (toString goalType)
+        "only literal Set.Icc or IntervalRat intervals support subdivision"
+  let (_lo, _hi, loRatExpr, hiRatExpr, leProof, fromSetIcc) := bounds
+  let transportGoals ← getGoals
+  let preparedState ← saveState
+  let depths : List Nat := match depth with
+    | some n => [n]
+    | none => [10, 15, 20, 25]
+  let mut lastFailure : Option SubdivisionFailure := none
+
+  for taylorDepth in depths do
+    preparedState.restore
+    let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
+    match ← proveWithSubdiv comparison ast supportProof loRatExpr hiRatExpr leProof
+        boundRat cfgExpr bound maxSubdiv maxSubdiv 0 with
+    | .ok proof =>
+        setGoals transportGoals
+        match ← closeSubdivisionTransport proof.proof fromSetIcc with
+        | .ok _ =>
+            return .ok {
+              comparison
+              taylorDepth
+              maxDepth := maxSubdiv
+              finalEnclosure := proof.enclosure
+              execution := proof.execution
+              checker := subdivisionChecker comparison
+              verifier := subdivisionVerifier comparison
+            }
+        | .error failure => return .error failure
+    | .error failure@(.exhausted ..) =>
+        lastFailure := some failure
+    | .error failure@(.rejected ..) =>
+        lastFailure := some failure
+    | .error failure =>
+        return .error failure
+
+  return .error <| lastFailure.getD <|
+    .exhausted maxSubdiv 0 0 none
+
+/-- Typed and exception-total subdivision entry point. Every non-success
+restores the complete caller tactic state. -/
+unsafe def intervalBoundSubdivCoreTyped
+    (depth : Option Nat) (maxSubdiv : Nat) :
+    TacticM (Except SubdivisionFailure SubdivisionOutcome) := do
+  let original ← saveState
+  try
+    match ← intervalBoundSubdivCoreTypedImpl depth maxSubdiv with
+    | .ok outcome => return .ok outcome
+    | .error failure =>
+        original.restore
+        return .error failure
+  catch e =>
+    original.restore
+    return .error <| .internalFailure (← e.toMessageData.toString)
+
+/-- Reporting compatibility wrapper preserving the historical throwing API. -/
+unsafe def intervalBoundSubdivWithDepthReported
+    (depth : Option Nat) (maxSubdiv : Nat) : TacticM SubdivisionOutcome := do
+  match ← intervalBoundSubdivCoreTyped depth maxSubdiv with
+  | .ok outcome => return outcome
+  | .error failure => throwSubdivisionFailure failure
 
 /-- Compatibility core retaining the historical `TacticM Unit` shape. -/
-def intervalBoundSubdivWithDepth (depth : Option Nat) (maxSubdiv : Nat) :
+unsafe def intervalBoundSubdivWithDepth (depth : Option Nat) (maxSubdiv : Nat) :
     TacticM Unit := do
-  discard <| intervalBoundSubdivWithDepthReported depth maxSubdiv
+  match ← intervalBoundSubdivCoreTyped depth maxSubdiv with
+  | .ok _ => pure ()
+  | .error failure => throwSubdivisionFailure failure
 
 /-- The interval_bound_subdiv tactic. -/
-elab "interval_bound_subdiv" depth:(num)? subdivDepth:(num)?
-    t:(leancertTrustItem)? : tactic => do
-  let trust? ← LeanCert.Tactic.elabTrustItem? t
+syntax (name := intervalBoundSubdivTac) "interval_bound_subdiv" (num)? (num)?
+  (leancertTrustItem)? : tactic
+
+@[tactic intervalBoundSubdivTac]
+unsafe def elabIntervalBoundSubdiv : Tactic := fun stx => do
+  let depthSyntax := stx[1].getOptional?
+  let subdivSyntax := stx[2].getOptional?
+  let trustSyntax := stx[3].getOptional?.map (⟨·⟩)
+  let trust? ← LeanCert.Tactic.elabTrustItem? trustSyntax
   LeanCert.Tactic.withTrustMode trust? do
-    let maxSubdiv := match subdivDepth with
-      | some n => n.getNat
+    let maxSubdiv := match subdivSyntax with
+      | some n => n.toNat
       | none => 3
-    let depth := depth.map (·.getNat)
+    let depth := depthSyntax.map (·.toNat)
     intervalBoundSubdivWithDepth depth maxSubdiv
 
 end LeanCert.Tactic.Auto
