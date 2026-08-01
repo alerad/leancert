@@ -379,8 +379,28 @@ example : True := by
 
 -- Integration now exposes both checked implementations; auto remains
 -- Rational until the matched benchmark cases justify promotion.
+def integrateRequestJson (precision : Int) : Json := Json.mkObj [
+  ("expr", Json.mkObj [("kind", "var"), ("idx", 0)]),
+  ("interval", toJson zeroOneRaw),
+  ("backend", "dyadic"),
+  ("precision", toJson precision)]
+
+#guard match fromJson? (α := IntegrateRequest) (integrateRequestJson (-80)) with
+  | .ok req => req.precision = -80
+  | .error _ => false
+
 #guard jsonBackendIs "dyadic" (handleIntegrate {
   expr := Expr.var 0, interval := zeroOneRaw, backend := .dyadic
+})
+
+-- The common JSON precision option reaches the Dyadic integrator. Invalid
+-- positive precision is rejected, while a non-default checked precision works.
+#guard jsonStatusIs "invalid_configuration" (handleIntegrate {
+  expr := Expr.var 0, interval := zeroOneRaw, backend := .dyadic, precision := 1
+})
+
+#guard jsonStatusIs "certified" (handleIntegrate {
+  expr := Expr.var 0, interval := zeroOneRaw, backend := .dyadic, precision := -80
 })
 
 #guard jsonBackendIs "rational" (handleIntegrate {

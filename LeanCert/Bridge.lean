@@ -392,6 +392,7 @@ structure IntegrateRequest where
   backend : BackendChoice := .auto
   partitions : Nat := 10
   taylorDepth : Nat := 10
+  precision : Int := -53
 
 instance : FromJson IntegrateRequest where
   fromJson? j := do
@@ -399,6 +400,7 @@ instance : FromJson IntegrateRequest where
     let interval ← j.getObjValAs? RawInterval "interval"
     let partitions := (j.getObjValAs? Nat "partitions").toOption.getD 10
     let taylorDepth := (j.getObjValAs? Nat "taylorDepth").toOption.getD 10
+    let precision := (j.getObjValAs? Int "precision").toOption.getD (-53)
     let backend ← backendChoiceField j
     return {
       expr := expr
@@ -406,6 +408,7 @@ instance : FromJson IntegrateRequest where
       backend := backend
       partitions := partitions
       taylorDepth := taylorDepth
+      precision := precision
     }
 
 /-- Request for root finding -/
@@ -738,6 +741,7 @@ def handleIntegrate (req : IntegrateRequest) : Json :=
   let options : IntegrationOptions := {
     backend := req.backend
     taylorDepth := req.taylorDepth
+    dyadicPrecision := req.precision
   }
   match LeanCert.integrateUniform req.expr I n options with
   | .error err => evalFailureJson err
