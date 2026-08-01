@@ -14,6 +14,7 @@ import LeanCert.Tactic.VecSimp
 import LeanCert.Tactic.LeanCert
 import LeanCert.Tactic.Discovery
 import LeanCert.Tactic.Extension
+import LeanCert.Tactic.Enclosure
 
 /-!
 # LeanCert tactic API

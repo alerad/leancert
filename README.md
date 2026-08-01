@@ -162,7 +162,8 @@ The main verified numerical path includes:
 - Root existence, exclusion, Newton-style uniqueness, and automatic or manual
   Krawczyk system-root certificates
 - Exact rational polynomial integration and certified partition integration
-- Checked downstream unary enclosure rules consumed compositionally by `leancert`
+- Checked downstream unary enclosure rules consumed compositionally by
+  `leancert` or the lightweight `enclosure_bound` front door
 - Fixed and automatically discovered reciprocal-power bounds over infinite
   natural-number tails
 - Domain-specific Chebyshev, analytic-number-theory, q-product, table, and

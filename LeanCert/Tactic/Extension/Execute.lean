@@ -3,6 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+import Mathlib.Tactic.NormNum
 import LeanCert.Engine.Eval.Core
 import LeanCert.Meta.Numeral
 import LeanCert.Tactic.Extension.Registry

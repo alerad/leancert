@@ -34,10 +34,16 @@ loading tactic elaborators.
 import LeanCert.Tactic.IntervalAuto
 import LeanCert.Tactic.Bound
 import LeanCert.Tactic.Extension
+import LeanCert.Tactic.Enclosure
 import LeanCert.Tactic.EventualBound
 import LeanCert.Discovery.Commands
 import LeanCert.Tactic.Discovery
 ```
+
+Use `LeanCert.Tactic.Extension` in the module that declares
+`@[leancert_enclosure]` rules. A proof module that executes those rules can add
+`LeanCert.Tactic.Enclosure` for `enclosure_bound` / `enclosure_bound?` without
+importing the full semantic router.
 
 ### Proof Templates
 
