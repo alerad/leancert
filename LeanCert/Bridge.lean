@@ -9,6 +9,7 @@ import LeanCert.Engine.IntervalEval
 import LeanCert.Engine.IntervalEvalDyadic
 import LeanCert.Engine.IntervalEvalAffine
 import LeanCert.API.Eval
+import LeanCert.API.Integration
 import LeanCert.API.Optimization
 import LeanCert.Engine.Optimization.Global
 import LeanCert.Engine.Optimization.Backend
@@ -730,45 +731,23 @@ def handleCheckBound (req : CheckBoundRequest) : Json :=
       ("computed_lo", toJson (toRawRat result.lo)),
       ("computed_hi", toJson (toRawRat result.hi))]
 
-/-- Checked accumulation of interval-integral contributions. -/
-def integratePartsChecked (e : LExpr) : List IntervalRat → EvalResult IntervalRat
-  | [] => .ok (IntervalRat.singleton 0)
-  | J :: rest => do
-      let fBound ← evalIntervalChecked e (fun _ => J)
-      let tail ← integratePartsChecked e rest
-      let contribution := IntervalRat.mul (IntervalRat.singleton J.width) fBound
-      return IntervalRat.add contribution tail
-
-/-- Checked uniform-partition integration. A singular integrand produces a
-domain error instead of a finite pseudo-bound. -/
-def integrateIntervalChecked (e : LExpr) (I : IntervalRat) (n : Nat) : EvalResult IntervalRat :=
-  if n = 0 then .ok (IntervalRat.singleton 0)
-  else
-    let width := (I.hi - I.lo) / n
-    let parts := List.range n |>.map fun i =>
-      let lo := I.lo + width * i
-      let hi := I.lo + width * (i + 1)
-      if h : lo ≤ hi then { lo := lo, hi := hi, le := h }
-      else IntervalRat.singleton lo
-    integratePartsChecked e parts
-
 /-- Handle integration request -/
 def handleIntegrate (req : IntegrateRequest) : Json :=
   let I := req.interval.toInterval
   let n := max 1 req.partitions
-  if req.taylorDepth != 10 then
-    evalFailureJson (.invalidConfiguration
-      "checked Rational integration has fixed Taylor depth 10")
-  else match resolveBackend req.backend .integration with
+  let options : IntegrationOptions := {
+    backend := req.backend
+    taylorDepth := req.taylorDepth
+  }
+  match LeanCert.integrateUniform req.expr I n options with
   | .error err => evalFailureJson err
-  | .ok backend =>
-    match integrateIntervalChecked req.expr I n with
-    | .ok result => Json.mkObj [
+  | .ok outcome =>
+      let result := outcome.enclosure
+      Json.mkObj [
         ("status", "certified"),
-        ("backend", concreteBackendName backend),
+        ("backend", concreteBackendName outcome.backend),
         ("lo", toJson (toRawRat result.lo)),
         ("hi", toJson (toRawRat result.hi))]
-    | .error err => evalFailureJson err
 
 /-! ## Root Finding (Computable) -/
 
@@ -846,7 +825,7 @@ def handleFindRoots (req : FindRootsRequest) : Json :=
   if req.taylorDepth != 10 then
     evalFailureJson (.invalidConfiguration
       "checked Rational bisection has fixed Taylor depth 10")
-  else match resolveBackend req.backend .rootFinding with
+  else match resolveBackend req.backend .rootExistence with
   | .error err => evalFailureJson err
   | .ok backend =>
     match bisectRootChecked req.expr I req.maxIter req.tolerance.toRat with
@@ -922,7 +901,7 @@ private def handleFindUniqueRootSupported (req : FindUniqueRootRequest)
 Newton/AD correctness theorem, and reject any partial-domain failure first. -/
 def handleFindUniqueRoot (req : FindUniqueRootRequest) : Json :=
   let I := req.interval.toInterval
-  match resolveBackend req.backend .rootFinding with
+  match resolveBackend req.backend .rootUniqueness with
   | .error err => evalFailureJson err
   | .ok backend => if !req.expr.usesOnlyVar0 then
     evalFailureJson (.unsupportedFeature

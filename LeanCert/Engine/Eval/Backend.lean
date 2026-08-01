@@ -45,10 +45,19 @@ inductive ConcreteBackend where
 /-- Operations do not all have equivalent certified implementations yet. -/
 inductive BackendOperation where
   | intervalEvaluation
+  | checkedDerivative
+  | checkedGradient
   | globalOptimization
-  | integration
-  | rootFinding
+  | partitionIntegration
+  | rootExistence
+  | rootUniqueness
   deriving Repr, DecidableEq
+
+@[deprecated BackendOperation.partitionIntegration (since := "2026-08-01")]
+def BackendOperation.integration : BackendOperation := .partitionIntegration
+
+@[deprecated BackendOperation.rootExistence (since := "2026-08-01")]
+def BackendOperation.rootFinding : BackendOperation := .rootExistence
 
 /-- Common options used by the backend dispatcher. -/
 structure BackendOptions where
@@ -67,17 +76,23 @@ structure IntervalOutcome where
 /-- Whether a concrete backend has a certified implementation for an operation. -/
 def backendSupports : ConcreteBackend → BackendOperation → Bool
   | .rational, _ => true
-  | .dyadic, .intervalEvaluation | .dyadic, .globalOptimization => true
-  | .dyadic, .integration | .dyadic, .rootFinding => false
+  | .dyadic, .intervalEvaluation | .dyadic, .checkedDerivative |
+      .dyadic, .checkedGradient | .dyadic, .globalOptimization |
+      .dyadic, .partitionIntegration => true
+  | .dyadic, .rootExistence | .dyadic, .rootUniqueness => false
   | .affine, .intervalEvaluation | .affine, .globalOptimization => true
-  | .affine, .integration | .affine, .rootFinding => false
+  | .affine, .checkedDerivative | .affine, .checkedGradient |
+      .affine, .partitionIntegration | .affine, .rootExistence |
+      .affine, .rootUniqueness => false
 
 /-- Resolve `auto` once, at the operation boundary. -/
 def resolveBackend (choice : BackendChoice) (operation : BackendOperation) :
     EvalResult ConcreteBackend :=
   let selected := match choice, operation with
     | .auto, .intervalEvaluation | .auto, .globalOptimization => ConcreteBackend.dyadic
-    | .auto, .integration | .auto, .rootFinding => ConcreteBackend.rational
+    | .auto, .checkedDerivative | .auto, .checkedGradient |
+        .auto, .partitionIntegration | .auto, .rootExistence |
+        .auto, .rootUniqueness => ConcreteBackend.rational
     | .rational, _ => ConcreteBackend.rational
     | .dyadic, _ => ConcreteBackend.dyadic
     | .affine, _ => ConcreteBackend.affine

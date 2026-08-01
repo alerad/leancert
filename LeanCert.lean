@@ -23,6 +23,9 @@ import LeanCert.Engine.IntervalEval
 import LeanCert.Engine.Eval.Backend
 import LeanCert.API.Eval
 import LeanCert.API.Backend
+import LeanCert.API.AD
+import LeanCert.API.Integration
+import LeanCert.API.Capabilities
 import LeanCert.API.Optimization
 import LeanCert.API.Bounds
 import LeanCert.Engine.IntervalEvalReal

@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Benchmark.Harness
+import LeanCert.API.Integration
 import LeanCert.Validity.IntegrationDyadic
 
 /-!
@@ -79,7 +80,55 @@ private def integrationCase (cells : Nat) (h : 0 < cells := by omega) : Case :=
     run := runLi2Partition cells h cfg
   }
 
+private def runPublicLi2Partition (backend : BackendChoice) (cells : Nat) : IO Outcome := do
+  let options : IntegrationOptions := {
+    backend := backend
+    taylorDepth := if backend == .dyadic then 18 else 10
+  }
+  match integrateUniform li2Integrand li2Box cells options with
+  | .error err => return { status := "error", error := some s!"{repr err}" }
+  | .ok outcome =>
+      if outcome.enclosure.width.den = 0 then
+        return { status := "error", error := some "impossible zero rational denominator" }
+      return {
+        status := "success"
+        interval := some outcome.enclosure
+        backendUsed := some (match outcome.backend with
+          | .rational => "rational"
+          | .dyadic => "dyadic"
+          | .affine => "affine")
+      }
+
+private def backendChoiceName : BackendChoice → String
+  | .auto => "auto"
+  | .rational => "rational"
+  | .dyadic => "dyadic"
+  | .affine => "affine"
+
+/-- Matched public-facade cases used to decide whether Dyadic should eventually
+be promoted into automatic integration selection. -/
+private def publicIntegrationCase (backend : BackendChoice) (cells : Nat) : Case := {
+  name := s!"integration.li2_partition_{cells}.public.{backendChoiceName backend}"
+  family := "partitioned_integration_public"
+  tier := "end_to_end"
+  layer := .algorithm
+  backendRequested := backendChoiceName backend
+  suites := ["end-to-end", "all"]
+  parameters := [
+    ("integrand", "li2_stable_form"),
+    ("partition_cells", s!"{cells}"),
+    ("domain", "[1/1000,999/1000]")
+  ]
+  input
+  innerIterations := 1
+  run := runPublicLi2Partition backend cells
+}
+
 def cases : List Case := [
+  publicIntegrationCase .rational 100,
+  publicIntegrationCase .dyadic 100,
+  publicIntegrationCase .rational 500,
+  publicIntegrationCase .dyadic 500,
   integrationCase 100,
   integrationCase 500,
   integrationCase 1000,

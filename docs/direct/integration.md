@@ -23,6 +23,7 @@ Advanced and programmatic controls:
 ```text
 integral_exact
 integrateInterval
+integrateUniform
 ```
 For ordinary mathematical syntax, start with `leancert`:
 
@@ -50,6 +51,27 @@ the complete tactic state. Exact rational arithmetic and partition
 search describe computation strategies; they are not certificate-verification
 routes. Exact transcendental equalities are intentionally not inferred from an
 interval enclosure.
+
+For programmatic checked integration, `integrateUniform` provides one result
+boundary for the existing Rational and Dyadic partition engines:
+
+```lean
+import LeanCert
+
+open LeanCert LeanCert.Core
+
+def unit : IntervalRat := ⟨0, 1, by norm_num⟩
+
+#eval integrateUniform (.exp (.var 0)) unit 32
+#eval integrateUniform (.exp (.var 0)) unit 32 { backend := .dyadic }
+```
+
+The successful `IntegralOutcome` contains a Rational enclosure, partition
+count, requested backend, and selected backend. `integrateUniform_correct`
+lifts either backend's retained checked computation to membership of the real
+integral. Automatic selection remains Rational while the benchmark suite is
+used to establish where Dyadic integration is consistently preferable; an
+explicit Dyadic request is already fully checked.
 
 For lower-level Taylor-model generated integral certificates, see
 [Proof Templates → ConstantFactory](../proof-templates/constant-factory.md) and the

@@ -261,6 +261,25 @@ private theorem integral_mem_bound_dyadic (e : Expr)
   rw [hsum_eq]
   exact sum_mem_foldl_add hlen hmem_each
 
+/-- Golden theorem for the one-pass checked Dyadic partition evaluator. -/
+theorem integratePartitionDyadicChecked_correct (e : Expr)
+    (I : IntervalRat) (n : ℕ) (hn : 0 < n)
+    (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
+    (bound : IntervalRat)
+    (hchecked : integratePartitionDyadicChecked e I n hn cfg = (bound, true))
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
+      MeasureTheory.volume I.lo I.hi) :
+    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ bound := by
+  have hfst : (integratePartitionDyadicChecked e I n hn cfg).1 = bound := by
+    rw [hchecked]
+  have hsnd : (integratePartitionDyadicChecked e I n hn cfg).2 = true := by
+    rw [hchecked]
+  rw [integratePartitionDyadicChecked_fst] at hfst
+  rw [integratePartitionDyadicChecked_snd] at hsnd
+  subst bound
+  exact integral_mem_bound_dyadic e I n hn cfg hprec
+    (checkPartitionDomainValid_correct e I n hn cfg hsnd) hInt
+
 /-- Bridge theorem (lower bound) using the combined checker. -/
 theorem integral_lower_of_check_dyadic (e : Expr)
     (I : IntervalRat) (n : ℕ) (hn : 0 < n) (c : ℚ)

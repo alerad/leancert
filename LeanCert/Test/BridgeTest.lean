@@ -377,9 +377,9 @@ example : True := by
   expr := Expr.var 0, box := #[halfRaw], backend := .dyadic, precision := 1
 })
 
--- Operations without a certified Dyadic implementation reject an explicit
--- request; auto uses the certified Rational implementation.
-#guard jsonStatusIs "unsupported_backend" (handleIntegrate {
+-- Integration now exposes both checked implementations; auto remains
+-- Rational until the matched benchmark cases justify promotion.
+#guard jsonBackendIs "dyadic" (handleIntegrate {
   expr := Expr.var 0, interval := zeroOneRaw, backend := .dyadic
 })
 
