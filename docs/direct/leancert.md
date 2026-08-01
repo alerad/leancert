@@ -19,7 +19,8 @@ validated against the original goal. It is silent when it succeeds.
 
 ## Inspecting a proof
 
-Use `leancert?` when you want to inspect a successful strategy:
+`leancert?` runs the same proof search as `leancert`, but also explains what
+LeanCert recognized and how the successful certificate was checked:
 
 ```lean
 import LeanCert.Tactic
@@ -98,9 +99,10 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
 | `taylorDepth` | `10` | Initial Taylor-model depth passed to numerical strategies |
 | `subdivisions` | `4` | Maximum bisection depth for subdivision |
 | `maxIterations` | `1000` | Iteration limit for global-optimization strategies |
-| `trust` | project option | Certificate-verification policy: `kernel`, `native`, or `auto` |
+| `trust` | scoped option | Certificate-verification policy: `kernel`, `native`, or `auto` |
 
-An inline `trust` value overrides `set_option leancert.trust`. Non-default
+The effective default is the scoped `leancert.trust` option, whose repository
+default is `native`. An inline `(trust := ...)` overrides it. Non-default
 options that made a proof succeed should be retained in the final proof.
 
 ## Reading reports correctly

@@ -6,7 +6,8 @@ LeanCert provides verified root finding with proofs of existence and uniqueness.
 
 | Algorithm | Proves | Method | Tactic |
 |-----------|--------|--------|--------|
-| Bisection | Existence | Sign change + IVT | `interval_roots` |
+| Sign-change certification | Existence | Check the supplied interval + IVT | `interval_roots` |
+| Recursive bisection | Candidate isolation | Repeated sign-change search | advanced engine API |
 | Newton Contraction | Uniqueness | Fixed-point theorem | `interval_unique_root` |
 | Norm-form Krawczyk | Existence + uniqueness for square differentiable systems | Interval Jacobian + Banach | certificate API |
 | Bézout derivative | Global simplicity of all roots of a rational polynomial | Exact identity `A P + B P' = c ≠ 0` | certificate API |
@@ -95,13 +96,17 @@ reaches the theorem only through the configured verification route.
 - The theorem is over real boxes. Complex systems must first be represented as
   coupled real and imaginary coordinates.
 
-## Bisection (Existence)
+## Sign-Change Certification And Recursive Bisection
 
-### How It Works
+The public `interval_roots` tactic checks for a sign change on the interval in
+the goal and proves existence there. It does not recursively isolate roots.
+The lower-level bisection engine can subdivide a search interval and return
+several candidates.
+
+### Public Tactic
 
 1. Evaluate f at interval endpoints
 2. If signs differ, IVT guarantees a root exists
-3. Recursively bisect to narrow the interval
 
 ```
 f(a) < 0                    f(b) > 0
@@ -136,7 +141,7 @@ example : ∃ x ∈ I12, Expr.eval (fun _ => x)
   interval_roots
 ```
 
-### Engine Algorithm
+### Advanced Engine Algorithm
 
 The advanced `Engine.RootFinding.Bisection` API recursively subdivides and can
 return several candidate intervals. Its shape is:

@@ -33,6 +33,18 @@ example : ∀ x ∈ Set.Icc (-1 : ℝ) 1, Real.log x ≤ 1 := by
   leancert?
 ```
 
+A true statement may also remain uncertified at the current numerical budget.
+Here the exact maximum is `1 / 4`, but the default enclosure and subdivision
+budget are intentionally insufficient:
+
+```lean expect-error: Subdivision reached its configured depth
+import LeanCert.Tactic
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
+    x * (1 - x) ≤ (1 / 4 : ℚ) := by
+  leancert?
+```
+
 Question mode exposes the successful decision:
 
 ```lean

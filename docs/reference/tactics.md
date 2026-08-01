@@ -53,13 +53,14 @@ theorem log2 : Real.log 2 < 7/10 := by interval_decide
 
 | Mode | Certificate closed by | Trusted base | Behavior on failure |
 |------|----------------------|--------------|---------------------|
-| `native` (default) | `native_decide` | kernel + compiler (`Lean.ofReduceBool`) | error |
+| `native` (repository default) | `native_decide` | kernel + compiler (`Lean.ofReduceBool`) | error |
 | `kernel` | `decide +kernel` | kernel only | hard error — **never** falls back to native |
 | `auto` | kernel, then native | kernel where it succeeds | fallback reported once per process; details under `trace[leancert.verification]` |
 
-Per-invocation `(trust := …)` overrides `set_option leancert.trust`, which
-overrides the native default. The syntax index above identifies tactics with
-an inline override. `discover` and `finsum_witness` use the scoped option.
+The effective default is the scoped `leancert.trust` option, whose repository
+default is `native`. Per-invocation `(trust := …)` overrides that scoped
+option. The syntax index above identifies tactics with an inline override;
+`discover` and `finsum_witness` use only the scoped option.
 
 The verification boundary distinguishes a checker that evaluates to `false`
 from an inability to run the checker. The former is ordinary certificate
@@ -194,9 +195,9 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x < 3 := by certify_bound
 
 ### Verification routes
 
-`certify_bound`, `interval_decide`, `interval_auto`, and `leancert` accept an
-independent certificate-verification route. Kernel mode uses `decide +kernel`
-and never silently falls back.
+`certify_bound`, `interval_decide`, `interval_auto`, and `leancert` accept the
+verification modes defined in [Trust Modes](#trust-modes). This selection is
+independent of the numerical backend.
 
 ```lean
 import LeanCert.Tactic
@@ -209,14 +210,6 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x ≤ 3 := by
   certify_bound (trust := auto)
 ```
-
-**Trust levels:**
-
-| Mode | Verification | Trusted Components |
-|---|---|---|
-| `kernel` | `decide +kernel` | Lean kernel only |
-| `native` (default) | `native_decide` | Lean kernel + compiler/runtime |
-| `auto` | Kernel first, with calibrated gates and reported fallback | Depends on the route used |
 
 **Diagnostics:** Enable `set_option trace.leancert.verification true` to see
 the selected verification route.

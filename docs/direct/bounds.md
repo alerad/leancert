@@ -24,25 +24,22 @@ certify_bound
 interval_bound_subdiv
 multivariate_bound
 ```
-These tactics use the configured certificate-verification route. For example,
-`certify_bound (trust := kernel)` is strict and never falls back to
-compiler/runtime verification, while `certify_bound (trust := auto)` tries
-kernel verification first and reports any native fallback.
+These tactics use the configured certificate-verification route independently
+of their numerical backend. See the [Trust model](../architecture/trust-model.md)
+and [Backend selection](../architecture/backend-selection.md) for those two
+axes.
 
 For ergonomic raw Lean goals, start with `leancert`. Use `certify_bound` when
 you intentionally want the dedicated single-variable interval engine, including
 explicit Taylor-depth selection.
 `certify_bound` is a numerical portfolio rather than a promise of one fixed
-backend: it tries a checked Dyadic path and can fall back to Rational interval
-evaluation. Verification mode is independent of that numerical selection.
-Subdivision and global optimization are strategies, not backends.
+backend. Subdivision and global optimization are strategies, not backends.
 
-`interval_bound_subdiv depth maxDepth` is transactional: it evaluates
-candidate boxes to decide where to split, then closes one fixed Boolean
-certificate for each retained leaf. If the configured depth is exhausted or
-the expression has a domain obstruction, the original proof state is restored.
-`leancert?` reports the configured and deepest depths, boxes examined,
-certified leaves, checker, Golden Theorem, and verification usage.
+`interval_bound_subdiv depth maxDepth` splits candidate boxes and certifies
+every retained leaf. `leancert?` reports its configured and deepest depths,
+boxes examined, certified leaves, and verification usage. See the
+[verification-status table](../architecture/verification-status.md) for the
+precise checker boundary and failure semantics.
 
 Minimal example:
 
