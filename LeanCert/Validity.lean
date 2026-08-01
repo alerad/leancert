@@ -17,6 +17,7 @@ import LeanCert.Validity.Monotonicity
 import LeanCert.Validity.DirectedLimit
 import LeanCert.Validity.Eventual
 import LeanCert.Validity.Krawczyk
+import LeanCert.Validity.MatrixPositivity
 import LeanCert.Validity.Algebra
 
 /-!
@@ -46,6 +47,9 @@ The Engine computes numbers; Validity turns them into theorems.
 
 * `Validity.Krawczyk` - certified existence and uniqueness for square systems
   in the differentiable AD fragment on rational boxes.
+
+* `Validity.MatrixPositivity` - exact Gram and LDLᵀ certificates for finite
+  real matrix positive-semidefiniteness and positive-definiteness.
 
 * `Validity.Algebra` - exact Bézout certificates for polynomial separability,
   squarefreeness, and simple real roots; discriminant certificates for uniform

@@ -40,6 +40,10 @@ them unchanged. -/
 #assert_trust kernel LeanCert.Engine.verify_finsum_lower_full
 #assert_trust kernel LeanCert.API.Bounds.verifyUpperBoundBox
 #assert_trust kernel LeanCert.API.Bounds.verifyLowerBoundBox
+#assert_trust kernel LeanCert.Validity.verify_matrix_posSemidef
+#assert_trust kernel LeanCert.Validity.verify_matrix_posDef
+#assert_trust kernel LeanCert.gramMatrix_posSemidef
+#assert_trust kernel LeanCert.regularizedGramMatrix_posDef
 
 /-! ## Euler–Mascheroni bounds: intentionally native-trusted
 

@@ -15,6 +15,7 @@ import LeanCert.API.Eval
 import LeanCert.API.Backend
 import LeanCert.API.Optimization
 import LeanCert.API.Bounds
+import LeanCert.API.MatrixPositivity
 
 /-!
 # Downstream interface guard
@@ -54,6 +55,12 @@ This inventory cannot see unqualified declarations brought into scope with
 #check @LeanCert.API.Bounds.checkLowerBoundBox
 #check @LeanCert.API.Bounds.verifyUpperBoundBox
 #check @LeanCert.API.Bounds.verifyLowerBoundBox
+#check @LeanCert.Engine.matrixPSDCheck
+#check @LeanCert.Engine.matrixPosDefCheck
+#check @LeanCert.Validity.verify_matrix_posSemidef
+#check @LeanCert.Validity.verify_matrix_posDef
+#check @LeanCert.gramMatrix_posSemidef
+#check @LeanCert.regularizedGramMatrix_posDef
 
 -- Canonical certified Chebyshev API
 #check @LeanCert.CertifiedBounds.Chebyshev.abs_theta_sub_le_mul_of_checkThetaRelErrorReal

@@ -15,6 +15,7 @@ import LeanCert.Tactic.Discovery
 import LeanCert.Tactic.FinSumExpand
 import LeanCert.Tactic.EventualBound
 import LeanCert.Tactic.Krawczyk
+import LeanCert.Tactic.MatrixPositivity
 import LeanCert.Engine.Search.CounterExample
 
 /-!
@@ -818,6 +819,63 @@ private unsafe def systemRootAttemptTyped (maxIterations taylorDepth : Nat) :
         }
       }
 
+private def automaticMatrixPositivityFailure
+    (failure : MatrixPositivityFailure) : AttemptFailure :=
+  match failure with
+  | .unsupportedGoal detail => .unsupported {
+      expression := "matrix positivity goal"
+      detail := some detail
+    }
+  | .dimensionMismatch expected actual => .unsupported {
+      expression := actual
+      detail := some s!"Expected {expected}."
+    }
+  | .generationFailed search =>
+      match search.failure with
+      | some (.dimensionLimit actual limit) => .inconclusive {
+          requested := some s!"automatic dimension at most {limit}"
+          detail := s!"Matrix dimension {actual} exceeds the exact LDLT discovery limit."
+        }
+      | some (.zeroPivotObstruction pivot row) => .rejected {
+          checker := some ``LeanCert.Engine.matrixPSDCheck
+          detail := s!"Exact LDLT discovery found a zero-pivot obstruction at pivot {pivot}, row {row}."
+        }
+      | none => .internalError `LeanCert.Tactic.matrixPositivityAutoCoreTyped
+          "matrix candidate generation failed without a classified cause"
+  | .rejected inspection => .rejected {
+      checker := some (if inspection.kind == .posSemidef then
+        ``LeanCert.Engine.matrixPSDCheck else ``LeanCert.Engine.matrixPosDefCheck)
+      detail := s!"Exact matrix certificate was rejected at stage {repr inspection.stage}."
+    }
+  | .verificationFailure detail =>
+      .internalError `LeanCert.Tactic.matrixPositivityAutoCoreTyped detail
+  | .transportFailure detail =>
+      .internalError `LeanCert.Tactic.matrixPositivityAutoCoreTyped detail
+  | .internalFailure detail =>
+      .internalError `LeanCert.Tactic.matrixPositivityAutoCoreTyped detail
+
+private unsafe def matrixPositivityAttemptTyped (kind : Engine.MatrixPositivityKind) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← matrixPositivityAutoCoreTyped kind with
+  | .error failure => return .error (automaticMatrixPositivityFailure failure)
+  | .ok outcome =>
+      let some search := outcome.search
+        | return .error <| .internalError `LeanCert.Tactic.matrixPositivityAutoCoreTyped
+            "automatic proof succeeded without retained matrix statistics"
+      return .ok {
+        backend := some .exactRational
+        verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification.toUsage
+        checker := some outcome.checker
+        verifier := some outcome.verifier
+        matrixPositivity := some {
+          dimension := search.dimension
+          positivePivots := search.positivePivots
+          zeroPivots := search.zeroPivots
+          negativePivots := search.negativePivots
+          certificateKind := outcome.inspection.certificateKind
+        }
+      }
+
 /-- The deterministic strategy portfolio for a recognized goal intent. -/
 private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
     (mode : VerificationMode) : Array SolverSpec :=
@@ -825,6 +883,18 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
   let d2 := d + 10
   let d3 := d + 20
   match intent with
+  | .matrixPosSemidef => #[
+      { report := report intent "exact rational Gram/LDLT certificate"
+          cfg mode (.fixed .exactRational)
+          (some { tactic := "matrix_psd" })
+          (strategyId := .matrixPosSemidef),
+        solve := matrixPositivityAttemptTyped .posSemidef }]
+  | .matrixPosDef => #[
+      { report := report intent "exact rational LDLT certificate"
+          cfg mode (.fixed .exactRational)
+          (some { tactic := "matrix_posdef" })
+          (strategyId := .matrixPosDef),
+        solve := matrixPositivityAttemptTyped .posDef }]
   | .systemRoot => #[
       { report := report intent "automatic Krawczyk candidate generation"
           cfg mode (.fixed .exactRational)
@@ -1311,6 +1381,9 @@ private def intentOfSemanticGoal (goal : Semantic.SemanticGoal) : MetaM (Option 
   | .allOf .. => return some .conjunction
   | .eventualBound _ => return some .eventualBound
   | .systemRoot _ => return some .systemRoot
+  | .matrixPositivity spec => return some <| match spec.property with
+      | .posSemidef => .matrixPosSemidef
+      | .posDef => .matrixPosDef
   | .bound spec =>
       return some (if spec.boundVars.size > 1 then .multivariateBound else .intervalBound)
   | .root spec =>

@@ -70,6 +70,23 @@ root exclusion over the complement to preserve uniqueness in the original box.
 inversion tests; mutation tests for every checker stage; dimension-limit,
 budget, unsupported-AD, conjunction-order, trust-route, and rollback tests.
 
+## Matrix positivity certificates
+
+**Current state:** exact rational Gram and LDLᵀ certificates prove finite real
+matrix positive-semidefiniteness and positive-definiteness. Dedicated tactics
+and `leancert` share transactional typed outcomes, single-pass candidate
+discovery, retained pivot telemetry, and configurable certificate
+verification. Finite feature Gram matrices and positive diagonal
+regularization have stable structural APIs.
+
+**Possible next milestone:** add independently checked approximate residual
+certificates and uniform interval-matrix positivity only after quantitative
+perturbation theorems and representative downstream problems establish the
+required interface.
+
+**Evidence:** exact PSD, rank-deficient PSD, PD, indefinite rejection,
+Gram/kernel, trust-mode, router, public-import, and trust-manifest tests.
+
 ## Stronger quantified ML theorems
 
 **Current state:** ML certificate components prove the precise structural and

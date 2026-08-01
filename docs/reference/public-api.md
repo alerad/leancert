@@ -11,7 +11,7 @@ Public modules are grouped by support level:
 The stable front doors are `LeanCert`, `LeanCert.Tactic`,
 `LeanCert.API.Eval`, `LeanCert.API.Backend`, `LeanCert.API.Bounds`,
 `LeanCert.API.Optimization`, and selected domain umbrellas including
-`LeanCert.ANT` and `LeanCert.QProduct`.
+`LeanCert.API.MatrixPositivity`, `LeanCert.ANT`, and `LeanCert.QProduct`.
 
 LeanCert provides three stable umbrella imports for downstream developments:
 
@@ -28,6 +28,7 @@ import LeanCert.API.Eval
 import LeanCert.API.Backend
 import LeanCert.API.Optimization
 import LeanCert.API.Bounds
+import LeanCert.API.MatrixPositivity
 ```
 
 `Eval` provides the backend-independent checked dispatcher and structured
@@ -67,6 +68,10 @@ domain and precision validity, so their Golden Theorems require no separate
 support or domain premise. Raw `check... = true` is part of that contract:
 tactic clients may close the certificate using kernel, native, or automatic
 verification without changing the numerical backend.
+
+`API.MatrixPositivity` provides exact rational Gram and LDLᵀ certificate
+checkers, Golden Theorems concluding real `Matrix.PosSemidef` and
+`Matrix.PosDef`, and structural finite-feature Gram/kernel results.
 
 `LeanCert.Tactic` exposes supported proof automation, including the semantic
 `leancert` / `leancert?` front door and the dedicated `interval_auto`,

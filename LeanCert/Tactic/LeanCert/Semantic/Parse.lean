@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+import Mathlib.LinearAlgebra.Matrix.PosDef
 import LeanCert.Meta.Numeral
 import LeanCert.Tactic.FinSumBound
 import LeanCert.Tactic.LeanCert.Semantic.Goal
@@ -475,6 +476,14 @@ private partial def splitConjunction? (goal : Lean.Expr) :
         | none => none
     | _ => none
 
+private def parseMatrixPositivity? (goal : Lean.Expr) : Option MatrixPositivitySpec :=
+  if goal.getAppFn.constName? == some ``Matrix.PosSemidef then
+    some { original := goal, property := .posSemidef }
+  else if goal.getAppFn.constName? == some ``Matrix.PosDef then
+    some { original := goal, property := .posDef }
+  else
+    none
+
 /-- Parse one theorem into a semantic goal. -/
 partial def parseGoal (goal : Lean.Expr) : MetaM (Except ParseFailure SemanticGoal) := do
   if let some (lhsGoal, rhsGoal) := splitConjunction? goal then
@@ -499,6 +508,8 @@ partial def parseGoal (goal : Lean.Expr) : MetaM (Except ParseFailure SemanticGo
   if let some eventual := parseEventual? goal then return .ok (.eventualBound eventual)
   if let some discovery ← parseDiscovery? goal then return .ok (.discovery discovery)
   if let some finiteSum := parseFiniteSum? goal then return .ok (.finiteSum finiteSum)
+  if let some matrix := parseMatrixPositivity? goal then
+    return .ok (.matrixPositivity matrix)
   if let some checker := parseCertificateCheck? goal then
     return .ok (.certificateCheck goal checker)
   if let some bound ← parseBound? goal then return .ok (.bound bound)

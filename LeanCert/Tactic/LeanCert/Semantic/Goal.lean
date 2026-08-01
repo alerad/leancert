@@ -35,6 +35,8 @@ inductive GoalIntent where
   | pointInequality
   | eventualBound
   | certificateCheck
+  | matrixPosSemidef
+  | matrixPosDef
   | conjunction
   deriving Repr, BEq, Inhabited
 
@@ -154,6 +156,17 @@ structure SystemRootSpec where
   reversedConjunction : Bool := false
   deriving Inhabited
 
+/-- Exact matrix positivity proposition recognized by the semantic front door. -/
+inductive MatrixProperty where
+  | posSemidef
+  | posDef
+  deriving Repr, BEq, Inhabited
+
+structure MatrixPositivitySpec where
+  original : Lean.Expr
+  property : MatrixProperty
+  deriving Inhabited
+
 /-- Mathematical theorem shapes understood by the semantic front door. -/
 inductive SemanticGoal where
   | point (spec : PointSpec)
@@ -165,6 +178,7 @@ inductive SemanticGoal where
   | finiteSum (spec : FiniteSumSpec)
   | eventualBound (spec : EventualBoundSpec)
   | systemRoot (spec : SystemRootSpec)
+  | matrixPositivity (spec : MatrixPositivitySpec)
   | certificateCheck (original checker : Lean.Expr)
   | allOf (original : Lean.Expr) (children : Array SemanticGoal)
   deriving Inhabited
@@ -180,6 +194,7 @@ def SemanticGoal.original : SemanticGoal → Lean.Expr
   | .finiteSum spec => spec.original
   | .eventualBound spec => spec.original
   | .systemRoot spec => spec.original
+  | .matrixPositivity spec => spec.original
   | .certificateCheck original _ => original
   | .allOf original _ => original
 

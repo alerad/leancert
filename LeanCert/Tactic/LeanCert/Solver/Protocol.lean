@@ -181,6 +181,15 @@ structure KrawczykStatistics where
   contractionBound : ℚ
   deriving Inhabited, Repr
 
+/-- Structured facts retained from exact matrix positivity discovery. -/
+structure MatrixPositivityStatistics where
+  dimension : Nat
+  positivePivots : Nat
+  zeroPivots : Nat
+  negativePivots : Nat
+  certificateKind : String
+  deriving Inhabited, Repr
+
 /-- Stable algorithm identity for reporting and failure classification.
 User-facing `strategy` text may be polished without changing control flow. -/
 inductive StrategyId where
@@ -201,6 +210,8 @@ inductive StrategyId where
   | partitionIntegral
   | eventualBound
   | systemRoot
+  | matrixPosSemidef
+  | matrixPosDef
   | conjunction
   deriving DecidableEq, Repr, Inhabited
 
@@ -241,6 +252,7 @@ structure SolverExecution where
   integralPartitions : Option IntegralPartitionStatistics := none
   eventualBound : Option EventualBoundStatistics := none
   krawczyk : Option KrawczykStatistics := none
+  matrixPositivity : Option MatrixPositivityStatistics := none
   /-- Constituent checker proofs retained by composite artifacts. The singular
   `checker`/`verifier` fields describe ordinary one-certificate solvers. -/
   certificates : Array CertificateObservation := #[]

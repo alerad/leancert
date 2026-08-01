@@ -25,3 +25,4 @@ point is [Proof Templates](../proof-templates/overview.md).
 - [Contour-Shift Certificates](../certificates/contour-shift.md)
 - [Nonlinear-System Root Certificates](../direct/roots.md)
 - [Algebraic Root Certificates](../certificates/algebraic-roots.md)
+- [Matrix Positivity Certificates](../certificates/matrix-positivity.md)

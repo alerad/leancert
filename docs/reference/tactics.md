@@ -16,6 +16,7 @@ proof strategy.
 | `opt_bound` | optional positional iteration count, followed by optional `mono` and `(trust := ...)` |
 | `root_bound`, `interval_roots`, `interval_unique_root` | optional positional Taylor depth, followed by optional `(trust := ...)` |
 | `system_unique_root`, `system_unique_root?` | optional `using cert`; automatic mode also accepts `(maxIterations := n)` and `(maxDimension := n)`, plus `(taylorDepth := n)` and `(trust := native\|kernel\|auto)` |
+| `matrix_psd`, `matrix_psd?`, `matrix_posdef`, `matrix_posdef?` | automatic exact rational LDLᵀ discovery, or `using cert`; optional `(maxDimension := n)` in automatic mode and `(trust := native\|kernel\|auto)` |
 | `interval_minimize`, `interval_maximize` | optional positional Taylor depth, followed by optional `(trust := ...)` |
 | `interval_minimize_mv`, `interval_maximize_mv` | optional positional Taylor depth, followed by optional `(trust := ...)` |
 | `interval_argmin`, `interval_argmax` | optional positional Taylor depth, followed by optional `(trust := ...)` |
@@ -31,6 +32,24 @@ tactics in the index accept a trailing inline `(trust := ...)`. `discover` and
 construction such as `integral_exact` does not consult the trust option. Trust
 selects certificate verification; it does not select a Rational, Dyadic, or
 Affine numerical backend.
+
+### `matrix_psd` and `matrix_posdef`
+
+These tactics certify `Matrix.PosSemidef` and `Matrix.PosDef` goals for closed
+exact rational matrices embedded with `LeanCert.Engine.ratCastMatrix`.
+Automatic mode performs one rational LDLᵀ discovery pass. Manual mode accepts
+`PSDCertificate n` for `matrix_psd` and `LDLTCertificate n` for
+`matrix_posdef`:
+
+```lean
+def A : Matrix (Fin 2) (Fin 2) ℚ := !![2, 1; 1, 2]
+
+example : (LeanCert.Engine.ratCastMatrix A).PosDef := by
+  matrix_posdef
+```
+
+The `?` variants report factorization and pivot telemetry. All certificate
+checks use the shared configurable verification boundary.
 
 ## Trust Modes
 

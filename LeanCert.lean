@@ -24,6 +24,7 @@ import LeanCert.Engine.Eval.Backend
 import LeanCert.API.Eval
 import LeanCert.API.Backend
 import LeanCert.API.Optimization
+import LeanCert.API.MatrixPositivity
 import LeanCert.API.Bounds
 import LeanCert.Engine.IntervalEvalReal
 import LeanCert.Engine.AD
@@ -89,6 +90,7 @@ import LeanCert.Meta.ToExpr
 -- Tactics
 import LeanCert.Tactic.Interval
 import LeanCert.Tactic.Discovery
+import LeanCert.Tactic.MatrixPositivity
 -- Counter-example hunting
 import LeanCert.Tactic.Refute
 -- Additional tactics

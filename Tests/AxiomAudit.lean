@@ -85,6 +85,36 @@ assert_no_sorry LeanCert.Validity.combine_upper_bound_general_split
 assert_no_sorry LeanCert.Validity.combine_lower_bound_general_split
 assert_no_sorry LeanCert.Validity.combine_strict_upper_bound_general_split
 assert_no_sorry LeanCert.Validity.combine_strict_lower_bound_general_split
+assert_no_sorry LeanCert.Engine.matrixPSDCheck_sound
+assert_no_sorry LeanCert.Engine.matrixPosDefCheck_sound
+assert_no_sorry LeanCert.Validity.verify_matrix_posSemidef
+assert_no_sorry LeanCert.Validity.verify_matrix_posDef
+assert_no_sorry LeanCert.gramMatrix_posSemidef
+assert_no_sorry LeanCert.regularizedGramMatrix_posDef
+
+/--
+info: 'LeanCert.Validity.verify_matrix_posSemidef' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Validity.verify_matrix_posSemidef
+
+/--
+info: 'LeanCert.Validity.verify_matrix_posDef' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Validity.verify_matrix_posDef
+
+/--
+info: 'LeanCert.gramMatrix_posSemidef' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.gramMatrix_posSemidef
+
+/--
+info: 'LeanCert.regularizedGramMatrix_posDef' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.regularizedGramMatrix_posDef
 
 /-! ### Exact axiom pinning (catches `native_decide` / `ofReduceBool` creep) -/
 

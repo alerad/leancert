@@ -53,6 +53,8 @@ def intentLabel : GoalIntent → String
   | .pointInequality => "closed numerical comparison"
   | .eventualBound => "eventual natural-number upper bound"
   | .certificateCheck => "closed certificate check"
+  | .matrixPosSemidef => "matrix positive-semidefiniteness"
+  | .matrixPosDef => "matrix positive-definiteness"
   | .conjunction => "conjunction of numerical theorems"
 
 def attemptOutcome : AttemptOutcome → String
@@ -310,6 +312,16 @@ private def renderKrawczyk (statistics : Option KrawczykStatistics) : String :=
         {statistics.preconditioner}\n  Checked contraction bound: \
         {statistics.contractionBound} < 1\n\nStable dedicated proof:\n  by\n    system_unique_root"
 
+private def renderMatrixPositivity
+    (statistics : Option MatrixPositivityStatistics) : String :=
+  match statistics with
+  | none => ""
+  | some statistics =>
+      s!"\n\nExact matrix certificate:\n  Dimension: {statistics.dimension}\n  \
+        Certificate: {statistics.certificateKind}\n  Positive pivots: \
+        {statistics.positivePivots}\n  Zero pivots: {statistics.zeroPivots}\n  \
+        Negative pivots: {statistics.negativePivots}"
+
 private def renderCertificates
     (certificates : Array CertificateObservation) : String :=
   if certificates.isEmpty then ""
@@ -359,13 +371,14 @@ def successReport (report : SolverReport) : String :=
   let integralPartitions := renderIntegralPartitions report.execution.integralPartitions
   let eventualBound := renderEventualBound report.execution.eventualBound
   let krawczyk := renderKrawczyk report.execution.krawczyk
+  let matrixPositivity := renderMatrixPositivity report.execution.matrixPositivity
   let certificates := renderCertificates report.execution.certificates
   let advanced :=
     plan.dedicatedProof.map (fun proof =>
       s!"\n\nAdvanced control:\n  {renderProof proof}") |>.getD ""
   s!"LeanCert recognized: {intentLabel plan.intent}\n\n\
     Selected strategy:\n  {plan.strategy}{detail}{executionNotes}{backend}{verification}\
-    {checker}{verifier}{optimization}{subdivision}{finiteSum}{integralPartitions}{eventualBound}{krawczyk}{certificates}\n\n\
+    {checker}{verifier}{optimization}{subdivision}{finiteSum}{integralPartitions}{eventualBound}{krawczyk}{matrixPositivity}{certificates}\n\n\
     Suggested proof:\n  {renderProof plan.primaryProof}\
     {advanced}{renderChildren report.execution.children}"
 

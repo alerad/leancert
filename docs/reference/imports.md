@@ -20,11 +20,15 @@ import LeanCert.API.Eval
 import LeanCert.API.Backend
 import LeanCert.API.Optimization
 import LeanCert.API.Bounds
+import LeanCert.API.MatrixPositivity
 ```
 
 These stable narrow imports expose checked computation, backend-native
 results, global bound search, and proof-facing Boolean certificates without
 loading tactic elaborators.
+
+`LeanCert.API.MatrixPositivity` exposes exact rational Gram/LDLᵀ checkers,
+their real-matrix Golden Theorems, and finite Gram/kernel constructions.
 
 ## Advanced Narrow Imports
 
@@ -62,6 +66,12 @@ import LeanCert.Engine.Chebyshev.Theta
 
 ```lean
 import LeanCert.Validity.Krawczyk
+```
+
+### Matrix positive-semidefiniteness and positive-definiteness
+
+```lean
+import LeanCert.API.MatrixPositivity
 ```
 
 For automatic or manual system-root tactics, import the tactic umbrella:

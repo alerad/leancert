@@ -97,6 +97,7 @@ nav:
     - QProduct: certificates/qproduct.md
     - ConstantFactory: certificates/constants.md
     - Contour Shift: certificates/contour-shift.md
+    - Matrix Positivity: certificates/matrix-positivity.md
   - ML Verification:
     - Verification: ml/neural-networks.md
     - Distillation: ml/distillation.md
