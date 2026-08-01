@@ -8,8 +8,9 @@ expression datatype.
 
 The semantic `leancert` front door executes imported rules transactionally for
 unary interval bounds. The lightweight `LeanCert.Tactic.Extension` import still
-contains only registration and inspection; import `LeanCert.Tactic` where the
-tactic itself is used.
+contains only registration and inspection. Import `LeanCert.Tactic.Enclosure`
+where only the focused `enclosure_bound` tactic is needed; this avoids loading
+the semantic router and unrelated solver families.
 
 ## Trust boundary
 
@@ -27,7 +28,8 @@ rejected by the checker; it cannot make the registered theorem unsound.
 ## Registering a unary rule
 
 ```lean
-import LeanCert.Tactic
+import LeanCert.Tactic.Extension
+import LeanCert.Tactic.Enclosure
 
 namespace DownstreamExtensionExample
 
@@ -57,11 +59,11 @@ theorem positiveBranch_mem
   simpa [positiveBranch, not_le.mpr hxpositive] using hx
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, positiveBranch (x + 1) ≤ 2 := by
-  leancert (trust := kernel)
+  enclosure_bound (trust := kernel)
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
     Real.exp (positiveBranch (x + 1)) + x < 9 := by
-  leancert (trust := kernel)
+  enclosure_bound? (trust := kernel)
 
 end DownstreamExtensionExample
 ```
@@ -122,12 +124,15 @@ and transcendental operations may appear outside registered calls. The
 quantified variable may also occur independently elsewhere in that expression.
 
 When a registered candidate is rejected, or when its checked enclosure is too
-coarse to prove the final comparison, `leancert` bisects the rational input
+coarse to prove the final comparison, `enclosure_bound` (and the `leancert`
+router strategy it exposes) bisects the rational input
 interval and retries up to the configured `(subdivisions := n)` depth. Every
 retained leaf closes its own registered checker, and the resulting complete
-child theorems are combined by a generic interval-cover theorem. `leancert?`
+child theorems are combined by a generic interval-cover theorem.
+`enclosure_bound?`
 reports the configured and deepest depths, boxes examined, certified leaves,
-and each retained downstream certificate. Domain obstructions and unsupported
+certificate count, composition steps, and verification route. Use `leancert?`
+for the larger semantic-router report. Domain obstructions and unsupported
 operations remain terminal rather than being reclassified as numerical
 imprecision.
 

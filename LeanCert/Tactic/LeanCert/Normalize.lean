@@ -3,7 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Tactic
+import Mathlib.Tactic.Ring
 import LeanCert.Meta.ToExpr
 import LeanCert.Tactic.LeanCert.Bridge.Environment
 

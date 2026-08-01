@@ -118,6 +118,22 @@ composition. Rejected or comparison-inconclusive registered candidates are
 retried by rational bisection up to `(subdivisions := n)`; domain obstructions
 remain terminal. See [Downstream enclosure extensions](extensions.md).
 
+For a narrow import and deterministic execution of exactly that strategy, use:
+
+```text
+import LeanCert.Tactic.Extension
+import LeanCert.Tactic.Enclosure
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, downstreamFunction x ≤ 2 := by
+  enclosure_bound (taylorDepth := 10) (subdivisions := 4) (trust := auto)
+```
+
+`enclosure_bound?` proves the same goal and reports certificate count, checked
+composition, subdivision statistics, and the observed verification route. Both
+forms are transactional on rejection, exhaustion, domain obstruction, and
+verification failure. The focused module does not import discovery, finite-sum,
+Krawczyk, or semantic-router tactics.
+
 Expected checker rejection, unsupported expressions, inconclusive enclosures,
 and certified counterexamples are rendered as separate diagnostic categories.
 Raw checker propositions are available only through
