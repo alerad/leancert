@@ -8,6 +8,9 @@ programmatic use, see the [supported public API](reference/public-api.md).
 For a compact evaluation path, build the [curated showcase](showcase.md) and
 read the [trust model](architecture/trust-model.md).
 
+Downstream packages can register checked enclosure rules for their own unary
+real functions without modifying LeanCert's internal expression datatype.
+
 LeanCert is organized around proof intent:
 
 1. **Direct automation** closes concrete bounds, roots, optimizations, and

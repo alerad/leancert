@@ -97,12 +97,14 @@ proof-producing tactics accept the same per-invocation trust item:
 
 | Mode | Example | Verification |
 |------|---------|--------------|
-| `native` (default) | `certify_bound (trust := native)` | `native_decide`; trusts the compiler/runtime |
+| `native` (repository default) | `certify_bound (trust := native)` | `native_decide`; trusts the compiler/runtime |
 | `kernel` | `certify_bound (trust := kernel)` | `decide +kernel`; never silently falls back |
 | `auto` | `certify_bound (trust := auto)` | Kernel first for suitably sized certificates; reported native fallback |
 
-Use `set_option leancert.trust "kernel"` to select a mode for a whole section
-or file. A per-invocation `(trust := ...)` item takes precedence.
+The effective default is the scoped `leancert.trust` option, whose repository
+default is `native`. Use `set_option leancert.trust "kernel"` to select a mode
+for a whole section or file. A per-invocation `(trust := ...)` item takes
+precedence.
 
 ## Common Patterns
 

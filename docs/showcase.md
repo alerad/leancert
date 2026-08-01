@@ -37,17 +37,17 @@ example : ((19 / 36 : ℚ) : ℝ) ≤ primeLambda ∧
     1 (19 / 36) (7 / 12) (by native_decide)
 ```
 
-Every displayed advanced proof is also compiled privately in the showcase
-module.
+The showcase module also compiles the corresponding advanced-control proof for
+every displayed example.
 
-| Example | Exact advanced control | Certificate/trust story | Median |
+| Example | Advanced control | Certificate/trust story | Median |
 | --- | --- | --- | ---: |
-| `log 2 < 0.7` | `interval_auto 10` | observed Dyadic checker; native default | 6.056 s |
+| `log 2 < 0.7` | `interval_auto 10` | observed Dyadic checker; repository-default native verification | 6.056 s |
 | nonlinear quantified bound | `certify_bound 10` | observed Rational checker and verification route | 6.198 s |
 | two-variable box | `multivariate_bound` | checked branch-and-bound certificate | 6.311 s |
 | unique square root | `interval_unique_root` | checked interval-Newton certificate | 7.044 s |
 | polynomial integral | `integral_exact` | exact rational kernel proof | 6.149 s |
-| q-product enclosure | explicit limit Golden Theorem | native-checked finite truncation and tail | 4.476 s |
+| q-product enclosure | generic directed-limit verifier with q-product truncation and tail theorems | native-checked finite truncation and tail | 4.476 s |
 
 These are medians of three isolated warm `lake env lean` processes on an
 Apple-arm64 development machine, Lean/Mathlib v4.32.2. They include roughly

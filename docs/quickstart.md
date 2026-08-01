@@ -1,6 +1,6 @@
 # Quickstart
 
-This quickstart is Lean-only.  It gets you to a direct certified bound first,
+This quickstart is Lean-only. It gets you to a direct certified bound first,
 then previews a proof-template workflow.
 
 ## 1. Add LeanCert
@@ -55,8 +55,9 @@ Discovery commands help estimate constants before writing the final theorem.
 
 ## 5. Proof Template Preview: ConstantFactory
 
-Proof templates are for structured certificate workflows, not just one-off
-interval goals.  ConstantFactory is a perturbation-observer template: it reuses
+This final example is intentionally more specialized: it previews LeanCert's
+reusable certificate workflows rather than another one-off tactic call.
+ConstantFactory is a perturbation-observer template: it reuses
 certified kernel data for a base object and verifies finite perturbations around
 it.
 

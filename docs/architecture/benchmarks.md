@@ -22,7 +22,7 @@ results; they are measurements of that recorded environment, not universal
 performance promises. The current pinned-toolchain baselines are:
 
 - `scripts/bench-trust/baselines/v4.32.2.jsonl`;
-- `scripts/bench-showcase/baselines/v4.32.2.jsonl`.
+- `scripts/bench-showcase/baselines/v4.32.2.json`.
 
 The `Heavy` CI workflow builds the benchmark surfaces and uploads a smoke
 JSONL artifact for each run. Full calibration is intentionally manual because
