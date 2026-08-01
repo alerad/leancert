@@ -18,12 +18,16 @@ downstream stability promise.
 ```lean
 import LeanCert.API.Eval
 import LeanCert.API.Backend
+import LeanCert.API.AD
+import LeanCert.API.Integration
+import LeanCert.API.Capabilities
 import LeanCert.API.Optimization
 import LeanCert.API.Bounds
 ```
 
 These stable narrow imports expose checked computation, backend-native
-results, global bound search, and proof-facing Boolean certificates without
+results, common AD and integration outcomes, the executable capability
+registry, global bound search, and proof-facing Boolean certificates without
 loading tactic elaborators.
 
 ## Advanced Narrow Imports
@@ -91,12 +95,14 @@ import LeanCert.Validity.Algebra
 ### Domain-aware automatic differentiation
 
 ```lean
+import LeanCert.API.AD
 import LeanCert.Engine.AD.DomainChecked
 import LeanCert.Engine.AD.Dyadic        -- bounded-denominator checked AD
 import LeanCert.Engine.Optimization.Gradient -- checked full gradients
 ```
 
-Use `import LeanCert` for the re-exported public names
+Prefer `LeanCert.API.AD` for `evalWithDerivative` and `evalGradient`. Use
+`import LeanCert` for the re-exported backend-native names
 `derivIntervalChecked`, `gradientIntervalChecked`, the Dyadic counterparts
 `derivIntervalDyadicChecked` and `gradientIntervalDyadicChecked`, and their
 soundness theorems. See

@@ -10,6 +10,7 @@ Public modules are grouped by support level:
 
 The stable front doors are `LeanCert`, `LeanCert.Tactic`,
 `LeanCert.API.Eval`, `LeanCert.API.Backend`, `LeanCert.API.Bounds`,
+`LeanCert.API.AD`, `LeanCert.API.Integration`, `LeanCert.API.Capabilities`,
 `LeanCert.API.Optimization`, and selected domain umbrellas including
 `LeanCert.ANT` and `LeanCert.QProduct`.
 
@@ -26,12 +27,17 @@ The stable checked programmatic imports are:
 ```lean
 import LeanCert.API.Eval
 import LeanCert.API.Backend
+import LeanCert.API.AD
+import LeanCert.API.Integration
+import LeanCert.API.Capabilities
 import LeanCert.API.Optimization
 import LeanCert.API.Bounds
 ```
 
 `Eval` provides the backend-independent checked dispatcher and structured
-errors. `Backend` retains backend-native result types. `Optimization` provides
+errors. `Backend` retains backend-native result types. `AD` and `Integration`
+provide common Rational/Dyadic result boundaries and Golden Theorems.
+`Capabilities` records cross-layer backend support. `Optimization` provides
 checked branch-and-bound enclosures. `Bounds` provides computable,
 support-free Boolean bound certificates and their Golden Theorems.
 
@@ -133,9 +139,24 @@ must be returned as typed failures rather than exceptions. Dedicated tactic
 syntax calls the same typed family cores and translates failures only at the
 user-facing elaborator boundary.
 
+## Checked partition integration
+
+`LeanCert.API.Integration` exposes `integrateUniform`, `IntegrationOptions`, and
+the backend-independent `IntegralOutcome`. Rational and Dyadic requests use
+their checked partition evaluators and share `integrateUniform_correct`.
+Automatic selection remains Rational pending matched benchmark evidence;
+explicit Dyadic selection is supported without changing the tactic router.
+
 ## Checked automatic differentiation
 
-The aggregate `LeanCert` import also exposes the checked AD boundary:
+The stable `LeanCert.API.AD` import exposes the backend-independent boundary:
+
+- `evalWithDerivative` and `evalGradient`;
+- `ADOptions`, `DerivativeOutcome`, and `GradientOutcome`;
+- `evalWithDerivative_correct` and `evalGradient_correct`.
+
+The aggregate `LeanCert` import additionally exposes the backend-native checked
+AD boundary:
 
 - `derivIntervalChecked` and `derivIntervalChecked1` for one coordinate;
 - `gradientIntervalChecked` for every coordinate of a list-backed box;
@@ -157,8 +178,8 @@ API takes an `IntervalDyadicEnv` plus `DyadicConfig`, rejects positive
 shape and require no separate support or domain proof. Callers that already
 have rational boxes can use `derivIntervalDyadicCheckedOfRat` and
 `gradientIntervalDyadicCheckedOfRat`; conversion and its containment proof are
-part of their Golden Theorems. The backend selector in `EvalOptions` does not
-dispatch AD calls; select one of these checked boundaries explicitly. See
+part of their Golden Theorems. Use `ADOptions.backend` for public selection;
+`EvalOptions` remains specific to ordinary interval evaluation. See
 [Checked Automatic Differentiation](../direct/checked-ad.md) for a copy-paste
 example, the entry-point decision table, supported syntax, error behavior, and
 benchmark command.

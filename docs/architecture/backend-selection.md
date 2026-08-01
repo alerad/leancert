@@ -25,13 +25,33 @@ changing the numerical backend does not grant permission to use compiler
 trust. Programmatic `evalInterval` does not import or expose tactic-side trust
 configuration.
 
-| Operation | `auto` backend | Explicit alternatives |
-|---|---|---|
-| Interval evaluation and bound checks | Expression-aware Rational/Dyadic/Affine | Rational, Dyadic, Affine |
-| Checked automatic differentiation | Explicit API (no `auto` dispatcher yet) | Rational, Dyadic |
-| Global optimization | Dyadic | Rational, Dyadic, Affine |
-| Integration | Rational | Rational |
-| Root finding | Rational | Rational |
+The detailed capability matrix below is rendered from
+`LeanCert.backendCapabilities`. CI checks that every operation/backend pair has
+one row and that its engine claim agrees with the executable dispatcher.
+
+| Operation | Backend | Engine | Public API | Tactic | Automatic | Expression fragment | Configuration | Result | Domain checked | Note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| interval evaluation | Rational | supported | supported | supported | supported | arbitrary checked Expr | fixed Taylor depth 10 | IntervalRat | yes | — |
+| interval evaluation | Dyadic | supported | supported | supported | supported | arbitrary checked Expr | Taylor depth, precision | IntervalDyadic → IntervalRat | yes | — |
+| interval evaluation | Affine | supported | supported | unavailable | supported | arbitrary checked Expr | Taylor depth, maximum noise symbols | AffineForm → IntervalRat | yes | some transcendental nodes conservatively concretize to intervals |
+| checked derivative | Rational | supported | supported | not planned | supported | domain-aware AD (including inv/log) | Taylor depth | DerivativeOutcome | yes | — |
+| checked derivative | Dyadic | supported | supported | not planned | supported | domain-aware AD (including inv/log) | Taylor depth, precision | DerivativeOutcome | yes | — |
+| checked derivative | Affine | not planned | not planned | not planned | not planned | none | — | none | no | — |
+| checked gradient | Rational | supported | supported | not planned | supported | domain-aware AD (including inv/log) | Taylor depth | GradientOutcome | yes | — |
+| checked gradient | Dyadic | supported | supported | not planned | supported | domain-aware AD (including inv/log) | Taylor depth, precision | GradientOutcome | yes | — |
+| checked gradient | Affine | not planned | not planned | not planned | not planned | none | — | none | no | — |
+| global optimization | Rational | supported | supported | unavailable | unavailable | arbitrary checked Expr | fixed Taylor depth 10 | GlobalResult | yes | — |
+| global optimization | Dyadic | supported | supported | supported | supported | arbitrary checked Expr | Taylor depth, precision | GlobalResult | yes | — |
+| global optimization | Affine | supported | supported | unavailable | unavailable | arbitrary checked Expr | Taylor depth, maximum noise symbols | GlobalResult | yes | — |
+| partition integration | Rational | supported | supported | supported | supported | arbitrary checked Expr | fixed Taylor depth 10, partitions | IntegralOutcome | yes | — |
+| partition integration | Dyadic | supported | supported | unavailable | unavailable | arbitrary checked Expr | Taylor depth, precision, partitions | IntegralOutcome | yes | — |
+| partition integration | Affine | not planned | not planned | not planned | not planned | none | — | none | no | — |
+| root existence | Rational | supported | supported | supported | supported | checked continuous expressions | fixed Taylor depth 10 | sign-change certificate | yes | — |
+| root existence | Dyadic | unavailable | unavailable | unavailable | unavailable | none | — | none | no | — |
+| root existence | Affine | not planned | not planned | not planned | not planned | none | — | none | no | — |
+| root uniqueness | Rational | supported | supported | supported | supported | ADSupported | Taylor depth | Newton/Krawczyk certificate | yes | — |
+| root uniqueness | Dyadic | unavailable | unavailable | unavailable | unavailable | none | — | none | no | — |
+| root uniqueness | Affine | not planned | not planned | not planned | not planned | none | — | none | no | — |
 
 For interval evaluation, `auto` chooses Affine for exact repeated-subexpression
 cancellation, Rational for ordinary algebraic expressions, and Dyadic for
@@ -51,13 +71,16 @@ theorem `LeanCert.evalInterval_correct` proves that every successful public
 result encloses the real expression value, independently of which backend was
 selected.
 
-Checked automatic differentiation deliberately has explicit entry points
-rather than using `EvalOptions`: `derivIntervalChecked` uses Rational arithmetic,
-while `derivIntervalDyadicChecked` and
-`derivIntervalDyadicCheckedOfRat` use bounded-denominator Dyadic arithmetic.
-The `OfRat` boundary is the convenient choice for Rational input boxes. See
-[Checked Automatic Differentiation](../direct/checked-ad.md) for the complete
-entry-point and Golden-Theorem map.
+Checked automatic differentiation uses the independent `ADOptions` selector.
+`evalWithDerivative` and `evalGradient` return backend-independent Rational
+enclosures and record both the requested and selected backend. Backend-native
+entry points remain available for advanced callers. See [Checked Automatic
+Differentiation](../direct/checked-ad.md).
+
+Checked partition integration similarly exposes `integrateUniform` with
+`IntegrationOptions`. Explicit Rational and Dyadic selection is supported;
+automatic selection deliberately remains Rational until the integration
+benchmark suite demonstrates a stable Dyadic crossover.
 
 ```lean
 import LeanCert

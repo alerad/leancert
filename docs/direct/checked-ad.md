@@ -10,35 +10,34 @@ the corresponding Golden Theorem.
 import LeanCert
 
 open LeanCert
-open LeanCert.Core LeanCert.Engine
+open LeanCert.Core
 
 def input : IntervalRat := ⟨1, 2, by norm_num⟩
-def rho : Nat → IntervalRat := fun _ => input
-
 -- x ↦ log (1 / (x + 1))
 def f : Expr := .log (.inv (.add (.var 0) (.const 1)))
 
--- Constructor arguments: precision, then Taylor depth.
-def dyadicAD : DyadicConfig := .mk (-53) 10
-
-#eval derivIntervalChecked f rho 0
-#eval derivIntervalDyadicCheckedOfRat f rho 0 dyadicAD
+#eval evalWithDerivative f [input] 0
+#eval evalWithDerivative f [input] 0 { backend := .dyadic }
+#eval evalGradient f [input]
 ```
 
-Both calls return `EvalResult`: `.ok enclosure` means the derivative is
-certified to lie in that interval, while `.error reason` explains why no
-certificate was produced. The Dyadic result has type `IntervalDyadic`; use
-`result.toIntervalRat` when rational endpoints are more convenient for display
-or downstream code.
+These calls return `EvalResult`. A successful `DerivativeOutcome` contains
+backend-independent Rational value and derivative enclosures plus the requested
+and selected backend. `evalWithDerivative_correct` is the common Golden Theorem
+for Rational and Dyadic results.
 
 ## Choosing an entry point
 
-Checked AD currently uses explicit backend entry points. The backend selector
-in `EvalOptions` applies to ordinary interval evaluation and does not select an
-AD backend.
+`ADOptions.backend` accepts `auto`, `rational`, and `dyadic`; an explicit
+`affine` request returns `unsupportedBackend`. Automatic selection uses Rational
+for ordinary algebraic expressions and Dyadic for transcendental or
+denominator-growth-heavy expressions. It selects once and never retries after
+a domain failure.
 
 | Need | Entry point | Result |
 |---|---|---|
+| Value and one partial, backend-independent | `evalWithDerivative` | `DerivativeOutcome` |
+| All box coordinates, backend-independent | `evalGradient` | `GradientOutcome` |
 | One partial, Rational input and arithmetic | `derivIntervalChecked` | `IntervalRat` |
 | One-variable shorthand, Rational arithmetic | `derivIntervalChecked1` | `IntervalRat` |
 | Value and one partial, Rational arithmetic | `evalWithDerivChecked` | `DualInterval` |
@@ -63,10 +62,11 @@ outward after each operation, bounding endpoint denominator size. Its
 transcendental enclosures still use LeanCert's verified Rational Taylor kernels
 before conversion back to Dyadic endpoints.
 
-The `OfRat` functions are usually the easiest Dyadic boundary. They convert the
-input box outward at `cfg.precision`, and that containment proof is already
-included in their Golden Theorems. Native Dyadic environments are useful when a
-larger pipeline already uses `IntervalDyadic`.
+The backend-native functions below the first two rows are advanced boundaries.
+The `OfRat` functions are usually the easiest native Dyadic boundary. They
+convert the input box outward at `cfg.precision`, and that containment proof is
+already included in their Golden Theorems. Native Dyadic environments are
+useful when a larger pipeline already uses `IntervalDyadic`.
 
 ## Using the Golden Theorem
 
