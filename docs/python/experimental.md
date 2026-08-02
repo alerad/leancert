@@ -21,6 +21,9 @@ against the intended theorem. In particular, finding thresholds for a finite
 list of epsilon values is not a proof of a universally quantified statement
 over every positive epsilon.
 
+See [Quantifier and Witness Synthesis](experimental/quantifiers.md) for the
+callable API and its authority boundary.
+
 ## Counterexample discovery
 
 Adaptive bound checking can ask a global optimizer for a candidate point,
@@ -43,6 +46,9 @@ These are diagnostics:
 
 Keep diagnostic verdicts separate from LeanCert's typed proof outcomes in user
 interfaces and stored reports.
+
+See [Bug-Report Triage](experimental/bug-validation.md) for examples that keep
+these heuristics in their proper diagnostic role.
 
 ## Proof sketches
 

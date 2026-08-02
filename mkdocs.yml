@@ -61,7 +61,9 @@ nav:
   - Python SDK:
     - Overview: python/index.md
     - Capability Status: python/capabilities.md
-    - Mathematical Modeling: python/modeling.md
+    - Mathematical Modeling:
+      - Exact AST and Domains: python/modeling.md
+      - Simplification: python/modeling/simplification.md
     - Checked Proving:
       - Using prove(): python/proving/index.md
       - Exact Bounds: python/proving/bounds.md
@@ -73,9 +75,21 @@ nav:
       - Export and Independent Verification: python/evidence/export.md
     - Numerical Toolkit: python/toolkit.md
     - Adaptive Verification: python/adaptive/index.md
-    - Machine Learning: python/ml/index.md
-    - Experimental Workflows: python/experimental.md
+    - Machine Learning:
+      - Verification: python/ml/index.md
+      - Lean Source Export: python/ml/export.md
+    - Experimental Workflows:
+      - Status and Boundaries: python/experimental.md
+      - Quantifier and Witness Synthesis: python/experimental/quantifiers.md
+      - Bug-Report Triage: python/experimental/bug-validation.md
     - Reference:
+      - Python Public API: python/reference/public-api.md
+      - Solver Toolkit: python/reference/solver.md
+      - Configuration: python/reference/configuration.md
+      - Result Types: python/reference/results.md
+      - Exceptions: python/reference/exceptions.md
+      - AST Utilities: python/reference/ast-utilities.md
+      - Programmatic Artifact Verification: python/reference/artifact-verification-api.md
       - Installation and Compatibility: python/reference/compatibility.md
       - CLI and Diagnostics: python/reference/cli.md
     - Bridge Contract: architecture/python-bridge.md

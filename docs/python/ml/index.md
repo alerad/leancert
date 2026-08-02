@@ -41,6 +41,20 @@ print(enclosures)
 against those output enclosures. It returns a Boolean rather than the v1
 semantic `ProofResult` hierarchy.
 
+```python
+within_limits = lc.verify_nn_bounds(
+    network,
+    {"x0": (-1, 1), "x1": (-1, 1)},
+    output_lower=0,
+    output_upper=8,
+    precision=-80,
+)
+```
+
+The Boolean means the returned checked enclosure fits inside the requested
+limits. Retain the enclosures when an audit needs the actual evidence rather
+than a convenience decision.
+
 ## PyTorch conversion
 
 Install the optional dependency:
@@ -67,6 +81,10 @@ without attention. The exporter can emit Lean definitions and optionally use
 Affine LayerNorm infrastructure, but this is not a claim that arbitrary
 end-to-end PyTorch Transformers are automatically verified by
 `forward_interval`.
+
+For generated Lean definitions, rationalization policy, and the distinction
+between source export and checked proof artifacts, see
+[Lean Source Export](export.md).
 
 ## Backends
 

@@ -58,6 +58,12 @@ closed_claim = ast.close_claim(open_claim, where={x: (0, 1)})
 encoding uses binder depths, so alpha-renaming a bound variable does not change
 the claim's meaning.
 
+Use `ast.interval(lo, hi)` and `ast.box(...)` when a first-class semantic
+domain is clearer than tuple shorthand. The older `leancert.Interval` and
+`leancert.Box` types belong to the programmatic `Solver` compatibility API;
+they are not interchangeable with semantic AST domains without an explicit
+legacy conversion.
+
 ## Canonical bytes and semantic digests
 
 ```python
@@ -88,3 +94,7 @@ identity before they can receive an authoritative semantic digest.
 `ast.legacy_expression`, `ast.legacy_interval`, `ast.legacy_box`, or
 `ast.legacy_bound_claim` when migrating intentionally. Conversion is not
 verification.
+
+For programmatically generated legacy expressions, see
+[Simplification](modeling/simplification.md). For advanced semantic-AST
+inspection and rewrites, see [AST Utilities](reference/ast-utilities.md).

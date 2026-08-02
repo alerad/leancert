@@ -2,7 +2,11 @@
 
 !!! info "Capability status"
     **Stability:** Stable · **Authority:** Checked Bridge ·
-    **Standalone replay:** Yes · **Current maximum dimension:** 4
+    **Standalone replay:** Yes · **Released Bridge capability ceiling:** 4
+
+`SystemRootConfig.max_dimension` defaults to `4` and can lower the caller's
+accepted search dimension. It cannot expand the capability advertised by the
+connected Bridge. Effective support is limited by both values.
 
 An approximate solver can suggest a zero. LeanCert can instead certify that a
 whole box contains exactly one zero of a square nonlinear system.
