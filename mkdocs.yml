@@ -1,5 +1,5 @@
 site_name: LeanCert
-site_description: Certified numerical computation and bound verification for Lean 4.
+site_description: Certified numerical computation for Lean 4 and Python.
 site_url: https://docs.leancert.io
 repo_url: https://github.com/alerad/leancert
 repo_name: alerad/leancert
@@ -52,10 +52,33 @@ extra_javascript:
 nav:
   - Home: index.md
   - Getting Started:
-    - Quickstart: quickstart.md
+    - Choose Python or Lean: choosing-interface.md
+    - Python Quickstart: python/quickstart.md
+    - Lean Quickstart: quickstart.md
     - Choosing A Proof Shape: choosing-proof-shape.md
     - Curated Showcase: showcase.md
     - Failure Showcase: showcase-failures.md
+  - Python SDK:
+    - Overview: python/index.md
+    - Capability Status: python/capabilities.md
+    - Mathematical Modeling: python/modeling.md
+    - Checked Proving:
+      - Using prove(): python/proving/index.md
+      - Exact Bounds: python/proving/bounds.md
+      - Nonlinear System Roots: python/proving/system-roots.md
+      - Eventual Bounds: python/proving/eventual-bounds.md
+      - Typed Outcomes: python/proving/outcomes.md
+    - Evidence and Audit:
+      - Trust Boundary: python/evidence/trust.md
+      - Export and Independent Verification: python/evidence/export.md
+    - Numerical Toolkit: python/toolkit.md
+    - Adaptive Verification: python/adaptive/index.md
+    - Machine Learning: python/ml/index.md
+    - Experimental Workflows: python/experimental.md
+    - Reference:
+      - Installation and Compatibility: python/reference/compatibility.md
+      - CLI and Diagnostics: python/reference/cli.md
+    - Bridge Contract: architecture/python-bridge.md
   - Direct Automation:
     - Using leancert: direct/leancert.md
     - Bounds and Inequalities: direct/bounds.md

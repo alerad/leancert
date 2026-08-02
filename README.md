@@ -85,6 +85,32 @@ lake env lean Main.lean
 For a reproducible development or release, pin `rev` to a commit or tag rather
 than `main`.
 
+## Prefer Python?
+
+The self-contained Python SDK bundles the matching LeanCert Bridge on supported
+platforms, so checking a claim does not require a local Lean installation:
+
+```bash
+pip install leancert
+leancert doctor
+```
+
+```python
+import leancert as lc
+from leancert import ast
+
+x = ast.var("x")
+result = lc.prove(x**2 <= 1, where={x: (0, 1)})
+
+if isinstance(result, lc.Verified):
+    print(result.claim_id)
+```
+
+Python handles exact modeling and untrusted candidate search; advertised
+LeanCert checkers authorize successful outcomes. Replayable results can be
+exported as pinned Lean projects for an independent kernel rebuild. Begin with
+the [Python SDK documentation](https://docs.leancert.io/python/).
+
 ## What is actually verified?
 
 LeanCert separates finding a certificate, checking it, and interpreting it.
