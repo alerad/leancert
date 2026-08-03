@@ -38,11 +38,13 @@ control below `prove()`.
 
 - Exact one- and two-sided bounds over closed rational boxes
 - Unique nonlinear-system roots checked with exact rational Krawczyk data
+- Scalar-root existence, uniqueness, and exclusion on exact rational intervals
+- Exact polynomial integral equalities and checked one-sided integral bounds
 - Eventual reciprocal-power bounds over natural-number tails
 - Typed non-success outcomes
 - Stable semantic claim digests
 - Complete Bridge build provenance
-- Standalone Lean-project export for the three replayable result families
+- Standalone Lean-project export for every stable checked result family
 - Independent artifact verification with stable CLI exit codes
 
 See the [capability status matrix](capabilities.md) before relying on adaptive,

@@ -8,11 +8,13 @@ attribute as equally stable.
 Use these for new proof-oriented code:
 
 - `leancert.prove`;
-- `ProveConfig`, `SystemRootConfig`, and `EventualConfig`;
+- `ProveConfig`, `SystemRootConfig`, `EventualConfig`, and `IntegralConfig`;
 - `leancert.ast` claim, expression, domain, encoding, digest, and validation APIs;
 - typed outcomes including `Verified`, `Rejected`, `Inconclusive`,
   `Unsupported`, `DomainObstruction`, `VerifiedSystemRoot`, and
-  `VerifiedEventualBound`; and
+  `VerifiedEventualBound`, `VerifiedRootExistence`, `VerifiedUniqueRoot`,
+  `VerifiedRootExclusion`, `VerifiedIntegralEquality`, and
+  `VerifiedIntegralBound`; and
 - `Verified*.export_lean_project()`.
 
 ## Programmatic numerical toolkit

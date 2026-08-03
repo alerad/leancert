@@ -17,9 +17,15 @@ elif isinstance(result, lc.Inconclusive):
     ...
 ```
 
-Bound outcomes retain per-check evidence and Bridge provenance. System-root
-and eventual-bound outcomes have their own typed families and replayable
+Bound outcomes retain per-check evidence and Bridge provenance. Root,
+eventual-bound, and integral outcomes have their own typed families and replayable
 certificate payloads. See [Typed Outcomes](../proving/outcomes.md).
+
+`VerifiedIntegralEquality` retains the exact polynomial checker input.
+`VerifiedIntegralBound` retains the accepted partition count and checked
+enclosure. `IntegralCandidateRejected`, `InconclusiveIntegral`,
+`IntegralDomainObstruction`, and `UnsupportedIntegral` preserve distinct
+non-success meanings.
 
 ## Toolkit numerical results
 

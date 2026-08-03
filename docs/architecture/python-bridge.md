@@ -26,6 +26,8 @@ use the authority negotiated for that operation.
 | `verify_adaptive` | Checked adaptive leaf evidence | `adaptive-bound-check/1` |
 | `check_unique_system_root` | `VerifiedSystemRoot` / `CandidateRejected` | `krawczyk-check/1` |
 | `check_eventual_bound` | `VerifiedEventualBound` and typed non-successes | `eventual-bound-check/1` |
+| `check_scalar_root` | Three `Verified*Root` outcomes and typed non-successes | `scalar-root-check/1` |
+| `check_integral` | `VerifiedIntegralEquality` / `VerifiedIntegralBound` | `integral-check/1` |
 
 Adaptive evidence is intentionally distinct from the fixed payload families
 currently supported by standalone project export.
