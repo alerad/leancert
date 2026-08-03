@@ -9,10 +9,12 @@ which layer is allowed to authorize a success.
 | `prove()` exact bounds | Stable | Checked Bridge | Yes | Default bound API |
 | Unique nonlinear-system roots | Stable | Checked Bridge | Yes | Default system-root API |
 | Eventual reciprocal-power bounds | Stable | Checked Bridge | Yes | Default supported tail API |
+| Scalar-root existence, uniqueness, and exclusion | Stable | Checked Bridge | Yes | Fixed-interval scalar root claims |
+| Exact polynomial integrals and one-sided integral bounds | Stable | Checked Bridge | Yes | Default definite-integral API |
 | Typed non-success outcomes | Stable | Checked Bridge/SDK validation | N/A | Always inspect the type |
 | Semantic AST and claim digests | Stable v1 schema | Deterministic SDK semantics | Included in exports | Modeling and identity |
 | `eval_interval`, `find_bounds` | Legacy/programmatic | Checked numerical operation | No | Exploration and advanced control |
-| Scalar roots and integration | Legacy/programmatic | Checked numerical operation | No | Advanced numerical workflows |
+| Legacy scalar-root search and numerical integration | Legacy/programmatic | Checked numerical operation | No | Discovery and compatibility workflows |
 | Checked derivative enclosures | Programmatic | Checked numerical operation | No | Sensitivity and Lipschitz analysis |
 | Adaptive leaf verification | Experimental | Checked Bridge per leaf | No unified replay | Difficult bound search |
 | Adaptive split selection | Experimental | Search heuristic | No | Candidate domain decomposition |

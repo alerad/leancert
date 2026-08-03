@@ -81,9 +81,21 @@ Annotations and source spans do not affect it.
 ## Built-in and external functions
 
 The semantic AST includes arithmetic, transcendental and special functions,
-vectors, integrals, derivatives, root claims, and eventual claims. Presence in
-the AST means the expression has a stable meaning; it does **not** guarantee
-that the currently negotiated Bridge exposes a checker for every claim shape.
+vectors, integrals, derivatives, root claims, and eventual claims. Definite
+integrals are constructed explicitly:
+
+```python
+from leancert import ast
+
+x = ast.var("x")
+area = ast.integral(x**2, x, 0, 1)
+```
+
+Contract 2.6 routes exact rational-polynomial integral equalities and checked
+one-sided integral bounds through `prove()`. Other integral shapes and
+derivative expressions still have stable AST meaning without necessarily
+having a negotiated checker. In general, presence in the AST does **not**
+guarantee that the current Bridge supports every claim shape.
 
 External functions require package, revision, semantic, and declaration
 identity before they can receive an authoritative semantic digest.

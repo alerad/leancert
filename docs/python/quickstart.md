@@ -2,8 +2,8 @@
 
 !!! info "Capability status"
     **Stability:** Stable · **Authority:** Checked Bridge ·
-    **Standalone replay:** Supported for verified bounds, system roots, and
-    eventual bounds
+    **Standalone replay:** Supported for verified bounds, scalar and system
+    roots, eventual bounds, and checked integrals
 
 ## Install and diagnose
 

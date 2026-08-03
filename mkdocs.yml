@@ -67,7 +67,9 @@ nav:
     - Checked Proving:
       - Using prove(): python/proving/index.md
       - Exact Bounds: python/proving/bounds.md
+      - Scalar Roots: python/proving/scalar-roots.md
       - Nonlinear System Roots: python/proving/system-roots.md
+      - Exact Integrals and Bounds: python/proving/integrals.md
       - Eventual Bounds: python/proving/eventual-bounds.md
       - Typed Outcomes: python/proving/outcomes.md
     - Evidence and Audit:

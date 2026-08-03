@@ -16,6 +16,10 @@ config = lc.ProveConfig(
         precision_bits=28,
     ),
     eventual=lc.EventualConfig(max_checks=2000),
+    integral=lc.IntegralConfig(
+        start_partitions=16,
+        max_partitions=4096,
+    ),
 )
 ```
 
@@ -27,6 +31,8 @@ config = lc.ProveConfig(
 | `system_root.precision_bits` | `20` | candidate rationalization/search precision |
 | `system_root.candidate` | `None` | optional explicit `KrawczykCandidate` |
 | `eventual.max_checks` | `1000` | cutoff-search check budget |
+| `integral.start_partitions` | `32` | initial untrusted uniform-partition candidate |
+| `integral.max_partitions` | `4096` | maximum partition count considered by discovery |
 
 These settings control effort and candidate search. They do not let a caller
 invent a checker capability the Bridge did not advertise.

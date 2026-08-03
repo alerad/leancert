@@ -1,8 +1,8 @@
 # Export and Independently Verify Evidence
 
 !!! info "Capability status"
-    **Stability:** Stable · **Exportable families:** checked bounds, unique
-    system roots, and eventual bounds · **Trust class:** Kernel
+    **Stability:** Stable · **Exportable families:** checked bounds, scalar and
+    system roots, eventual bounds, and checked integrals · **Trust class:** Kernel
 
 A replayable Python result retains the complete fixed checker input. Exporting
 turns it into a small pinned Lean project:

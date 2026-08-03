@@ -20,7 +20,9 @@ result = lc.prove(ast.sin(x) <= 1, where={x: (0, 1)})
 ## Stable checked families
 
 - [Exact one- and two-sided bounds](bounds.md)
+- [Scalar-root existence, uniqueness, and exclusion](scalar-roots.md)
 - [Unique nonlinear-system roots](system-roots.md)
+- [Exact integral equalities and checked bounds](integrals.md)
 - [Eventual reciprocal-power bounds](eventual-bounds.md)
 
 Valid semantic claims outside these routes return a typed `Unsupported`

@@ -38,6 +38,18 @@ capabilities, certificate families, backends, and verification routes before
 sending checked work. Unknown major versions and contradictory responses are
 rejected rather than guessed compatible.
 
+Stable proof families require the contract that introduced their fixed
+certificate schema:
+
+| Proof family | Minimum Bridge contract |
+|---|---:|
+| Bounds and unique nonlinear-system roots | 2.4 |
+| Scalar-root existence, uniqueness, and exclusion | 2.5 |
+| Exact integral equalities and checked integral bounds | 2.6 |
+
+Use `leancert doctor --json` to inspect the installed wheel's negotiated
+contract and capabilities.
+
 ## Core, Bridge, and SDK versions
 
 The Python package, Bridge, and LeanCert Core have separate release numbers.
