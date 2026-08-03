@@ -8,6 +8,7 @@ import LeanCert.Engine.Eval.Core
 import LeanCert.Meta.Numeral
 import LeanCert.Tactic.Extension.Registry
 import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
 import LeanCert.Tactic.LeanCert.Semantic.Prepare
 import LeanCert.Tactic.Verification
 
@@ -43,6 +44,7 @@ inductive RegisteredEnclosureFailure where
 /-- One registered checker proof retained by successful execution. -/
 structure RegisteredEnclosureObservation where
   rule : UnaryEnclosureRule
+  request : UnaryEnclosureRequest
   enclosure : IntervalRat
   verification : LeanCert.Tactic.VerificationUsage
   deriving Inhabited
@@ -63,6 +65,7 @@ structure RegisteredEnclosureOutcome where
   compositionSteps : Nat := 0
   subdivision : Option RegisteredSubdivisionExecution := none
   verification : LeanCert.Tactic.VerificationUsage
+  certificate : RegisteredEnclosureCertificate
   deriving Inhabited
 
 /-- Subdivision combines complete child theorems. It is independent of the
@@ -86,6 +89,11 @@ private structure RegisteredSubdivisionProof where
   deepestDepthUsed : Nat := 0
   boxesExamined : Nat := 0
   certifiedLeaves : Nat := 0
+  certificateTree : RegisteredEnclosureCertificateTree := default
+
+private structure RegisteredReplayCursor where
+  entries : Array RegisteredEnclosureCertificateEntry
+  index : IO.Ref Nat
 
 private structure EnclosedTerm where
   value : Lean.Expr
@@ -330,19 +338,14 @@ private def encloseReified (x : Lean.Expr) (hx : Lean.Expr)
     verification := event.toUsage
   }
 
-private unsafe def runCandidate (rule : UnaryEnclosureRule)
+private def sameRequest (left right : UnaryEnclosureRequest) : Bool :=
+  decide (left.input = right.input) && left.precision == right.precision &&
+    left.taylorDepth == right.taylorDepth
+
+private unsafe def verifyCandidateOutput (rule : UnaryEnclosureRule)
     (request : UnaryEnclosureRequest) (requestExpr : Lean.Expr)
-    (argument : EnclosedTerm) :
+    (argument : EnclosedTerm) (output : IntervalRat) :
     TacticM (Except RegisteredEnclosureFailure EnclosedTerm) := do
-  let candidateFn ← evalExpr UnaryEnclosureCandidate
-    (mkConst ``UnaryEnclosureCandidate) (mkConst rule.candidateName)
-  let output ←
-    match candidateFn request with
-    | .ok output => pure output
-    | .error (.domainObstruction detail) =>
-        return .error <| .domainObstruction rule.functionName.toString detail
-    | .error (.inconclusive detail) =>
-        return .error <| .inconclusive detail
   let outputExpr ← mkIntervalExpr output
   let check ← mkAppM rule.checkerName #[requestExpr, outputExpr]
   let checked ← closeCheck check s!"registered enclosure checker `{rule.checkerName}`"
@@ -363,6 +366,7 @@ private unsafe def runCandidate (rule : UnaryEnclosureRule)
     membership := proof
     observations := argument.observations.push {
       rule
+      request
       enclosure := output
       verification := event.toUsage
     }
@@ -370,9 +374,25 @@ private unsafe def runCandidate (rule : UnaryEnclosureRule)
     verification := argument.verification.combine event.toUsage
   }
 
+private unsafe def runCandidate (rule : UnaryEnclosureRule)
+    (request : UnaryEnclosureRequest) (requestExpr : Lean.Expr)
+    (argument : EnclosedTerm) :
+    TacticM (Except RegisteredEnclosureFailure EnclosedTerm) := do
+  let candidateFn ← evalExpr UnaryEnclosureCandidate
+    (mkConst ``UnaryEnclosureCandidate) (mkConst rule.candidateName)
+  let output ←
+    match candidateFn request with
+    | .ok output => pure output
+    | .error (.domainObstruction detail) =>
+        return .error <| .domainObstruction rule.functionName.toString detail
+    | .error (.inconclusive detail) =>
+        return .error <| .inconclusive detail
+  verifyCandidateOutput rule request requestExpr argument output
+
 private unsafe def encloseTerm (x : Lean.Expr) (hx : Lean.Expr)
     (inputExpr body : Lean.Expr)
-    (precision : Int) (taylorDepth : Nat) :
+    (precision : Int) (taylorDepth : Nat)
+    (replay : Option RegisteredReplayCursor := none) :
     TacticM (Except RegisteredEnclosureFailure EnclosedTerm) := do
   let body := body.headBeta
   let env ← getEnv
@@ -384,7 +404,7 @@ private unsafe def encloseTerm (x : Lean.Expr) (hx : Lean.Expr)
       return ← encloseReified x hx inputExpr body taylorDepth
     let mut enclosedRoots : Array EnclosedTerm := #[]
     for root in roots do
-      match ← encloseTerm x hx inputExpr root precision taylorDepth with
+      match ← encloseTerm x hx inputExpr root precision taylorDepth replay with
       | .ok enclosed => enclosedRoots := enclosedRoots.push enclosed
       | .error failure => return .error failure
     -- This temporary tree is inspected only for free-variable occurrence. The
@@ -465,7 +485,7 @@ private unsafe def encloseTerm (x : Lean.Expr) (hx : Lean.Expr)
   unless arguments.size == 1 do
     return .error <| .unsupported (toString body)
       "registered unary enclosure function was not applied to exactly one argument"
-  let argumentResult ← encloseTerm x hx inputExpr arguments[0]! precision taylorDepth
+  let argumentResult ← encloseTerm x hx inputExpr arguments[0]! precision taylorDepth replay
   let argument ←
     match argumentResult with
     | .ok argument => pure argument
@@ -476,6 +496,22 @@ private unsafe def encloseTerm (x : Lean.Expr) (hx : Lean.Expr)
     taylorDepth
   }
   let requestExpr ← mkRequestExpr argument.intervalExpr precision taylorDepth
+  if let some cursor := replay then
+    let index ← cursor.index.get
+    let some entry := cursor.entries[index]?
+      | return .error <| .verificationFailure
+          "registered enclosure replay certificate ran out of rule applications"
+    unless sameRequest entry.request request do
+      return .error <| .verificationFailure
+        "registered enclosure replay request does not match the reconstructed checker input"
+    let some rule := rules.find? fun rule => rule == entry.rule
+      | return .error <| .verificationFailure
+          "registered enclosure replay references a rule unavailable in this environment"
+    match ← verifyCandidateOutput rule request requestExpr argument entry.output with
+    | .ok result =>
+        cursor.index.set (index + 1)
+        return .ok result
+    | .error failure => return .error failure
   let mut lastFailure : Option RegisteredEnclosureFailure := none
   for rule in rules do
     match ← runCandidate rule request requestExpr argument with
@@ -588,8 +624,9 @@ private def finalComparisonProof (comparison : Comparison) (functionOnLeft : Boo
   return .ok proof
 
 /-- Try to prove a unary quantified bound through imported enclosure rules. -/
-unsafe def registeredEnclosureBoundCoreTyped (prepared : PreparedGoal)
-    (precision : Int) (taylorDepth : Nat) :
+private unsafe def registeredEnclosureBoundCoreTypedImpl (prepared : PreparedGoal)
+    (precision : Int) (taylorDepth : Nat)
+    (replay : Option RegisteredReplayCursor) :
     TacticM (Except RegisteredEnclosureFailure RegisteredEnclosureOutcome) := do
   let .bound spec := prepared.semantic
     | return .error .notApplicable
@@ -624,12 +661,17 @@ unsafe def registeredEnclosureBoundCoreTyped (prepared : PreparedGoal)
       | return .error <| .unsupported (toString boundBody)
           "registered enclosure bounds currently require a rational constant on the other side"
     let enclosed ←
-      match ← encloseTerm x hx inputExpr functionBody precision taylorDepth with
+      match ← encloseTerm x hx inputExpr functionBody precision taylorDepth replay with
       | .ok enclosed => pure enclosed
       | .error failure => return .error failure
     trace[LeanCert.extension] "constructed registered enclosure proof"
     if enclosed.observations.isEmpty then
       return .error .notApplicable
+    if let some cursor := replay then
+      let consumed ← cursor.index.get
+      unless consumed == cursor.entries.size do
+        return .error <| .verificationFailure
+          "registered enclosure replay certificate contains unused rule applications"
     let finalProof ←
       match ← finalComparisonProof spec.comparison functionOnLeft bound boundBody enclosed with
       | .ok proof => pure proof
@@ -642,10 +684,18 @@ unsafe def registeredEnclosureBoundCoreTyped (prepared : PreparedGoal)
       observations := enclosed.observations
       compositionSteps := enclosed.compositionSteps
       verification := enclosed.verification
+      certificate := default
     }
 
-private unsafe def proveRegisteredLeaf (prepared : PreparedGoal)
+/-- Try to prove a unary quantified bound through imported enclosure rules. -/
+unsafe def registeredEnclosureBoundCoreTyped (prepared : PreparedGoal)
     (precision : Int) (taylorDepth : Nat) :
+    TacticM (Except RegisteredEnclosureFailure RegisteredEnclosureOutcome) :=
+  registeredEnclosureBoundCoreTypedImpl prepared precision taylorDepth none
+
+private unsafe def proveRegisteredLeaf (prepared : PreparedGoal)
+    (precision : Int) (taylorDepth : Nat)
+    (entries : Option (Array RegisteredEnclosureCertificateEntry) := none) :
     TacticM (Except RegisteredEnclosureFailure
       (Lean.Expr × RegisteredEnclosureOutcome)) := do
   let originalGoals ← getGoals
@@ -654,7 +704,10 @@ private unsafe def proveRegisteredLeaf (prepared : PreparedGoal)
   let proof ← mkFreshExprMVar proposition MetavarKind.syntheticOpaque
   setGoals [proof.mvarId!]
   try
-    match ← registeredEnclosureBoundCoreTyped prepared precision taylorDepth with
+    let replay ← entries.mapM fun entries => do
+      let index ← IO.mkRef 0
+      pure { entries, index }
+    match ← registeredEnclosureBoundCoreTypedImpl prepared precision taylorDepth replay with
     | .error failure =>
         saved.restore
         return .error failure
@@ -698,6 +751,12 @@ private unsafe def proveRegisteredWithSubdiv
         deepestDepthUsed := depthUsed
         boxesExamined := 1
         certifiedLeaves := 1
+        certificateTree := .leaf interval outcome.enclosure
+          (outcome.observations.map fun observation => {
+            rule := observation.rule
+            request := observation.request
+            output := observation.enclosure
+          }) outcome.compositionSteps
       }
   | .error failure =>
       let (retryable, lastEnclosure, detail) :=
@@ -751,7 +810,75 @@ private unsafe def proveRegisteredWithSubdiv
       (max left.deepestDepthUsed right.deepestDepthUsed)
     boxesExamined := 1 + left.boxesExamined + right.boxesExamined
     certifiedLeaves := left.certifiedLeaves + right.certifiedLeaves
+    certificateTree := .bisect interval left.certificateTree right.certificateTree
   }
+
+private unsafe def replayRegisteredTree
+    (prepared : PreparedGoal) (spec : BoundSpec)
+    (intervalExpr : Lean.Expr) (interval : IntervalRat)
+    (precision : Int) (taylorDepth depthUsed : Nat)
+    (tree : RegisteredEnclosureCertificateTree) :
+    TacticM (Except RegisteredEnclosureFailure RegisteredSubdivisionProof) := do
+  match tree with
+  | .leaf recordedInput recordedOutput entries compositionSteps =>
+      unless decide (recordedInput = interval) do
+        return .error <| .verificationFailure
+          "registered enclosure replay leaf domain does not match the reconstructed domain"
+      let childPrepared ← preparedOnInterval prepared spec intervalExpr
+      match ← proveRegisteredLeaf childPrepared precision taylorDepth (some entries) with
+      | .error failure => return .error failure
+      | .ok (proof, outcome) =>
+          unless decide (outcome.enclosure = recordedOutput) &&
+              outcome.compositionSteps == compositionSteps do
+            return .error <| .verificationFailure
+              "registered enclosure replay leaf result does not match retained evidence"
+          return .ok {
+            proof
+            enclosure := outcome.enclosure
+            observations := outcome.observations
+            compositionSteps := outcome.compositionSteps
+            verification := outcome.verification
+            deepestDepthUsed := depthUsed
+            boxesExamined := 1
+            certifiedLeaves := 1
+            certificateTree := tree
+          }
+  | .bisect recordedInput leftTree rightTree =>
+      unless decide (recordedInput = interval) do
+        return .error <| .verificationFailure
+          "registered enclosure replay branch domain does not match the reconstructed domain"
+      let bisectExpr ← mkAppM ``IntervalRat.bisect #[intervalExpr]
+      let leftExpr ← mkAppM ``Prod.fst #[bisectExpr]
+      let rightExpr ← mkAppM ``Prod.snd #[bisectExpr]
+      let (leftInterval, rightInterval) := interval.bisect
+      let left ← replayRegisteredTree prepared spec leftExpr leftInterval
+        precision taylorDepth (depthUsed + 1) leftTree
+      let left ← match left with
+        | .ok proof => pure proof
+        | .error failure => return .error failure
+      let right ← replayRegisteredTree prepared spec rightExpr rightInterval
+        precision taylorDepth (depthUsed + 1) rightTree
+      let right ← match right with
+        | .ok proof => pure proof
+        | .error failure => return .error failure
+      let proof ← mkAppM ``forall_mem_of_bisect #[intervalExpr, left.proof, right.proof]
+      return .ok {
+        proof
+        enclosure := {
+          lo := min left.enclosure.lo right.enclosure.lo
+          hi := max left.enclosure.hi right.enclosure.hi
+          le := le_trans (min_le_left _ _)
+            (le_trans left.enclosure.le (le_max_left _ _))
+        }
+        observations := left.observations ++ right.observations
+        compositionSteps := left.compositionSteps + right.compositionSteps
+        verification := left.verification.combine right.verification
+        deepestDepthUsed := max depthUsed
+          (max left.deepestDepthUsed right.deepestDepthUsed)
+        boxesExamined := 1 + left.boxesExamined + right.boxesExamined
+        certifiedLeaves := left.certifiedLeaves + right.certifiedLeaves
+        certificateTree := tree
+      }
 
 /-- Try registered enclosure execution at each node, bisecting only after an
 inconclusive or rejected candidate. Every retained leaf is independently
@@ -799,9 +926,142 @@ unsafe def registeredEnclosureBoundSubdivCoreTyped (prepared : PreparedGoal)
             certifiedLeaves := proof.certifiedLeaves
           }
           verification := proof.verification
+          certificate := {
+            precision
+            taylorDepth
+            configuredMaxDepth := maxDepth
+            tree := proof.certificateTree
+          }
         }
   catch exception =>
     original.restore
     throw exception
+
+/-- Replay a retained registered-enclosure certificate without executing any
+candidate generator. Every fixed output is checked again through the rule
+registered in the current environment before the proof tree is assembled. -/
+unsafe def replayRegisteredEnclosureBoundCoreTyped (prepared : PreparedGoal)
+    (certificate : RegisteredEnclosureCertificate) :
+    TacticM (Except RegisteredEnclosureFailure RegisteredEnclosureOutcome) := do
+  let original ← saveState
+  try
+    let .bound spec := prepared.semantic
+      | return .error .notApplicable
+    unless spec.boundVars.size == 1 && prepared.domains.size == 1 do
+      return .error .notApplicable
+    let .closedRat _ intervalExpr membershipIff := prepared.domains[0]!
+      | return .error .notApplicable
+    let interval ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) intervalExpr
+    match ← replayRegisteredTree prepared spec intervalExpr interval
+        certificate.precision certificate.taylorDepth 0 certificate.tree with
+    | .error failure =>
+        original.restore
+        return .error failure
+    | .ok proof =>
+        let goal ← getMainGoal
+        let (xId, goal) ← goal.intro1P
+        let (hxSourceId, goal) ← goal.intro1P
+        setGoals [goal]
+        goal.withContext do
+          let x := mkFVar xId
+          let hxSource := mkFVar hxSourceId
+          let iffAt ← mkAppM' membershipIff #[x]
+          let hx ← mkAppM ``Iff.mp #[iffAt, hxSource]
+          let pointProof := mkAppN proof.proof #[x, hx]
+          discard <| inferType pointProof
+          goal.assign pointProof
+          replaceMainGoal []
+        return .ok {
+          enclosure := proof.enclosure
+          observations := proof.observations
+          compositionSteps := proof.compositionSteps
+          subdivision := if proof.deepestDepthUsed == 0 then none else some {
+            taylorDepth := certificate.taylorDepth
+            configuredMaxDepth := certificate.configuredMaxDepth
+            deepestDepthUsed := proof.deepestDepthUsed
+            boxesExamined := proof.boxesExamined
+            certifiedLeaves := proof.certifiedLeaves
+          }
+          verification := proof.verification
+          certificate
+        }
+  catch exception =>
+    original.restore
+    throw exception
+
+/-- Run registered-enclosure discovery for a closed proposition from `MetaM`.
+
+This is the programmatic boundary used by external proof orchestrators.  It
+creates a fresh proof goal, parses and prepares the proposition through the
+same semantic pipeline as the tactic, and returns both the fully checked
+outcome and its kernel proof.  Candidate discovery remains untrusted; callers
+that persist the returned certificate can later use fixed replay. -/
+unsafe def discoverRegisteredEnclosureBoundMeta (proposition : Lean.Expr)
+    (precision : Int := -53) (taylorDepth : Nat := 10)
+    (maxDepth : Nat := 4) :
+    MetaM (Except RegisteredEnclosureFailure
+      (RegisteredEnclosureOutcome × Lean.Expr)) := do
+  let proof ← mkFreshExprMVar proposition MetavarKind.syntheticOpaque
+  let resultRef ← IO.mkRef
+    (none : Option (Except RegisteredEnclosureFailure RegisteredEnclosureOutcome))
+  let goals ← Term.TermElabM.run' <| Tactic.run proof.mvarId! do
+    let target ← instantiateMVars (← getMainTarget)
+    let some spec ← parseBound? target
+      | resultRef.set (some (.error .notApplicable)); return
+    let prepared ← match ← prepareGoal (.bound spec) with
+      | .ok prepared => pure prepared
+      | .error failure =>
+          resultRef.set (some (.error (.verificationFailure failure.detail)))
+          return
+    resultRef.set (some (← registeredEnclosureBoundSubdivCoreTyped prepared
+      precision taylorDepth maxDepth))
+  let some result ← resultRef.get
+    | return .error (.verificationFailure
+        "registered enclosure programmatic execution produced no result")
+  match result with
+  | .error failure => return .error failure
+  | .ok outcome =>
+      unless goals.isEmpty do
+        return .error (.verificationFailure
+          "registered enclosure programmatic execution left unresolved goals")
+      let proof ← instantiateMVars proof
+      if proof.hasMVar then
+        return .error (.verificationFailure
+          "registered enclosure programmatic proof contains metavariables")
+      return .ok (outcome, proof)
+
+/-- Replay fixed registered-enclosure evidence for a closed proposition from
+`MetaM`, without invoking any candidate generator. -/
+unsafe def replayRegisteredEnclosureBoundMeta (proposition : Lean.Expr)
+    (certificate : RegisteredEnclosureCertificate) :
+    MetaM (Except RegisteredEnclosureFailure
+      (RegisteredEnclosureOutcome × Lean.Expr)) := do
+  let proof ← mkFreshExprMVar proposition MetavarKind.syntheticOpaque
+  let resultRef ← IO.mkRef
+    (none : Option (Except RegisteredEnclosureFailure RegisteredEnclosureOutcome))
+  let goals ← Term.TermElabM.run' <| Tactic.run proof.mvarId! do
+    let target ← instantiateMVars (← getMainTarget)
+    let some spec ← parseBound? target
+      | resultRef.set (some (.error .notApplicable)); return
+    let prepared ← match ← prepareGoal (.bound spec) with
+      | .ok prepared => pure prepared
+      | .error failure =>
+          resultRef.set (some (.error (.verificationFailure failure.detail)))
+          return
+    resultRef.set (some (← replayRegisteredEnclosureBoundCoreTyped prepared certificate))
+  let some result ← resultRef.get
+    | return .error (.verificationFailure
+        "registered enclosure programmatic replay produced no result")
+  match result with
+  | .error failure => return .error failure
+  | .ok outcome =>
+      unless goals.isEmpty do
+        return .error (.verificationFailure
+          "registered enclosure programmatic replay left unresolved goals")
+      let proof ← instantiateMVars proof
+      if proof.hasMVar then
+        return .error (.verificationFailure
+          "registered enclosure programmatic replay proof contains metavariables")
+      return .ok (outcome, proof)
 
 end LeanCert.Tactic.Extension

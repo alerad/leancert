@@ -113,6 +113,31 @@ DownstreamExtensionExample.positiveBranch
 Metaprogramming clients may query `getUnaryEnclosureRules` for one function or
 `getAllUnaryEnclosureRules` for the complete deterministic registry.
 
+## Fixed evidence and replay
+
+Successful registered-enclosure execution retains a
+`RegisteredEnclosureCertificate`. The certificate records the arithmetic
+controls, complete subdivision tree, every leaf domain and result, and each
+registered rule request/output pair in consumption order. Candidate-generator
+results are therefore discovery data, not replay authority.
+
+`replayRegisteredEnclosureBoundCoreTyped` reconstructs the proof from this
+fixed tree. It never calls a candidate generator: it resolves the named rule
+in the current environment, reruns its Boolean checker on the retained output,
+and applies the registered soundness theorem. Replay rejects mismatched rules,
+domains, outputs, unused entries, and incomplete subdivision trees.
+
+External orchestrators can use the corresponding `MetaM` boundaries:
+
+- `discoverRegisteredEnclosureBoundMeta` parses and proves a closed bound,
+  returning the checked outcome, fixed certificate, and kernel proof;
+- `replayRegisteredEnclosureBoundMeta` checks retained evidence for the same
+  proposition without performing candidate search.
+
+Artifacts must identify the exact imported environment containing their
+registered declarations. A theorem name alone is not a portable definition;
+the module/profile and LeanCert revision are part of its provenance.
+
 ## Current scope
 
 The first protocol deliberately covers unary `ℝ → ℝ` enclosure rules in

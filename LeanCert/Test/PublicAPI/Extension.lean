@@ -14,6 +14,9 @@ open Lean Elab Command
 #check LeanCert.Tactic.Extension.UnaryEnclosureCandidate
 #check LeanCert.Tactic.Extension.UnaryEnclosureChecker
 #check LeanCert.Tactic.Extension.UnaryEnclosureRule
+#check LeanCert.Tactic.Extension.RegisteredEnclosureCertificateEntry
+#check LeanCert.Tactic.Extension.RegisteredEnclosureCertificateTree
+#check LeanCert.Tactic.Extension.RegisteredEnclosureCertificate
 #check LeanCert.Tactic.Extension.getUnaryEnclosureRules
 #check LeanCert.Tactic.Extension.getAllUnaryEnclosureRules
 

@@ -25,7 +25,7 @@ structure UnaryEnclosureRequest where
   input : IntervalRat
   precision : Int := -53
   taylorDepth : Nat := 10
-  deriving Repr
+  deriving Repr, Inhabited
 
 /-- Expected, non-exceptional reasons why an untrusted candidate generator may stop. -/
 inductive EnclosureCandidateFailure where
@@ -49,5 +49,37 @@ structure UnaryEnclosureRule where
   theoremName : Lean.Name
   rulePriority : Nat := 1000
   deriving Repr, Inhabited, BEq
+
+/-- One fixed registered-rule application retained for deterministic replay.
+
+The candidate generator is deliberately absent: replay supplies the exact
+output interval and reruns the registered checker. -/
+structure RegisteredEnclosureCertificateEntry where
+  rule : UnaryEnclosureRule
+  request : UnaryEnclosureRequest
+  output : IntervalRat
+  deriving Repr, Inhabited
+
+/-- Exact subdivision and registered-rule evidence retained by a successful
+unary enclosure proof.  Each leaf contains the fixed checker inputs in the
+order in which the compositional executor consumes registered applications. -/
+inductive RegisteredEnclosureCertificateTree where
+  | leaf
+      (input : IntervalRat)
+      (output : IntervalRat)
+      (entries : Array RegisteredEnclosureCertificateEntry)
+      (compositionSteps : Nat)
+  | bisect
+      (input : IntervalRat)
+      (left right : RegisteredEnclosureCertificateTree)
+  deriving Repr, Inhabited
+
+/-- Replayable evidence for one registered-enclosure bound. -/
+structure RegisteredEnclosureCertificate where
+  precision : Int
+  taylorDepth : Nat
+  configuredMaxDepth : Nat
+  tree : RegisteredEnclosureCertificateTree
+  deriving Repr, Inhabited
 
 end LeanCert.Tactic.Extension
