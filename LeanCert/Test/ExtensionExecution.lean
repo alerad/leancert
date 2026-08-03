@@ -11,6 +11,33 @@ import LeanCert.Test.DownstreamPatterns.Extension
 namespace LeanCert.Test.ExtensionExecution
 
 open LeanCert.Test.DownstreamPatterns.Extension
+open Lean Meta Elab Tactic
+open LeanCert.Tactic.Semantic
+open LeanCert.Tactic.Extension
+
+/-- Exercise discovery followed by fixed replay against a fresh goal.  The
+second pass consumes the retained rule outputs and never calls a candidate. -/
+elab "registered_enclosure_replay" : tactic => unsafe do
+  let originalGoal ← getMainGoal
+  let target ← instantiateMVars (← getMainTarget)
+  let some spec ← parseBound? target
+    | throwError "registered_enclosure_replay expected a bound"
+  let prepared ← match ← prepareGoal (.bound spec) with
+    | .ok prepared => pure prepared
+    | .error failure => throwError failure.detail
+  let discoveryGoal ← mkFreshExprMVar target MetavarKind.syntheticOpaque
+  setGoals [discoveryGoal.mvarId!]
+  let certificate ←
+    match ← registeredEnclosureBoundSubdivCoreTyped prepared (-53) 10 4 with
+    | .ok outcome =>
+        unless (← getGoals).isEmpty do
+          throwError "registered enclosure discovery left goals"
+        pure outcome.certificate
+    | .error _ => throwError "registered enclosure discovery failed"
+  setGoals [originalGoal]
+  match ← replayRegisteredEnclosureBoundCoreTyped prepared certificate with
+  | .ok _ => pure ()
+  | .error _ => throwError "registered enclosure fixed replay failed"
 
 /-- Merely importing rules must not consume budget for ordinary expressions. -/
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x ^ 2 ≤ 1 := by
@@ -69,6 +96,10 @@ bisected leaves. -/
 set_option leancert.trust "kernel" in
 example : ∀ x ∈ Set.Icc (0 : ℝ) 2, narrowIdentity x ≤ 2 := by
   leancert?
+
+set_option leancert.trust "kernel" in
+example : ∀ x ∈ Set.Icc (0 : ℝ) 2, narrowIdentity x ≤ 2 := by
+  registered_enclosure_replay
 
 /- Subdivision also retries when the registered certificates are valid but
 their composed enclosure is too coarse for the requested comparison. -/
