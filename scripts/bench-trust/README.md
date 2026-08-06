@@ -9,6 +9,11 @@ cannot be measured reliably from inside one Lean process (imports alone cost
 ## Usage
 
 ```sh
+# prepare a fresh worktree (Mathlib cache plus both imported LeanCert roots)
+lake update
+lake exe cache get
+lake build LeanCert LeanCert.Tactic
+
 # full matrix, appends two runs per cell to the JSONL file
 python3 scripts/bench-trust/run.py
 
@@ -32,7 +37,7 @@ matrix before and after and compare against the baseline.
 The runner appends rather than truncating. Use a new output path for each
 session unless combining sessions is intentional.
 
-## Calibration summary (v4.32.2, Apple M1 Max, 2026-07-30)
+## Calibration summary (v4.32.2, Apple M1 Max, 2026-08-06)
 
 From `baselines/v4.32.2.jsonl`, using two consecutive compilations per cell.
 The figures below are mean marginal wall time over that family's import-only
@@ -40,12 +45,12 @@ baseline; differences of a few tenths of a second can be run-to-run noise.
 
 | family | scale | kernel | native |
 |---|---:|---:|---:|
-| point | 10 `interval_decide` log bounds | +1.30s | +0.52s |
-| integration | 500 partitions | +2.26s | approximately baseline |
-| subdivision | 64 subinterval checks | +2.42s | +0.62s |
-| finite sum | 1,000 terms | +1.14s | +0.25s |
-| finite sum | 10,000 terms | **+42.32s** | +0.25s |
-| optimization | 50 iterations | +0.71s | +0.71s |
+| point | 10 `interval_decide` log bounds | approximately baseline | approximately baseline |
+| integration | 500 partitions | +3.58s | +0.67s |
+| subdivision | 64 subinterval checks | +2.74s | +0.79s |
+| finite sum | 1,000 terms | +0.82s | approximately baseline |
+| finite sum | 10,000 terms | **+40.85s** | +0.13s |
+| optimization | 50 iterations | approximately baseline | approximately baseline |
 
 The finite-sum measurements justify routing large sums away from kernel
 reduction. The 500-partition gate keeps a still-manageable kernel route
@@ -53,7 +58,6 @@ available. Optimization showed no meaningful route crossover through 50
 iterations, so the 100-iteration gate is a conservative policy threshold
 rather than an empirically located crossover.
 
-The committed v4.32.2 run accurately records `git_dirty: true`: it measured the
-combined showcase worktree before its final commit. Rerun the matrix from the
-clean release commit for an exactly revision-reproducible publicity baseline.
-The older `v4.32.1.jsonl` remains historical calibration data.
+The committed v4.32.2 run records `git_dirty: false` at exact Core revision
+`907489ffcae7f42093e3eb13d9c13ee49472ff5d`. All 70 rows succeeded. The
+older `v4.32.1.jsonl` remains historical calibration data.
