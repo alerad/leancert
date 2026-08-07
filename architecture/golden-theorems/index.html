@@ -1,0 +1,5580 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Certified numerical computation for Lean 4 and Python.">
+      
+      
+      
+        <link rel="canonical" href="https://docs.leancert.io/architecture/golden-theorems/">
+      
+      
+        <link rel="prev" href="../trust-model/">
+      
+      
+        <link rel="next" href="../backend-selection/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Golden Theorems - LeanCert</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#golden-theorems" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="LeanCert" class="md-header__button md-logo" aria-label="LeanCert" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            LeanCert
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Golden Theorems
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/alerad/leancert" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    alerad/leancert
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="LeanCert" class="md-nav__button md-logo" aria-label="LeanCert" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    LeanCert
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/alerad/leancert" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    alerad/leancert
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../choosing-interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose Python or Lean
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lean Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../choosing-proof-shape/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing A Proof Shape
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Curated Showcase
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase-failures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Failure Showcase
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../python/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python SDK
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/capabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Capability Status
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Modeling
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Mathematical Modeling
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/modeling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exact AST and Domains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/modeling/simplification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simplification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../python/proving/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checked Proving
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Checked Proving
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/proving/bounds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exact Bounds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/proving/scalar-roots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scalar Roots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/proving/system-roots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nonlinear System Roots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/proving/integrals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exact Integrals and Bounds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/proving/eventual-bounds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Eventual Bounds
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/proving/outcomes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typed Outcomes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evidence and Audit
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evidence and Audit
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/evidence/trust/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trust Boundary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/evidence/export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export and Independent Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/toolkit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Numerical Toolkit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/adaptive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adaptive Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../python/ml/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine Learning
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Machine Learning
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/ml/export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lean Source Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Experimental Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Experimental Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/experimental/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Status and Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/experimental/quantifiers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quantifier and Witness Synthesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/experimental/bug-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bug-Report Triage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/public-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/solver/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Solver Toolkit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Result Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/exceptions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exceptions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/ast-utilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AST Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/artifact-verification-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Programmatic Artifact Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation and Compatibility
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/reference/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI and Diagnostics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../python-bridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bridge Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Direct Automation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Direct Automation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/leancert/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using leancert
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/bounds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounds and Inequalities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/roots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roots and No-Root Proofs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/optimization-discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimization and Discovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/eventual-bounds/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Eventual Bounds and Cutoff Discovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/checked-ad/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checked Automatic Differentiation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../direct/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_9" id="__nav_4_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tactics/choosing-tactics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choosing a Dedicated Tactic
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tactics/discovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Discovery Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tactics/end-to-end-example/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Discovery to Theorem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Proof Templates
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Proof Templates
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/checker-to-theorem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Checker-To-Theorem Pattern
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/table-certificates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table Certificates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/asymptotic-envelopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asymptotic Envelopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/pointwise-envelopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pointwise Envelopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/constant-factory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConstantFactory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/qproduct-finite-integrals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exact Product-Integral Certificates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/contour-shift/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contour Shift
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/directed-limits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Directed Limits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../proof-templates/wall-quotients/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wall Quotients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Domain Libraries
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Domain Libraries
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analytic Number Theory
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analytic Number Theory
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/chebyshev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chebyshev
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/finite-ant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Finite ANT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/asymptotic-ant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ANT Asymptotic
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/ant/explicit-pnt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explicit PNT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/qproduct-prime-limits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QProduct Prime Limits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../domains/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Certificate Engines
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Certificate Engines
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/ant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analytic Number Theory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/ant-asymp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Asymptotic Envelopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/chebyshev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chebyshev
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/qproduct/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QProduct
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ConstantFactory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/contour-shift/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contour Shift
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ML Verification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ML Verification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ml/neural-networks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ml/distillation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distillation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture and Trust
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture and Trust
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trust-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trust Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Golden Theorems
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Golden Theorems
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concept
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-theorems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Theorems
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Theorems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bound-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bound Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#root-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root Finding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#global-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checked-automatic-differentiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checked Automatic Differentiation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qproduct-product-integrals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QProduct Product Integrals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chebyshev-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chebyshev Certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analytic-number-theory-bridges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analytic Number Theory Bridges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asymptotic-envelope-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asymptotic Envelope Certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monotonicity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monotonicity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-aware-automatic-differentiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain-aware automatic differentiation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expression-support-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expression Support Tiers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Expression Support Tiers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exprsupportedcore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ExprSupportedCore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checked-evaluation-and-domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checked evaluation and domains
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#arithmetic-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arithmetic Backends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arithmetic Backends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rational-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rational Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dyadic-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dyadic Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#affine-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Affine Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-theorems-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Theorems Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification Routes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-certificate-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Certificate Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compiled-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compiled examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backend-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interval Backend Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../table-certificates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Table Certificates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../root-finding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Root Finding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../verification-status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verification Status
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ci-promises/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI Promises
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark Harness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/public-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Public API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Downstream Enclosure Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/compatibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Removed APIs and Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/imports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Imports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tactics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tactics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/certificate-apis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Certificate APIs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/algebraic-roots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Algebraic Root Certificates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../certificates/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Certificate API Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concept
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-theorems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Theorems
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Theorems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bound-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bound Verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#root-finding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Root Finding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#global-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checked-automatic-differentiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checked Automatic Differentiation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qproduct-product-integrals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        QProduct Product Integrals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chebyshev-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chebyshev Certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analytic-number-theory-bridges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analytic Number Theory Bridges
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#asymptotic-envelope-certificates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asymptotic Envelope Certificates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monotonicity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monotonicity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-aware-automatic-differentiation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain-aware automatic differentiation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expression-support-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expression Support Tiers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Expression Support Tiers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#exprsupportedcore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ExprSupportedCore
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checked-evaluation-and-domains" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checked evaluation and domains
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#arithmetic-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arithmetic Backends
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arithmetic Backends">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rational-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rational Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dyadic-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dyadic Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#affine-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Affine Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-theorems-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Theorems Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification Routes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-certificate-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Certificate Workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compiled-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compiled examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../trust-model/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Architecture and Trust
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="golden-theorems">Golden Theorems</h1>
+<p>LeanCert operates on a <strong>certificate-driven architecture</strong> where computable
+checkers run in Lean, and Golden Theorems lift successful checks to semantic
+theorems over real numbers.</p>
+<h2 id="concept">Concept</h2>
+<p>A Golden Theorem bridges the gap between a computable boolean check and a
+semantic proposition about real numbers. The checker can be evaluated through
+LeanCert's native, kernel, or automatic verification route.</p>
+<p>For example, to prove <span class="arithmatex">\(f(x) \le c\)</span> for all <span class="arithmatex">\(x \in I\)</span>, we use:</p>
+<div class="arithmatex">\[
+\text{checkUpperBound}(e, I, c) = \text{true} \implies \forall x \in I,\ \text{eval}(x, e) \le c
+\]</div>
+<p>The key insight is that the checker uses computable exact arithmetic, while the
+conclusion is a statement about real numbers. The Golden Theorem is
+kernel-checked in every route; the route controls how Lean proves that the
+checker returned <code>true</code>.</p>
+<h2 id="core-theorems">Core Theorems</h2>
+<p>Golden Theorems are defined across multiple files:
+- <code>Validity/Bounds.lean</code> - Rational arithmetic (the tactic-level default)
+- <code>Validity/DyadicBounds.lean</code> - Dyadic arithmetic (fast)
+- <code>Validity/AffineBounds.lean</code> - Affine arithmetic (tight bounds)
+- <code>Validity/Monotonicity.lean</code> - Monotonicity via automatic differentiation
+- <code>Validity/Krawczyk.lean</code> - existence and uniqueness for square systems in the differentiable AD fragment
+- <code>Validity/Algebra.lean</code> - algebraic root counts and simplicity, complete cubic isolation, and separation meshes
+- <code>Engine/Chebyshev/Psi.lean</code> - Chebyshev <code>ψ</code> finite-range certificates
+- <code>Engine/Chebyshev/Theta.lean</code> - Chebyshev <code>θ</code> finite-range certificates
+- <code>Cert/Interval.lean</code> - shared rational interval Golden Theorem combinators
+- <code>ANT/Step.lean</code> - finite arithmetic step-sum certificates
+- <code>ANT/Abel.lean</code> - finite Abel / partial-summation certificates
+- <code>ANT/EulerProduct.lean</code> - finite Euler-product and log-product certificates
+- <code>ANT/PrimeEuler.lean</code> - prime Euler-product presets
+- <code>ANT/Dirichlet.lean</code> - finite Dirichlet-style truncation certificates
+- <code>ANT/Mertens.lean</code> - finite Mertens-style prime-sum certificates
+- <code>ANT/Asymp/Env.lean</code> - asymptotic main-term/error envelope certificates
+- <code>ANT/Asymp/Stieltjes.lean</code> - Stieltjes-Abel envelope transform certificates
+- <code>ANT/Asymp/Hyperbola.lean</code> - Dirichlet-hyperbola envelope certificates
+- <code>ANT/Asymp/Checkers.lean</code> - dyadic domination checkers for envelope errors
+- <code>QProduct/Certificate.lean</code> - Exact finite q-product integrals
+- <code>QProduct/PrimeLambda.lean</code> - Prime-limit q-product certificates</p>
+<h3 id="bound-verification">Bound Verification</h3>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upper bound <span class="arithmatex">\(f(x) \le c\)</span></td>
+<td><code>verify_upper_bound</code></td>
+<td><code>checkUpperBound</code></td>
+</tr>
+<tr>
+<td>Lower bound <span class="arithmatex">\(c \le f(x)\)</span></td>
+<td><code>verify_lower_bound</code></td>
+<td><code>checkLowerBound</code></td>
+</tr>
+<tr>
+<td>Strict upper <span class="arithmatex">\(f(x) &lt; c\)</span></td>
+<td><code>verify_strict_upper_bound</code></td>
+<td><code>checkStrictUpperBound</code></td>
+</tr>
+<tr>
+<td>Strict lower <span class="arithmatex">\(c &lt; f(x)\)</span></td>
+<td><code>verify_strict_lower_bound</code></td>
+<td><code>checkStrictLowerBound</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_upper_bound</span>
+</code></pre></div>
+<h3 id="root-finding">Root Finding</h3>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Root existence</td>
+<td><code>verify_sign_change</code></td>
+<td><code>checkSignChange</code></td>
+</tr>
+<tr>
+<td>Root uniqueness</td>
+<td><code>verify_unique_root_computable</code></td>
+<td><code>checkNewtonContractsCore</code></td>
+</tr>
+<tr>
+<td>No roots</td>
+<td><code>verify_no_root</code></td>
+<td><code>checkNoRoot</code></td>
+</tr>
+<tr>
+<td>System-root existence</td>
+<td><code>verify_system_root_exists</code></td>
+<td><code>krawczykCheck</code></td>
+</tr>
+<tr>
+<td>System-root uniqueness</td>
+<td><code>verify_system_root_unique</code></td>
+<td><code>krawczykCheck</code></td>
+</tr>
+<tr>
+<td>Unique system root</td>
+<td><code>verify_unique_system_root</code></td>
+<td><code>krawczykCheck</code></td>
+</tr>
+<tr>
+<td>Polynomial separability</td>
+<td><code>verify_separable</code></td>
+<td><code>bezoutCheck</code></td>
+</tr>
+<tr>
+<td>Every real polynomial root is simple</td>
+<td><code>verify_real_roots_simple</code></td>
+<td><code>bezoutCheck</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_sign_change</span>
+</code></pre></div>
+<h3 id="global-optimization">Global Optimization</h3>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Global lower bound</td>
+<td><code>verify_global_lower_bound</code></td>
+<td><code>checkGlobalLowerBound</code></td>
+</tr>
+<tr>
+<td>Global upper bound</td>
+<td><code>verify_global_upper_bound</code></td>
+<td><code>checkGlobalUpperBound</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Validity.GlobalOpt.verify_global_lower_bound</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Note</strong>: Global optimization uses <code>ADSupported</code> (not <code>ExprSupportedCore</code>) and multivariate environments.</p>
+</blockquote>
+<h3 id="checked-automatic-differentiation">Checked Automatic Differentiation</h3>
+<p>Checked AD combines support and box-dependent domain validation with interval
+dual-number evaluation. A successful result is therefore enough to derive the
+semantic derivative statement; callers do not separately prove that reciprocal
+arguments exclude zero or logarithm arguments are positive.</p>
+<table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th>Rational arithmetic</th>
+<th>Dyadic arithmetic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One partial</td>
+<td><code>derivIntervalChecked_correct</code></td>
+<td><code>derivIntervalDyadicChecked_correct</code></td>
+</tr>
+<tr>
+<td>Gradient</td>
+<td><code>gradientIntervalChecked_correct</code></td>
+<td><code>gradientIntervalDyadicChecked_correct</code></td>
+</tr>
+<tr>
+<td>Rational input converted to Dyadic</td>
+<td>—</td>
+<td><code>derivIntervalDyadicCheckedOfRat_correct</code>, <code>gradientIntervalDyadicCheckedOfRat_correct</code></td>
+</tr>
+<tr>
+<td>Differentiability from a successful value-and-derivative call</td>
+<td><code>evalWithDerivChecked_differentiableAt</code></td>
+<td><code>evalWithDerivDyadicChecked_differentiableAt</code></td>
+</tr>
+</tbody>
+</table>
+<p>The Dyadic <code>OfRat</code> theorems include the outward input-conversion proof. See
+<a href="../../direct/checked-ad/">Checked Automatic Differentiation</a> for a complete
+compiled example and the exact coordinate alignment of gradient results.</p>
+<h3 id="integration">Integration</h3>
+<p><strong>Rational backend:</strong></p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Validity.Integration.verify_integral_bound</span>
+</code></pre></div>
+<strong>Dyadic backend</strong> (for complex integrands like Li₂ where rational arithmetic explodes):</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Validity.IntegrationDyadic.integrateInterval1Dyadic_correct</span>
+</code></pre></div>
+The theorem-level dyadic integration path accepts arbitrary expressions
+(including <code>inv</code>, <code>log</code>, <code>atanh</code>) under explicit domain-validity hypotheses.
+Public computational endpoints use checked evaluators and return a domain error
+instead of exposing finite fallback bounds.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Validity.IntegrationDyadic.integratePartitionDyadic</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Validity.IntegrationDyadic.integratePartitionDyadicChecked_fst</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Validity.IntegrationDyadic.integratePartitionDyadicChecked_snd</span>
+</code></pre></div>
+<h3 id="qproduct-product-integrals">QProduct Product Integrals</h3>
+<p><code>LeanCert.QProduct</code> is a specialized exact-arithmetic certificate family for
+finite products</p>
+<div class="arithmatex">\[
+F(S) = \int_0^1 \prod_{n \in S} (1 - u^n)\,du.
+\]</div>
+<p>The finite checker expands the product into a signed subset-sum polynomial and
+integrates exactly over <code>ℚ</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exact finite interval</td>
+<td><code>verify_finiteIntegral_interval</code></td>
+<td><code>checkFiniteIntegralInterval</code></td>
+</tr>
+<tr>
+<td>Finite upper bound</td>
+<td><code>verify_finiteIntegral_upper</code></td>
+<td><code>checkFiniteIntegralUpper</code></td>
+</tr>
+<tr>
+<td>Finite lower bound</td>
+<td><code>verify_finiteIntegral_lower</code></td>
+<td><code>checkFiniteIntegralLower</code></td>
+</tr>
+<tr>
+<td>Prime-limit upper bound</td>
+<td><code>verify_primeLambda_upper</code></td>
+<td><code>checkPrimeLambdaUpper</code></td>
+</tr>
+</tbody>
+</table>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_finiteIntegral_interval</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_primeLambda_upper</span>
+</code></pre></div>
+Prime-limit lower bounds are intentionally hybrid: the finite arithmetic is
+exact, but the lower side needs a mathematical tail proof. The bridge theorem
+is:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">primeLambda_lower_of_forall</span>
+</code></pre></div>
+The reusable odd-prime tail certificate is:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">primeLambda_sandwich</span>
+</code></pre></div>
+The initial module includes the formally proved tail certificate
+<code>primeLambda_gt_half : (1 : ℝ) / 2 &lt; primeLambda</code>.</p>
+<h3 id="chebyshev-certificates">Chebyshev Certificates</h3>
+<p>The Chebyshev engines expose specialized finite-range Golden Theorems for
+number-theoretic functions.</p>
+<p>For <code>ψ</code>, the checker bounds a computable rational envelope <code>psiUB</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One natural input</td>
+<td><code>verify_psi_le_mul</code></td>
+<td><code>checkPsiLeMulWith</code></td>
+</tr>
+<tr>
+<td>All natural inputs up to <code>bound</code></td>
+<td><code>verify_all_psi_le_mul</code></td>
+<td><code>checkAllPsiLeMulWith</code></td>
+</tr>
+<tr>
+<td>All real inputs up to <code>bound</code></td>
+<td><code>verify_all_psi_le_mul_real</code></td>
+<td><code>checkAllPsiLeMulWith</code></td>
+</tr>
+</tbody>
+</table>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_all_psi_le_mul</span>
+</code></pre></div>
+For <code>θ</code>, the checker supports upper, absolute-error, and relative-error bounds:</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upper bound</td>
+<td><code>verify_theta_le_mul</code></td>
+<td><code>checkThetaLeMulWith</code></td>
+</tr>
+<tr>
+<td>Absolute error</td>
+<td><code>verify_theta_abs_error</code></td>
+<td><code>checkThetaAbsError</code></td>
+</tr>
+<tr>
+<td>Relative error</td>
+<td><code>verify_theta_rel_error</code></td>
+<td><code>checkThetaRelError</code></td>
+</tr>
+<tr>
+<td>Range relative error</td>
+<td><code>verify_all_theta_rel_error</code></td>
+<td><code>checkAllThetaRelError</code></td>
+</tr>
+<tr>
+<td>Unit-interval real relative error</td>
+<td><code>verify_theta_rel_error_real</code></td>
+<td><code>checkThetaRelErrorReal</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_all_theta_rel_error</span>
+</code></pre></div>
+<h3 id="analytic-number-theory-bridges">Analytic Number Theory Bridges</h3>
+<p>The ANT layer exposes small bridge Golden Theorems that compose with the
+Chebyshev engines.</p>
+<p>The shared interval helper used by these APIs is:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Cert.verify_rat_interval</span>
+</code></pre></div>
+| Goal | Theorem | Checker/Data |
+|------|---------|--------------|
+| Finite step-sum interval | <code>verify_stepSum_interval</code> | <code>checkStepSumInterval</code> |
+| Exact Abel interval | <code>verify_abel_interval</code> | <code>checkAbelInterval</code> |
+| Bounded Abel interval | <code>verify_abelBound_interval</code> | <code>checkAbelBoundInterval</code> |
+| Finite Euler product interval | <code>verify_eulerProduct_interval</code> | <code>checkEulerProductInterval</code> |
+| Finite log-product interval | <code>verify_logProduct_interval</code> | <code>checkLogProductInterval</code> |
+| Log interval to product interval | <code>verify_product_interval_of_log_interval</code> | log interval proof |
+| Log lower to product lower | <code>verify_product_lower_of_log_lower</code> | log lower proof |
+| Log upper to product upper | <code>verify_product_upper_of_log_upper</code> | log upper proof |
+| Prime product <code>∏(1 - 1/p)</code> | <code>verify_primeEulerOneMinusInv_interval</code> | <code>checkPrimeEulerOneMinusInvInterval</code> |
+| Prime product <code>∏(1 + 1/p)</code> | <code>verify_primeEulerOnePlusInv_interval</code> | <code>checkPrimeEulerOnePlusInvInterval</code> |
+| Finite Dirichlet sum interval | <code>verify_dirichletSum_interval</code> | <code>checkDirichletSumInterval</code> |
+| Harmonic truncation interval | <code>verify_harmonicSum_interval</code> | <code>checkHarmonicSumInterval</code> |
+| Prime harmonic truncation interval | <code>verify_primeHarmonicSum_interval</code> | <code>checkPrimeHarmonicSumInterval</code> |
+| Prime log-over-prime interval | <code>verify_logPrimeOverPrimeSum_interval</code> | <code>checkLogPrimeOverPrimeSumInterval</code> |
+| Finite Mertens log-sum interval | <code>verify_mertensLogSum_interval</code> | <code>checkMertensLogSumInterval</code> |
+| Abel-routed Mertens interval | <code>verify_mertensAbel_interval</code> | <code>checkMertensAbelInterval</code> |</p>
+<p>The central exact identity is:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">weightedSumRat_eq_abelTransformRat</span>
+</code></pre></div>
+The first Chebyshev-to-Mertens bridge is finite:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_mertensLogSum_interval</span>
+</code></pre></div>
+Here <code>mertensLogSum N</code> is <code>∑ p ≤ N, log p / p</code>, and the checker uses the
+existing Chebyshev theta logarithm envelopes.</p>
+<p>The bounded Abel bridge has the reusable shape:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_abelBound_interval</span>
+</code></pre></div>
+<h3 id="asymptotic-envelope-certificates">Asymptotic Envelope Certificates</h3>
+<p>The asymptotic layer introduces semantic main-term/error-term envelopes for
+summatory functions:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kd">structure</span><span class="w"> </span><span class="n">AsympEnv</span><span class="w"> </span><span class="n">where</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="n">seq</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="n">ℝ</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span><span class="n">cutoff</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Nat</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">  </span><span class="n">mainTerm</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">  </span><span class="n">errorTerm</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Expr</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">  </span><span class="n">cert</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">N</span><span class="o">,</span><span class="w"> </span><span class="n">cutoff</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">→</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">      </span><span class="bp">|</span><span class="n">prefixSum</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">(</span><span class="n">N</span><span class="w"> </span><span class="bp">+</span><span class="w"> </span><span class="mi">1</span><span class="o">)</span><span class="w"> </span><span class="bp">-</span><span class="w"> </span><span class="n">evalAtNat</span><span class="w"> </span><span class="n">mainTerm</span><span class="w"> </span><span class="n">N</span><span class="bp">|</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">evalAtNat</span><span class="w"> </span><span class="n">errorTerm</span><span class="w"> </span><span class="n">N</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">  </span><span class="n">error_nonneg</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">    </span><span class="bp">∀</span><span class="w"> </span><span class="n">N</span><span class="o">,</span><span class="w"> </span><span class="n">cutoff</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="bp">→</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="bp">≤</span><span class="w"> </span><span class="n">evalAtNat</span><span class="w"> </span><span class="n">errorTerm</span><span class="w"> </span><span class="n">N</span>
+</code></pre></div>
+<p>The Golden Theorem families are:</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem / API</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Envelope lower/upper bounds</td>
+<td><code>AsympEnv.lower_le_summatory</code>, <code>AsympEnv.summatory_le_upper</code></td>
+</tr>
+<tr>
+<td>Stieltjes-Abel envelope</td>
+<td><code>verify_stieltjes_envelope</code></td>
+</tr>
+<tr>
+<td><code>1 / n</code> Stieltjes envelope</td>
+<td><code>verify_one_over_n_stieltjes_envelope</code></td>
+</tr>
+<tr>
+<td>Dirichlet hyperbola envelope</td>
+<td><code>verify_dirichlet_hyperbola_envelope</code></td>
+</tr>
+<tr>
+<td>Convolution via hyperbola bridge</td>
+<td><code>verify_dirichlet_convolution_envelope</code></td>
+</tr>
+<tr>
+<td>Dyadic expression domination</td>
+<td><code>verify_expr_le_on_interval_dyadic</code>, <code>verify_expr_le_with_slab_tail_dyadic</code></td>
+</tr>
+<tr>
+<td>Generated Stieltjes error domination</td>
+<td><code>verify_stieltjes_error_le_target_with_slab_tail_dyadic</code></td>
+</tr>
+<tr>
+<td>Generated hyperbola error domination</td>
+<td><code>verify_hyperbola_error_le_target_with_slab_tail_dyadic</code></td>
+</tr>
+</tbody>
+</table>
+<p>The usual workflow is to generate a transform envelope, prove that its generated
+error term is dominated by a simpler public error term, and then use
+<code>AsympEnv.weakenError</code> to expose the simpler statement.</p>
+<h3 id="monotonicity">Monotonicity</h3>
+<p>Prove monotonicity properties using automatic differentiation with interval arithmetic.</p>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Theorem</th>
+<th>Checker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Strictly increasing</td>
+<td><code>verify_strictly_increasing</code></td>
+<td><code>checkStrictlyIncreasing</code></td>
+</tr>
+<tr>
+<td>Strictly decreasing</td>
+<td><code>verify_strictly_decreasing</code></td>
+<td><code>checkStrictlyDecreasing</code></td>
+</tr>
+<tr>
+<td>Monotone (weak)</td>
+<td><code>verify_monotone</code></td>
+<td><code>checkStrictlyIncreasing</code></td>
+</tr>
+<tr>
+<td>Antitone (weak)</td>
+<td><code>verify_antitone</code></td>
+<td><code>checkStrictlyDecreasing</code></td>
+</tr>
+</tbody>
+</table>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Validity.verify_strictly_increasing</span>
+</code></pre></div>
+The approach uses automatic differentiation to compute interval bounds on derivatives:
+1. Compute <code>dI := derivIntervalCore e I cfg</code> (interval containing all derivatives)
+2. If <code>dI.lo &gt; 0</code>, then f'(x) &gt; 0 for all x ∈ I, so f is strictly increasing
+3. If <code>dI.hi &lt; 0</code>, then f'(x) &lt; 0 for all x ∈ I, so f is strictly decreasing</p>
+<p>The mathematical foundation is the Mean Value Theorem: if f' has consistent sign, then f is monotonic.</p>
+<h3 id="domain-aware-automatic-differentiation">Domain-aware automatic differentiation</h3>
+<p><code>ADSupported</code> remains the fast, domain-free fragment.  For expressions that
+contain reciprocal or logarithm nodes, use the computable checked API instead:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>derivIntervalChecked  : Expr → IntervalEnv → Nat → EvalConfig →
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>  EvalResult IntervalRat
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>gradientIntervalChecked : Expr → Box → EvalConfig →
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>  EvalResult (List IntervalRat)
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>derivIntervalDyadicChecked : Expr → IntervalDyadicEnv → Nat → DyadicConfig →
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>  EvalResult IntervalDyadic
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>gradientIntervalDyadicChecked : Expr → IntervalDyadicEnv → Nat → DyadicConfig →
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>  EvalResult (List IntervalDyadic)
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>derivIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConfig →
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>  EvalResult IntervalDyadic
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>gradientIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConfig →
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>  EvalResult (List IntervalDyadic)
+</code></pre></div>
+The checker recursively validates syntax and the actual input box.  It accepts
+<code>inv e</code> only when the computed enclosure of <code>e</code> excludes zero, and <code>log e</code>
+only when that enclosure is strictly positive.  Failure is structured data
+(<code>reciprocalContainsZero</code>, <code>logNonpositive</code>, or a nested/unsupported failure),
+not a finite fallback interval.</p>
+<p>The derivative API's Golden Theorem does not require a separate syntactic
+support proof: successful checked computation carries the support and domain
+evidence.</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">derivIntervalChecked_correct</span>
+</code></pre></div>
+<code>evalWithDerivChecked_differentiableAt</code> additionally extracts the analytic
+differentiability fact certified by the same successful run.  The current
+checked fragment is <code>const</code>, <code>var</code>, <code>add</code>, <code>mul</code>, <code>neg</code>, <code>sin</code>, <code>cos</code>, <code>exp</code>,
+<code>inv</code>, and <code>log</code>; other partial functions are rejected explicitly.</p>
+<p>For full gradients, <code>gradientIntervalChecked_correct</code> returns a
+<code>List.Forall₂</code> proof aligning coordinates <code>0, …, B.length - 1</code> with their
+certified derivative intervals.</p>
+<p>The Dyadic variants use the identical checked fragment and failure model while
+performing dual addition and multiplication with Dyadic endpoints and outward
+rounding at every operation. Their public success condition also certifies that
+<code>cfg.precision ≤ 0</code>. The corresponding Golden Theorems are
+<code>derivIntervalDyadicChecked_correct</code> and
+<code>gradientIntervalDyadicChecked_correct</code>.</p>
+<p><strong>Example:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1">-- Prove exp is strictly increasing on [0, 1]</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="kd">theorem</span><span class="w"> </span><span class="n">exp_strictly_increasing</span><span class="w"> </span><span class="o">:</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">    </span><span class="n">StrictMonoOn</span><span class="w"> </span><span class="o">(</span><span class="k">fun</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="bp">=&gt;</span><span class="w"> </span><span class="n">Real.exp</span><span class="w"> </span><span class="n">x</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="n">Set.Icc</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">1</span><span class="o">)</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="k">have</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">LeanCert.Validity.verify_strictly_increasing</span><span class="w"> </span><span class="o">(</span><span class="n">Expr.exp</span><span class="w"> </span><span class="o">(</span><span class="n">Expr.var</span><span class="w"> </span><span class="mi">0</span><span class="o">))</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">    </span><span class="o">(</span><span class="n">ADSupported.exp</span><span class="w"> </span><span class="o">(</span><span class="n">ADSupported.var</span><span class="w"> </span><span class="mi">0</span><span class="o">))</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">    </span><span class="o">⟨</span><span class="mi">0</span><span class="o">,</span><span class="w"> </span><span class="mi">1</span><span class="o">,</span><span class="w"> </span><span class="kd">by</span><span class="w"> </span><span class="n">norm_num</span><span class="o">⟩</span><span class="w"> </span><span class="o">{}</span><span class="w"> </span><span class="o">(</span><span class="kd">by</span><span class="w"> </span><span class="n">native_decide</span><span class="o">)</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="n">simp</span><span class="w"> </span><span class="n">only</span><span class="w"> </span><span class="o">[</span><span class="n">Expr.eval_exp</span><span class="o">,</span><span class="w"> </span><span class="n">Expr.eval_var</span><span class="o">]</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">h</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span><span class="n">convert</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="n">using</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="bp">&lt;;&gt;</span><span class="w"> </span><span class="n">simp</span>
+</code></pre></div></p>
+<h2 id="expression-support-tiers">Expression Support Tiers</h2>
+<p>Not all expressions support all theorems.</p>
+<h3 id="exprsupportedcore">ExprSupportedCore</h3>
+<p>Fully computable subset enabling <code>native_decide</code>:</p>
+<ul>
+<li><code>const</code>, <code>var</code>, <code>add</code>, <code>mul</code>, <code>neg</code></li>
+<li><code>sin</code>, <code>cos</code>, <code>exp</code>, <code>sqrt</code> (via Taylor series)</li>
+</ul>
+<p>Trigonometric range reduction is shared through <code>LeanCert.Core.TrigReduction</code>.
+That module provides rational bounds for <code>π</code> and <code>2π</code>, computable period
+shifting, and correctness lemmas reused by both interval-rational and Taylor
+model trigonometric evaluators.</p>
+<h3 id="checked-evaluation-and-domains">Checked evaluation and domains</h3>
+<p>Checked evaluators accept arbitrary <code>Expr</code> values. Partial functions such as
+<code>inv</code>, <code>log</code>, and <code>atanh</code> are governed by runtime domain checks rather than a
+second syntactic support predicate. A successful <code>Option</code>/<code>EvalResult</code> carries
+an enclosure; an invalid domain returns <code>none</code> or a structured error.</p>
+<h2 id="arithmetic-backends">Arithmetic Backends</h2>
+<p>LeanCert provides three arithmetic backends, each with different tradeoffs:</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>File</th>
+<th>Speed</th>
+<th>Precision</th>
+<th>Best For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rational</strong></td>
+<td><code>Validity/Bounds.lean</code></td>
+<td>Slow</td>
+<td>Exact</td>
+<td>Small expressions, reproducibility</td>
+</tr>
+<tr>
+<td><strong>Dyadic</strong></td>
+<td><code>Validity/DyadicBounds.lean</code></td>
+<td>Fast</td>
+<td>Fixed-precision</td>
+<td>Deep expressions, neural networks</td>
+</tr>
+<tr>
+<td><strong>Affine</strong></td>
+<td><code>Validity/AffineBounds.lean</code></td>
+<td>Medium</td>
+<td>Correlation-aware</td>
+<td>Dependency-heavy expressions</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rational-backend">Rational Backend</h3>
+<p>The Rational backend uses arbitrary-precision rationals. It guarantees exact
+intermediate arithmetic but can suffer from denominator explosion on deep
+expressions. Backend defaults depend on the entry point: public interval
+evaluation uses expression-aware <code>auto</code> selection, global optimization selects
+Dyadic in <code>auto</code> mode, and integration and root finding select Rational. The
+semantic <code>leancert</code> tactic is a solver portfolio, not a single backend.</p>
+<p>See <a href="../backend-selection/">Interval Backend Selection</a> for the authoritative
+operation-by-operation matrix.</p>
+<h3 id="dyadic-backend">Dyadic Backend</h3>
+<p>Uses fixed-precision dyadic numbers (m · 2^e) to avoid denominator explosion:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">LeanCert.Validity.verify_upper_bound_dyadic</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Note</strong>: The API takes rational bounds (<code>lo</code>, <code>hi</code>, <code>c : ℚ</code>) for user convenience, but internally converts to <code>IntervalDyadic</code> and runs <code>evalIntervalDyadic</code> — the actual computation uses Dyadic arithmetic for speed.</p>
+</blockquote>
+<p>Key parameters:
+- <code>prec : Int</code> - Precision (negative = more precision, must be ≤ 0)
+- <code>depth : Nat</code> - Taylor series depth for transcendentals</p>
+<p>The <code>'</code> variant (<code>verify_upper_bound_dyadic'</code>) uses <code>ADSupported</code> and handles domain validity automatically.</p>
+<p>Essential for neural network verification and optimization loops where expression depth can be in the hundreds.</p>
+<h3 id="affine-backend">Affine Backend</h3>
+<p>Solves the "dependency problem" in interval arithmetic by tracking linear correlations:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">#check</span><span class="w"> </span><span class="n">verify_upper_bound_affine1</span>
+</code></pre></div>
+The <code>'</code> variant (<code>verify_upper_bound_affine1'</code>) uses <code>ADSupported</code> and handles domain validity automatically.</p>
+<p>Affine arithmetic represents values as <code>x̂ = c₀ + Σᵢ cᵢ·εᵢ + [-r, r]</code> where εᵢ ∈ [-1, 1] are noise symbols. This means:</p>
+<ul>
+<li>Standard IA: <code>x - x</code> on <code>[-1, 1]</code> → <code>[-2, 2]</code> (pessimistic)</li>
+<li>Affine AA: <code>x - x</code> on <code>[-1, 1]</code> → <code>[0, 0]</code> (exact)</li>
+</ul>
+<p>Use affine when the same variable appears multiple times in an expression.</p>
+<h2 id="backend-theorems-summary">Backend Theorems Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Goal</th>
+<th>Rational</th>
+<th>Dyadic</th>
+<th>Affine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upper bound</td>
+<td><code>verify_upper_bound</code></td>
+<td><code>verify_upper_bound_dyadic</code></td>
+<td><code>verify_upper_bound_affine1</code></td>
+</tr>
+<tr>
+<td>Lower bound</td>
+<td><code>verify_lower_bound</code></td>
+<td><code>verify_lower_bound_dyadic</code></td>
+<td><code>verify_lower_bound_affine1</code></td>
+</tr>
+</tbody>
+</table>
+<p>Each backend also provides <code>'</code> variants for <code>ADSupported</code> expressions where domain validity is automatic:
+- <code>verify_upper_bound_dyadic'</code>
+- <code>verify_lower_bound_affine1'</code>
+- etc.</p>
+<h2 id="verification-routes">Verification Routes</h2>
+<p>Verification route and arithmetic backend are independent choices. The same
+semantic tactic can use rational, dyadic, or affine certificates and then close
+the resulting checker equality through one of three routes:</p>
+<table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Equality proof</th>
+<th>Trust profile</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>native</code></td>
+<td>native evaluation</td>
+<td>Includes Lean's native compiler trust</td>
+</tr>
+<tr>
+<td><code>kernel</code></td>
+<td>kernel reduction</td>
+<td>No <code>Lean.ofReduceBool</code> or <code>Lean.trustCompiler</code></td>
+</tr>
+<tr>
+<td><code>auto</code></td>
+<td>calibrated choice between the two</td>
+<td>Uses kernel reduction only for computations within the configured gates</td>
+</tr>
+</tbody>
+</table>
+<p>Select a route per invocation:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="kd">example</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">Real.log</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="bp">&lt;</span><span class="w"> </span><span class="mi">1</span><span class="bp">.</span><span class="mi">61</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kd">by</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span><span class="n">interval_decide</span><span class="w"> </span><span class="o">(</span><span class="n">trust</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">kernel</span><span class="o">)</span>
+</code></pre></div>
+<p>or set the file-level default:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kd">set_option</span><span class="w"> </span><span class="n">leancert.trust</span><span class="w"> </span><span class="s2">&quot;kernel&quot;</span>
+</code></pre></div>
+<p>See <a href="../verification-status/">Verification Status</a> for the exact option syntax,
+automatic-route gates, and audit commands.</p>
+<h2 id="the-certificate-workflow">The Certificate Workflow</h2>
+<ol>
+<li><strong>Formulate the goal in Lean</strong>: expression, domain, and target claim</li>
+<li><strong>Run the checker</strong>: prove <code>check... = true</code> using the selected verification route</li>
+<li><strong>Apply the Golden Theorem</strong>: lift the boolean result to a semantic theorem</li>
+<li><strong>Complete the proof script</strong>: keep the theorem statement and proof term in Lean</li>
+</ol>
+<p>The shared verification choke point returns three structured outcomes:
+accepted with route telemetry, rejected because the Boolean checker evaluated
+to <code>false</code>, or failed because verification infrastructure could not produce a
+result. Only accepted verification retains generated declarations; rejection
+and failure restore the complete speculative state.</p>
+<p>Optional external orchestration now lives in separate repos:</p>
+<ul>
+<li><code>https://github.com/alerad/leancert-python</code></li>
+<li><code>https://github.com/alerad/leancert-bridge</code></li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>External tooling (optional)      Lean
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>──────                           ────
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>find_bounds(x²+sin(x), [0,1])
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>    │
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>    ▼
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>{expr: &quot;...&quot;, interval: [0,1],   ──▶  checkUpperBound(...) = true
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a> upper_bound: 2, config: {...}}        │
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>                                       ▼
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>                                  verify_upper_bound(...)
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>                                       │
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a>                                       ▼
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a>                                  ∀ x ∈ [0,1], x² + sin(x) ≤ 2
+</code></pre></div>
+<h2 id="compiled-examples">Compiled examples</h2>
+<p>Supported demonstrations live under <code>LeanCert/Examples</code>, not in a separate
+top-level research-sketch directory. They are divided into two explicit Lake
+targets:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Broad supported demonstrations.</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>lake<span class="w"> </span>build<span class="w"> </span>Examples
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># Small announcement-quality success and failure cases.</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>lake<span class="w"> </span>build<span class="w"> </span>Showcase
+</code></pre></div>
+<p>The <a href="../../showcase/">curated showcase</a> covers a transcendental point
+inequality, quantified and multivariate bounds, root uniqueness, exact
+integration, and a domain-specific certified table theorem. The
+<a href="../../showcase-failures/">failure showcase</a> covers false claims, unsupported
+syntax, domain obstructions, exhausted subdivision, and reported native
+fallback.</p>
+<p>Reusable theorems do not belong to the examples layer. Put them under
+<code>LeanCert.CertifiedBounds</code>; example modules must not own downstream APIs.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
