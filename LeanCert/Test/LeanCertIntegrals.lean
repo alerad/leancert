@@ -37,6 +37,42 @@ example : (3 / 10 : ℝ) ≤ (∫ x in (0 : ℝ)..1, x ^ 2) ∧
     (∫ x in (0 : ℝ)..1, x ^ 2) ≤ 2 / 5 := by
   leancert
 
+/-! False rational-polynomial equalities are ordinary refutations, not proof
+transport failures.  These cover a monomial, a linear term, and a constant. -/
+
+/--
+error: integral_exact: The statement is false. Computed integral: 1/4; claimed: 1/3.
+-/
+#guard_msgs in
+example : (∫ x in (0 : ℝ)..1, x ^ 3) = 1 / 3 := by
+  integral_exact
+
+/--
+error: integral_exact: The statement is false. Computed integral: 1/2; claimed: 1/5.
+-/
+#guard_msgs in
+example : (∫ x in (0 : ℝ)..1, x) = 1 / 5 := by
+  integral_exact
+
+/--
+error: integral_exact: The statement is false. Computed integral: 1; claimed: 2.
+-/
+#guard_msgs in
+example : (∫ _x in (0 : ℝ)..1, (1 : ℝ)) = 2 := by
+  integral_exact
+
+/--
+error: LeanCert recognized: definite integral bound
+
+The statement is false.
+
+Certified counterexample: exact rational integral evaluation
+The computed integral is 1/2, not 1/5.
+-/
+#guard_msgs in
+example : (∫ x in (0 : ℝ)..1, x) = 1 / 5 := by
+  leancert?
+
 private def shiftedSquare (x : ℝ) : ℝ := (x - 1) ^ 2
 
 example : (∫ x in (0 : ℝ)..2, shiftedSquare x) = 2 / 3 := by
