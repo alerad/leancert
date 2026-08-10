@@ -81,6 +81,9 @@ theorem observerIntegralList_powerset_eq (R Q : Finset Nat) :
     observerIntegralList R Q.powerset.toList = observerIntegral R Q := by
   classical
   simp [observerIntegralList, observerIntegral, observerTerm]
+  apply Finset.sum_congr rfl
+  intro A _
+  rfl
 
 /--
 Interval ConstantFactory identity.
