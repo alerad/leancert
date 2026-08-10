@@ -450,7 +450,9 @@ private lemma twosComposition_length (k : ℕ) : (twosComposition k).length = k 
 
 private lemma twosComposition_blocksFun (k : ℕ) (i : Fin (twosComposition k).length) :
     (twosComposition k).blocksFun i = 2 := by
-  simp [twosComposition, Composition.blocksFun]
+  unfold Composition.blocksFun
+  change (List.replicate k 2)[i.val] = 2
+  exact List.getElem_replicate (by simpa [twosComposition_length] using i.isLt)
 
 private lemma twosComposition_unique (k : ℕ) (comp : Composition (2 * k))
     (hall : ∀ i, comp.blocksFun i = 2) : comp = twosComposition k := by
