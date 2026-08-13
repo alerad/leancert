@@ -11,7 +11,9 @@ import LeanCert.Core.DyadicCell
 An inductive tree makes coverage structural. A flat list of paths is convenient
 for untrusted search, serialization, and parallel replay. This module connects
 the two with a small checker that reconstructs a tree and accepts only its exact
-canonical leaf list.
+canonical leaf list. Acceptance certifies that the decoded paths form a complete
+binary cover; correspondence between those paths and any external proof or
+evaluation records must be maintained by the producer of those records.
 -/
 
 namespace LeanCert.Core
@@ -88,8 +90,10 @@ private def reconstructFuel : Nat → List DyadicPath → Option DyadicSubdivisi
         | some left, some right => some (.split left right)
         | _, _ => none
 
-/-- Check a flat, canonically ordered list of addressed leaves. On success the
-returned tree is a proof-friendly reconstruction of precisely those leaves. -/
+/-- Structurally check a flat, canonically ordered list of addressed leaves. On
+success the returned tree is a proof-friendly reconstruction of precisely those
+leaves. This does not independently associate the paths with external leaf
+evidence. -/
 def check (leaves : List DyadicPath) : Option DyadicSubdivisionTree :=
   match reconstructFuel (maxDepth leaves + 1) leaves with
   | some tree => if tree.paths = leaves then some tree else none

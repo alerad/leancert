@@ -250,6 +250,9 @@ example : ¬ Owns singletonInterval 3 ⟨0, by norm_num⟩ (3 / 4 : ℝ) := by
 
 open DyadicSubdivisionTree DyadicFrontier
 
+-- A complete subdivision has at least its root leaf.
+example : DyadicFrontier.check [] = none := by native_decide
+
 example : DyadicFrontier.check [[]] = some .leaf := by native_decide
 
 example : DyadicFrontier.check [[false], [true]] =

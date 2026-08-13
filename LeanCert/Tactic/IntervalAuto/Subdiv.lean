@@ -44,7 +44,8 @@ structure SubdivisionExecution where
   certifiedLeaves : Nat := 0
   /-- Canonically ordered root-to-leaf subdivision addresses. -/
   leafPaths : List DyadicPath := []
-  /-- True only after the completed flat frontier passes the trusted checker. -/
+  /-- True only after the completed flat frontier passes the structural checker.
+  Path-to-proof correspondence is maintained by the subdivision recursion. -/
   frontierChecked : Bool := false
   deriving Inhabited
 

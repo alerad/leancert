@@ -109,6 +109,9 @@ def pathsAtDepth : Nat → List DyadicPath
       (pathsAtDepth depth).map (false :: ·) ++
         (pathsAtDepth depth).map (true :: ·)
 
+/-- Measure construction and structural validation of a complete path frontier.
+This deliberately excludes numerical leaf evaluation and proof construction, so
+it is not an end-to-end addressed-subdivision benchmark. -/
 private def runFrontierCheck (depth : Nat) : IO Outcome := do
   let paths := pathsAtDepth depth
   if paths.length != 2 ^ depth then
