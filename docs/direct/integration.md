@@ -53,7 +53,10 @@ routes. Exact transcendental equalities are intentionally not inferred from an
 interval enclosure.
 
 For programmatic checked integration, `integrateUniform` provides one result
-boundary for the existing Rational and Dyadic partition engines:
+boundary for the existing Rational and Dyadic partition engines.
+`integrateDyadicLevel` is the specialized fixed-level route: it starts from an
+exact Dyadic interval and evaluates exactly `2^depth` addressable cells without
+dividing the root into an arbitrary Rational partition.
 
 ```lean
 import LeanCert
@@ -61,9 +64,15 @@ import LeanCert
 open LeanCert LeanCert.Core
 
 def unit : IntervalRat := ⟨0, 1, by norm_num⟩
+def unitDyadic : IntervalDyadic :=
+  ⟨LeanCert.Core.Dyadic.ofInt 0, LeanCert.Core.Dyadic.ofInt 1,
+    by norm_num [LeanCert.Core.Dyadic.toRat_ofInt]⟩
 
 #eval integrateUniform (.exp (.var 0)) unit 32
 #eval integrateUniform (.exp (.var 0)) unit 32 { backend := .dyadic }
+#guard match integrateDyadicLevel (.exp (.var 0)) unitDyadic 5 with
+  | .ok outcome => outcome.partitionCount == 32
+  | .error _ => false
 ```
 
 The successful `IntegralOutcome` contains a Rational enclosure, partition
@@ -72,6 +81,11 @@ lifts either backend's retained checked computation to membership of the real
 integral. Automatic selection remains Rational while the benchmark suite is
 used to establish where Dyadic integration is consistently preferable; an
 explicit Dyadic request is already fully checked.
+
+`integrateDyadicLevel_correct` is the corresponding Golden Theorem for the
+fixed-level route. Its `depth` is a binary refinement depth, so the returned
+`partitionCount` is exactly `2^depth`. The function accepts only `.auto` or
+`.dyadic`; both select the Dyadic backend for this specialized operation.
 
 For lower-level Taylor-model generated integral certificates, see
 [Proof Templates → ConstantFactory](../proof-templates/constant-factory.md) and the

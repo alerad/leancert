@@ -52,8 +52,12 @@ The larger suites are split by purpose:
   assembly, and the complete checked certificate path;
 - `algebra` measures exact `QPoly` arithmetic and complete Bézout certificate
   checks as polynomial degree grows;
-- `dyadic-subdivision` measures complete exact dyadic bisection trees and
-  validates their leaf count and total semantic width;
+- `dyadic-subdivision` compares recursive closed-cell bisection, direct
+  addressed decoding, prepared random access, prepared sequential
+  materialization, address-only enumeration, and structural frontier checking.
+  Materialized-cell cases validate leaf count and total semantic width. The
+  frontier case includes path construction and structural validation but
+  deliberately excludes numerical leaf evaluation and proof construction;
 - `all` includes every suite, including the seconds-scale integration cases.
 
 ## Commands
