@@ -100,10 +100,105 @@ def mk? (lo hi : Dyadic) : Option IntervalDyadic :=
 /-- The width of an interval -/
 def width (I : IntervalDyadic) : Dyadic := I.hi.sub I.lo
 
-/-- Midpoint of an interval (approximate, using larger exponent) -/
+/-- The dyadic width denotes endpoint subtraction exactly. -/
+@[simp]
+theorem width_toRat (I : IntervalDyadic) :
+    I.width.toRat = I.hi.toRat - I.lo.toRat := by
+  simp only [width, Dyadic.sub, Dyadic.toRat_add, Dyadic.toRat_neg]
+  ring
+
+/-- Exact midpoint of a dyadic interval.
+
+Dyadics are closed under division by two, so midpoint construction must lower
+the exponent rather than shift (and potentially round) the mantissa. -/
 def midpoint (I : IntervalDyadic) : Dyadic :=
-  let sum := I.lo.add I.hi
-  ⟨sum.mantissa >>> 1, sum.exponent⟩  -- Divide by 2
+  (I.lo.add I.hi).scale2 (-1)
+
+/-- The dyadic midpoint denotes the ordinary rational midpoint exactly. -/
+@[simp]
+theorem midpoint_toRat (I : IntervalDyadic) :
+    I.midpoint.toRat = (I.lo.toRat + I.hi.toRat) / 2 := by
+  simp only [midpoint, Dyadic.toRat_scale2, Dyadic.toRat_add]
+  norm_num [div_eq_mul_inv]
+
+/-- The lower endpoint is at most the exact midpoint. -/
+theorem lo_le_midpoint (I : IntervalDyadic) : I.lo.toRat ≤ I.midpoint.toRat := by
+  rw [midpoint_toRat]
+  linarith [I.le]
+
+/-- The exact midpoint is at most the upper endpoint. -/
+theorem midpoint_le_hi (I : IntervalDyadic) : I.midpoint.toRat ≤ I.hi.toRat := by
+  rw [midpoint_toRat]
+  linarith [I.le]
+
+/-- Split a dyadic interval into two exact closed halves. -/
+def bisect (I : IntervalDyadic) : IntervalDyadic × IntervalDyadic :=
+  (⟨I.lo, I.midpoint, I.lo_le_midpoint⟩,
+   ⟨I.midpoint, I.hi, I.midpoint_le_hi⟩)
+
+/-- A point in the original interval and left of the midpoint is in the left half. -/
+theorem mem_bisect_left {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
+    (hm : x ≤ (I.midpoint.toRat : ℝ)) : x ∈ (I.bisect).1 := by
+  exact ⟨hx.1, hm⟩
+
+/-- A point in the original interval and right of the midpoint is in the right half. -/
+theorem mem_bisect_right {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I)
+    (hm : (I.midpoint.toRat : ℝ) ≤ x) : x ∈ (I.bisect).2 := by
+  exact ⟨hm, hx.2⟩
+
+/-- Membership in the left half implies membership in the original interval. -/
+theorem mem_of_mem_bisect_left {x : ℝ} {I : IntervalDyadic}
+    (hx : x ∈ (I.bisect).1) : x ∈ I := by
+  refine ⟨hx.1, hx.2.trans ?_⟩
+  exact_mod_cast I.midpoint_le_hi
+
+/-- Membership in the right half implies membership in the original interval. -/
+theorem mem_of_mem_bisect_right {x : ℝ} {I : IntervalDyadic}
+    (hx : x ∈ (I.bisect).2) : x ∈ I := by
+  refine ⟨?_, hx.2⟩
+  exact (by exact_mod_cast I.lo_le_midpoint : (I.lo.toRat : ℝ) ≤ I.midpoint.toRat) |>.trans hx.1
+
+/-- The two closed halves cover the original interval, including their shared seam. -/
+theorem mem_bisect_or {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) :
+    x ∈ (I.bisect).1 ∨ x ∈ (I.bisect).2 := by
+  by_cases hm : x ≤ (I.midpoint.toRat : ℝ)
+  · exact Or.inl (mem_bisect_left hx hm)
+  · exact Or.inr (mem_bisect_right hx (le_of_lt (not_le.mp hm)))
+
+/-- Both closed halves contain the midpoint seam. -/
+theorem midpoint_mem_bisect_both (I : IntervalDyadic) :
+    (I.midpoint.toRat : ℝ) ∈ (I.bisect).1 ∧
+      (I.midpoint.toRat : ℝ) ∈ (I.bisect).2 := by
+  constructor
+  · exact ⟨by exact_mod_cast I.lo_le_midpoint, le_rfl⟩
+  · exact ⟨le_rfl, by exact_mod_cast I.midpoint_le_hi⟩
+
+/-- The overlap of the two closed children is exactly their midpoint seam. -/
+theorem bisect_intersection (I : IntervalDyadic) :
+    I.bisect.1.toSet ∩ I.bisect.2.toSet = {I.midpoint.toReal} := by
+  ext x
+  simp only [Set.mem_inter_iff, Set.mem_singleton_iff]
+  constructor
+  · intro hx
+    have hx' :
+        ((I.lo.toRat : ℝ) ≤ x ∧ x ≤ (I.midpoint.toRat : ℝ)) ∧
+          ((I.midpoint.toRat : ℝ) ≤ x ∧ x ≤ (I.hi.toRat : ℝ)) := by
+      simpa [toSet, bisect, Dyadic.toReal] using hx
+    exact le_antisymm hx'.1.2 hx'.2.1
+  · rintro rfl
+    simpa [toSet, bisect, Dyadic.toReal] using I.midpoint_mem_bisect_both
+
+/-- The left child has exactly half the semantic width of its parent. -/
+theorem bisect_left_width_toRat (I : IntervalDyadic) :
+    I.bisect.1.width.toRat = I.width.toRat / 2 := by
+  simp only [width_toRat, bisect, midpoint_toRat]
+  ring
+
+/-- The right child has exactly half the semantic width of its parent. -/
+theorem bisect_right_width_toRat (I : IntervalDyadic) :
+    I.bisect.2.width.toRat = I.width.toRat / 2 := by
+  simp only [width_toRat, bisect, midpoint_toRat]
+  ring
 
 /-! ### Outward Rounding -/
 

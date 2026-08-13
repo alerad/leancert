@@ -52,6 +52,8 @@ The larger suites are split by purpose:
   assembly, and the complete checked certificate path;
 - `algebra` measures exact `QPoly` arithmetic and complete Bézout certificate
   checks as polynomial degree grows;
+- `dyadic-subdivision` measures complete exact dyadic bisection trees and
+  validates their leaf count and total semantic width;
 - `all` includes every suite, including the seconds-scale integration cases.
 
 ## Commands
@@ -84,6 +86,10 @@ lake exe leancert-bench --suite krawczyk --samples 15 --warmups 3
 
 # Profile exact algebraic certificate checking
 lake exe leancert-bench --suite algebra --samples 15 --warmups 3
+
+# Establish the closed-tree baseline for addressed dyadic subdivision
+lake exe leancert-bench \
+  --suite dyadic-subdivision --samples 15 --warmups 3
 
 # Run absolutely everything
 lake exe leancert-bench --suite all

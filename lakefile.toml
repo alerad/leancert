@@ -123,6 +123,7 @@ roots = [
   "LeanCert.Test.CubicIsolation",
   "LeanCert.Test.DocsExamples",
   "LeanCert.Test.DomainAwareAD",
+  "LeanCert.Test.DyadicSubdivision",
   "LeanCert.Test.ChebyshevPsi",
   "LeanCert.Test.ChebyshevTheta",
   "LeanCert.Test.EulerMascheroni",
