@@ -155,6 +155,31 @@ def integrateUniform (e : Expr) (interval : IntervalRat) (partitionCount : Nat)
   else
     .error (.invalidConfiguration "partitionCount must be positive")
 
+/-- Enclose an integral using exactly `2^depth` cells generated from an exact
+dyadic root. This avoids arbitrary rational partition division and gives every
+cell a stable fixed-depth address. -/
+def integrateDyadicLevel (e : Expr) (root : IntervalDyadic) (depth : Nat)
+    (options : IntegrationOptions := { backend := .dyadic }) : EvalResult IntegralOutcome :=
+  match options.backend with
+  | .rational | .affine =>
+      .error (.unsupportedBackend "power-of-two dyadic level integration")
+  | .auto | .dyadic =>
+      match dyadicIntegrationConfig options with
+      | .error err => .error err
+      | .ok cfg =>
+          let checked := Validity.IntegrationDyadic.integrateDyadicLevelChecked
+            e root depth cfg
+          if checked.2 then
+            .ok {
+              enclosure := checked.1
+              partitionCount := 2 ^ depth
+              requested := options.backend
+              backend := .dyadic
+            }
+          else
+            .error (diagnoseDyadicPartitionFailure e cfg
+              (Validity.IntegrationDyadic.dyadicLevelPartition root depth))
+
 /-- A successful public partition computation encloses the corresponding real
 integral. This is the common Golden Theorem for both retained backends. -/
 theorem integrateUniform_correct {e : Expr} {interval : IntervalRat}
@@ -191,5 +216,34 @@ theorem integrateUniform_correct {e : Expr} {interval : IntervalRat}
           · simp at hsuccess
     | affine => simp [hchoice] at hsuccess
   · simp at hsuccess
+
+/-- Golden theorem for the public fixed-level Dyadic integration path. -/
+theorem integrateDyadicLevel_correct {e : Expr} {root : IntervalDyadic}
+    {depth : Nat} {options : IntegrationOptions} {outcome : IntegralOutcome}
+    (hsuccess : integrateDyadicLevel e root depth options = .ok outcome)
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
+      MeasureTheory.volume root.lo.toRat root.hi.toRat) :
+    ∫ x in (root.lo.toRat : ℝ)..(root.hi.toRat : ℝ), Expr.eval (fun _ => x) e ∈
+      outcome.enclosure := by
+  unfold integrateDyadicLevel at hsuccess
+  cases hchoice : options.backend with
+  | rational | affine => simp [hchoice] at hsuccess
+  | auto | dyadic =>
+      simp only [hchoice] at hsuccess
+      cases hcfg : dyadicIntegrationConfig options with
+      | error err => simp [hcfg] at hsuccess
+      | ok cfg =>
+          simp only [hcfg] at hsuccess
+          split at hsuccess
+          · rename_i hvalid
+            simp only [Except.ok.injEq] at hsuccess
+            subst outcome
+            apply Validity.IntegrationDyadic.integrateDyadicLevelChecked_correct
+              e root depth cfg (dyadicIntegrationConfig_precision hcfg)
+            · apply Prod.ext
+              · rfl
+              · simpa using hvalid
+            · exact hInt
+          · simp at hsuccess
 
 end LeanCert

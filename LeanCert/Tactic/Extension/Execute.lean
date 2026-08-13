@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Mathlib.Tactic.NormNum
+import LeanCert.Core.DyadicFrontier
 import LeanCert.Engine.Eval.Core
 import LeanCert.Meta.Numeral
 import LeanCert.Tactic.Extension.Registry
@@ -56,6 +57,8 @@ structure RegisteredSubdivisionExecution where
   deepestDepthUsed : Nat := 0
   boxesExamined : Nat := 0
   certifiedLeaves : Nat := 0
+  leafPaths : List DyadicPath := []
+  frontierChecked : Bool := false
   deriving Inhabited
 
 /-- Retained facts from a successful registered enclosure proof. -/
@@ -89,6 +92,7 @@ private structure RegisteredSubdivisionProof where
   deepestDepthUsed : Nat := 0
   boxesExamined : Nat := 0
   certifiedLeaves : Nat := 0
+  leafPaths : List DyadicPath := []
   certificateTree : RegisteredEnclosureCertificateTree := default
 
 private structure RegisteredReplayCursor where
@@ -737,7 +741,8 @@ private def addExhaustedStatistics (priorBoxes priorDeepest priorLeaves : Nat) :
 private unsafe def proveRegisteredWithSubdiv
     (prepared : PreparedGoal) (spec : BoundSpec)
     (intervalExpr : Lean.Expr) (interval : IntervalRat)
-    (precision : Int) (taylorDepth configuredMaxDepth remainingDepth depthUsed : Nat) :
+    (precision : Int) (taylorDepth configuredMaxDepth remainingDepth depthUsed : Nat)
+    (reversePath : DyadicPath) :
     TacticM (Except RegisteredEnclosureFailure RegisteredSubdivisionProof) := do
   let childPrepared ← preparedOnInterval prepared spec intervalExpr
   match ← proveRegisteredLeaf childPrepared precision taylorDepth with
@@ -751,6 +756,7 @@ private unsafe def proveRegisteredWithSubdiv
         deepestDepthUsed := depthUsed
         boxesExamined := 1
         certifiedLeaves := 1
+        leafPaths := [reversePath.reverse]
         certificateTree := .leaf interval outcome.enclosure
           (outcome.observations.map fun observation => {
             rule := observation.rule
@@ -776,6 +782,7 @@ private unsafe def proveRegisteredWithSubdiv
 
   let left ← proveRegisteredWithSubdiv prepared spec leftExpr leftInterval
     precision taylorDepth configuredMaxDepth (remainingDepth - 1) (depthUsed + 1)
+    (false :: reversePath)
   let left ←
     match left with
     | .ok proof => pure proof
@@ -784,6 +791,7 @@ private unsafe def proveRegisteredWithSubdiv
 
   let right ← proveRegisteredWithSubdiv prepared spec rightExpr rightInterval
     precision taylorDepth configuredMaxDepth (remainingDepth - 1) (depthUsed + 1)
+    (true :: reversePath)
   let right ←
     match right with
     | .ok proof => pure proof
@@ -810,6 +818,7 @@ private unsafe def proveRegisteredWithSubdiv
       (max left.deepestDepthUsed right.deepestDepthUsed)
     boxesExamined := 1 + left.boxesExamined + right.boxesExamined
     certifiedLeaves := left.certifiedLeaves + right.certifiedLeaves
+    leafPaths := left.leafPaths ++ right.leafPaths
     certificateTree := .bisect interval left.certificateTree right.certificateTree
   }
 
@@ -817,6 +826,7 @@ private unsafe def replayRegisteredTree
     (prepared : PreparedGoal) (spec : BoundSpec)
     (intervalExpr : Lean.Expr) (interval : IntervalRat)
     (precision : Int) (taylorDepth depthUsed : Nat)
+    (reversePath : DyadicPath)
     (tree : RegisteredEnclosureCertificateTree) :
     TacticM (Except RegisteredEnclosureFailure RegisteredSubdivisionProof) := do
   match tree with
@@ -841,6 +851,7 @@ private unsafe def replayRegisteredTree
             deepestDepthUsed := depthUsed
             boxesExamined := 1
             certifiedLeaves := 1
+            leafPaths := [reversePath.reverse]
             certificateTree := tree
           }
   | .bisect recordedInput leftTree rightTree =>
@@ -852,12 +863,12 @@ private unsafe def replayRegisteredTree
       let rightExpr ← mkAppM ``Prod.snd #[bisectExpr]
       let (leftInterval, rightInterval) := interval.bisect
       let left ← replayRegisteredTree prepared spec leftExpr leftInterval
-        precision taylorDepth (depthUsed + 1) leftTree
+        precision taylorDepth (depthUsed + 1) (false :: reversePath) leftTree
       let left ← match left with
         | .ok proof => pure proof
         | .error failure => return .error failure
       let right ← replayRegisteredTree prepared spec rightExpr rightInterval
-        precision taylorDepth (depthUsed + 1) rightTree
+        precision taylorDepth (depthUsed + 1) (true :: reversePath) rightTree
       let right ← match right with
         | .ok proof => pure proof
         | .error failure => return .error failure
@@ -877,6 +888,7 @@ private unsafe def replayRegisteredTree
           (max left.deepestDepthUsed right.deepestDepthUsed)
         boxesExamined := 1 + left.boxesExamined + right.boxesExamined
         certifiedLeaves := left.certifiedLeaves + right.certifiedLeaves
+        leafPaths := left.leafPaths ++ right.leafPaths
         certificateTree := tree
       }
 
@@ -896,11 +908,14 @@ unsafe def registeredEnclosureBoundSubdivCoreTyped (prepared : PreparedGoal)
       | return .error .notApplicable
     let interval ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) intervalExpr
     match ← proveRegisteredWithSubdiv prepared spec intervalExpr interval
-        precision taylorDepth maxDepth maxDepth 0 with
+        precision taylorDepth maxDepth maxDepth 0 [] with
     | .error failure =>
         original.restore
         return .error failure
     | .ok proof =>
+        let some _ := DyadicFrontier.check proof.leafPaths
+          | return .error <| .verificationFailure
+              "completed registered subdivision produced an invalid addressed frontier"
         let goal ← getMainGoal
         let (xId, goal) ← goal.intro1P
         let (hxSourceId, goal) ← goal.intro1P
@@ -924,6 +939,8 @@ unsafe def registeredEnclosureBoundSubdivCoreTyped (prepared : PreparedGoal)
             deepestDepthUsed := proof.deepestDepthUsed
             boxesExamined := proof.boxesExamined
             certifiedLeaves := proof.certifiedLeaves
+            leafPaths := proof.leafPaths
+            frontierChecked := true
           }
           verification := proof.verification
           certificate := {
@@ -953,11 +970,14 @@ unsafe def replayRegisteredEnclosureBoundCoreTyped (prepared : PreparedGoal)
       | return .error .notApplicable
     let interval ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) intervalExpr
     match ← replayRegisteredTree prepared spec intervalExpr interval
-        certificate.precision certificate.taylorDepth 0 certificate.tree with
+        certificate.precision certificate.taylorDepth 0 [] certificate.tree with
     | .error failure =>
         original.restore
         return .error failure
     | .ok proof =>
+        let some _ := DyadicFrontier.check proof.leafPaths
+          | return .error <| .verificationFailure
+              "replayed registered subdivision produced an invalid addressed frontier"
         let goal ← getMainGoal
         let (xId, goal) ← goal.intro1P
         let (hxSourceId, goal) ← goal.intro1P
@@ -981,6 +1001,8 @@ unsafe def replayRegisteredEnclosureBoundCoreTyped (prepared : PreparedGoal)
             deepestDepthUsed := proof.deepestDepthUsed
             boxesExamined := proof.boxesExamined
             certifiedLeaves := proof.certifiedLeaves
+            leafPaths := proof.leafPaths
+            frontierChecked := true
           }
           verification := proof.verification
           certificate

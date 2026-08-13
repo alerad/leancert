@@ -321,14 +321,6 @@ theorem Box.midpointEnv_zero (B : Box) : ∀ i, i ≥ B.length → Box.midpointE
   · exact absurd h (not_lt.mpr hi)
   · rfl
 
-/-- Helper lemma: split preserves box length -/
-theorem Box.split_length_eq (B : Box) (d : Nat) :
-    (Box.split B d).1.length = B.length ∧ (Box.split B d).2.length = B.length := by
-  simp only [Box.split]
-  split_ifs with h
-  · constructor <;> simp only [List.length_set]
-  · exact ⟨rfl, rfl⟩
-
 /-- Helper lemma: splitWidest preserves box length -/
 theorem Box.splitWidest_length_eq (B : Box) :
     (Box.splitWidest B).1.length = B.length ∧ (Box.splitWidest B).2.length = B.length :=
@@ -508,38 +500,6 @@ theorem minimizeStep_bestUB_achievable (e : Expr) (hsupp : ADSupported e) (cfg :
          refine ⟨Box.midpointEnv_mem B_curr, Box.midpointEnv_zero B_curr, ?_⟩
          exact evalOnBox_hi_correct e hsupp B_curr cfg (Box.midpointEnv B_curr)
            (Box.midpointEnv_mem B_curr) (Box.midpointEnv_zero B_curr))
-
-/-- Helper: if ρ is in a split of B, then ρ is in B -/
-theorem Box.envMem_of_envMem_split (B : Box) (d : Nat) (ρ : Nat → ℝ) :
-    Box.envMem ρ (Box.split B d).1 → Box.envMem ρ B := by
-  intro h
-  unfold split at h
-  split_ifs at h with hd
-  · intro ⟨i, hi⟩
-    have hi' : i < (B.set d (B[d].bisect.1)).length := by simp only [List.length_set]; exact hi
-    have hmem := h ⟨i, hi'⟩
-    simp only [List.getElem_set] at hmem
-    split_ifs at hmem with heq
-    · -- heq : d = i, so B[d] = B[i]
-      subst heq
-      exact IntervalRat.mem_of_mem_bisect_left hmem
-    · exact hmem
-  · exact h
-
-theorem Box.envMem_of_envMem_split_right (B : Box) (d : Nat) (ρ : Nat → ℝ) :
-    Box.envMem ρ (Box.split B d).2 → Box.envMem ρ B := by
-  intro h
-  unfold split at h
-  split_ifs at h with hd
-  · intro ⟨i, hi⟩
-    have hi' : i < (B.set d (B[d].bisect.2)).length := by simp only [List.length_set]; exact hi
-    have hmem := h ⟨i, hi'⟩
-    simp only [List.getElem_set] at hmem
-    split_ifs at hmem with heq
-    · subst heq
-      exact IntervalRat.mem_of_mem_bisect_right hmem
-    · exact hmem
-  · exact h
 
 /-- Helper: if ρ is in a split of B, then ρ is in B -/
 theorem Box.envMem_of_envMem_splitWidest (B : Box) (ρ : Nat → ℝ) :

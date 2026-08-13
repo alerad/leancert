@@ -141,11 +141,14 @@ user-facing elaborator boundary.
 
 ## Checked partition integration
 
-`LeanCert.API.Integration` exposes `integrateUniform`, `IntegrationOptions`, and
-the backend-independent `IntegralOutcome`. Rational and Dyadic requests use
-their checked partition evaluators and share `integrateUniform_correct`.
-Automatic selection remains Rational pending matched benchmark evidence;
-explicit Dyadic selection is supported without changing the tactic router.
+`LeanCert.API.Integration` exposes `integrateUniform`, `integrateDyadicLevel`,
+`IntegrationOptions`, and the backend-independent `IntegralOutcome`. Rational
+and Dyadic uniform requests share `integrateUniform_correct`.
+`integrateDyadicLevel` instead evaluates exactly `2^depth` cells from an exact
+Dyadic root and is covered by `integrateDyadicLevel_correct`. Automatic
+selection for `integrateUniform` remains Rational pending matched benchmark
+evidence; the fixed-level operation always uses Dyadic evaluation and does not
+change the tactic router.
 
 ## Checked automatic differentiation
 

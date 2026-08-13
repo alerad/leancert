@@ -134,6 +134,50 @@ def split (B : Box) (dim : Nat) : Box × Box :=
 def splitWidest (B : Box) : Box × Box :=
   split B (widestDim B)
 
+/-- Splitting preserves the number of box coordinates. -/
+theorem split_length_eq (B : Box) (d : Nat) :
+    (split B d).1.length = B.length ∧ (split B d).2.length = B.length := by
+  simp only [split]
+  split_ifs with h
+  · constructor <;> simp only [List.length_set]
+  · exact ⟨rfl, rfl⟩
+
+/-- The lower child of a split is a semantic sub-box of its parent. -/
+theorem envMem_of_envMem_split (B : Box) (d : Nat) (ρ : Nat → ℝ) :
+    envMem ρ (split B d).1 → envMem ρ B := by
+  intro h
+  unfold split at h
+  split_ifs at h with hd
+  · intro ⟨i, hi⟩
+    have hi' : i < (B.set d (B[d].bisect.1)).length := by
+      simp only [List.length_set]
+      exact hi
+    have hmem := h ⟨i, hi'⟩
+    simp only [List.getElem_set] at hmem
+    split_ifs at hmem with heq
+    · subst heq
+      exact IntervalRat.mem_of_mem_bisect_left hmem
+    · exact hmem
+  · exact h
+
+/-- The upper child of a split is a semantic sub-box of its parent. -/
+theorem envMem_of_envMem_split_right (B : Box) (d : Nat) (ρ : Nat → ℝ) :
+    envMem ρ (split B d).2 → envMem ρ B := by
+  intro h
+  unfold split at h
+  split_ifs at h with hd
+  · intro ⟨i, hi⟩
+    have hi' : i < (B.set d (B[d].bisect.2)).length := by
+      simp only [List.length_set]
+      exact hi
+    have hmem := h ⟨i, hi'⟩
+    simp only [List.getElem_set] at hmem
+    split_ifs at hmem with heq
+    · subst heq
+      exact IntervalRat.mem_of_mem_bisect_right hmem
+    · exact hmem
+  · exact h
+
 /-! ### Volume and size heuristics -/
 
 /-- Volume of a box (product of widths).

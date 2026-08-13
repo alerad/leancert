@@ -27,16 +27,26 @@ elab "registered_enclosure_replay" : tactic => unsafe do
     | .error failure => throwError failure.detail
   let discoveryGoal ← mkFreshExprMVar target MetavarKind.syntheticOpaque
   setGoals [discoveryGoal.mvarId!]
-  let certificate ←
+  let (certificate, discoveryPaths) ←
     match ← registeredEnclosureBoundSubdivCoreTyped prepared (-53) 10 4 with
     | .ok outcome =>
         unless (← getGoals).isEmpty do
           throwError "registered enclosure discovery left goals"
-        pure outcome.certificate
+        let paths := outcome.subdivision.map (fun subdivision => subdivision.leafPaths)
+          |>.getD []
+        unless !paths.isEmpty &&
+            outcome.subdivision.all (fun subdivision => subdivision.frontierChecked) do
+          throwError "registered enclosure discovery omitted its checked addressed frontier"
+        pure (outcome.certificate, paths)
     | .error _ => throwError "registered enclosure discovery failed"
   setGoals [originalGoal]
   match ← replayRegisteredEnclosureBoundCoreTyped prepared certificate with
-  | .ok _ => pure ()
+  | .ok outcome =>
+      let replayPaths := outcome.subdivision.map (fun subdivision => subdivision.leafPaths)
+        |>.getD []
+      unless replayPaths == discoveryPaths &&
+          outcome.subdivision.all (fun subdivision => subdivision.frontierChecked) do
+        throwError "registered enclosure replay changed its addressed frontier"
   | .error _ => throwError "registered enclosure fixed replay failed"
 
 /-- Merely importing rules must not consume budget for ordinary expressions. -/

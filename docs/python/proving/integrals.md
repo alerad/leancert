@@ -80,4 +80,3 @@ The replay payload contains only:
 
 Export rebuilds the fixed checker and corresponding Golden Theorem in a pinned
 Lean project. It does not rerun partition discovery.
-

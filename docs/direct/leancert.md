@@ -148,6 +148,7 @@ Subdivision:
   Deepest depth used: 5
   Boxes examined: 27
   Certified leaves: 14
+  Addressed frontier checked: true
 
 Suggested proof:
   by
@@ -170,6 +171,11 @@ one fixed checker through the configured verification route. Exhaustion is a
 resumable inconclusive result, while a domain obstruction or internal transport
 failure stops the portfolio. All non-successes restore the complete tactic
 state.
+
+The addressed-frontier flag checks that the reported binary paths form a
+complete canonical frontier. It is an additional structural invariant; the
+recursive proof construction is what keeps those paths associated with the
+corresponding certified leaves.
 
 Likewise, a verbose failure report has this shape:
 

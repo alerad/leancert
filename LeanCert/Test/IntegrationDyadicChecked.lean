@@ -19,6 +19,9 @@ private def preparedTransExpr : Expr :=
   .add (.exp (.var 0))
     (.add (.sin (.var 0)) (.add (.cos (.var 0)) (.atanh (.var 0))))
 private def cfg : DyadicConfig := { precision := -53, taylorDepth := 18 }
+private def unitDyadic : IntervalDyadic :=
+  ⟨LeanCert.Core.Dyadic.ofInt 0, LeanCert.Core.Dyadic.ofInt 1,
+    by norm_num [LeanCert.Core.Dyadic.toRat_ofInt]⟩
 
 example : checkListPartitionCovers [left, right] unit = true := by native_decide
 example : checkListPartitionCovers [] unit = false := by native_decide
@@ -26,6 +29,16 @@ example : checkListPartitionCovers [left, gapRight] unit = false := by native_de
 example : checkListPartitionCovers [left, overlapRight] unit = false := by native_decide
 
 example : checkIntegralBoundsDyadicList (.var 0) [left, right] 0 1 = true := by
+  native_decide
+
+example : (dyadicLevelPartition unitDyadic 3).length = 8 := by native_decide
+example : checkListPartitionCovers (dyadicLevelPartition unitDyadic 3) unit = true := by
+  native_decide
+example : (integrateDyadicLevelChecked (.var 0) unitDyadic 3 cfg).2 = true := by
+  native_decide
+example : (integrateDyadicLevelChecked (.var 0) unitDyadic 3 cfg).1.lo = 7 / 16 := by
+  native_decide
+example : (integrateDyadicLevelChecked (.var 0) unitDyadic 3 cfg).1.hi = 9 / 16 := by
   native_decide
 
 example :

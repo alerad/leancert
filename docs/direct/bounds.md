@@ -37,7 +37,10 @@ backend. Subdivision and global optimization are strategies, not backends.
 
 `interval_bound_subdiv depth maxDepth` splits candidate boxes and certifies
 every retained leaf. `leancert?` reports its configured and deepest depths,
-boxes examined, certified leaves, and verification usage. See the
+boxes examined, certified leaves, whether the addressed frontier passed its
+structural check, and verification usage. The frontier check establishes a
+complete canonical binary frontier; the subdivision recursion maintains the
+association between each address and its proof leaf. See the
 [verification-status table](../architecture/verification-status.md) for the
 precise checker boundary and failure semantics.
 

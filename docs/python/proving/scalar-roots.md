@@ -40,4 +40,3 @@ if isinstance(unique, lc.VerifiedUniqueRoot):
 The generated theorem reconstructs the exact expression and interval,
 kernel-reduces the fixed checker, applies its Golden Theorem, and finishes with
 `#assert_trust kernel`.
-

@@ -17,6 +17,12 @@ import LeanCert.Analysis.WallQuotient
 -- v1.1: Dyadic arithmetic (high-performance alternative to Rat)
 import LeanCert.Core.Dyadic
 import LeanCert.Core.IntervalDyadic
+import LeanCert.Core.CertifiedCellDomain
+import LeanCert.Core.RationalCellDomain
+import LeanCert.Core.DyadicCellDomain
+import LeanCert.Core.DyadicCell
+import LeanCert.Core.DyadicFrontier
+import LeanCert.Core.DyadicLimit
 
 -- Numerics modules
 import LeanCert.Engine.IntervalEval
@@ -59,6 +65,7 @@ import LeanCert.Engine.Chebyshev.Theta
 
 -- Global Optimization
 import LeanCert.Engine.Optimization.Box
+import LeanCert.Engine.Optimization.BoxAddress
 import LeanCert.Engine.Optimization.Gradient
 import LeanCert.Engine.Optimization.Global
 import LeanCert.Engine.Optimization.Backend

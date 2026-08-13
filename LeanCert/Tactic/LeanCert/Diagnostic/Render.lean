@@ -267,7 +267,8 @@ private def renderSubdivision (statistics : Option SubdivisionStatistics) : Stri
         Configured maximum depth: {statistics.configuredMaxDepth}\n  \
         Deepest depth used: {statistics.deepestDepthUsed}\n  \
         Boxes examined: {statistics.boxesExamined}\n  \
-        Certified leaves: {statistics.certifiedLeaves}"
+        Certified leaves: {statistics.certifiedLeaves}\n  \
+        Addressed frontier checked: {statistics.frontierChecked}"
 
 private def renderFiniteSum (statistics : Option FiniteSumStatistics) : String :=
   match statistics with
