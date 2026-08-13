@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Tactic.NumericalRefinement
 import LeanCert.Tactic.Verification
 import LeanCert.Validity.Bounds
 import LeanCert.Validity.DyadicBounds
@@ -253,7 +254,7 @@ private def closeBoundTransport (goal : MVarId) (proof : Lean.Expr)
 def tryDyadicBoundImpl (goal : MVarId) (reified : LeanCert.Meta.ReifyReport)
     (boundRat : Lean.Expr)
     (intervalInfo : IntervalInfo) (taylorDepth : Nat)
-    (isStrict isLower : Bool) :
+    (isStrict isLower : Bool) (precision : Int := -80) :
     TacticM (Except IntervalBoundFailure (Option DyadicBoundOutcome)) := do
   let saved ← saveState
   let ast := reified.expr
@@ -263,7 +264,7 @@ def tryDyadicBoundImpl (goal : MVarId) (reified : LeanCert.Meta.ReifyReport)
       | false, true  => (``LeanCert.Validity.verify_lower_bound_dyadic_checked, ``LeanCert.Validity.checkLowerBoundDyadicChecked)
       | true,  false => (``LeanCert.Validity.verify_strict_upper_bound_dyadic_checked, ``LeanCert.Validity.checkStrictUpperBoundDyadicChecked)
       | true,  true  => (``LeanCert.Validity.verify_strict_lower_bound_dyadic_checked, ``LeanCert.Validity.checkStrictLowerBoundDyadicChecked)
-    let prec : Int := -80
+    let prec := precision
     let precExpr := toExpr prec
     let depthExpr := toExpr taylorDepth
     let precLeZeroProof ← mkDecideProof (← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)])
@@ -1146,13 +1147,11 @@ def intervalBoundRationalCoreTyped (taylorDepth : Nat) :
   | .forallGt _ intervalInfo func bound =>
       rationalBoundAttemptTyped goal intervalInfo func bound taylorDepth true true
 
-/-- Typed direct-bound entry point.
-
-The Dyadic branch is isolated internally. Rational proof construction runs
-once on success. Only after a Rational failure do we evaluate its checker
-directly to distinguish an ordinary inconclusive enclosure from a valid
-certificate whose proof transport failed. -/
-def intervalBoundCoreTyped (taylorDepth : Nat) :
+/-- Direct typed bound attempt at an explicit Dyadic precision and Taylor
+depth. The Rational fallback runs only after that Dyadic attempt is
+inconclusive. Rational proof construction runs once on success. -/
+def intervalBoundCoreTypedAt (precision : Int) (taylorDepth : Nat)
+    (rationalFallback : Bool := true) :
     TacticM (Except IntervalBoundFailure IntervalBoundOutcome) := do
   let original ← saveState
   intervalNormCore
@@ -1194,7 +1193,7 @@ def intervalBoundCoreTyped (taylorDepth : Nat) :
           return .error <| .unsupported (toString func)
             "Dyadic preparation produced no expression"
       tryDyadicBoundImpl normalizedGoal reified boundRat intervalInfo taylorDepth
-        isStrict isLower
+        isStrict isLower precision
   let dyadicResult ←
     match boundGoal with
     | .forallLe _ intervalInfo func bound =>
@@ -1218,67 +1217,94 @@ def intervalBoundCoreTyped (taylorDepth : Nat) :
         precision := some outcome.precision
         taylorDepth := outcome.taylorDepth
       }
-  | .ok none => pure ()
+  | .ok none =>
+      original.restore
+      if rationalFallback then
+        intervalBoundRationalCoreTyped taylorDepth
+      else
+        return .error <| .inconclusive
+          s!"The Dyadic checker was inconclusive at precision {precision} and \
+            Taylor depth {taylorDepth}."
+
+/-- Compatibility entry point retaining the historical fixed `-80` Dyadic
+attempt before Rational fallback. New adaptive callers should use
+`intervalBoundAdaptiveCoreTyped`. -/
+def intervalBoundCoreTyped (taylorDepth : Nat) :
+    TacticM (Except IntervalBoundFailure IntervalBoundOutcome) :=
+  intervalBoundCoreTypedAt (-80) taylorDepth
+
+/-- Try coordinated Dyadic stages in increasing refinement order, then run the
+Rational fallback once at the final Taylor depth. Each attempt is isolated in
+the original tactic state. -/
+def intervalBoundAdaptiveCoreTyped (policy : NumericalRefinementPolicy) :
+    TacticM (Except IntervalBoundFailure IntervalBoundOutcome) := do
+  let original ← saveState
+  let stages := policy.stages
+  let mut lastFailure : Option IntervalBoundFailure := none
+  for stage in stages do
+    original.restore
+    match ← intervalBoundCoreTypedAt stage.dyadicPrecision stage.taylorDepth false with
+    | .ok outcome => return .ok outcome
+    | .error failure@(.inconclusive ..) =>
+        lastFailure := some failure
+    | .error failure =>
+        original.restore
+        return .error failure
   original.restore
-  intervalBoundRationalCoreTyped taylorDepth
+  match stages.getLast? with
+  | some stage => intervalBoundRationalCoreTyped stage.taylorDepth
+  | none => return .error <| lastFailure.getD <|
+      .inconclusive "the numerical refinement policy contains no stages"
 
 /-! ## Tactic Syntax -/
 
-/-- Core of `certify_bound`: fixed depth when given, else adaptive depth search. -/
+private def IntervalBoundFailure.message : IntervalBoundFailure → MessageData
+  | .unsupported expression detail =>
+      m!"certify_bound: unsupported expression {expression}:\n{detail}"
+  | .inconclusive detail => m!"certify_bound: {detail}"
+  | .transportFailure detail =>
+      m!"certify_bound: proof transport failed:\n{detail}"
+  | .internalFailure detail =>
+      m!"certify_bound: certificate verification failed:\n{detail}"
+
+/-- Core of `certify_bound`. Without an explicit Taylor depth, Dyadic
+precision and Taylor depth increase together. With an explicit depth, only
+Dyadic precision is refined. Rational fallback runs once after the final
+Dyadic stage. -/
 def certifyBoundWithDepth (depth : Option Nat) : TacticM Unit := do
-  match depth with
-  | some n =>
-    -- Fixed depth specified by user
-    intervalBoundCore n
-  | none =>
-    -- Adaptive: try increasing depths until success
-    let depths := [10, 15, 20, 25, 30]
-    let _goal ← getMainGoal
-    let goalState ← saveState
-    let mut lastError : Option Exception := none
-    for d in depths do
-      try
-        restoreState goalState
-        trace[interval_decide] "Trying Taylor depth {d}..."
-        intervalBoundCore d
-        trace[interval_decide] "Success with Taylor depth {d}"
-        return  -- Success!
-      catch e =>
-        lastError := some e
-        continue
-    -- All depths failed - run diagnostics and report enriched error
-    match lastError with
-    | some e =>
-      -- Restore state and try to parse goal for diagnostics
+  let policy := match depth with
+    | some n => NumericalRefinementPolicy.fixedTaylor n 0
+    | none => NumericalRefinementPolicy.adaptive 10 0
+  let goalState ← saveState
+  match ← intervalBoundAdaptiveCoreTyped policy with
+  | .ok _ => pure ()
+  | .error failure =>
       restoreState goalState
       let diagMsg ← try
-        -- Apply same preprocessing as intervalBoundCore for consistent parsing
         try
-          evalTactic (← `(tactic| intro _x _hx; simp only [ge_iff_le, gt_iff_lt]; revert _x _hx))
+          evalTactic (← `(tactic|
+            intro _x _hx; simp only [ge_iff_le, gt_iff_lt]; revert _x _hx))
         catch _ =>
           try evalTactic (← `(tactic| simp only [ge_iff_le, gt_iff_lt]))
           catch _ => pure ()
         try
-          evalTactic (← `(tactic| simp only [pow_zero, pow_one, one_mul, mul_one] at *))
+          evalTactic (← `(tactic|
+            simp only [pow_zero, pow_one, one_mul, mul_one] at *))
         catch _ => pure ()
-
         let goal ← getMainGoal
         let goalType ← goal.getType
-        let boundGoalOpt ← parseBoundGoal goalType
-        runShadowDiagnostic boundGoalOpt goalType
+        runShadowDiagnostic (← parseBoundGoal goalType) goalType
       catch _ =>
         pure m!"(Could not run diagnostics)"
-
-      throwError m!"{e.toMessageData}\n\n{diagMsg}"
-    | none => throwError "certify_bound: All precision levels failed"
+      throwError m!"{failure.message}\n\n{diagMsg}"
 
 /-- The certify_bound tactic.
 
     Automatically proves bounds on expressions using interval arithmetic.
 
     Usage:
-    - `certify_bound` - uses adaptive precision (tries depths 10, 15, 20, 25, 30)
-    - `certify_bound 20` - uses fixed Taylor depth of 20
+    - `certify_bound` - coordinates increasing Dyadic precision and Taylor depth
+    - `certify_bound 20` - fixes Taylor depth at 20 while refining Dyadic precision
     - `certify_bound (trust := kernel)` - kernel-only certificate verification
       (likewise `native`, `auto`; defaults to the `leancert.trust` option)
 

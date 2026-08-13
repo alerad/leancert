@@ -101,6 +101,20 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
 | `maxIterations` | `1000` | Iteration limit for global-optimization strategies |
 | `trust` | scoped option | Certificate-verification policy: `kernel`, `native`, or `auto` |
 
+Numerical interval strategies use a deterministic three-stage refinement
+schedule. Starting from the configured `taylorDepth`, the ordinary adaptive
+route tries Taylor depths `d`, `d + 10`, and `d + 20` together with Dyadic
+precisions `-53`, `-85`, and `-117`. Strategies that subdivide also ramp their
+spatial limit from zero to the configured `subdivisions` maximum. An explicit
+Taylor depth passed to a dedicated tactic such as `certify_bound 20` remains
+fixed at `20`; only Dyadic precision (and spatial depth where relevant) is
+refined.
+
+This scheduling logic is untrusted search. Every successful stage still runs
+the existing Boolean checker and applies its Golden Theorem; an unsuccessful
+stage cannot create a proof. Rational fallback is attempted once, after the
+last Dyadic stage, rather than once per stage.
+
 The effective default is the scoped `leancert.trust` option, whose repository
 default is `native`. An inline `(trust := ...)` overrides it. Non-default
 options that made a proof succeed should be retained in the final proof.
@@ -134,7 +148,7 @@ LeanCert recognized: univariate interval bound
 
 Selected strategy:
   recursive interval subdivision
-  Taylor depth 10; maximum recursive depth 8
+  Taylor depth and spatial depth refine together up to maximum recursive depth 8
 
 Numerical computation:
   Rational interval evaluation
@@ -143,7 +157,7 @@ Certificate verification:
   requested auto → used kernel (several checks)
 
 Subdivision:
-  Taylor depth: 10
+  Taylor depth: 30
   Configured maximum depth: 8
   Deepest depth used: 5
   Boxes examined: 27
@@ -153,10 +167,6 @@ Subdivision:
 Suggested proof:
   by
     leancert (subdivisions := 8) (trust := auto)
-
-Advanced control:
-  by
-    interval_bound_subdiv 10 8 (trust := auto)
 ```
 
 If `auto` uses native verification, the report distinguishes a

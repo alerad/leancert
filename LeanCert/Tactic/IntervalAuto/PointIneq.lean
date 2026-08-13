@@ -48,7 +48,8 @@ inductive PointInequalityFailure where
 
 /-- Try to prove a closed expression bound directly using certificate verification. -/
 def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
-    (taylorDepth : Nat) :
+    (taylorDepth : Nat) (precision : Int := -80)
+    (rationalFallback : Bool := true) :
     TacticM (Except PointInequalityFailure PointInequalityOutcome) := do
   trace[interval_decide] "typed point bound: starting with goal {goalType}"
   goal.withContext do
@@ -310,7 +311,7 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
     let dyadicSaved ← saveState
     let tryDyadic : TacticM (Except PointInequalityFailure
         (Option PointInequalityOutcome)) := do
-      let prec : Int := -80
+      let prec := precision
       let precExpr := toExpr prec
       let depthExpr := toExpr taylorDepth
       let precLeZeroTy ← mkAppM ``LE.le #[precExpr, toExpr (0 : Int)]
@@ -376,7 +377,11 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
     let dyadicResult ← tryDyadic
     match dyadicResult with
     | .ok (some outcome) => return .ok outcome
-    | .ok none => pure ()
+    | .ok none =>
+        if !rationalFallback then
+          return .error <| .inconclusive
+            s!"The Dyadic point checker was inconclusive at precision \
+              {precision} and Taylor depth {taylorDepth}."
     | .error failure => return .error failure
 
     let supportProof ←
@@ -454,9 +459,31 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
     return .error <| .transportFailure
       "certified Rational proof did not close the original point inequality"
 
-private def proveClosedExpressionBoundOrThrow (goal : MVarId) (goalType : Lean.Expr)
-    (taylorDepth : Nat) : TacticM Unit := do
-  match ← proveClosedExpressionBoundTyped goal goalType taylorDepth with
+/-- Coordinate Dyadic precision and Taylor depth for a closed point
+inequality. The Rational fallback runs only in the final stage. -/
+def proveClosedExpressionBoundAdaptiveTyped (goal : MVarId)
+    (goalType : Lean.Expr) (policy : NumericalRefinementPolicy) :
+    TacticM (Except PointInequalityFailure PointInequalityOutcome) := do
+  let original ← saveState
+  let mut lastFailure : Option PointInequalityFailure := none
+  for stage in policy.stages do
+    original.restore
+    let isFinal := stage.index + 1 == policy.stageCount
+    match ← proveClosedExpressionBoundTyped goal goalType stage.taylorDepth
+        stage.dyadicPrecision isFinal with
+    | .ok outcome => return .ok outcome
+    | .error failure@(.inconclusive ..) => lastFailure := some failure
+    | .error failure@(.rejected ..) => lastFailure := some failure
+    | .error failure =>
+        original.restore
+        return .error failure
+  original.restore
+  return .error <| lastFailure.getD <|
+    .inconclusive "the numerical refinement policy contains no stages"
+
+private def proveClosedExpressionBoundAdaptiveOrThrow (goal : MVarId)
+    (goalType : Lean.Expr) (policy : NumericalRefinementPolicy) : TacticM Unit := do
+  match ← proveClosedExpressionBoundAdaptiveTyped goal goalType policy with
   | .ok _ => pure ()
   | .error (.unsupported expression detail) =>
       throwError "interval_decide: unsupported expression {expression}:\n{detail}"
@@ -469,8 +496,9 @@ private def proveClosedExpressionBoundOrThrow (goal : MVarId) (goalType : Lean.E
   | .error (.internalFailure detail) =>
       throwError "interval_decide: certificate verification failed:\n{detail}"
 
-/-- The interval_decide tactic implementation. -/
-def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
+/-- Point-inequality implementation under one coordinated refinement policy. -/
+def intervalDecideCoreWithPolicy (policy : NumericalRefinementPolicy) : TacticM Unit := do
+  let taylorDepth := policy.initialTaylorDepth
   intervalNormCore
   let goal ← getMainGoal
   let goalType ← goal.getType
@@ -514,7 +542,7 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
     if !hasFreeVars then
       trace[interval_decide] "No free variables, trying closed expression path"
       try
-        proveClosedExpressionBoundOrThrow goal goalType taylorDepth
+        proveClosedExpressionBoundAdaptiveOrThrow goal goalType policy
         return
       catch e =>
         trace[interval_decide] "Closed expression path on original goal failed: {e.toMessageData}"
@@ -533,7 +561,7 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
       catch _ => pure ()
 
       try
-        proveClosedExpressionBoundOrThrow currentGoal currentGoalType taylorDepth
+        proveClosedExpressionBoundAdaptiveOrThrow currentGoal currentGoalType policy
         return
       catch _ => pure ()
 
@@ -589,6 +617,12 @@ def intervalDecideCore (taylorDepth : Nat) : TacticM Unit := do
               exact h {cStr} ⟨le_refl {cStr}, le_refl {cStr}⟩\n\
               ```\n\
               Replace `f x` with your expression (using `x` instead of `{cStr}`)."
+
+/-- Compatibility entry point with fixed Taylor depth and adaptive Dyadic
+precision. -/
+def intervalDecideCore (taylorDepth : Nat) : TacticM Unit :=
+  intervalDecideCoreWithPolicy
+    (NumericalRefinementPolicy.fixedTaylor taylorDepth 0)
 
 /-! ### Depth estimation helpers -/
 
@@ -898,56 +932,30 @@ private def intervalDecideSingle (depth : Option Nat) : TacticM Unit := do
   match depth with
   | some n =>
     let goalState ← saveState
-    let goalType ← getMainTarget
-    -- If we can estimate a much smaller depth, try it first to save time.
-    let est ← estimateTranscendentalDepth goalType
-    let est' := Nat.min est n
-    let depths : List Nat :=
-      if est' + 5 < n then [est', n] else [n]
-    let mut lastError : Option Exception := none
-    for d in depths do
-      try
-        restoreState goalState
-        intervalDecideCore d
-        return
-      catch e =>
-        lastError := some e
-        continue
-    restoreState goalState
-    let splitSuccess ← trySumSplitting n
-    if splitSuccess then return
-    match lastError with
-    | some e => throw e
-    | none => throwError "interval_decide: failed at all depth levels"
+    try
+      intervalDecideCore n
+      return
+    catch e =>
+      restoreState goalState
+      let splitSuccess ← trySumSplitting n
+      if splitSuccess then return
+      throw e
   | none =>
     let goalType ← getMainTarget
     let est ← estimateTranscendentalDepth goalType
-    let depths :=
-      if est > 10 then
-        [est, est + 10, est + 20]
-      else
-        [10, 15, 20, 25, 30]
-    trace[interval_decide] "Estimated depth: {est}, trying depths: {depths}"
+    let initialDepth := if est > 10 then est else 10
+    let policy := NumericalRefinementPolicy.adaptive initialDepth 0
+    trace[interval_decide] "Estimated depth: {est}, refinement stages: {repr policy.stages}"
     let goalState ← saveState
-    let mut lastError : Option Exception := none
-    for d in depths do
-      try
-        restoreState goalState
-        trace[interval_decide] "Trying Taylor depth {d}..."
-        intervalDecideCore d
-        trace[interval_decide] "Success with Taylor depth {d}"
-        return
-      catch e =>
-        lastError := some e
-        continue
-    -- All depths failed — try sum splitting as a last resort
-    let est2 := if est > 10 then est else 30
-    restoreState goalState
-    let splitSuccess ← trySumSplitting est2
-    if splitSuccess then return
-    match lastError with
-    | some e => throw e
-    | none => throwError "interval_decide: failed at all depth levels"
+    try
+      intervalDecideCoreWithPolicy policy
+      return
+    catch e =>
+      restoreState goalState
+      let finalDepth := initialDepth + 2 * policy.taylorDepthStep
+      let splitSuccess ← trySumSplitting finalDepth
+      if splitSuccess then return
+      throw e
 
 /-- Recursively handle conjunctions and disjunctions, then apply intervalDecideSingle -/
 partial def intervalDecideWithConnectives (depth : Option Nat) : TacticM Unit := do
