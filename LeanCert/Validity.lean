@@ -16,6 +16,7 @@ import LeanCert.Validity.AffineCover
 import LeanCert.Validity.Monotonicity
 import LeanCert.Validity.DirectedLimit
 import LeanCert.Validity.Eventual
+import LeanCert.Validity.RelativeCompleteness
 import LeanCert.Validity.Krawczyk
 import LeanCert.Validity.Algebra
 
@@ -43,6 +44,10 @@ The Engine computes numbers; Validity turns them into theorems.
 
 * `Validity.Dyadic`, `Validity.FinSum`, `Validity.Chebyshev` - Stable
   forwarding imports for domain-specific bridge theorem families.
+
+* `Validity.RelativeCompleteness` - positive-margin completeness under a
+  coordinated refinement schedule whose spatial, rounding, and analytic
+  errors all tend to zero.
 
 * `Validity.Krawczyk` - certified existence and uniqueness for square systems
   in the differentiable AD fragment on rational boxes.

@@ -22,6 +22,7 @@ import LeanCert.Core.RationalCellDomain
 import LeanCert.Core.DyadicCellDomain
 import LeanCert.Core.DyadicCell
 import LeanCert.Core.DyadicFrontier
+import LeanCert.Core.DyadicLimit
 
 -- Numerics modules
 import LeanCert.Engine.IntervalEval
