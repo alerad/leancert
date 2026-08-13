@@ -35,6 +35,9 @@ def li2Integrand : Expr :=
 
 def li2Box : IntervalRat := ⟨1 / 1000, 999 / 1000, by norm_num⟩
 
+def li2DyadicBox : IntervalDyadic :=
+  ⟨⟨1, -10⟩, ⟨1023, -10⟩, by native_decide⟩
+
 private def input : InputMetrics := {
   astNodes := 19
   astDepth := 7
@@ -124,11 +127,79 @@ private def publicIntegrationCase (backend : BackendChoice) (cells : Nat) : Case
   run := runPublicLi2Partition backend cells
 }
 
+private def runDyadicLevel (depth : Nat) : IO Outcome := do
+  let cfg : DyadicConfig := { precision := -53, taylorDepth := 18 }
+  let result := integrateDyadicLevelChecked li2Integrand li2DyadicBox depth cfg
+  if result.1.width.den = 0 then
+    return { status := "error", error := some "impossible zero rational denominator" }
+  return {
+    status := if result.2 then "success" else "invalid_domain"
+    interval := some result.1
+    backendUsed := some "dyadic"
+  }
+
+private def dyadicLevelCase (depth : Nat) : Case := {
+  name := s!"integration.li2_dyadic_level_{depth}.checked.dyadic"
+  family := "partitioned_integration"
+  tier := "end_to_end"
+  layer := .algorithm
+  backendRequested := "dyadic"
+  suites := ["end-to-end", "all"]
+  parameters := [
+    ("integrand", "li2_stable_form"),
+    ("partition", "exact_power_of_two_level"),
+    ("depth", s!"{depth}"),
+    ("partition_cells", s!"{2 ^ depth}"),
+    ("dyadic_exponent", "-53"),
+    ("taylor_depth", "18"),
+    ("domain", "[1/1024,1023/1024]")
+  ]
+  input
+  innerIterations := 1
+  run := runDyadicLevel depth
+}
+
+private def runMatchedUniformDyadic (depth : Nat) (h : 0 < 2 ^ depth := by positivity) :
+    IO Outcome := do
+  let result := integratePartitionDyadicChecked li2Integrand li2DyadicBox.toIntervalRat
+    (2 ^ depth) h { precision := -53, taylorDepth := 18 }
+  if result.1.width.den = 0 then
+    return { status := "error", error := some "impossible zero rational denominator" }
+  return {
+    status := if result.2 then "success" else "invalid_domain"
+    interval := some result.1
+    backendUsed := some "dyadic"
+  }
+
+private def matchedUniformCase (depth : Nat) : Case := {
+  name := s!"integration.li2_uniform_power_two_{depth}.checked.dyadic"
+  family := "partitioned_integration"
+  tier := "end_to_end"
+  layer := .algorithm
+  backendRequested := "dyadic"
+  suites := ["end-to-end", "all"]
+  parameters := [
+    ("integrand", "li2_stable_form"),
+    ("partition", "arbitrary_n_uniform"),
+    ("depth", s!"{depth}"),
+    ("partition_cells", s!"{2 ^ depth}"),
+    ("dyadic_exponent", "-53"),
+    ("taylor_depth", "18")
+  ]
+  input
+  innerIterations := 1
+  run := runMatchedUniformDyadic depth
+}
+
 def cases : List Case := [
   publicIntegrationCase .rational 100,
   publicIntegrationCase .dyadic 100,
   publicIntegrationCase .rational 500,
   publicIntegrationCase .dyadic 500,
+  matchedUniformCase 7,
+  dyadicLevelCase 7,
+  matchedUniformCase 9,
+  dyadicLevelCase 9,
   integrationCase 100,
   integrationCase 500,
   integrationCase 1000,

@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Engine.IntervalEvalDyadic
 import LeanCert.Engine.Integrate
+import LeanCert.Core.DyadicCell
 
 /-!
 # Dyadic Interval Integration
@@ -597,6 +598,68 @@ private theorem integral_mem_bound_dyadic_list (e : Expr)
       exact ⟨le_trans (by exact_mod_cast lo_le_part_lo parts I hcover i hi') hxlo,
              le_trans hxhi (by exact_mod_cast part_hi_le_hi parts I hcover i hi')⟩
   exact sum_mem_foldl_add hlen hmem_each
+
+/-- Golden theorem for a checked arbitrary Dyadic partition. Coverage remains
+an explicit input because candidate partition construction is untrusted. -/
+theorem integratePartitionDyadicListChecked_correct (e : Expr)
+    (parts : List IntervalRat) (I : IntervalRat)
+    (hcover : ListPartitionCovers parts I)
+    (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
+    (bound : IntervalRat)
+    (hchecked : integratePartitionDyadicListChecked e parts cfg = (bound, true))
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
+      MeasureTheory.volume I.lo I.hi) :
+    ∫ x in (I.lo : ℝ)..(I.hi : ℝ), Expr.eval (fun _ => x) e ∈ bound := by
+  have hfst : (integratePartitionDyadicListChecked e parts cfg).1 = bound := by
+    rw [hchecked]
+  have hsnd : (integratePartitionDyadicListChecked e parts cfg).2 = true := by
+    rw [hchecked]
+  rw [integratePartitionDyadicListChecked_fst] at hfst
+  rw [integratePartitionDyadicListChecked_snd] at hsnd
+  subst bound
+  exact integral_mem_bound_dyadic_list e parts I hcover cfg hprec
+    (checkPartitionDomainValidList_correct e parts cfg hsnd) hInt
+
+/-! ### Exact power-of-two level integration -/
+
+/-- Materialize the exact closed cells at one dyadic refinement level. -/
+def dyadicLevelPartition (root : IntervalDyadic) (depth : Nat) : List IntervalRat :=
+  (DyadicCell.PreparedDyadicLevel.prepare root depth).materialize.map
+    IntervalDyadic.toIntervalRat
+
+/-- Checked integration over exactly `2^depth` dyadic cells. The partition is
+constructed by repeated endpoint addition and checked for exact coverage. -/
+def integrateDyadicLevelChecked (e : Expr) (root : IntervalDyadic) (depth : Nat)
+    (cfg : DyadicConfig := {}) : IntervalRat × Bool :=
+  let parts := dyadicLevelPartition root depth
+  let checked := integratePartitionDyadicListChecked e parts cfg
+  (checked.1, checked.2 && checkListPartitionCovers parts root.toIntervalRat)
+
+/-- A successful fixed-level computation encloses the integral over the exact
+dyadic root. -/
+theorem integrateDyadicLevelChecked_correct (e : Expr)
+    (root : IntervalDyadic) (depth : Nat)
+    (cfg : DyadicConfig) (hprec : cfg.precision ≤ 0)
+    (bound : IntervalRat)
+    (hchecked : integrateDyadicLevelChecked e root depth cfg = (bound, true))
+    (hInt : IntervalIntegrable (fun x => Expr.eval (fun _ => x) e)
+      MeasureTheory.volume root.lo.toRat root.hi.toRat) :
+    ∫ x in (root.lo.toRat : ℝ)..(root.hi.toRat : ℝ),
+      Expr.eval (fun _ => x) e ∈ bound := by
+  unfold integrateDyadicLevelChecked at hchecked
+  let parts := dyadicLevelPartition root depth
+  let checked := integratePartitionDyadicListChecked e parts cfg
+  have hfst : checked.1 = bound := congrArg Prod.fst hchecked
+  have hsnd : (checked.2 && checkListPartitionCovers parts root.toIntervalRat) = true :=
+    congrArg Prod.snd hchecked
+  simp only [Bool.and_eq_true] at hsnd
+  apply integratePartitionDyadicListChecked_correct e parts root.toIntervalRat
+    (checkListPartitionCovers_correct parts root.toIntervalRat hsnd.2)
+    cfg hprec bound
+  · apply Prod.ext
+    · exact hfst
+    · exact hsnd.1
+  · exact hInt
 
 /-! ### Bridge lemmas for list-based partition -/
 
