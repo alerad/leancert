@@ -34,6 +34,12 @@ you intentionally want the dedicated single-variable interval engine, including
 explicit Taylor-depth selection.
 `certify_bound` is a numerical portfolio rather than a promise of one fixed
 backend. Subdivision and global optimization are strategies, not backends.
+Without a positional Taylor depth it uses the same coordinated three-stage
+schedule as `leancert`: Dyadic precision increases from `-53` through `-85` to
+`-117`, while Taylor depth increases by 10 at each stage. A positional depth,
+for example `certify_bound 20`, keeps Taylor depth fixed and still adapts
+Dyadic precision. The final Rational fallback runs only after the Dyadic
+stages are exhausted.
 
 `interval_bound_subdiv depth maxDepth` splits candidate boxes and certifies
 every retained leaf. `leancert?` reports its configured and deepest depths,

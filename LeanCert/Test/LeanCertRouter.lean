@@ -916,9 +916,10 @@ example : (1 : ℝ) < 2 := by
 info: LeanCert recognized: closed numerical comparison
 
 Selected strategy:
-  direct point enclosure (Taylor depth 10)
+  adaptive point enclosure
+  Dyadic precision and Taylor depth increase together; the Rational fallback runs once after the final stage
   Taylor depth: 10
-  precision: -80
+  precision: -53
 
 Numerical computation:
   Dyadic interval evaluation
@@ -931,10 +932,6 @@ Verifier: LeanCert.Validity.verify_strict_upper_bound_dyadic_checked
 Suggested proof:
   by
     leancert
-
-Advanced control:
-  by
-    interval_auto 10
 -/
 #guard_msgs in
 example : Real.log 2 < 7 / 10 := by
@@ -944,9 +941,10 @@ example : Real.log 2 < 7 / 10 := by
 info: LeanCert recognized: univariate interval bound
 
 Selected strategy:
-  direct interval enclosure (Taylor depth 10)
+  adaptive direct interval enclosure
+  Dyadic precision and Taylor depth increase together; the Rational fallback runs once after the final stage
   Taylor depth: 10
-  precision: -80
+  precision: -53
 
 Numerical computation:
   Dyadic interval evaluation
@@ -962,7 +960,7 @@ Suggested proof:
 
 Advanced control:
   by
-    certify_bound 10
+    certify_bound
 -/
 #guard_msgs in
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
@@ -1015,7 +1013,7 @@ info: LeanCert recognized: univariate interval bound
 
 Selected strategy:
   recursive interval subdivision
-  Taylor depth 10; maximum recursive depth 8
+  Taylor depth and spatial depth refine together up to maximum recursive depth 8
 
 Numerical computation:
   Rational interval evaluation
@@ -1026,7 +1024,7 @@ Checker: LeanCert.Validity.checkUpperBound
 Verifier: LeanCert.Validity.verify_upper_bound_Icc_core
 
 Subdivision:
-  Taylor depth: 10
+  Taylor depth: 30
   Configured maximum depth: 8
   Deepest depth used: 5
   Boxes examined: 27
@@ -1036,10 +1034,6 @@ Subdivision:
 Suggested proof:
   by
     leancert (subdivisions := 8) (trust := kernel)
-
-Advanced control:
-  by
-    interval_bound_subdiv 10 8 (trust := kernel)
 -/
 #guard_msgs in
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by

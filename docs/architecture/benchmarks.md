@@ -58,6 +58,11 @@ The larger suites are split by purpose:
   Materialized-cell cases validate leaf count and total semantic width. The
   frontier case includes path construction and structural validation but
   deliberately excludes numerical leaf evaluation and proof construction;
+- `numerical-refinement` compares fixed checked-Dyadic configurations with the
+  coordinated precision/Taylor schedule. It includes both a cheap first-stage
+  success and a tight final-stage success, plus the historical fixed `-80`
+  rejection. These cases measure compiled candidate checking, not tactic
+  elaboration or kernel proof replay;
 - `all` includes every suite, including the seconds-scale integration cases.
 
 ## Commands
@@ -94,6 +99,10 @@ lake exe leancert-bench --suite algebra --samples 15 --warmups 3
 # Establish the closed-tree baseline for addressed dyadic subdivision
 lake exe leancert-bench \
   --suite dyadic-subdivision --samples 15 --warmups 3
+
+# Compare fixed and adaptive checked-Dyadic bound attempts
+lake exe leancert-bench \
+  --suite numerical-refinement --samples 15 --warmups 3
 
 # Run absolutely everything
 lake exe leancert-bench --suite all

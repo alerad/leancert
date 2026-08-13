@@ -9,6 +9,7 @@ import LeanCert.Benchmark.Suites.Krawczyk
 import LeanCert.Benchmark.Suites.DomainAwareAD
 import LeanCert.Benchmark.Suites.AlgebraicBezout
 import LeanCert.Benchmark.Suites.DyadicSubdivision
+import LeanCert.Benchmark.Suites.NumericalRefinement
 
 namespace LeanCert.Benchmark
 
@@ -19,7 +20,7 @@ def main (args : List String) : IO UInt32 := do
       return if message = usage then 0 else 1
   | .ok cfg => runBenchmarks cfg (Evaluation.cases ++ Integration.cases ++
       Krawczyk.cases ++ DomainAwareAD.cases ++ AlgebraicBezout.cases ++
-      DyadicSubdivision.cases)
+      DyadicSubdivision.cases ++ NumericalRefinement.cases)
 
 end LeanCert.Benchmark
 

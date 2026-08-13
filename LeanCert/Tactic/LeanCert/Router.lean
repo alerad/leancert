@@ -133,12 +133,29 @@ private def subdivisionFailure :
   | .internalFailure detail =>
       .internalError `LeanCert.Tactic.Auto.intervalBoundSubdivCoreTyped detail
 
-private unsafe def subdivisionAttemptTyped (cfg : LeanCertConfig) :
+private unsafe def adaptiveSubdivisionAttemptTyped (cfg : LeanCertConfig) :
     TacticM (Except AttemptFailure SolverExecution) := do
-  match ← Auto.intervalBoundSubdivCoreTyped
-      (some cfg.taylorDepth) cfg.subdivisions with
-  | .ok outcome => return .ok (subdivisionExecution outcome)
-  | .error failure => return .error (subdivisionFailure failure)
+  let original ← saveState
+  let stages := (NumericalRefinementPolicy.adaptive cfg.taylorDepth
+    cfg.subdivisions).stages
+  let mut lastFailure : Option Auto.SubdivisionFailure := none
+  for stage in stages do
+    if stage.subdivisionDepth == 0 then continue
+    original.restore
+    match ← Auto.intervalBoundSubdivCoreTyped
+        (some stage.taylorDepth) stage.subdivisionDepth with
+    | .ok outcome => return .ok (subdivisionExecution outcome)
+    | .error failure@(.exhausted ..) => lastFailure := some failure
+    | .error failure@(.rejected ..) => lastFailure := some failure
+    | .error failure =>
+        original.restore
+        return .error (subdivisionFailure failure)
+  original.restore
+  match lastFailure with
+  | some failure => return .error (subdivisionFailure failure)
+  | none => return .error <| .inconclusive {
+      detail := "The numerical refinement policy scheduled no positive subdivision depth."
+    }
 
 private def pointExecution (outcome : Auto.PointInequalityOutcome) :
     SolverExecution := Id.run do
@@ -172,6 +189,24 @@ private def pointAttemptTyped (depth : Nat) :
       return .error <| .rejected {
         detail := "The candidate certificate was rejected by its checker."
       }
+  | .error (.inconclusive detail) =>
+      return .error <| .inconclusive { detail }
+  | .error (.transportFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
+  | .error (.internalFailure detail) =>
+      return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
+
+private def adaptivePointAttemptTyped (policy : NumericalRefinementPolicy) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  Auto.intervalNormCore
+  let goal ← getMainGoal
+  let goalType ← goal.getType
+  match ← Auto.proveClosedExpressionBoundAdaptiveTyped goal goalType policy with
+  | .ok outcome => return .ok (pointExecution outcome)
+  | .error (.unsupported expression detail) =>
+      return .error <| .unsupported { expression, detail := some detail }
+  | .error (.rejected detail) =>
+      return .error <| .rejected { detail }
   | .error (.inconclusive detail) =>
       return .error <| .inconclusive { detail }
   | .error (.transportFailure detail) =>
@@ -221,38 +256,55 @@ private def registeredEnclosureExecution
       #[s!"proof-carrying composition: {outcome.compositionSteps} surrounding core layer(s)"]
 }
 
-private unsafe def registeredEnclosureAttemptTyped (prepared : Semantic.PreparedGoal)
-    (depth maxDepth : Nat) : TacticM (Except AttemptFailure SolverExecution) := do
-  match ← Extension.registeredEnclosureBoundSubdivCoreTyped
-      prepared (-53) depth maxDepth with
-  | .ok outcome => return .ok (registeredEnclosureExecution outcome)
-  | .error .notApplicable => return .error .notApplicable
-  | .error (.unsupported expression detail) =>
-      return .error <| .unsupported { expression, detail := some detail }
-  | .error (.domainObstruction operation detail) =>
-      return .error <| .domainObstruction {
+private def registeredEnclosureFailure :
+    Extension.RegisteredEnclosureFailure → AttemptFailure
+  | .notApplicable => .notApplicable
+  | .unsupported expression detail =>
+      .unsupported { expression, detail := some detail }
+  | .domainObstruction operation detail =>
+      .domainObstruction {
         source := { original := mkConst ``True, kind := .intervalRat }
         operation := some operation
         reason := detail
       }
-  | .error (.inconclusive detail enclosure) =>
-      return .error <| .inconclusive { detail, enclosure }
-  | .error (.rejected checker enclosure detail) =>
-      return .error <| .rejected { checker, enclosure, detail }
-  | .error (.exhausted maxDepth boxes deepest leaves enclosure detail) =>
-      return .error <| .inconclusive {
+  | .inconclusive detail enclosure => .inconclusive { detail, enclosure }
+  | .rejected checker enclosure detail => .rejected { checker, enclosure, detail }
+  | .exhausted maxDepth boxes deepest leaves enclosure detail =>
+      .inconclusive {
         enclosure
         detail := s!"Registered enclosure subdivision reached its configured depth \
           {maxDepth} after examining {boxes} boxes (deepest depth {deepest}; \
           {leaves} certified leaves). Last failure: {detail}"
       }
-  | .error (.verificationFailure detail) =>
-      return .error <| .internalError
+  | .verificationFailure detail =>
+      .internalError
         `LeanCert.Tactic.Extension.registeredEnclosureBoundSubdivCoreTyped detail
 
-private unsafe def directBoundAttemptTyped (depth : Nat) :
+private unsafe def adaptiveRegisteredEnclosureAttemptTyped
+    (prepared : Semantic.PreparedGoal) (policy : NumericalRefinementPolicy) :
     TacticM (Except AttemptFailure SolverExecution) := do
-  match ← Auto.intervalBoundCoreTyped depth with
+  let original ← saveState
+  let mut lastFailure : Option AttemptFailure := none
+  for stage in policy.stages do
+    original.restore
+    match ← Extension.registeredEnclosureBoundSubdivCoreTyped prepared
+        stage.dyadicPrecision stage.taylorDepth stage.subdivisionDepth with
+    | .ok outcome => return .ok (registeredEnclosureExecution outcome)
+    | .error failure =>
+        let mapped := registeredEnclosureFailure failure
+        match mapped with
+        | retry@(.inconclusive ..) => lastFailure := some retry
+        | retry@(.rejected ..) => lastFailure := some retry
+        | terminal =>
+            original.restore
+            return .error terminal
+  original.restore
+  return .error <| lastFailure.getD .notApplicable
+
+private unsafe def adaptiveDirectBoundAttemptTyped
+    (policy : NumericalRefinementPolicy) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Auto.intervalBoundAdaptiveCoreTyped policy with
   | .ok outcome => return .ok (directBoundExecution outcome)
   | .error (.unsupported expression detail) =>
       return .error <| .unsupported {
@@ -852,34 +904,30 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (some (suggestion "norm_num")) (strategyId := .exactNormalization),
         solve := exactTacticAttemptTyped
           (do evalTactic (← `(tactic| norm_num))) },
-      { report := report intent s!"direct point enclosure (Taylor depth {d})" cfg mode
+      { report := report intent "adaptive point enclosure" cfg mode
           (.policy "checked interval tactic portfolio")
-          (some (suggestion "interval_auto" #[toString d]))
+          none
+          (some "Dyadic precision and Taylor depth increase together; the \
+            Rational fallback runs once after the final stage")
           (strategyId := .pointEnclosure),
-        solve := pointAttemptTyped d },
-      { report := report intent s!"direct point enclosure (Taylor depth {d2})" cfg mode
-          (.policy "checked interval tactic portfolio")
-          (some (suggestion "interval_auto" #[toString d2]))
-          (strategyId := .pointEnclosure),
-        solve := pointAttemptTyped d2 }]
+        solve := adaptivePointAttemptTyped
+          (NumericalRefinementPolicy.adaptive d 0) }]
   | .intervalBound => #[
-      { report := report intent s!"direct interval enclosure (Taylor depth {d})" cfg mode
+      { report := report intent "adaptive direct interval enclosure" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
-          (some (suggestion "certify_bound" #[toString d]))
+          (some (suggestion "certify_bound"))
+          (some "Dyadic precision and Taylor depth increase together; the \
+            Rational fallback runs once after the final stage")
           (strategyId := .intervalEnclosure),
-        solve := directBoundAttemptTyped d },
-      { report := report intent s!"direct interval enclosure (Taylor depth {d2})" cfg mode
-          (.policy "Dyadic-first, then checked Rational fallback")
-          (some (suggestion "certify_bound" #[toString d2]))
-          (strategyId := .intervalEnclosure),
-        solve := directBoundAttemptTyped d2 },
+        solve := adaptiveDirectBoundAttemptTyped
+          (NumericalRefinementPolicy.adaptive d cfg.subdivisions) },
       { report := report intent "recursive interval subdivision" cfg mode
           (.fixed .rationalInterval)
-          (some (suggestion "interval_bound_subdiv"
-            #[toString d, toString cfg.subdivisions]))
-          (some s!"Taylor depth {d}; maximum recursive depth {cfg.subdivisions}")
+          none
+          (some s!"Taylor depth and spatial depth refine together up to maximum \
+            recursive depth {cfg.subdivisions}")
           .subdivision,
-        solve := subdivisionAttemptTyped cfg },
+        solve := adaptiveSubdivisionAttemptTyped cfg },
       { report := report intent
           (if cfg.useMonotonicity then s!"opt_bound {cfg.maxIterations} mono"
            else s!"opt_bound {cfg.maxIterations}") cfg mode
@@ -1520,7 +1568,8 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
         .registeredEnclosure
       let extensionSpec : SolverSpec := {
         report := extensionPlan
-        solve := registeredEnclosureAttemptTyped prepared cfg.taylorDepth cfg.subdivisions
+        solve := adaptiveRegisteredEnclosureAttemptTyped prepared
+          (NumericalRefinementPolicy.adaptive cfg.taylorDepth cfg.subdivisions)
       }
       match ← trySolver extensionSpec with
       | .proved artifact => return ← commitArtifact artifact

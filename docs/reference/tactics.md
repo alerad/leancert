@@ -148,6 +148,15 @@ fragment use the executable `QPoly.checkExactIntegral` checker. Integral
 inequalities fall back to checked rational partition search. State ordinary
 integral equalities or inequalities and use `leancert`.
 
+For numerical interval strategies, `taylorDepth` is the initial analytic
+depth and `subdivisions` is the maximum spatial depth. The default adaptive
+schedule tries three coordinated stages with Dyadic precisions `-53`, `-85`,
+and `-117`; Taylor depth increases by 10 per stage and spatial depth ramps to
+the requested maximum. Supplying a positional Taylor depth to a dedicated
+tactic such as `certify_bound 20` holds Taylor depth fixed while precision
+still refines. The scheduler only searches for candidates: all accepted
+results continue through the ordinary checked certificate theorem.
+
 Conjunctions of recognized numerical goals are routed recursively, including
 goals exposed by `forall_and`. Every child must be independently supported and
 proved. Disjunctions are intentionally not routed: choosing a logical branch
