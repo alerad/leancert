@@ -190,8 +190,8 @@ theorem newtonMap_fderiv_matrix {n : Nat} (Y : Matrix (Fin n) (Fin n) ℝ)
   have hY := (matrixCLM Y).hasFDerivAt.comp x hF
   have hg : HasFDerivAt (newtonMap Y F)
       (ContinuousLinearMap.id ℝ _ - (matrixCLM Y).comp (fderiv ℝ (systemEval F) x)) x := by
-    simpa [newtonMap, matrixCLM, Matrix.mulVecLin_apply, Function.comp_def] using
-      (hasFDerivAt_id x).sub hY
+    change HasFDerivAt (fun z => z - matrixCLM Y (systemEval F z)) _ x
+    exact (hasFDerivAt_id x).sub hY
   rw [hg.fderiv]
   change LinearMap.toMatrix' ((ContinuousLinearMap.id ℝ _ -
     (matrixCLM Y).comp (fderiv ℝ (systemEval F) x)).toLinearMap) = _

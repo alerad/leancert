@@ -12,6 +12,9 @@ open Lean Elab Command
 #check LeanCert.Tactic.elabEnclosureBound
 #check LeanCert.Tactic.elabEnclosureBoundQuestion
 #check LeanCert.Tactic.Extension.registeredEnclosureBoundSubdivCoreTyped
+#check LeanCert.Tactic.Extension.replayRegisteredEnclosureBoundCoreTyped
+#check LeanCert.Tactic.Extension.discoverRegisteredEnclosureBoundMeta
+#check LeanCert.Tactic.Extension.replayRegisteredEnclosureBoundMeta
 
 run_meta do
   let env ← getEnv

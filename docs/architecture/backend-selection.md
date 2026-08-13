@@ -99,8 +99,12 @@ def preciseDyadic : EvalOptions := {
 #eval evalInterval (.exp (.var 0)) [unit] preciseDyadic
 ```
 
-The historical `eval_interval_dyadic` and `eval_interval_affine` JSON methods
-were removed; use `eval_interval` with the `backend` selector. Global
+The current Core public JSON facade removed the historical
+`eval_interval_dyadic` and `eval_interval_affine` methods; use `eval_interval`
+with the `backend` selector. The published Python SDK 1.0 compatibility client
+still uses native Dyadic/Affine operation names when negotiating its released
+Bridge contract. Those names are a Python/Bridge compatibility surface, not
+additional Lean public APIs. Global
 optimization uses `LeanCert.GlobalOptOptions`, which composes the same
 `EvalOptions` with independent `SearchOptions`:
 

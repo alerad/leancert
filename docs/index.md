@@ -1,12 +1,20 @@
 # LeanCert
 
-LeanCert is a Lean 4 library for certified numerical computation and
-proof-producing certificate workflows.
+LeanCert is a certified numerical-computation system with two first-class
+interfaces: a Lean 4 library for proving theorems directly and a Python SDK
+for constructing exact claims, orchestrating numerical search, and producing
+checked evidence.
 
-For theorem proving, begin with [`leancert`](direct/leancert.md). For
-programmatic use, see the [supported public API](reference/public-api.md).
-For a compact evaluation path, build the [curated showcase](showcase.md) and
-read the [trust model](architecture/trust-model.md).
+| I want to... | Start here |
+|---|---|
+| Prove numerical theorems in Lean | [Lean quickstart](quickstart.md) |
+| Check exact claims from Python | [Python quickstart](python/quickstart.md) |
+| Understand what is trusted | [Trust model](architecture/trust-model.md) |
+| Rebuild Python-produced evidence independently | [Export and verification](python/evidence/export.md) |
+
+Both interfaces reach LeanCert's checked numerical engines. Python may search
+for candidate bounds, cutoffs, or Krawczyk data, but search never authorizes a
+successful result: an advertised checker must accept the exact payload.
 
 Downstream packages can register checked enclosure rules for their own unary
 real functions without modifying LeanCert's internal expression datatype.
@@ -55,6 +63,28 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x ≤ 1 := by
   leancert
 ```
 
+## Quick Python Example
+
+Install the self-contained SDK wheel and prove a bound without installing Lean:
+
+```bash
+pip install leancert
+```
+
+```python
+import leancert as lc
+from leancert import ast
+
+x = ast.var("x")
+result = lc.prove(x**2 <= 1, where={x: (0, 1)})
+
+if isinstance(result, lc.Verified):
+    print(result.claim_id)
+```
+
+The wheel bundles the matching LeanCert Bridge. A verified result retains its
+semantic claim identity, checked certificate, and exact build provenance.
+
 ## Install
 
 Add LeanCert as a Lake dependency:
@@ -79,17 +109,25 @@ lake update
 
 | Section | Description |
 |---|---|
-| [Getting Started](choosing-proof-shape.md) | Choose the right proof path before selecting modules |
+| [Getting Started](choosing-interface.md) | Choose Python or Lean, then prove a first claim |
+| [Python SDK](python/index.md) | Exact claims, typed outcomes, evidence export, and numerical workflows |
 | [Direct Automation](direct/leancert.md) | Start with `leancert`; use dedicated tactics as advanced controls |
 | [Proof Templates](proof-templates/overview.md) | Reusable certificate strategies and proof patterns |
 | [Domain Libraries](domains/overview.md) | Domain-specific certificate packages |
 | [Architecture and Trust](architecture/golden-theorems.md) | Why checkers imply theorems, and what is trusted |
 | [Reference](reference/imports.md) | Imports, tactics, and certificate API references |
 
-## Split Repositories
+## LeanCert Repositories
 
-This repo is Lean-only.
-The Python package and bridge release pipeline were moved out of this repo.
+The documentation covers one product family delivered through three
+repositories:
 
-- Python SDK: `https://github.com/alerad/leancert-python`
-- Bridge binaries: `https://github.com/alerad/leancert-bridge`
+- **Core:** [`alerad/leancert`](https://github.com/alerad/leancert) contains
+  the Lean definitions, checkers, and soundness theorems.
+- **Python SDK:** [`alerad/leancert-python`](https://github.com/alerad/leancert-python)
+  contains the semantic Python API, orchestration, result types, and exporters.
+- **Bridge:** [`alerad/leancert-bridge`](https://github.com/alerad/leancert-bridge)
+  packages the versioned checked interface used by SDK wheels.
+
+Repository separation controls releases and licensing; it does not divide the
+user documentation into disconnected products.

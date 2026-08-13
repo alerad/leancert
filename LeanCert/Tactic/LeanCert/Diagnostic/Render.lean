@@ -118,12 +118,18 @@ def routerFailure (verbosity : DiagnosticVerbosity) : RouterFailure → String
             Run `leancert?` on the same goal for the attempted strategies and \
             detailed next steps."
       | .explain =>
+          let refutationAdvice :=
+            if intent == .intervalBound then
+              "\n• Use `interval_refute` to search for a certified counterexample."
+            else if intent == .pointInequality then
+              "\n• Reverse the comparison and run `leancert` to certify the opposite bound."
+            else ""
           s!"LeanCert recognized: {intentLabel intent}\n\nAttempts:\n\
             {attemptLedger attempts}\n\nBudget: spent {spent} of {budget}\n\nNext steps:\n\
             • Check whether the requested statement is true.\n\
             • Increase `(taylorDepth := ...)`, `(subdivisions := ...)`, or \
-              `(maxIterations := ...)` when the corresponding attempt was inconclusive.\n\
-            • Use `interval_refute` to search for a certified counterexample."
+              `(maxIterations := ...)` when the corresponding attempt was inconclusive.\
+            {refutationAdvice}"
   | .certifiedRefutation intent? evidence =>
       let recognized := intent?.map (fun intent =>
         s!"LeanCert recognized: {intentLabel intent}\n\n") |>.getD ""

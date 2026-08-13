@@ -97,6 +97,10 @@ import LeanCert.Meta.ProveSupported
 import LeanCert.Meta.ToExpr
 
 -- Tactics
+-- Keep the documented stable tactic umbrella in the default `LeanCert` build.
+-- Importing its individual implementation modules here is not equivalent:
+-- downstream `import LeanCert.Tactic` requires `LeanCert/Tactic.olean` itself.
+import LeanCert.Tactic
 import LeanCert.Tactic.Interval
 import LeanCert.Tactic.Discovery
 -- Counter-example hunting

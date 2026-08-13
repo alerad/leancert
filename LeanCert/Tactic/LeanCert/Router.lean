@@ -523,6 +523,11 @@ private def integralFailureToAttempt (solver : Name) :
     IntegralFailure → AttemptFailure
   | .unsupported detail =>
       .unsupported { expression := "interval integral", detail := some detail }
+  | .falseEquality actual claimed =>
+      .refuted {
+        witness := "exact rational integral evaluation"
+        detail := some s!"The computed integral is {actual}, not {claimed}."
+      }
   | .domainObstruction detail =>
       .domainObstruction { source := unknownDomainSource, reason := detail }
   | .exhausted start maximum _lastPartitions lastEnclosure attempts =>
@@ -1222,6 +1227,48 @@ private def preparedReified? (prepared : Semantic.PreparedGoal) (source : Lean.E
     | .unsupported .. | .deferred .. => pure ()
   return none
 
+/-- Prove the opposite of a closed scalar comparison with the same checked
+point-enclosure path used by the ordinary portfolio.  The proof goal is
+temporary: successful verification is retained only as diagnostic evidence,
+and the caller's complete tactic state is restored before returning. -/
+private def certifiedPointRefutation?
+    (semantic : Semantic.SemanticGoal)
+    (cfg : LeanCertConfig) : TacticM (Option Diagnostic.RefutationEvidence) := do
+  let .point spec := semantic
+    | return none
+  let mut opposites : Array Lean.Expr := #[]
+  match spec.comparison with
+  | .lt => opposites := opposites.push (← mkAppM ``LE.le #[spec.rhs, spec.lhs])
+  | .le => opposites := opposites.push (← mkAppM ``LT.lt #[spec.rhs, spec.lhs])
+  | .eq =>
+      opposites := opposites.push (← mkAppM ``LT.lt #[spec.lhs, spec.rhs])
+      opposites := opposites.push (← mkAppM ``LT.lt #[spec.rhs, spec.lhs])
+  | .ne => return none
+  let original ← saveState
+  try
+    for opposite in opposites do
+      for depth in #[cfg.taylorDepth, cfg.taylorDepth + 10] do
+        original.restore
+        let proofGoal ← mkFreshExprMVar opposite
+        setGoals [proofGoal.mvarId!]
+        match ← pointAttemptTyped depth with
+        | .ok execution =>
+            let rendered := toString (← Meta.ppExpr opposite)
+            original.restore
+            return some {
+              witness := s!"opposite comparison `{rendered}`"
+              verifier := execution.verifier
+              detail := some "LeanCert certified this opposite comparison with a checked \
+                point-enclosure proof."
+            }
+        | .error _ => pure ()
+    original.restore
+    return none
+  catch error =>
+    original.restore
+    trace[LeanCert.router] "closed-comparison refutation failed: {error.toMessageData}"
+    return none
+
 /-- Search for a checked rational witness after a unary bound portfolio fails.
 
 This is diagnostic evidence, not a proof attempt: the original goal state is
@@ -1680,6 +1727,9 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
         failures := failures.push (solver.plan.strategy, outcome)
         enforceAttemptDisposition verbosity intent outcome
 
+  if let some refutation ← certifiedPointRefutation? semantic cfg then
+    throwRouterFailure verbosity <|
+      Diagnostic.RouterFailure.certifiedRefutation (some intent) refutation
   if let some refutation ← certifiedBoundRefutation? semantic prepared cfg then
     throwRouterFailure verbosity <|
       Diagnostic.RouterFailure.certifiedRefutation (some intent) refutation

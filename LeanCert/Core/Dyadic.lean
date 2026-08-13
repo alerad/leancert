@@ -356,10 +356,10 @@ private theorem int_ediv_mul_eq (m : Int) (d : Int) (_hd : 0 < d) (hrem : m % d 
     _ = m := h
 
 theorem toRat_neg (d : Dyadic) : (neg d).toRat = -(d.toRat) := by
-  simp only [neg, toRat]
-  split_ifs with h
-  · simp only [Int.cast_neg, Int.cast_natCast, neg_mul]
-  · simp only [Int.cast_neg, neg_div]
+  by_cases h : d.exponent ≥ 0
+  · simp [neg, toRat, h]
+  · simp [neg, toRat, h]
+    rw [neg_div]
 
 /-! ### Arithmetic Homomorphisms -/
 

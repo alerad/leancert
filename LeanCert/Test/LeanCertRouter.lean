@@ -1372,26 +1372,25 @@ error: LeanCert recognized a conjunction, but child 2 of 2 failed: closed numeri
 
 LeanCert recognized: closed numerical comparison
 
-Attempts:
-  1. exact normalization
-     solver left 1 proof obligation(s):
-False
-  2. direct point enclosure (Taylor depth 10)
-     The candidate certificate was rejected by its checker.
-Try increasing `taylorDepth`, enabling subdivision, or using the corresponding dedicated tactic for finer control.
-  3. direct point enclosure (Taylor depth 20)
-     The candidate certificate was rejected by its checker.
-Try increasing `taylorDepth`, enabling subdivision, or using the corresponding dedicated tactic for finer control.
+The statement is false.
 
-Budget: spent 3 of 6
-
-Next steps:
-• Check whether the requested statement is true.
-• Increase `(taylorDepth := ...)`, `(subdivisions := ...)`, or `(maxIterations := ...)` when the corresponding attempt was inconclusive.
-• Use `interval_refute` to search for a certified counterexample.
+Certified counterexample: opposite comparison `1 ≤ 2`
+LeanCert certified this opposite comparison with a checked point-enclosure proof.
 -/
 #guard_msgs in
 example : ((1 : ℝ) < 2) ∧ ((2 : ℝ) < 1) := by
+  leancert?
+
+/--
+error: LeanCert recognized: closed numerical comparison
+
+The statement is false.
+
+Certified counterexample: opposite comparison `2 ≤ Real.exp 1`
+LeanCert certified this opposite comparison with a checked point-enclosure proof.
+-/
+#guard_msgs in
+example : Real.exp 1 < 2 := by
   leancert?
 
 -- Question mode proves the goal and reports the winning dedicated tactic.

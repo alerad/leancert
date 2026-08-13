@@ -61,6 +61,7 @@ structure IntegralOutcome where
 /-- Typed failures from exact and partition-based integral solvers. -/
 inductive IntegralFailure where
   | unsupported (detail : String)
+  | falseEquality (actual claimed : ℚ)
   | domainObstruction (detail : String)
   | exhausted (start maximum : Nat) (lastPartitions : Option Nat)
       (lastEnclosure : Option IntervalRat) (attempts : Nat)
@@ -143,6 +144,11 @@ private def exactIntegralAttemptTyped (parsed : ParsedIntegralGoal) :
   let some poly := QPoly.ofExpr astValue
     | return .error <| .unsupported "integrand is not a rational polynomial"
   let value := poly.integralRat a b
+  if parsed.comparison == .eq then
+    let some claimed ← LeanCert.Meta.Numeral.toRat? parsed.bound
+      | return .error <| .unsupported "equality target is not rational"
+    if value != claimed then
+      return .error <| .falseEquality value claimed
   try
     let checkType ← mkAppM ``Eq #[
       ← mkAppM ``QPoly.checkExactIntegral #[reified.ast, toExpr a, toExpr b, toExpr value],
@@ -412,6 +418,9 @@ syntax (name := integralExactTac) "integral_exact" : tactic
 unsafe def elabIntegralExact : Tactic := fun _ => do
   match ← integralExactCoreTyped with
   | .ok _ => pure ()
+  | .error (.falseEquality actual claimed) =>
+      throwError "integral_exact: The statement is false. Computed integral: \
+        {actual}; claimed: {claimed}."
   | .error failure => throwError "integral_exact: {repr failure}"
 
 end LeanCert.Tactic

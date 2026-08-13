@@ -77,6 +77,12 @@ private def forallMembershipIff (carrier source target : Lean.Expr) : MetaM Lean
     let body ← mkAppM ``Iff #[lhs, rhs]
     mkForallFVars #[x] body
 
+private def forallMembershipRefl (carrier source : Lean.Expr) : MetaM Lean.Expr := do
+  withLocalDeclD `x carrier fun x => do
+    let member ← membership source x
+    let proof ← mkAppOptM ``Iff.rfl #[some member]
+    mkLambdaFVars #[x] proof
+
 private def forallNoMembership (carrier source : Lean.Expr) : MetaM Lean.Expr := do
   withLocalDeclD `x carrier fun x => do
     let member ← membership source x
@@ -99,8 +105,7 @@ def prepareInterval (source : IntervalSyntax) : TacticM PreparedInterval := do
   | .unorderedClosed =>
       return .unsupported source (.topology source.kind)
   | .intervalRat =>
-      let iffType ← forallMembershipIff (mkConst ``Real) source.original source.original
-      let iffProof ← proveByNormNum iffType
+      let iffProof ← forallMembershipRefl (mkConst ``Real) source.original
       return .closedRat source source.original iffProof
   | .closed =>
       let some loExpr := source.lo

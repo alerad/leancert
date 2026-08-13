@@ -21,7 +21,8 @@ private def axis1 : Fin 2 := ⟨1, by omega⟩
 private def adaptivePath : BoxPath 2 :=
   [(axis0, false), (axis1, true), (axis0, true)]
 
-example : BoxPath.widestDecision? unitSquare false = some (axis0, false) := by
+example : (BoxPath.widestDecision? unitSquare false).map
+    (fun decision => (decision.1.val, decision.2)) = some (0, false) := by
   native_decide
 
 example (decision : BoxDecision unitSquare.length)
@@ -47,8 +48,8 @@ private def morton : MortonAddress :=
   MortonAddress.ofBits 2 2 [false, true, true, false] (by omega) (by decide)
 
 example : morton.code.val = 6 := by native_decide
-example : morton.toBoxPath =
-    [(axis0, false), (axis1, true), (axis0, true), (axis1, false)] := by
+example : morton.toBoxPath.map (fun decision => (decision.1.val, decision.2)) =
+    [(0, false), (1, true), (0, true), (1, false)] := by
   native_decide
 example : morton.toBoxPath.length = 4 := by native_decide
 example : (morton.decode unitSquare)[0].lo = 1 / 4 := by native_decide
