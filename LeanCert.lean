@@ -61,6 +61,7 @@ import LeanCert.Engine.Chebyshev.Theta
 
 -- Global Optimization
 import LeanCert.Engine.Optimization.Box
+import LeanCert.Engine.Optimization.BoxAddress
 import LeanCert.Engine.Optimization.Gradient
 import LeanCert.Engine.Optimization.Global
 import LeanCert.Engine.Optimization.Backend

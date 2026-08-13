@@ -119,6 +119,7 @@ roots = [
   "LeanCert.Test.AsympEnv",
   "LeanCert.Test.AsympTransforms",
   "LeanCert.Test.BridgeTest",
+  "LeanCert.Test.BoxAddress",
   "LeanCert.Test.CubicCount",
   "LeanCert.Test.CubicIsolation",
   "LeanCert.Test.DocsExamples",
