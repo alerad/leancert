@@ -132,6 +132,8 @@ structure SubdivisionStatistics where
   deepestDepthUsed : Nat
   boxesExamined : Nat
   certifiedLeaves : Nat
+  leafPaths : List (List Bool) := []
+  frontierChecked : Bool := false
   deriving Inhabited, Repr
 
 /-- Computational route used to construct a finite-sum certificate. -/

@@ -508,6 +508,11 @@ unsafe def elabExpectTypedSubdivisionReport : Tactic := fun _ => do
           outcome.execution.certifiedLeaves == 14 &&
           outcome.execution.deepestDepthUsed == 5 do
         throwError "typed subdivision retained incorrect search statistics"
+      unless outcome.execution.frontierChecked &&
+          outcome.execution.leafPaths.length == outcome.execution.certifiedLeaves do
+        throwError "typed subdivision did not retain a checked addressed frontier"
+      unless LeanCert.Core.DyadicFrontier.check outcome.execution.leafPaths |>.isSome do
+        throwError "typed subdivision retained an invalid addressed frontier"
       let usage := outcome.execution.verification
       unless usage.kernelChecks + usage.nativeChecks ==
           outcome.execution.certifiedLeaves do
@@ -1026,6 +1031,7 @@ Subdivision:
   Deepest depth used: 5
   Boxes examined: 27
   Certified leaves: 14
+  Addressed frontier checked: true
 
 Suggested proof:
   by

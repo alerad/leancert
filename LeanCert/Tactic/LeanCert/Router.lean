@@ -105,6 +105,8 @@ private def subdivisionExecution
       deepestDepthUsed := outcome.execution.deepestDepthUsed
       boxesExamined := outcome.execution.boxesExamined
       certifiedLeaves := outcome.execution.certifiedLeaves
+      leafPaths := outcome.execution.leafPaths
+      frontierChecked := outcome.execution.frontierChecked
     }
   }
 
@@ -203,6 +205,8 @@ private def registeredEnclosureExecution
     deepestDepthUsed := subdivision.deepestDepthUsed
     boxesExamined := subdivision.boxesExamined
     certifiedLeaves := subdivision.certifiedLeaves
+    leafPaths := subdivision.leafPaths
+    frontierChecked := subdivision.frontierChecked
   }
   certificates := outcome.observations.map fun observation => {
     role := s!"registered enclosure `{observation.rule.functionName}`"

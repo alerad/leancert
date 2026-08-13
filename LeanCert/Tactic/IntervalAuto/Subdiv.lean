@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
+import LeanCert.Core.DyadicFrontier
 import LeanCert.Tactic.Verification
 import LeanCert.Tactic.IntervalAuto.Bound
 import LeanCert.Validity.Bounds
@@ -41,6 +42,10 @@ structure SubdivisionExecution where
   deepestDepthUsed : Nat := 0
   boxesExamined : Nat := 0
   certifiedLeaves : Nat := 0
+  /-- Canonically ordered root-to-leaf subdivision addresses. -/
+  leafPaths : List DyadicPath := []
+  /-- True only after the completed flat frontier passes the trusted checker. -/
+  frontierChecked : Bool := false
   deriving Inhabited
 
 /-- A proof together with the execution facts that produced it. -/
@@ -98,6 +103,7 @@ private def SubdivisionExecution.combineChildren
     (max left.deepestDepthUsed right.deepestDepthUsed)
   boxesExamined := 1 + left.boxesExamined + right.boxesExamined
   certifiedLeaves := left.certifiedLeaves + right.certifiedLeaves
+  leafPaths := left.leafPaths ++ right.leafPaths
 }
 
 private def SubdivisionFailure.addExamined
@@ -157,7 +163,8 @@ private unsafe def evaluateSubdivisionNode (ast interval cfgExpr : Lean.Expr) :
 private unsafe def proveWithSubdiv
     (comparison : SubdivisionComparison)
     (ast supportProof loRatExpr hiRatExpr leProof boundRat cfgExpr : Lean.Expr)
-    (bound : ℚ) (configuredMaxDepth remainingDepth depthUsed : Nat) :
+    (bound : ℚ) (configuredMaxDepth remainingDepth depthUsed : Nat)
+    (reversePath : DyadicPath) :
     TacticM (Except SubdivisionFailure SubdivisionProof) := do
   let intervalRat ← mkAppM ``IntervalRat.mk #[loRatExpr, hiRatExpr, leProof]
   let enclosure ←
@@ -191,6 +198,7 @@ private unsafe def proveWithSubdiv
         deepestDepthUsed := depthUsed
         boxesExamined := 1
         certifiedLeaves := 1
+        leafPaths := [reversePath.reverse]
       }
     }
 
@@ -211,7 +219,7 @@ private unsafe def proveWithSubdiv
 
   let left ← proveWithSubdiv comparison ast supportProof loRatExpr midExpr
     loLeMidExpr boundRat cfgExpr bound configuredMaxDepth
-    (remainingDepth - 1) (depthUsed + 1)
+    (remainingDepth - 1) (depthUsed + 1) (false :: reversePath)
   let left ←
     match left with
     | .ok proof => pure proof
@@ -223,7 +231,7 @@ private unsafe def proveWithSubdiv
 
   let right ← proveWithSubdiv comparison ast supportProof midExpr hiRatExpr
     midLeHiExpr boundRat cfgExpr bound configuredMaxDepth
-    (remainingDepth - 1) (depthUsed + 1)
+    (remainingDepth - 1) (depthUsed + 1) (true :: reversePath)
   let right ←
     match right with
     | .ok proof => pure proof
@@ -365,8 +373,12 @@ private unsafe def intervalBoundSubdivCoreTypedImpl
     preparedState.restore
     let cfgExpr ← mkAppM ``EvalConfig.mk #[toExpr taylorDepth]
     match ← proveWithSubdiv comparison ast supportProof loRatExpr hiRatExpr leProof
-        boundRat cfgExpr bound maxSubdiv maxSubdiv 0 with
+        boundRat cfgExpr bound maxSubdiv maxSubdiv 0 [] with
     | .ok proof =>
+        let some _ := DyadicFrontier.check proof.execution.leafPaths
+          | return .error <| .internalFailure
+              "completed subdivision produced an invalid addressed frontier"
+        let execution := { proof.execution with frontierChecked := true }
         setGoals transportGoals
         match ← closeSubdivisionTransport proof.proof fromSetIcc with
         | .ok _ =>
@@ -375,7 +387,7 @@ private unsafe def intervalBoundSubdivCoreTypedImpl
               taylorDepth
               maxDepth := maxSubdiv
               finalEnclosure := proof.enclosure
-              execution := proof.execution
+              execution
               checker := subdivisionChecker comparison
               verifier := subdivisionVerifier comparison
             }

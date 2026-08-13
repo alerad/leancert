@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Benchmark.Harness
-import LeanCert.Core.DyadicCell
+import LeanCert.Core.DyadicFrontier
 
 /-!
 # Exact dyadic subdivision benchmarks
@@ -102,6 +102,37 @@ private def runAddressesOnly (depth : Nat) : IO Outcome := do
         return { status := "wrong_last_address", backendUsed := some "dyadic" }
       return { status := "success", backendUsed := some "dyadic" }
 
+/-- Canonically ordered complete frontier at a fixed depth. -/
+def pathsAtDepth : Nat → List DyadicPath
+  | 0 => [[]]
+  | depth + 1 =>
+      (pathsAtDepth depth).map (false :: ·) ++
+        (pathsAtDepth depth).map (true :: ·)
+
+private def runFrontierCheck (depth : Nat) : IO Outcome := do
+  let paths := pathsAtDepth depth
+  if paths.length != 2 ^ depth then
+    return {
+      status := "wrong_path_count"
+      backendUsed := some "dyadic"
+      error := some s!"expected {2 ^ depth} paths, got {paths.length}"
+    }
+  match DyadicFrontier.check paths with
+  | none =>
+      return {
+        status := "frontier_rejected"
+        backendUsed := some "dyadic"
+        error := some "complete fixed-depth frontier failed validation"
+      }
+  | some tree =>
+      if tree.paths != paths then
+        return {
+          status := "frontier_changed"
+          backendUsed := some "dyadic"
+          error := some "frontier checker changed the submitted leaf order"
+        }
+      return { status := "success", backendUsed := some "dyadic" }
+
 private def subdivisionCase (depth innerIterations : Nat) : Case := {
   name := s!"dyadic_subdivision.complete_tree.depth_{depth}"
   family := "dyadic_subdivision"
@@ -187,22 +218,42 @@ private def addressCase (depth innerIterations : Nat) : Case := {
   run := runAddressesOnly depth
 }
 
+private def frontierCheckCase (depth innerIterations : Nat) : Case := {
+  name := s!"dyadic_subdivision.frontier_check.depth_{depth}"
+  family := "dyadic_subdivision"
+  tier := if depth < 10 then "micro" else "scaling"
+  layer := .algorithm
+  backendRequested := "dyadic"
+  suites := ["dyadic-subdivision", "all"]
+  parameters := [
+    ("representation", "checked_addressed_frontier"),
+    ("depth", s!"{depth}"),
+    ("expected_leaves", s!"{2 ^ depth}")
+  ]
+  input := { astNodes := 0, astDepth := depth, variableCount := 1 }
+  innerIterations
+  run := runFrontierCheck depth
+}
+
 def cases : List Case := [
   subdivisionCase 4 100,
   directCellCase 4 100,
   preparedCellCase 4 100,
   sequentialCellCase 4 100,
   addressCase 4 100,
+  frontierCheckCase 4 100,
   subdivisionCase 8 10,
   directCellCase 8 10,
   preparedCellCase 8 10,
   sequentialCellCase 8 10,
   addressCase 8 10,
+  frontierCheckCase 8 10,
   subdivisionCase 12 1,
   directCellCase 12 1,
   preparedCellCase 12 1,
   sequentialCellCase 12 1,
-  addressCase 12 1
+  addressCase 12 1,
+  frontierCheckCase 12 1
 ]
 
 end LeanCert.Benchmark.DyadicSubdivision

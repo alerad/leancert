@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Mathlib.Tactic.NormNum
+import LeanCert.Core.DyadicFrontier
 import LeanCert.Engine.Eval.Core
 import LeanCert.Meta.Numeral
 import LeanCert.Tactic.Extension.Registry
@@ -54,6 +55,8 @@ structure RegisteredSubdivisionExecution where
   deepestDepthUsed : Nat := 0
   boxesExamined : Nat := 0
   certifiedLeaves : Nat := 0
+  leafPaths : List DyadicPath := []
+  frontierChecked : Bool := false
   deriving Inhabited
 
 /-- Retained facts from a successful registered enclosure proof. -/
@@ -86,6 +89,7 @@ private structure RegisteredSubdivisionProof where
   deepestDepthUsed : Nat := 0
   boxesExamined : Nat := 0
   certifiedLeaves : Nat := 0
+  leafPaths : List DyadicPath := []
 
 private structure EnclosedTerm where
   value : Lean.Expr
@@ -684,7 +688,8 @@ private def addExhaustedStatistics (priorBoxes priorDeepest priorLeaves : Nat) :
 private unsafe def proveRegisteredWithSubdiv
     (prepared : PreparedGoal) (spec : BoundSpec)
     (intervalExpr : Lean.Expr) (interval : IntervalRat)
-    (precision : Int) (taylorDepth configuredMaxDepth remainingDepth depthUsed : Nat) :
+    (precision : Int) (taylorDepth configuredMaxDepth remainingDepth depthUsed : Nat)
+    (reversePath : DyadicPath) :
     TacticM (Except RegisteredEnclosureFailure RegisteredSubdivisionProof) := do
   let childPrepared ← preparedOnInterval prepared spec intervalExpr
   match ← proveRegisteredLeaf childPrepared precision taylorDepth with
@@ -698,6 +703,7 @@ private unsafe def proveRegisteredWithSubdiv
         deepestDepthUsed := depthUsed
         boxesExamined := 1
         certifiedLeaves := 1
+        leafPaths := [reversePath.reverse]
       }
   | .error failure =>
       let (retryable, lastEnclosure, detail) :=
@@ -717,6 +723,7 @@ private unsafe def proveRegisteredWithSubdiv
 
   let left ← proveRegisteredWithSubdiv prepared spec leftExpr leftInterval
     precision taylorDepth configuredMaxDepth (remainingDepth - 1) (depthUsed + 1)
+    (false :: reversePath)
   let left ←
     match left with
     | .ok proof => pure proof
@@ -725,6 +732,7 @@ private unsafe def proveRegisteredWithSubdiv
 
   let right ← proveRegisteredWithSubdiv prepared spec rightExpr rightInterval
     precision taylorDepth configuredMaxDepth (remainingDepth - 1) (depthUsed + 1)
+    (true :: reversePath)
   let right ←
     match right with
     | .ok proof => pure proof
@@ -751,6 +759,7 @@ private unsafe def proveRegisteredWithSubdiv
       (max left.deepestDepthUsed right.deepestDepthUsed)
     boxesExamined := 1 + left.boxesExamined + right.boxesExamined
     certifiedLeaves := left.certifiedLeaves + right.certifiedLeaves
+    leafPaths := left.leafPaths ++ right.leafPaths
   }
 
 /-- Try registered enclosure execution at each node, bisecting only after an
@@ -769,11 +778,14 @@ unsafe def registeredEnclosureBoundSubdivCoreTyped (prepared : PreparedGoal)
       | return .error .notApplicable
     let interval ← unsafe evalExpr IntervalRat (mkConst ``IntervalRat) intervalExpr
     match ← proveRegisteredWithSubdiv prepared spec intervalExpr interval
-        precision taylorDepth maxDepth maxDepth 0 with
+        precision taylorDepth maxDepth maxDepth 0 [] with
     | .error failure =>
         original.restore
         return .error failure
     | .ok proof =>
+        let some _ := DyadicFrontier.check proof.leafPaths
+          | return .error <| .verificationFailure
+              "completed registered subdivision produced an invalid addressed frontier"
         let goal ← getMainGoal
         let (xId, goal) ← goal.intro1P
         let (hxSourceId, goal) ← goal.intro1P
@@ -797,6 +809,8 @@ unsafe def registeredEnclosureBoundSubdivCoreTyped (prepared : PreparedGoal)
             deepestDepthUsed := proof.deepestDepthUsed
             boxesExamined := proof.boxesExamined
             certifiedLeaves := proof.certifiedLeaves
+            leafPaths := proof.leafPaths
+            frontierChecked := true
           }
           verification := proof.verification
         }
