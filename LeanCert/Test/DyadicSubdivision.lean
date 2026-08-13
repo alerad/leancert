@@ -40,6 +40,22 @@ private def negativeOddInterval : IntervalDyadic :=
 private def singletonInterval : IntervalDyadic :=
   ⟨⟨3, -2⟩, ⟨3, -2⟩, le_rfl⟩
 
+/-! ### Semantic dyadic identity -/
+
+example : (⟨1, 0⟩ : LeanCert.Core.Dyadic).ValueEq ⟨2, -1⟩ := by native_decide
+
+example : (⟨1, 0⟩ : LeanCert.Core.Dyadic) ≠ ⟨2, -1⟩ := by native_decide
+
+example :
+    (⟨1, 0⟩ : LeanCert.Core.Dyadic).canonicalKey =
+      (⟨2, -1⟩ : LeanCert.Core.Dyadic).canonicalKey := by
+  native_decide
+
+example :
+    (⟨0, 37⟩ : LeanCert.Core.Dyadic).canonicalKey =
+      (0 : LeanCert.Core.Dyadic).canonicalKey := by
+  native_decide
+
 example : unitInterval.midpoint.toRat = 1 / 2 := by
   native_decide
 

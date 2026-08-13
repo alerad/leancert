@@ -79,14 +79,50 @@ def toRat (d : Dyadic) : ℚ :=
 
 instance : Coe Dyadic ℚ where coe := toRat
 
+/-- Equality of represented values, ignoring noncanonical mantissa/exponent pairs. -/
+def ValueEq (d₁ d₂ : Dyadic) : Prop := d₁.toRat = d₂.toRat
+
+instance (d₁ d₂ : Dyadic) : Decidable (d₁.ValueEq d₂) :=
+  inferInstanceAs (Decidable (d₁.toRat = d₂.toRat))
+
+instance : Setoid Dyadic where
+  r := ValueEq
+  iseqv := {
+    refl := fun _ => rfl
+    symm := fun h => h.symm
+    trans := fun h₁ h₂ => h₁.trans h₂
+  }
+
+@[simp] theorem valueEq_iff (d₁ d₂ : Dyadic) :
+    d₁.ValueEq d₂ ↔ d₁.toRat = d₂.toRat := Iff.rfl
+
+/-- A lawful identity key for caches, sets, serialization, and deduplication.
+
+Arithmetic keeps the fast, noncanonical `Dyadic` representation. Converting at
+an identity boundary collapses all representations of the same rational value.
+-/
+structure CanonicalKey where
+  value : ℚ
+  deriving Repr, DecidableEq, BEq, Hashable
+
+/-- Convert a dyadic value to its canonical identity key. -/
+def canonicalKey (d : Dyadic) : CanonicalKey := ⟨d.toRat⟩
+
+@[simp] theorem canonicalKey_value (d : Dyadic) : d.canonicalKey.value = d.toRat := rfl
+
+/-- Canonical keys agree exactly when represented dyadic values agree. -/
+theorem canonicalKey_eq_iff (d₁ d₂ : Dyadic) :
+    d₁.canonicalKey = d₂.canonicalKey ↔ d₁.ValueEq d₂ := by
+  simp only [canonicalKey, ValueEq, CanonicalKey.mk.injEq]
+
 /-- Cast a Dyadic to ℝ by going through ℚ -/
 def toReal (d : Dyadic) : ℝ := Rat.cast (toRat d)
 
 instance : Coe Dyadic ℝ where coe := toReal
 
-/-- Two Dyadics are equal as rationals iff their toRat values are equal -/
-theorem toRat_injective_of_normalized {d₁ d₂ : Dyadic}
-    (h : d₁.toRat = d₂.toRat) : d₁.toRat = d₂.toRat := h
+/-- Equality of rational denotations gives semantic dyadic equality. -/
+theorem valueEq_of_toRat_eq {d₁ d₂ : Dyadic}
+    (h : d₁.toRat = d₂.toRat) : d₁.ValueEq d₂ := h
 
 /-! ### Construction -/
 
