@@ -31,6 +31,13 @@ theorem symm {I J : IntervalDyadic} (h : I.ValueEq J) : J.ValueEq I :=
 theorem trans {I J K : IntervalDyadic} (hIJ : I.ValueEq J) (hJK : J.ValueEq K) :
     I.ValueEq K := ⟨hIJ.1.trans hJK.1, hIJ.2.trans hJK.2⟩
 
+theorem mem_iff {I J : IntervalDyadic} (h : I.ValueEq J) (x : ℝ) :
+    x ∈ I ↔ x ∈ J := by
+  simp only [IntervalDyadic.mem_def]
+  have hlo : (I.lo.toRat : ℝ) = J.lo.toRat := by exact_mod_cast h.1
+  have hhi : (I.hi.toRat : ℝ) = J.hi.toRat := by exact_mod_cast h.2
+  rw [hlo, hhi]
+
 end ValueEq
 
 end IntervalDyadic
@@ -385,6 +392,130 @@ theorem decodeByBisection_valueEq_decodeDirect (root : IntervalDyadic) (path : D
         exact (valueEq_bisect_left ih).trans (decodeDirect_childLeft root (ofPath path)).symm
       · rw [DyadicPath.decodeByBisection_append_true, ofPath_append_true]
         exact (valueEq_bisect_right ih).trans (decodeDirect_childRight root (ofPath path)).symm
+
+/-! ### Closed proof semantics and canonical ownership -/
+
+namespace Ownership
+
+/-- The closed proof cell at a fixed level. This is the interval supplied to
+certified numerical evaluation. -/
+def closedCell (root : IntervalDyadic) (depth : Nat) (index : Fin (2 ^ depth)) :
+    IntervalDyadic :=
+  (PreparedDyadicLevel.prepare root depth).intervalAt index
+
+/-- Canonical ownership assigns a point to the greatest-index closed cell that
+contains it. Thus an interior seam belongs to the cell on its right, matching
+the half-open convention `[lo, hi)`, while the final cell retains the root's
+right endpoint. -/
+def Owns (root : IntervalDyadic) (depth : Nat) (index : Fin (2 ^ depth)) (x : ℝ) : Prop :=
+  x ∈ closedCell root depth index ∧
+    ∀ other : Fin (2 ^ depth), x ∈ closedCell root depth other → other ≤ index
+
+/-- The set canonically owned by one fixed-depth cell. -/
+def ownerSet (root : IntervalDyadic) (depth : Nat) (index : Fin (2 ^ depth)) : Set ℝ :=
+  {x | Owns root depth index x}
+
+/-- The final index of a nonempty dyadic level. -/
+def lastIndex (depth : Nat) : Fin (2 ^ depth) :=
+  ⟨2 ^ depth - 1, Nat.sub_lt (by positivity) (by norm_num)⟩
+
+/-- Canonical ownership never enlarges the closed proof cell. -/
+theorem ownerSet_subset_closedCell (root : IntervalDyadic) (depth : Nat)
+    (index : Fin (2 ^ depth)) :
+    ownerSet root depth index ⊆ (closedCell root depth index).toSet := by
+  intro x hx
+  exact hx.1
+
+/-- Distinct cells cannot canonically own the same point. -/
+theorem ownerSet_disjoint {root : IntervalDyadic} {depth : Nat}
+    {i j : Fin (2 ^ depth)} (hne : i ≠ j) :
+    Disjoint (ownerSet root depth i) (ownerSet root depth j) := by
+  rw [Set.disjoint_left]
+  intro x hxi hxj
+  have hji : j ≤ i := hxi.2 j hxj.1
+  have hij : i ≤ j := hxj.2 i hxi.1
+  exact hne (le_antisymm hij hji)
+
+/-- A point contained in a higher-index cell cannot be owned by a lower cell.
+This is the abstract seam-welding rule. -/
+theorem not_owns_of_mem_higher {root : IntervalDyadic} {depth : Nat}
+    {i j : Fin (2 ^ depth)} {x : ℝ} (hij : i < j)
+    (hj : x ∈ closedCell root depth j) :
+    ¬ Owns root depth i x := by
+  intro hi
+  exact (not_le_of_gt hij) (hi.2 j hj)
+
+/-- Any point in the final closed cell is owned by that cell. In particular,
+the root's right endpoint remains owned rather than being discarded. -/
+theorem last_owns_of_mem {root : IntervalDyadic} {depth : Nat} {x : ℝ}
+    (hx : x ∈ closedCell root depth (lastIndex depth)) :
+    Owns root depth (lastIndex depth) x := by
+  refine ⟨hx, ?_⟩
+  intro other _
+  apply Fin.le_iff_val_le_val.mpr
+  simp only [lastIndex]
+  omega
+
+private theorem exists_path_mem (root : IntervalDyadic) (depth : Nat) {x : ℝ}
+    (hx : x ∈ root) :
+    ∃ path : DyadicPath, path.length = depth ∧ x ∈ path.decodeByBisection root := by
+  induction depth generalizing root with
+  | zero => exact ⟨[], rfl, hx⟩
+  | succ depth ih =>
+      rcases IntervalDyadic.mem_bisect_or hx with hleft | hright
+      · obtain ⟨path, hlen, hmem⟩ := ih (root := root.bisect.1) hleft
+        exact ⟨false :: path, by simp [hlen], by simpa [DyadicPath.decodeByBisection] using hmem⟩
+      · obtain ⟨path, hlen, hmem⟩ := ih (root := root.bisect.2) hright
+        exact ⟨true :: path, by simp [hlen], by simpa [DyadicPath.decodeByBisection] using hmem⟩
+
+/-- Every point of the root lies in at least one fixed-depth closed proof cell. -/
+theorem exists_mem_closedCell (root : IntervalDyadic) (depth : Nat) {x : ℝ}
+    (hx : x ∈ root) :
+    ∃ index : Fin (2 ^ depth), x ∈ closedCell root depth index := by
+  obtain ⟨path, hlen, hmem⟩ := exists_path_mem root depth hx
+  subst depth
+  let index : Fin (2 ^ path.length) := (ofPath path).index
+  refine ⟨index, ?_⟩
+  have hrecursive :
+      (path.decodeByBisection root).ValueEq ((ofPath path).decodeDirect root) :=
+    decodeByBisection_valueEq_decodeDirect root path
+  have hprepared :
+      ((PreparedDyadicLevel.prepare root path.length).intervalAt index).ValueEq
+        ((ofPath path).decodeDirect root) := by
+    apply PreparedDyadicLevel.intervalAt_valueEq_decodeDirect
+  exact (hprepared.mem_iff x).mpr ((hrecursive.mem_iff x).mp hmem)
+
+/-- Every root point has a unique canonical owner at each fixed depth. -/
+theorem exists_unique_owner (root : IntervalDyadic) (depth : Nat) {x : ℝ}
+    (hx : x ∈ root) :
+    ∃! index : Fin (2 ^ depth), Owns root depth index x := by
+  classical
+  obtain ⟨someIndex, hsome⟩ := exists_mem_closedCell root depth hx
+  let candidates := Finset.univ.filter fun index : Fin (2 ^ depth) =>
+    x ∈ closedCell root depth index
+  have hcandidates : candidates.Nonempty := by
+    exact Finset.filter_nonempty_iff.mpr ⟨someIndex, Finset.mem_univ _, hsome⟩
+  let owner := candidates.max' hcandidates
+  have hownerMem : x ∈ closedCell root depth owner := by
+    exact (Finset.mem_filter.mp (candidates.max'_mem hcandidates)).2
+  refine ⟨owner, ⟨hownerMem, ?_⟩, ?_⟩
+  · intro other hother
+    apply candidates.le_max'
+    exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, hother⟩
+  · intro other hother
+    exact le_antisymm ((by
+      apply candidates.le_max'
+      exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, hother.1⟩) : other ≤ owner)
+      (hother.2 owner hownerMem)
+
+/-- Canonical ownership covers the entire root interval. -/
+theorem mem_ownerSet_of_mem_root (root : IntervalDyadic) (depth : Nat) {x : ℝ}
+    (hx : x ∈ root) :
+    ∃ index : Fin (2 ^ depth), x ∈ ownerSet root depth index := by
+  obtain ⟨index, hindex, _⟩ := exists_unique_owner root depth hx
+  exact ⟨index, hindex⟩
+
+end Ownership
 
 end DyadicCell
 

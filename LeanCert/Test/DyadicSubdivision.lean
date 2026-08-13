@@ -158,4 +158,58 @@ example (I : IntervalDyadic) (depth : Nat)
       ((DyadicCell.mk depth index).decodeDirect I) :=
   DyadicCell.PreparedDyadicLevel.intervalAt_valueEq_decodeDirect _ _
 
+/-! ### Closed proof cells and canonical ownership -/
+
+open DyadicCell.Ownership
+
+example (I : IntervalDyadic) (depth : Nat) (x : ℝ) (hx : x ∈ I) :
+    ∃! index : Fin (2 ^ depth), Owns I depth index x :=
+  exists_unique_owner I depth hx
+
+example (I : IntervalDyadic) (depth : Nat) (i j : Fin (2 ^ depth)) (hij : i ≠ j) :
+    Disjoint (ownerSet I depth i) (ownerSet I depth j) :=
+  ownerSet_disjoint hij
+
+example (I : IntervalDyadic) (depth : Nat) (i j : Fin (2 ^ depth))
+    (x : ℝ) (hij : i < j) (hxj : x ∈ closedCell I depth j) :
+    ¬ Owns I depth i x :=
+  not_owns_of_mem_higher hij hxj
+
+private theorem midpoint_mem_depthOneRight :
+    (1 / 2 : ℝ) ∈ closedCell unitInterval 1 ⟨1, by norm_num⟩ := by
+  have hlo : (closedCell unitInterval 1 ⟨1, by norm_num⟩).lo.toRat = 1 / 2 := by
+    native_decide
+  have hhi : (closedCell unitInterval 1 ⟨1, by norm_num⟩).hi.toRat = 1 := by
+    native_decide
+  change ((closedCell unitInterval 1 ⟨1, by norm_num⟩).lo.toRat : ℝ) ≤ 1 / 2 ∧
+    (1 / 2 : ℝ) ≤ (closedCell unitInterval 1 ⟨1, by norm_num⟩).hi.toRat
+  rw [hlo, hhi]
+  norm_num
+
+example : ¬ Owns unitInterval 1 ⟨0, by norm_num⟩ (1 / 2 : ℝ) := by
+  exact not_owns_of_mem_higher (i := ⟨0, by norm_num⟩) (j := ⟨1, by norm_num⟩)
+    (by norm_num) midpoint_mem_depthOneRight
+
+example : Owns unitInterval 1 (lastIndex 1) (1 / 2 : ℝ) := by
+  apply last_owns_of_mem
+  simpa [lastIndex] using midpoint_mem_depthOneRight
+
+private theorem singleton_mem_lastDepthThree :
+    (3 / 4 : ℝ) ∈ closedCell singletonInterval 3 (lastIndex 3) := by
+  have hlo : (closedCell singletonInterval 3 (lastIndex 3)).lo.toRat = 3 / 4 := by
+    native_decide
+  have hhi : (closedCell singletonInterval 3 (lastIndex 3)).hi.toRat = 3 / 4 := by
+    native_decide
+  change ((closedCell singletonInterval 3 (lastIndex 3)).lo.toRat : ℝ) ≤ 3 / 4 ∧
+    (3 / 4 : ℝ) ≤ (closedCell singletonInterval 3 (lastIndex 3)).hi.toRat
+  rw [hlo, hhi]
+  norm_num
+
+example : Owns singletonInterval 3 (lastIndex 3) (3 / 4 : ℝ) :=
+  last_owns_of_mem singleton_mem_lastDepthThree
+
+example : ¬ Owns singletonInterval 3 ⟨0, by norm_num⟩ (3 / 4 : ℝ) := by
+  apply not_owns_of_mem_higher (j := lastIndex 3) (by native_decide)
+  exact singleton_mem_lastDepthThree
+
 end LeanCert.Test.DyadicSubdivision
