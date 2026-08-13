@@ -4,6 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Core.DyadicFrontier
+import LeanCert.Core.DyadicCellDomain
+import LeanCert.Core.RationalCellDomain
 
 /-!
 # Dyadic midpoint and subdivision regression tests
@@ -95,6 +97,38 @@ example (I : IntervalDyadic) :
 example (I : IntervalDyadic) (x : ℝ) (hx : x ∈ I) :
     x ∈ I.bisect.1 ∨ x ∈ I.bisect.2 :=
   IntervalDyadic.mem_bisect_or hx
+
+/-! ### Generic certified cell geometry -/
+
+#synth CertifiedCellDomain IntervalDyadic ℝ
+#synth CertifiedCellDomain IntervalRat ℝ
+
+example (I : IntervalDyadic) :
+    CertifiedCellDomain.children I = [I.bisect.1, I.bisect.2] := by
+  rfl
+
+example (I : IntervalDyadic) :
+    CertifiedCellDomain.diameter I = I.width.toRat := by
+  rfl
+
+example (I : IntervalDyadic) (depth : Nat) (x : ℝ) (hx : x ∈ I) :
+    ∃ child,
+      child ∈ CertifiedCellDomain.refineLevel (Point := ℝ) depth I ∧ x ∈ child := by
+  exact CertifiedCellDomain.exists_mem_refineLevel hx
+
+example (I child : IntervalDyadic) (depth : Nat) (x : ℝ)
+    (hchild : child ∈ CertifiedCellDomain.refineLevel (Point := ℝ) depth I)
+    (hx : x ∈ child) : x ∈ I := by
+  exact CertifiedCellDomain.contains_of_mem_refineLevel hchild hx
+
+example :
+    (CertifiedCellDomain.refineLevel (Point := ℝ) 2 unitInterval).length = 4 := by
+  native_decide
+
+example (I : IntervalRat) (depth : Nat) (x : ℝ) (hx : x ∈ I) :
+    ∃ child,
+      child ∈ CertifiedCellDomain.refineLevel (Point := ℝ) depth I ∧ x ∈ child := by
+  exact CertifiedCellDomain.exists_mem_refineLevel hx
 
 /-! ### Finite paths and directly decoded cells -/
 
