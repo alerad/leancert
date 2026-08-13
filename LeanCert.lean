@@ -18,6 +18,7 @@ import LeanCert.Analysis.WallQuotient
 import LeanCert.Core.Dyadic
 import LeanCert.Core.IntervalDyadic
 import LeanCert.Core.DyadicCell
+import LeanCert.Core.DyadicFrontier
 
 -- Numerics modules
 import LeanCert.Engine.IntervalEval

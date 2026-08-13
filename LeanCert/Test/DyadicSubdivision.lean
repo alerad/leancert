@@ -3,7 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.DyadicCell
+import LeanCert.Core.DyadicFrontier
 
 /-!
 # Dyadic midpoint and subdivision regression tests
@@ -211,5 +211,37 @@ example : Owns singletonInterval 3 (lastIndex 3) (3 / 4 : ℝ) :=
 example : ¬ Owns singletonInterval 3 ⟨0, by norm_num⟩ (3 / 4 : ℝ) := by
   apply not_owns_of_mem_higher (j := lastIndex 3) (by native_decide)
   exact singleton_mem_lastDepthThree
+
+/-! ### Checked addressed frontiers -/
+
+open DyadicSubdivisionTree DyadicFrontier
+
+example : DyadicFrontier.check [[]] = some .leaf := by native_decide
+
+example : DyadicFrontier.check [[false], [true]] =
+    some (.split .leaf .leaf) := by
+  native_decide
+
+example : DyadicFrontier.check [[false], [true, false], [true, true]] =
+    some (.split .leaf (.split .leaf .leaf)) := by
+  native_decide
+
+-- Missing branch: not a complete prefix code.
+example : DyadicFrontier.check [[false]] = none := by native_decide
+
+-- A leaf cannot coexist with one of its descendants.
+example : DyadicFrontier.check [[], [false]] = none := by native_decide
+
+-- Duplicate leaves are rejected.
+example : DyadicFrontier.check [[false], [false], [true]] = none := by native_decide
+
+-- The serialized flat format has deterministic left-to-right ordering.
+example : DyadicFrontier.check [[true], [false]] = none := by native_decide
+
+example (leaves : List DyadicPath) (tree : DyadicSubdivisionTree)
+    (hcheck : DyadicFrontier.check leaves = some tree) (I : IntervalDyadic)
+    (x : ℝ) (hx : x ∈ I) :
+    ∃ path ∈ leaves, x ∈ path.decodeByBisection I :=
+  DyadicFrontier.exists_mem_decode_of_check hcheck I hx
 
 end LeanCert.Test.DyadicSubdivision
