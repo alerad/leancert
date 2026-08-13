@@ -133,4 +133,29 @@ example :
       ((DyadicCell.ofPath [true, false, true]).decodeDirect mixedExponentInterval) := by
   exact DyadicCell.decodeByBisection_valueEq_decodeDirect _ _
 
+/-! ### Prepared fixed-depth decoding -/
+
+private def preparedUnitDepth3 : DyadicCell.PreparedDyadicLevel :=
+  DyadicCell.PreparedDyadicLevel.prepare unitInterval 3
+
+example : preparedUnitDepth3.cellCount = 8 := by native_decide
+
+example : (preparedUnitDepth3.intervalAt ⟨5, by native_decide⟩).lo.toRat = 5 / 8 := by
+  native_decide
+
+example : (preparedUnitDepth3.intervalAt ⟨5, by native_decide⟩).hi.toRat = 3 / 4 := by
+  native_decide
+
+example : preparedUnitDepth3.materialize.length = 8 := by native_decide
+
+example : preparedUnitDepth3.materialize.map (fun I => I.lo.toRat) =
+    [0, 1 / 8, 1 / 4, 3 / 8, 1 / 2, 5 / 8, 3 / 4, 7 / 8] := by
+  native_decide
+
+example (I : IntervalDyadic) (depth : Nat)
+    (index : Fin (DyadicCell.PreparedDyadicLevel.prepare I depth).cellCount) :
+    ((DyadicCell.PreparedDyadicLevel.prepare I depth).intervalAt index).ValueEq
+      ((DyadicCell.mk depth index).decodeDirect I) :=
+  DyadicCell.PreparedDyadicLevel.intervalAt_valueEq_decodeDirect _ _
+
 end LeanCert.Test.DyadicSubdivision

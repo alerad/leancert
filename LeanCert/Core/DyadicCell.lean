@@ -164,25 +164,122 @@ def step (root : IntervalDyadic) (cell : DyadicCell) : Dyadic :=
 def decodeDirect (root : IntervalDyadic) (cell : DyadicCell) : IntervalDyadic :=
   let width := cell.step root
   let lo := root.lo.add (width.mul (Dyadic.ofInt cell.index.val))
-  let hi := root.lo.add (width.mul (Dyadic.ofInt (cell.index.val + 1)))
+  let hi := lo.add width
   ⟨lo, hi, by
     change
       (root.lo.add (width.mul (Dyadic.ofInt cell.index.val))).toRat ≤
-        (root.lo.add (width.mul (Dyadic.ofInt (cell.index.val + 1)))).toRat
-    simp only [Dyadic.toRat_add, Dyadic.toRat_mul, Dyadic.toRat_ofInt]
-    apply add_le_add_right
-    apply mul_le_mul_of_nonneg_left
-    · exact_mod_cast Nat.le_succ cell.index.val
-    · change 0 ≤ (root.width.scale2 (-(cell.depth : Int))).toRat
-      rw [Dyadic.toRat_scale2]
-      have hwidth : 0 ≤ root.width.toRat := by
-        rw [IntervalDyadic.width_toRat]
-        linarith [root.le]
-      exact mul_nonneg hwidth (zpow_nonneg (by norm_num) _)⟩
+        ((root.lo.add (width.mul (Dyadic.ofInt cell.index.val))).add width).toRat
+    simp only [Dyadic.toRat_add]
+    apply le_add_of_nonneg_right
+    change 0 ≤ (root.width.scale2 (-(cell.depth : Int))).toRat
+    rw [Dyadic.toRat_scale2]
+    have hwidth : 0 ≤ root.width.toRat := by
+      rw [IntervalDyadic.width_toRat]
+      linarith [root.le]
+    exact mul_nonneg hwidth (zpow_nonneg (by norm_num) _)⟩
 
 @[simp] theorem step_toRat (root : IntervalDyadic) (cell : DyadicCell) :
     (cell.step root).toRat = root.width.toRat * (2 : ℚ) ^ (-(cell.depth : Int)) := by
   simp [step, Dyadic.toRat_scale2]
+
+/-- The exact step at any depth is nonnegative. -/
+theorem step_toRat_nonneg (root : IntervalDyadic) (depth : Nat) :
+    0 ≤ (root.width.scale2 (-(depth : Int))).toRat := by
+  rw [Dyadic.toRat_scale2, IntervalDyadic.width_toRat]
+  exact mul_nonneg (sub_nonneg.mpr root.le) (zpow_nonneg (by norm_num) _)
+
+/-- Fixed-depth decoding context with the common cell width prepared once. -/
+structure PreparedDyadicLevel where
+  root : IntervalDyadic
+  depth : Nat
+  step : Dyadic
+  step_eq : step = root.width.scale2 (-(depth : Int))
+  step_nonneg : 0 ≤ step.toRat
+
+namespace PreparedDyadicLevel
+
+/-- Prepare the shared arithmetic for every cell at one subdivision depth. -/
+def prepare (root : IntervalDyadic) (depth : Nat) : PreparedDyadicLevel := {
+  root
+  depth
+  step := root.width.scale2 (-(depth : Int))
+  step_eq := rfl
+  step_nonneg := step_toRat_nonneg root depth
+}
+
+/-- Number of cells at the prepared level. -/
+def cellCount (level : PreparedDyadicLevel) : Nat := 2 ^ level.depth
+
+/-- Random-access decoding using the shared precomputed cell width. -/
+def intervalAt (level : PreparedDyadicLevel) (index : Fin level.cellCount) : IntervalDyadic :=
+  let lo := level.root.lo.add (level.step.mul (Dyadic.ofInt index.val))
+  let hi := lo.add level.step
+  ⟨lo, hi, by
+    change
+      (level.root.lo.add (level.step.mul (Dyadic.ofInt index.val))).toRat ≤
+        ((level.root.lo.add (level.step.mul (Dyadic.ofInt index.val))).add level.step).toRat
+    simp only [Dyadic.toRat_add]
+    exact le_add_of_nonneg_right level.step_nonneg⟩
+
+@[simp] theorem intervalAt_lo_toRat (level : PreparedDyadicLevel)
+    (index : Fin level.cellCount) :
+    (level.intervalAt index).lo.toRat =
+      level.root.lo.toRat + level.step.toRat * index.val := by
+  simp [intervalAt, Dyadic.toRat_add, Dyadic.toRat_mul, Dyadic.toRat_ofInt]
+
+@[simp] theorem intervalAt_hi_toRat (level : PreparedDyadicLevel)
+    (index : Fin level.cellCount) :
+    (level.intervalAt index).hi.toRat =
+      level.root.lo.toRat + level.step.toRat * (index.val + 1) := by
+  simp [intervalAt, Dyadic.toRat_add, Dyadic.toRat_mul, Dyadic.toRat_ofInt]
+  ring
+
+/-- Prepared random access agrees with the original direct decoder. -/
+theorem intervalAt_valueEq_decodeDirect (level : PreparedDyadicLevel)
+    (index : Fin level.cellCount) :
+    (level.intervalAt index).ValueEq
+      ((DyadicCell.mk level.depth index).decodeDirect level.root) := by
+  constructor
+  · change
+      (level.root.lo.add (level.step.mul (Dyadic.ofInt index.val))).toRat =
+        (level.root.lo.add
+          ((level.root.width.scale2 (-(level.depth : Int))).mul
+            (Dyadic.ofInt index.val))).toRat
+    rw [level.step_eq]
+  · change
+      ((level.root.lo.add (level.step.mul (Dyadic.ofInt index.val))).add level.step).toRat =
+        ((level.root.lo.add
+          ((level.root.width.scale2 (-(level.depth : Int))).mul
+            (Dyadic.ofInt index.val))).add
+              (level.root.width.scale2 (-(level.depth : Int)))).toRat
+    rw [level.step_eq]
+
+/-- Build adjacent cells with one endpoint addition per cell. -/
+private def materializeFrom (level : PreparedDyadicLevel) : Nat → Dyadic → List IntervalDyadic
+  | 0, _ => []
+  | count + 1, lo =>
+      let hi := lo.add level.step
+      ⟨lo, hi, by
+        change lo.toRat ≤ (lo.add level.step).toRat
+        rw [Dyadic.toRat_add]
+        exact le_add_of_nonneg_right level.step_nonneg⟩ ::
+        materializeFrom level count hi
+
+/-- Materialize a complete fixed-depth level by advancing adjacent endpoints. -/
+def materialize (level : PreparedDyadicLevel) : List IntervalDyadic :=
+  materializeFrom level level.cellCount level.root.lo
+
+@[simp] theorem materializeFrom_length (level : PreparedDyadicLevel) (count : Nat) (lo : Dyadic) :
+    (materializeFrom level count lo).length = count := by
+  induction count generalizing lo with
+  | zero => rfl
+  | succ count ih => simp [materializeFrom, ih]
+
+@[simp] theorem materialize_length (level : PreparedDyadicLevel) :
+    level.materialize.length = level.cellCount := by
+  simp [materialize]
+
+end PreparedDyadicLevel
 
 @[simp] theorem decodeDirect_lo_toRat (root : IntervalDyadic) (cell : DyadicCell) :
     (cell.decodeDirect root).lo.toRat =
@@ -193,6 +290,7 @@ def decodeDirect (root : IntervalDyadic) (cell : DyadicCell) : IntervalDyadic :=
     (cell.decodeDirect root).hi.toRat =
       root.lo.toRat + (cell.step root).toRat * (cell.index.val + 1) := by
   simp [decodeDirect, Dyadic.toRat_add, Dyadic.toRat_mul, Dyadic.toRat_ofInt]
+  ring
 
 /-- Direct decoding gives every depth-`n` cell the root width divided by `2^n`. -/
 theorem decodeDirect_width_toRat (root : IntervalDyadic) (cell : DyadicCell) :
