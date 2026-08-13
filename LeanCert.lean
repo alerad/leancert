@@ -17,6 +17,7 @@ import LeanCert.Analysis.WallQuotient
 -- v1.1: Dyadic arithmetic (high-performance alternative to Rat)
 import LeanCert.Core.Dyadic
 import LeanCert.Core.IntervalDyadic
+import LeanCert.Core.DyadicCell
 
 -- Numerics modules
 import LeanCert.Engine.IntervalEval

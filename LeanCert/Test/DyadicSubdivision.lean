@@ -3,7 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalDyadic
+import LeanCert.Core.DyadicCell
 
 /-!
 # Dyadic midpoint and subdivision regression tests
@@ -79,5 +79,42 @@ example (I : IntervalDyadic) :
 example (I : IntervalDyadic) (x : ℝ) (hx : x ∈ I) :
     x ∈ I.bisect.1 ∨ x ∈ I.bisect.2 :=
   IntervalDyadic.mem_bisect_or hx
+
+/-! ### Finite paths and directly decoded cells -/
+
+example : DyadicPath.index [false, true] = 1 := by native_decide
+example : DyadicPath.index [true, false, true] = 5 := by native_decide
+
+example : (DyadicCell.ofPath [true, false, true]).depth = 3 := by native_decide
+example : (DyadicCell.ofPath [true, false, true]).index.val = 5 := by native_decide
+
+example : ((DyadicCell.ofPath [false, true]).decodeDirect unitInterval).lo.toRat = 1 / 4 := by
+  native_decide
+
+example : ((DyadicCell.ofPath [false, true]).decodeDirect unitInterval).hi.toRat = 1 / 2 := by
+  native_decide
+
+example : ((DyadicCell.ofPath [true, false, true]).decodeDirect unitInterval).lo.toRat = 5 / 8 := by
+  native_decide
+
+example : ((DyadicCell.ofPath [true, false, true]).decodeDirect unitInterval).hi.toRat = 3 / 4 := by
+  native_decide
+
+example (path : DyadicPath) :
+    DyadicCell.ofPath (path ++ [false]) = (DyadicCell.ofPath path).childLeft := by
+  simp
+
+example (path : DyadicPath) :
+    DyadicCell.ofPath (path ++ [true]) = (DyadicCell.ofPath path).childRight := by
+  simp
+
+example (I : IntervalDyadic) (path : DyadicPath) :
+    (path.decodeByBisection I).ValueEq ((DyadicCell.ofPath path).decodeDirect I) :=
+  DyadicCell.decodeByBisection_valueEq_decodeDirect I path
+
+example :
+    (DyadicPath.decodeByBisection mixedExponentInterval [true, false, true]).ValueEq
+      ((DyadicCell.ofPath [true, false, true]).decodeDirect mixedExponentInterval) := by
+  exact DyadicCell.decodeByBisection_valueEq_decodeDirect _ _
 
 end LeanCert.Test.DyadicSubdivision

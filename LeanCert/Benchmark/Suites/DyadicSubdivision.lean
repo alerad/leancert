@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Benchmark.Harness
-import LeanCert.Core.IntervalDyadic
+import LeanCert.Core.DyadicCell
 
 /-!
 # Exact dyadic subdivision benchmarks
@@ -47,6 +47,29 @@ private def runCompleteTree (depth : Nat) : IO Outcome := do
     }
   return { status := "success", backendUsed := some "dyadic" }
 
+/-- Materialize every fixed-depth leaf directly from its bounded address. -/
+def directLeavesAtDepth (I : IntervalDyadic) (depth : Nat) : List IntervalDyadic :=
+  List.ofFn fun index : Fin (2 ^ depth) =>
+    (DyadicCell.mk depth index).decodeDirect I
+
+private def runDirectCells (depth : Nat) : IO Outcome := do
+  let leaves := directLeavesAtDepth unitInterval depth
+  let totalWidth := leaves.foldl (fun total cell => total.add cell.width)
+    (0 : LeanCert.Core.Dyadic)
+  if leaves.length != 2 ^ depth then
+    return {
+      status := "wrong_leaf_count"
+      backendUsed := some "dyadic"
+      error := some s!"expected {2 ^ depth} leaves, got {leaves.length}"
+    }
+  if totalWidth.toRat != unitInterval.width.toRat then
+    return {
+      status := "wrong_total_width"
+      backendUsed := some "dyadic"
+      error := some s!"expected width {unitInterval.width.toRat}, got {totalWidth.toRat}"
+    }
+  return { status := "success", backendUsed := some "dyadic" }
+
 private def subdivisionCase (depth innerIterations : Nat) : Case := {
   name := s!"dyadic_subdivision.complete_tree.depth_{depth}"
   family := "dyadic_subdivision"
@@ -64,10 +87,30 @@ private def subdivisionCase (depth innerIterations : Nat) : Case := {
   run := runCompleteTree depth
 }
 
+private def directCellCase (depth innerIterations : Nat) : Case := {
+  name := s!"dyadic_subdivision.direct_cells.depth_{depth}"
+  family := "dyadic_subdivision"
+  tier := if depth < 10 then "micro" else "scaling"
+  layer := .algorithm
+  backendRequested := "dyadic"
+  suites := ["dyadic-subdivision", "all"]
+  parameters := [
+    ("representation", "direct_addressed_cells"),
+    ("depth", s!"{depth}"),
+    ("expected_leaves", s!"{2 ^ depth}")
+  ]
+  input := { astNodes := 0, astDepth := depth, variableCount := 1 }
+  innerIterations
+  run := runDirectCells depth
+}
+
 def cases : List Case := [
   subdivisionCase 4 100,
+  directCellCase 4 100,
   subdivisionCase 8 10,
-  subdivisionCase 12 1
+  directCellCase 8 10,
+  subdivisionCase 12 1,
+  directCellCase 12 1
 ]
 
 end LeanCert.Benchmark.DyadicSubdivision
