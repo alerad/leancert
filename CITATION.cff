@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "LeanCert: verified numerical computation for Lean 4"
+authors:
+  - family-names: "Radisic"
+    given-names: "Alejandro"
+    orcid: "https://orcid.org/0009-0001-7612-1082"
+repository-code: "https://github.com/alerad/leancert"
+license: Apache-2.0
+version: "4.33.0"
+date-released: "2026-08-10"
+abstract: >-
+  LeanCert is a Lean 4 library for verified numerical computation:
+  interval arithmetic, Taylor models, and certificate checkers that turn
+  untrusted numerical candidates into kernel-checked bounds. Releases are
+  pinned against matching Mathlib versions. It is the Lean core underlying
+  the LeanCert Python SDK.
+keywords:
+  - "Lean 4"
+  - "formal verification"
+  - "interval arithmetic"
+  - "Taylor models"
+  - "verified numerics"
+  - "certificates"
