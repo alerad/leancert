@@ -225,7 +225,7 @@ theorem expTaylorPoly_aeval_eq (n : ℕ) (z : ℝ) :
 theorem tmExp_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.exp z ∈ (tmExp J n).evalSet z := by
   intro z hz
-  simp only [tmExp, evalSet, Set.mem_setOf_eq]
+  simp only [tmExp, evalSet, Set.mem_ofPred_eq]
   set r := Real.exp z - Polynomial.aeval (z - 0) (expTaylorPoly n) with hr_def
   refine ⟨r, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
@@ -493,7 +493,7 @@ theorem tmLog_correct (J : IntervalRat) (n : ℕ)
   split_ifs at h with hpos
   simp only [Option.some.injEq] at h
   subst h
-  simp only [evalSet, Set.mem_setOf_eq]
+  simp only [evalSet, Set.mem_ofPred_eq]
   set c := J.midpoint with hc_def
   have hc_pos : 0 < c := by
     simp only [IntervalRat.midpoint, c]

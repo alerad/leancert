@@ -331,7 +331,7 @@ private theorem mem_Icc_of_mem_interval {z : ℝ} {J : IntervalRat} (hz : z ∈ 
 theorem tmSin_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.sin z ∈ (tmSin J n).evalSet z := by
   intro z hz
-  simp only [tmSin, evalSet, Set.mem_setOf_eq]
+  simp only [tmSin, evalSet, Set.mem_ofPred_eq]
   set r := Real.sin z - Polynomial.aeval (z - 0) (sinTaylorPoly n) with hr_def
   refine ⟨r, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
@@ -391,7 +391,7 @@ theorem tmSin_correct (J : IntervalRat) (n : ℕ) :
 theorem tmCos_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.cos z ∈ (tmCos J n).evalSet z := by
   intro z hz
-  simp only [tmCos, evalSet, Set.mem_setOf_eq]
+  simp only [tmCos, evalSet, Set.mem_ofPred_eq]
   set r := Real.cos z - Polynomial.aeval (z - 0) (cosTaylorPoly n) with hr_def
   refine ⟨r, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
@@ -637,7 +637,7 @@ theorem sincTaylorPoly_aeval_eq (n : ℕ) (z : ℝ) :
 theorem tmSinc_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.sinc z ∈ (tmSinc J n).evalSet z := by
   intro z hz
-  simp only [tmSinc, evalSet, Set.mem_setOf_eq]
+  simp only [tmSinc, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.sinc z, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
     have hs : |Real.sinc z| ≤ (1 : ℝ) := Real.abs_sinc_le_one z

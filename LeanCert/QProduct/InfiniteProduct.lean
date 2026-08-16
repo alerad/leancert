@@ -70,7 +70,7 @@ theorem qProd_filter_tendsto_tprod {u : ℝ} (h0 : 0 ≤ u) (h1 : u < 1) :
   have htp : ∏' n : ℕ, h n = ∏' n : {n : ℕ // A n}, (1 - u ^ (n : ℕ)) := by
     have hind : h = Set.mulIndicator {n : ℕ | A n} (fun n => 1 - u ^ n) := by
       funext n
-      by_cases hn : A n <;> simp [hh, hn, Set.mem_setOf_eq]
+      by_cases hn : A n <;> simp [hh, hn]
     rw [hind, ← tprod_subtype {n : ℕ | A n} (fun n => 1 - u ^ n)]
     rfl
   have hrange : ∀ N, ∏ i ∈ Finset.range (N + 1), h i =

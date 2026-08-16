@@ -39,7 +39,7 @@ arithmetic because affine approximations aren't yet implemented.
 
 namespace LeanCert.Engine
 
-open LeanCert.Core Affine
+open LeanCert.Core _root_.LeanCert.Engine.Affine
 
 /-! ### Configuration -/
 

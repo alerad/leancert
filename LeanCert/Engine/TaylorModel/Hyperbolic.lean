@@ -890,7 +890,7 @@ theorem tmAtanh_correct (J : IntervalRat) (n : ℕ)
     (hJ_radius : max (|J.lo|) (|J.hi|) ≤ 99/100) :
     ∀ z : ℝ, z ∈ J → |z| < 1 → Real.atanh z ∈ (tmAtanh J n).evalSet z := by
   intro z hz hz_bound
-  simp only [tmAtanh, evalSet, Set.mem_setOf_eq]
+  simp only [tmAtanh, evalSet, Set.mem_ofPred_eq]
   set r := Real.atanh z - Polynomial.aeval (z - 0) (atanhTaylorPoly n) with hr_def
   refine ⟨r, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
@@ -969,7 +969,7 @@ theorem tmAtanh_correct (J : IntervalRat) (n : ℕ)
 theorem tmSinh_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.sinh z ∈ (tmSinh J n).evalSet z := by
   intro z hz
-  simp only [tmSinh, evalSet, Set.mem_setOf_eq]
+  simp only [tmSinh, evalSet, Set.mem_ofPred_eq]
   set r := Real.sinh z - Polynomial.aeval (z - 0) (sinhTaylorPoly n) with hr_def
   refine ⟨r, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
@@ -1050,7 +1050,7 @@ theorem tmSinh_correct (J : IntervalRat) (n : ℕ) :
 theorem tmCosh_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.cosh z ∈ (tmCosh J n).evalSet z := by
   intro z hz
-  simp only [tmCosh, evalSet, Set.mem_setOf_eq]
+  simp only [tmCosh, evalSet, Set.mem_ofPred_eq]
   set r := Real.cosh z - Polynomial.aeval (z - 0) (coshTaylorPoly n) with hr_def
   refine ⟨r, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]
@@ -1230,7 +1230,7 @@ theorem arsinh_deriv_bound (domain : IntervalRat) (n : ℕ) :
 theorem tmAsinh_correct (J : IntervalRat) (n : ℕ) :
     ∀ z : ℝ, z ∈ J → Real.arsinh z ∈ (tmAsinh J n).evalSet z := by
   intro z hz
-  simp only [tmAsinh, evalSet, Set.mem_setOf_eq]
+  simp only [tmAsinh, evalSet, Set.mem_ofPred_eq]
   set r := Real.arsinh z - Polynomial.aeval (z - 0) (asinhTaylorPoly n) with hr_def
   refine ⟨r, ?_, ?_⟩
   · simp only [IntervalRat.mem_def, Rat.cast_neg]

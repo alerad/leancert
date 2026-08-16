@@ -30,7 +30,7 @@ theorem QCubic.one_le_cauchyRadius (P : QCubic) : 1 ≤ P.cauchyRadius := by
 /-- Every real root lies in the executable Cauchy radius. -/
 theorem QCubic.root_abs_le_cauchyRadius (P : QCubic) (ha : P.a ≠ 0) {x : ℝ}
     (hx : x ∈ cubicZeroSet P.toReal) : |x| ≤ P.cauchyRadius := by
-  simp only [cubicZeroSet, Set.mem_setOf_eq, QCubic.toReal] at hx
+  simp only [cubicZeroSet, Set.mem_ofPred_eq, QCubic.toReal] at hx
   let A : ℝ := |(P.a : ℝ)|
   let S : ℝ := |(P.b : ℝ)| + |(P.c : ℝ)| + |(P.d : ℝ)|
   have hA : 0 < A := by

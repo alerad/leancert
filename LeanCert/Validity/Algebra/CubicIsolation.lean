@@ -52,11 +52,11 @@ theorem cubicIsolationCheck_sound (P : QCubic) (cert : CubicIsolationCert)
   refine ⟨huLeft, huMiddle, huRight, ?_⟩
   have hdisj := cert.ordered_disjoint hordered
   apply three_unique_roots_exhaust (P.threeRootCountCheck_sound hcount)
-  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_setOf_eq, QCubic.toReal,
+  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_ofPred_eq, QCubic.toReal,
       QCubic.eval_toExpr] using huLeft
-  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_setOf_eq, QCubic.toReal,
+  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_ofPred_eq, QCubic.toReal,
       QCubic.eval_toExpr] using huMiddle
-  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_setOf_eq, QCubic.toReal,
+  · simpa only [mem_intervalSet_iff, cubicZeroSet, Set.mem_ofPred_eq, QCubic.toReal,
       QCubic.eval_toExpr] using huRight
   · exact hdisj.1
   · exact hdisj.2.1

@@ -517,13 +517,13 @@ theorem add_evalSet_correct
   intro x hx
   have h1 := hf1 x hx
   have h2 := hf2 x hx
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq] at h1 h2
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq] at h1 h2
   rcases h1 with ⟨r1, hr1, hr1eq⟩
   rcases h2 with ⟨r2, hr2, hr2eq⟩
   have hxcent : (x - (tm2.center : ℝ)) = (x - tm1.center) := by
     have hcast : (tm2.center : ℝ) = tm1.center := by exact_mod_cast hcenter.symm
     simp [hcast]
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq, TaylorModel.add]
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq, TaylorModel.add]
   refine ⟨r1 + r2, ?_, ?_⟩
   · exact IntervalRat.mem_add hr1 hr2
   · have hmap :
@@ -549,7 +549,7 @@ theorem neg_evalSet_correct
     ∀ x ∈ domain, Expr.eval (fun _ => x) (Expr.neg e) ∈ (TaylorModel.neg tm).evalSet x := by
   intro x hx
   have h := hf x hx
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq] at h
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq] at h
   rcases h with ⟨r, hr, hre⟩
   refine ⟨-r, IntervalRat.mem_neg hr, ?eq⟩
   simp [Expr.eval_neg, TaylorModel.neg, hre, map_neg, add_comm]
@@ -562,7 +562,7 @@ theorem sin_evalSet_correct
     (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
     ∀ x ∈ tm.domain, Real.sin (f x) ∈ (TaylorModel.sin tm degree).evalSet x := by
   intro x hx
-  simp only [sin, evalSet, Set.mem_setOf_eq]
+  simp only [sin, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.sin (f x), ?_, ?_⟩
   · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
     have hsin_evalSet := tmSin_correct tm.bound degree (f x) hfbound
@@ -580,7 +580,7 @@ theorem cos_evalSet_correct
     (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
     ∀ x ∈ tm.domain, Real.cos (f x) ∈ (TaylorModel.cos tm degree).evalSet x := by
   intro x hx
-  simp only [cos, evalSet, Set.mem_setOf_eq]
+  simp only [cos, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.cos (f x), ?_, ?_⟩
   · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
     have hdomain : (tmCos tm.bound degree).domain = tm.bound := rfl
@@ -597,7 +597,7 @@ theorem exp_evalSet_correct
     (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
     ∀ x ∈ tm.domain, Real.exp (f x) ∈ (TaylorModel.exp tm degree).evalSet x := by
   intro x hx
-  simp only [exp, evalSet, Set.mem_setOf_eq]
+  simp only [exp, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.exp (f x), ?_, ?_⟩
   · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
     have hdomain : (tmExp tm.bound degree).domain = tm.bound := rfl
@@ -614,7 +614,7 @@ theorem sinh_evalSet_correct
     (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
     ∀ x ∈ tm.domain, Real.sinh (f x) ∈ (TaylorModel.sinh tm degree).evalSet x := by
   intro x hx
-  simp only [sinh, evalSet, Set.mem_setOf_eq]
+  simp only [sinh, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.sinh (f x), ?_, ?_⟩
   · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
     have hdomain : (tmSinh tm.bound degree).domain = tm.bound := rfl
@@ -631,7 +631,7 @@ theorem cosh_evalSet_correct
     (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
     ∀ x ∈ tm.domain, Real.cosh (f x) ∈ (TaylorModel.cosh tm degree).evalSet x := by
   intro x hx
-  simp only [cosh, evalSet, Set.mem_setOf_eq]
+  simp only [cosh, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.cosh (f x), ?_, ?_⟩
   · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
     have hdomain : (tmCosh tm.bound degree).domain = tm.bound := rfl
@@ -648,7 +648,7 @@ theorem asinh_evalSet_correct
     (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
     ∀ x ∈ tm.domain, Real.arsinh (f x) ∈ (TaylorModel.asinh tm degree).evalSet x := by
   intro x hx
-  simp only [asinh, evalSet, Set.mem_setOf_eq]
+  simp only [asinh, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.arsinh (f x), ?_, ?_⟩
   · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
     have hdomain : (tmAsinh tm.bound degree).domain = tm.bound := rfl
@@ -665,7 +665,7 @@ theorem sinc_evalSet_correct
     (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
     ∀ x ∈ tm.domain, Real.sinc (f x) ∈ (TaylorModel.sinc tm degree).evalSet x := by
   intro x hx
-  simp only [sinc, evalSet, Set.mem_setOf_eq]
+  simp only [sinc, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.sinc (f x), ?_, ?_⟩
   · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
     have hdomain : (tmSinc tm.bound degree).domain = tm.bound := rfl
@@ -714,7 +714,7 @@ theorem tanh_evalSet_correct
     (hf : ∀ x ∈ tm.domain, f x ∈ tm.evalSet x) :
     ∀ x ∈ tm.domain, Real.tanh (f x) ∈ (TaylorModel.tanh tm degree).evalSet x := by
   intro x hx
-  simp only [tanh, evalSet, Set.mem_setOf_eq]
+  simp only [tanh, evalSet, Set.mem_ofPred_eq]
   refine ⟨Real.tanh (f x), ?_, ?_⟩
   · have htanh_bound := tanh_mem_Icc (f x)
     simp only [Set.mem_Icc] at htanh_bound
@@ -764,7 +764,7 @@ theorem atanh_evalSet_correct'
   · rename_i hsafe
     simp only [Option.some.injEq] at hatanh
     subst hatanh
-    simp only [evalSet, Set.mem_setOf_eq]
+    simp only [evalSet, Set.mem_ofPred_eq]
     refine ⟨Real.atanh (f x), ?_, ?_⟩
     · have hfbound : f x ∈ tm.bound := taylorModel_correct tm f hf x hx
       have hsafe_bound : max (|tm.bound.lo|) (|tm.bound.hi|) ≤ 99/100 := by
@@ -1055,7 +1055,7 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
           have _h_arg_in_evalSet : Expr.eval (fun _ => x) e ∈ tm0.evalSet x := ih degree tm0 h0 x hx
           have _h_arg_in_bound : Expr.eval (fun _ => x) e ∈ tm0.bound :=
             taylorModel_correct tm0 (fun y => Expr.eval (fun _ => y) e) (hd0.symm ▸ ih degree tm0 h0) x hx0
-          simp only [TaylorModel.evalSet, Set.mem_setOf_eq]
+          simp only [TaylorModel.evalSet, Set.mem_ofPred_eq]
           refine ⟨Real.log (Expr.eval (fun _ => x) e), ?_, ?_⟩
           · -- Use tmLog_correct: log z ∈ logTM.evalSet z, then taylorModel_correct
             -- logTM.domain = tm0.bound by definition of TaylorModel.tmLog
@@ -1090,7 +1090,7 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
         have hx0 : x ∈ tm0.domain := hd0 ▸ hx
         have h_arg_in_bound : Expr.eval (fun _ => x) e ∈ tm0.bound :=
           taylorModel_correct tm0 (fun y => Expr.eval (fun _ => y) e) (hd0.symm ▸ ih degree tm0 h0) x hx0
-        simp only [TaylorModel.evalSet, Set.mem_setOf_eq]
+        simp only [TaylorModel.evalSet, Set.mem_ofPred_eq]
         refine ⟨Real.arctan (Expr.eval (fun _ => x) e), ?_, ?_⟩
         · -- arctan of argument is in atanInterval
           exact mem_atanInterval h_arg_in_bound
@@ -1147,7 +1147,7 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
         have hx0 : x ∈ tm0.domain := hd0 ▸ hx
         have h_arg_in_bound : Expr.eval (fun _ => x) e ∈ tm0.bound :=
           taylorModel_correct tm0 (fun y => Expr.eval (fun _ => y) e) (hd0.symm ▸ ih degree tm0 h0) x hx0
-        simp only [TaylorModel.evalSet, Set.mem_setOf_eq]
+        simp only [TaylorModel.evalSet, Set.mem_ofPred_eq]
         refine ⟨Real.erf (Expr.eval (fun _ => x) e), ?_, ?_⟩
         · -- erf of argument is in erfInterval
           exact mem_erfInterval h_arg_in_bound
@@ -1199,7 +1199,7 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
         have hx0 : x ∈ tm0.domain := hd0 ▸ hx
         have h_arg_in_bound : Expr.eval (fun _ => x) e ∈ tm0.bound :=
           taylorModel_correct tm0 (fun y => Expr.eval (fun _ => y) e) (hd0.symm ▸ ih degree tm0 h0) x hx0
-        simp only [TaylorModel.evalSet, Set.mem_setOf_eq]
+        simp only [TaylorModel.evalSet, Set.mem_ofPred_eq]
         refine ⟨Real.sqrt (Expr.eval (fun _ => x) e), ?_, ?_⟩
         · -- sqrt of argument is in sqrtIntervalTight
           exact IntervalRat.mem_sqrtIntervalTight' h_arg_in_bound
@@ -1208,7 +1208,7 @@ theorem fromExpr_evalSet_correct (e : Expr) (domain : IntervalRat) (degree : ℕ
       simp [TaylorModel.fromExpr?] at h
       cases h
       intro x _hx
-      simp only [Expr.eval_namedConst, TaylorModel.evalSet, Set.mem_setOf_eq]
+      simp only [Expr.eval_namedConst, TaylorModel.evalSet, Set.mem_ofPred_eq]
       refine ⟨c.toReal, c.mem_interval, ?_⟩
       simp only [Polynomial.aeval_zero]; ring
 
