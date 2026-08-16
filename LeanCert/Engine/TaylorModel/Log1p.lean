@@ -308,7 +308,7 @@ theorem tmLog1p_correct (J : IntervalRat) (n : ℕ)
   split_ifs at h with hdom
   simp only [Option.some.injEq] at h
   subst h
-  simp only [evalSet, Set.mem_setOf_eq]
+  simp only [evalSet, Set.mem_ofPred_eq]
   -- For log(1+z) centered at 0:
   -- - Taylor polynomial: Σ_{k=1}^n (-1)^(k+1) z^k / k
   -- - Remainder: log(1+z) - Σ_{k=1}^n (-1)^(k+1) z^k / k

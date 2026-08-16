@@ -881,7 +881,7 @@ theorem valueAtCenter_correct (tm : TaylorModel) (f : ℝ → ℝ)
     (hc : (tm.center : ℝ) ∈ tm.domain) :
     f tm.center ∈ valueAtCenterInterval tm := by
   have heval := hf tm.center hc
-  simp only [evalSet, Set.mem_setOf_eq] at heval
+  simp only [evalSet, Set.mem_ofPred_eq] at heval
   obtain ⟨r, hr_mem, hr_eq⟩ := heval
   simp only [valueAtCenterInterval, IntervalRat.mem_def, IntervalRat.add,
     IntervalRat.singleton, Rat.cast_add]
@@ -1055,7 +1055,7 @@ theorem taylorModel_correct (tm : TaylorModel) (f : ℝ → ℝ)
     ∀ x ∈ tm.domain, f x ∈ tm.bound := by
   intro x hx
   have hfx := hf x hx
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq] at hfx
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq] at hfx
   obtain ⟨r, hr_mem, hr_eq⟩ := hfx
   -- Use Bernstein bounds (via the correctness theorem)
   have hpoly : tm.evalPoly x ∈ tm.polyBoundIntervalBernstein := by
@@ -1076,7 +1076,7 @@ namespace TaylorModel
 theorem const_evalSet_correct (q : ℚ) (domain : IntervalRat) :
     ∀ x ∈ domain, (q : ℝ) ∈ (const q domain).evalSet x := by
   intro x hx
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq, TaylorModel.const]
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq, TaylorModel.const]
   refine ⟨0, ?_, ?_⟩
   · simpa using (IntervalRat.mem_singleton (0 : ℚ))
   · simp
@@ -1085,7 +1085,7 @@ theorem const_evalSet_correct (q : ℚ) (domain : IntervalRat) :
 theorem identity_evalSet_correct (domain : IntervalRat) :
     ∀ x ∈ domain, x ∈ (identity domain).evalSet x := by
   intro x hx
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq, TaylorModel.identity]
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq, TaylorModel.identity]
   refine ⟨0, ?_, ?_⟩
   · simpa using (IntervalRat.mem_singleton (0 : ℚ))
   · simp
@@ -1094,7 +1094,7 @@ theorem identity_evalSet_correct (domain : IntervalRat) :
 theorem neg_evalSet_of_mem {tm : TaylorModel} {x r : ℝ}
     (hr : r ∈ tm.remainder) :
     -(tm.evalPoly x + r) ∈ (neg tm).evalSet x := by
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq, TaylorModel.neg, TaylorModel.evalPoly]
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq, TaylorModel.neg, TaylorModel.evalPoly]
   refine ⟨-r, ?_, ?_⟩
   · exact IntervalRat.mem_neg hr
   · simp [map_neg, add_comm]
@@ -1103,7 +1103,7 @@ theorem neg_evalSet_of_mem {tm : TaylorModel} {x r : ℝ}
 theorem evalSet_of_remainder (tm : TaylorModel) (x : ℝ) {r : ℝ}
     (hr : r ∈ tm.remainder) :
     tm.evalPoly x + r ∈ tm.evalSet x := by
-  simp only [evalSet, Set.mem_setOf_eq]
+  simp only [evalSet, Set.mem_ofPred_eq]
   exact ⟨r, hr, rfl⟩
 
 /-- Addition preserves evalSet membership when centers match. -/
@@ -1111,7 +1111,7 @@ theorem add_evalSet_of_mem {tm1 tm2 : TaylorModel} {x : ℝ}
     (hcenter : tm1.center = tm2.center)
     {v1 v2 : ℝ} (hv1 : v1 ∈ tm1.evalSet x) (hv2 : v2 ∈ tm2.evalSet x) :
     v1 + v2 ∈ (TaylorModel.add tm1 tm2).evalSet x := by
-  simp only [evalSet, Set.mem_setOf_eq] at hv1 hv2 ⊢
+  simp only [evalSet, Set.mem_ofPred_eq] at hv1 hv2 ⊢
   obtain ⟨r1, hr1, heq1⟩ := hv1
   obtain ⟨r2, hr2, heq2⟩ := hv2
   refine ⟨r1 + r2, IntervalRat.mem_add hr1 hr2, ?_⟩
@@ -1278,7 +1278,7 @@ theorem mul_evalSet_correct
   intro x hx
   have h1 := hf1 x hx
   have h2 := hf2 x (hdomain ▸ hx)
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq] at h1 h2
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq] at h1 h2
   rcases h1 with ⟨r1, hr1_mem, hr1_eq⟩
   rcases h2 with ⟨r2, hr2_mem, hr2_eq⟩
 
@@ -1373,7 +1373,7 @@ theorem inv_evalSet_correct
       le := tm.bound.le
       nonzero := hnz }
   have hinv : (f x)⁻¹ ∈ IntervalRat.invNonzero nz := IntervalRat.mem_invNonzero hfbound hfne
-  simp only [TaylorModel.evalSet, Set.mem_setOf_eq, TaylorModel.inv]
+  simp only [TaylorModel.evalSet, Set.mem_ofPred_eq, TaylorModel.inv]
   refine ⟨(f x)⁻¹, hinv, ?_⟩
   simp only [map_zero, zero_add]
 

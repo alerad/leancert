@@ -64,14 +64,16 @@ theorem index_lt_pow_length (path : DyadicPath) : path.index < 2 ^ path.length :
   induction path with
   | nil => simp [index]
   | cons bit rest ih =>
-      cases bit <;> simp [index, ih, pow_succ] <;> omega
+      cases bit <;> simp [index, ih, pow_succ]
+      omega
 
 @[simp] theorem index_append_true (path : DyadicPath) :
     (path ++ [true]).index = 2 * path.index + 1 := by
   induction path with
   | nil => simp [index]
   | cons bit rest ih =>
-      cases bit <;> simp [index, ih, pow_succ] <;> omega
+      cases bit <;> simp [index, ih, pow_succ]
+      omega
 
 /-- Decode a path operationally by following exact interval bisections. -/
 def decodeByBisection (root : IntervalDyadic) : DyadicPath → IntervalDyadic

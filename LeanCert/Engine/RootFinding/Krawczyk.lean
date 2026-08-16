@@ -221,7 +221,7 @@ theorem finBoxSet_closed {n : Nat} (X : Fin n → IntervalRat) : IsClosed (finBo
 
 theorem finBoxSet_convex {n : Nat} (X : Fin n → IntervalRat) : Convex ℝ (finBoxSet X) := by
   intro x hx y hy a b ha hb hab i
-  simp only [finBoxSet, Set.mem_setOf_eq, FinBoxMem, IntervalRat.mem_def] at hx hy ⊢
+  simp only [finBoxSet, Set.mem_ofPred_eq, FinBoxMem, IntervalRat.mem_def] at hx hy ⊢
   specialize hx i
   specialize hy i
   simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]

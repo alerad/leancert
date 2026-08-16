@@ -30,7 +30,7 @@ theorem quadraticZeroSet_ncard_eq_zero_of_discrim_neg {a b c : ℝ}
     (hΔ : discrim a b c < 0) : (quadraticZeroSet a b c).ncard = 0 := by
   have hempty : quadraticZeroSet a b c = ∅ := by
     ext x
-    simp only [quadraticZeroSet, Set.mem_setOf_eq, Set.mem_empty_iff_false, iff_false]
+    simp only [quadraticZeroSet, Set.mem_ofPred_eq, Set.mem_empty_iff_false, iff_false]
     apply quadratic_ne_zero_of_discrim_ne_sq
     intro s hs
     nlinarith [sq_nonneg s]
@@ -41,7 +41,7 @@ theorem quadraticZeroSet_ncard_eq_one_of_discrim_eq_zero {a b c : ℝ}
     (quadraticZeroSet a b c).ncard = 1 := by
   have hset : quadraticZeroSet a b c = {-b / (2 * a)} := by
     ext x
-    simp only [quadraticZeroSet, Set.mem_setOf_eq, Set.mem_singleton_iff]
+    simp only [quadraticZeroSet, Set.mem_ofPred_eq, Set.mem_singleton_iff]
     exact quadratic_eq_zero_iff_of_discrim_eq_zero ha hΔ x
   simp [hset]
 
@@ -57,7 +57,7 @@ theorem quadraticZeroSet_ncard_eq_two_of_discrim_pos {a b c : ℝ}
     nlinarith [Real.sq_sqrt hs0]
   have hset : quadraticZeroSet a b c = {x₁, x₂} := by
     ext x
-    simp only [quadraticZeroSet, Set.mem_setOf_eq, Set.mem_insert_iff,
+    simp only [quadraticZeroSet, Set.mem_ofPred_eq, Set.mem_insert_iff,
       Set.mem_singleton_iff]
     exact quadratic_eq_zero_iff ha hs x
   have hsne : s ≠ 0 := ne_of_gt (Real.sqrt_pos.2 hΔ)
@@ -78,7 +78,7 @@ theorem quadraticZeroSet_finite (a b c : ℝ) (ha : a ≠ 0) :
     intro hp
     have hcoeff := congrArg (fun q : Polynomial ℝ => q.coeff 2) hp
     simp [p, ha] at hcoeff
-  have hfinite : {x : ℝ | p.IsRoot x}.Finite := Polynomial.finite_setOf_isRoot hp
+  have hfinite : {x : ℝ | p.IsRoot x}.Finite := Polynomial.finite_setOfPred_isRoot hp
   simpa [quadraticZeroSet, p, Polynomial.IsRoot, pow_two] using hfinite
 
 /-- The real zero set of a cubic. -/
@@ -96,7 +96,7 @@ private theorem cubic_factor_at_root (P : Cubic ℝ) {r : ℝ}
     (hr : r ∈ cubicZeroSet P) (x : ℝ) :
     P.a * x ^ 3 + P.b * x ^ 2 + P.c * x + P.d =
       (x - r) * (P.a * (x * x) + quotientB P r * x + quotientC P r) := by
-  simp only [cubicZeroSet, Set.mem_setOf_eq] at hr
+  simp only [cubicZeroSet, Set.mem_ofPred_eq] at hr
   dsimp [quotientB, quotientC]
   linear_combination hr
 
@@ -104,7 +104,7 @@ private theorem cubic_discr_factor_at_root (P : Cubic ℝ) {r : ℝ}
     (hr : r ∈ cubicZeroSet P) :
     P.discr = discrim P.a (quotientB P r) (quotientC P r) *
       cubicDerivativeAt P r ^ 2 := by
-  simp only [cubicZeroSet, Set.mem_setOf_eq] at hr
+  simp only [cubicZeroSet, Set.mem_ofPred_eq] at hr
   have hd : P.d = -(P.a * r ^ 3 + P.b * r ^ 2 + P.c * r) := by
     linarith
   rw [Cubic.discr]
@@ -157,7 +157,7 @@ private theorem cubicZeroSet_eq_insert_quotientZeroSet (P : Cubic ℝ) {r : ℝ}
     cubicZeroSet P = insert r (quadraticZeroSet P.a (quotientB P r) (quotientC P r)) := by
   ext x
   rw [Set.mem_insert_iff]
-  simp only [cubicZeroSet, quadraticZeroSet, Set.mem_setOf_eq]
+  simp only [cubicZeroSet, quadraticZeroSet, Set.mem_ofPred_eq]
   rw [cubic_factor_at_root P hr]
   constructor
   · intro hx
@@ -182,7 +182,7 @@ theorem cubicZeroSet_ncard_eq_one_of_discr_neg (P : Cubic ℝ)
   rw [cubicZeroSet_eq_insert_quotientZeroSet P hr]
   have hempty : quadraticZeroSet P.a (quotientB P r) (quotientC P r) = ∅ := by
     ext x
-    simp only [quadraticZeroSet, Set.mem_setOf_eq, Set.mem_empty_iff_false, iff_false]
+    simp only [quadraticZeroSet, Set.mem_ofPred_eq, Set.mem_empty_iff_false, iff_false]
     apply quadratic_ne_zero_of_discrim_ne_sq
     intro s hs
     nlinarith [sq_nonneg s]
