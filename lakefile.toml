@@ -132,6 +132,7 @@ roots = [
   "LeanCert.Test.DBNRouteAudit",
   "LeanCert.Test.DBNHadamard",
   "LeanCert.Test.DBNCanonicalProduct",
+  "LeanCert.Test.DBNRealZeros",
   "LeanCert.Test.DBNTheta",
   "LeanCert.Test.DyadicSubdivision",
   "LeanCert.Test.DyadicLimit",

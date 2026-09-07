@@ -39,6 +39,11 @@ them unchanged. -/
 #assert_trust kernel LeanCert.Engine.verify_finsum_upper_full
 #assert_trust kernel LeanCert.Engine.verify_finsum_lower_full
 #assert_trust kernel LeanCert.API.Bounds.verifyUpperBoundBox
+
+/-! ## DBN endpoint: unconditional analytic theorem, no native evaluation -/
+
+#assert_trust kernel LeanCert.Analysis.DBN.H_half_real_zeros
+#assert_trust kernel LeanCert.Analysis.DBN.H_half_ne_zero_of_im_ne_zero
 #assert_trust kernel LeanCert.API.Bounds.verifyLowerBoundBox
 
 /-! ## Euler–Mascheroni bounds: intentionally native-trusted
