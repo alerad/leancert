@@ -14,6 +14,7 @@ import LeanCert.Core.DerivativeIntervals
 import LeanCert.Cert.Interval
 import LeanCert.Analysis.ContourShift
 import LeanCert.Analysis.WallQuotient
+import LeanCert.Analysis.DBN
 -- v1.1: Dyadic arithmetic (high-performance alternative to Rat)
 import LeanCert.Core.Dyadic
 import LeanCert.Core.IntervalDyadic

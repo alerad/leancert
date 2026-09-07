@@ -131,6 +131,7 @@ nav:
     - Constants: domains/constants.md
   - Certificate Engines:
     - Analytic Number Theory: certificates/ant.md
+    - DBN Real-Zero Theorem: certificates/dbn-real-zeros.md
     - Asymptotic Envelopes: certificates/ant-asymp.md
     - Chebyshev: certificates/chebyshev.md
     - QProduct: certificates/qproduct.md
