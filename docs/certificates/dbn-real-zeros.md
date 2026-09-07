@@ -51,7 +51,7 @@ the root `LeanCert` import.
 The 35-module Hadamard source adaptation is isolated under
 `LeanCert/Analysis/HadamardSupport`, with preserved Apache 2.0 licensing,
 original and adapted source hashes, and documented compatibility changes.
-See its [README](../../LeanCert/Analysis/HadamardSupport/README.md).
+See its [README on GitHub](https://github.com/alerad/leancert/blob/main/LeanCert/Analysis/HadamardSupport/README.md).
 This introduces no new Lake dependency and does not change toolchain or
 Mathlib pins. The adapted sources use LF line endings for stable hashes.
 
