@@ -1,0 +1,361 @@
+﻿{
+  "entry": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Order",
+  "toolchain": "leanprover/lean4:v4.32.2",
+  "manifestSha256": "3b7d62f8313e49dd6a69cab0a702f2c483f40df2b29ea450a0d6c670a5e6d5d2",
+  "localModuleCount": 35,
+  "localSourceLines": 9807,
+  "scope": "Local source import inventory, not proof-declaration reachability or kernel validation",
+  "modules": {
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.AbsMax": {
+      "sha256": "9bb65e2edb20c4a83d35946ae2abd41ca423f17569c33c30bc7bb1bbe607b892",
+      "lines": 36,
+      "imports": [
+        "Mathlib.Analysis.Complex.AbsMax"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.BorelCaratheodory": {
+      "sha256": "8ca28eb4cd6a605fa043345bb84dc8d1051c1e6fb5e83155373521f744fd05bb",
+      "lines": 54,
+      "imports": [
+        "Mathlib.Analysis.Complex.BorelCaratheodory"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CanonicalProduct": {
+      "sha256": "78e93bcdf6608ad00c46271dd3a7ee12b050a82f66902ecec3c3bc6239584b2a",
+      "lines": 280,
+      "imports": [
+        "Mathlib.Analysis.Analytic.Order",
+        "Mathlib.Analysis.Calculus.LogDerivUniformlyOn",
+        "Mathlib.Analysis.Complex.LocallyUniformLimit",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.WeierstrassFactor"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanBound": {
+      "sha256": "a345cb625ec7ab58455a62192bcd48ddb95cf529f9423536a790d322d9c53816",
+      "lines": 774,
+      "imports": [
+        "Mathlib.MeasureTheory.Integral.Average",
+        "Mathlib.Analysis.SpecialFunctions.Pow.Integral",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.PosLog"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanInverseFactorBound": {
+      "sha256": "8cc0786aa999c34f58270971a8f3a871b58a32043e0bf50dc077a41d5e4655d1",
+      "lines": 168,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanBound",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.WeierstrassFactor"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanMajorantBound": {
+      "sha256": "df43040f66644c99724c2af103f0d9444a51c7a73ff5f8c7f83951e69ddf2912",
+      "lines": 622,
+      "imports": [
+        "Mathlib.Topology.Algebra.InfiniteSum.Group",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.Divisor",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanBound"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanProductBound": {
+      "sha256": "7aed7d388a3bd15e3c7d0679d8c00240dab881d1eae6032fd8bbf92b13e6b7ff",
+      "lines": 103,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.Norm",
+        "Mathlib.Analysis.SpecialFunctions.Exp",
+        "Mathlib.Topology.Algebra.InfiniteSum.Order"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.Divisor": {
+      "sha256": "c58700c9835c4f2323e1746ef26acbd335655e8c68ae5ee6340ce9186f4e4c72",
+      "lines": 363,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorQuotientRemovable"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorComplement": {
+      "sha256": "d6a6385133e82f84b76a2225be08f01976dd42a79d247d2eecaa414d5df6dc72",
+      "lines": 460,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorConvergence",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorFiber"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorConvergence": {
+      "sha256": "0e1be01ce75e7b0df7bd351abed628d30da18db5fd178df961ec575e70cdbeeb",
+      "lines": 384,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorIndex",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.LocallyUniformLimit",
+        "Mathlib.Analysis.Calculus.LogDerivUniformlyOn",
+        "Mathlib.Analysis.Normed.Module.MultipliableUniformlyOn"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorFiber": {
+      "sha256": "7ae7c84bb6f1cdb4164abdfe3b8ff7ae37d88c6a8e42d202d0e43335a5f9f5d5",
+      "lines": 198,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorConvergence",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorUnits",
+        "Mathlib.Analysis.Meromorphic.Divisor",
+        "Mathlib.Analysis.Meromorphic.Order",
+        "Mathlib.Analysis.Analytic.Order"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorIndex": {
+      "sha256": "e97aa456b5d77aa4ebbc03032252c09e7ba48b791205653fa108e54e25e03428",
+      "lines": 118,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CanonicalProduct",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Meromorphic.DivisorSupport"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorPartialProductFactor": {
+      "sha256": "a412dafbdcc4da3d1f50798a64ffbfca171b166865658dae0b9cfe9167ce03eb",
+      "lines": 198,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorComplement",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorFiber",
+        "Mathlib.Analysis.Analytic.Order",
+        "Mathlib.Analysis.Analytic.Uniqueness"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorQuotientConvergence": {
+      "sha256": "417322eba6b461a9992559609b7780df6841bb67b3ee52b47d86637b6531ce08",
+      "lines": 528,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorPartialProductFactor"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorQuotientRemovable": {
+      "sha256": "0f13f9c7b5b8b804b759e3d581f38f88a4bf7a76c76f7f8b10f0fcdaafb0a966",
+      "lines": 333,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorQuotientConvergence",
+        "Mathlib.Analysis.Complex.RemovableSingularity"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorUnits": {
+      "sha256": "a4a934f86c5a9301336213b9c6f4de8670ae103aeaea17048c2e700282ebe74c",
+      "lines": 77,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorIndex",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.WeierstrassFactor"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ExpPoly": {
+      "sha256": "9f0746ffb029dbbb071dbfcca3b12660b4c459ec6789f4d99e83c1b32eddb3f0",
+      "lines": 397,
+      "imports": [
+        "Mathlib.Analysis.Complex.HasPrimitives",
+        "Mathlib.Analysis.Complex.Liouville",
+        "Mathlib.Analysis.Complex.TaylorSeries",
+        "Mathlib.Analysis.SpecialFunctions.Log.Basic",
+        "Mathlib.Analysis.Calculus.IteratedDeriv.Defs",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.BorelCaratheodory"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ExpPoly.Growth": {
+      "sha256": "07248e3c9192712a5994728ed6e0d9f8fb483b398a093f114f8e0b787a8dd1de",
+      "lines": 387,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ExpPoly",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.ExpGrowth"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization": {
+      "sha256": "012e7212ff5809f61ead3792e1eb56839b6652079cdedb0b12a8c4d3374c14d3",
+      "lines": 523,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.Divisor",
+        "Mathlib.Analysis.Convex.Contractible",
+        "Mathlib.Analysis.Meromorphic.NormalForm",
+        "PrimeNumberTheoremAnd.Mathlib.Topology.MetricSpace.Annulus"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Growth": {
+      "sha256": "45cfe32410d9ff91243e62f11ff02b8b5e44c85397dfc4bf1bf8a010e7ddc1a5",
+      "lines": 492,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Summability",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.ExpGrowth",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.AbsMax",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorConvergence",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanBound",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanInverseFactorBound",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanMajorantBound",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanProductBound",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ExpPoly.Growth"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Order": {
+      "sha256": "b6ea09c3d6899d20a4bdda914ecd95d697f98e78025341b833ca11d5f41175ff",
+      "lines": 325,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Growth"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Summability": {
+      "sha256": "37e39b463319463de3ccd6900dd49b9f63ffd9c3c0166c29c798df66181d2201",
+      "lines": 583,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ValueDistribution.LogCounting.Growth",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Meromorphic.DivisorHolomorphic",
+        "Mathlib.Analysis.Meromorphic.TrailingCoefficient",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.Dyadic",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.PosLog",
+        "Mathlib.Analysis.SpecialFunctions.Log.Summable"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.LocallyUniformLimit": {
+      "sha256": "183cf35e182c8d5977218ca05e25f7eb4fdb34685cdfa1631122698977492ec8",
+      "lines": 59,
+      "imports": [
+        "Mathlib.Analysis.Complex.LocallyUniformLimit"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.Norm": {
+      "sha256": "2ef3c5113ea813e4ea8186cfc977b894e18d89a7d0a284125f41f1e1acacb098",
+      "lines": 68,
+      "imports": [
+        "Mathlib.Analysis.Complex.Norm"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ValueDistribution.LogCounting.Basic": {
+      "sha256": "bfade9ca2307b6c487430da99fdba5777cace94c5eafd9dd9553b332c3db3211",
+      "lines": 118,
+      "imports": [
+        "Mathlib.Analysis.Complex.CauchyIntegral",
+        "Mathlib.Analysis.Complex.ValueDistribution.LogCounting.Basic"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ValueDistribution.LogCounting.Growth": {
+      "sha256": "c921b080c18a4d07f001587351d611537ca57609a9564380fdaed27532e2c7fc",
+      "lines": 214,
+      "imports": [
+        "Mathlib.Analysis.Complex.CauchyIntegral",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ValueDistribution.LogCounting.Basic",
+        "Mathlib.Analysis.SpecialFunctions.Integrability.LogMeromorphic",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.ExpGrowth",
+        "Mathlib.MeasureTheory.Integral.CircleAverage"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.WeierstrassFactor": {
+      "sha256": "708ee42d01623d8069706070abd6d280ca9720da2a7e879c081ef53991725fb4",
+      "lines": 462,
+      "imports": [
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Complex.LogBounds",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.Norm",
+        "Mathlib.Analysis.Analytic.Order",
+        "Mathlib.Analysis.Complex.CauchyIntegral",
+        "Mathlib.Analysis.Normed.Group.Bounded",
+        "Mathlib.Analysis.Normed.Module.MultipliableUniformlyOn",
+        "Mathlib.Analysis.SpecialFunctions.ExpDeriv"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Meromorphic.DivisorHolomorphic": {
+      "sha256": "659acca72481754f11695bb3ffdaad1737a85bdaa31f92466194349d8b9a44a9",
+      "lines": 31,
+      "imports": [
+        "Mathlib.Analysis.Complex.CauchyIntegral",
+        "Mathlib.Analysis.Meromorphic.Divisor"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.Meromorphic.DivisorSupport": {
+      "sha256": "fd1f0e1bbb4ca0d93b273b2cc301277b7084180d989e47a71796dd146db0cac1",
+      "lines": 137,
+      "imports": [
+        "Mathlib.Analysis.Meromorphic.Divisor",
+        "Mathlib.Data.Set.Countable",
+        "Mathlib.Data.Set.Finite.Basic",
+        "Mathlib.Topology.Compactness.Compact",
+        "Mathlib.Topology.Compactness.Lindelof"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Complex.LogBounds": {
+      "sha256": "fbf87552005e163d104d8cca8b6077589d661d4845e9b139dede275a040bd848",
+      "lines": 260,
+      "imports": [
+        "Mathlib.Analysis.SpecialFunctions.Complex.LogBounds"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Exp": {
+      "sha256": "a8228ccf1321af80c613c43ffa5868e7cd487f0e5d142c2ed5bc8b355af9ec05",
+      "lines": 51,
+      "imports": [
+        "Mathlib.Analysis.SpecialFunctions.Exp"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.Dyadic": {
+      "sha256": "485adc8786e3bb1887d0aa2e28393813ed622dfafccb2bdd7f5c99f06c2c8252",
+      "lines": 315,
+      "imports": [
+        "Mathlib.Analysis.SpecialFunctions.Log.Base",
+        "Mathlib.Topology.Algebra.InfiniteSum.Order"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.ExpGrowth": {
+      "sha256": "8c4a1e7a4e70ab37c43226832b73d42ea194325645ce97e1cbe607cf95a8fd8a",
+      "lines": 200,
+      "imports": [
+        "Mathlib.Algebra.Order.Floor.Semiring",
+        "Mathlib.Analysis.Complex.Basic",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.PosLog",
+        "Mathlib.Analysis.SpecialFunctions.Pow.Real",
+        "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Exp"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.PosLog": {
+      "sha256": "6859adaca57af1bada5c21a3555334b1849b2368797d9622856158b253b090a9",
+      "lines": 53,
+      "imports": [
+        "Mathlib.Analysis.SpecialFunctions.Log.PosLog"
+      ],
+      "lexicalTrustMarkers": []
+    },
+    "PrimeNumberTheoremAnd.Mathlib.Topology.MetricSpace.Annulus": {
+      "sha256": "9a77239ef06c3ab55fb21a13f9c0359bc354774d02feccf219e941264c999eb3",
+      "lines": 436,
+      "imports": [
+        "Mathlib.Data.Nat.SuccPred",
+        "Mathlib.Order.Interval.Set.LinearOrder",
+        "Mathlib.Order.SuccPred.IntervalSucc",
+        "Mathlib.Topology.MetricSpace.Basic"
+      ],
+      "lexicalTrustMarkers": []
+    }
+  }
+}

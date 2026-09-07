@@ -1,0 +1,253 @@
+{
+  "originalToolchain": "leanprover/lean4:v4.32.2",
+  "targetToolchain": "leanprover/lean4:v4.33.1",
+  "originalManifestSha256": "3b7d62f8313e49dd6a69cab0a702f2c483f40df2b29ea450a0d6c670a5e6d5d2",
+  "files": [
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.AbsMax",
+      "originalSha256": "9bb65e2edb20c4a83d35946ae2abd41ca423f17569c33c30bc7bb1bbe607b892",
+      "adaptedPath": "Analysis/Complex/AbsMax.lean",
+      "adaptedSha256": "9bb65e2edb20c4a83d35946ae2abd41ca423f17569c33c30bc7bb1bbe607b892",
+      "adaptedPreNormalizationSha256": "da8b5a8fcd63742285c31c124dee1472ac444a90ae78971f9945310ca68d8b91"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.BorelCaratheodory",
+      "originalSha256": "8ca28eb4cd6a605fa043345bb84dc8d1051c1e6fb5e83155373521f744fd05bb",
+      "adaptedPath": "Analysis/Complex/BorelCaratheodory.lean",
+      "adaptedSha256": "8ca28eb4cd6a605fa043345bb84dc8d1051c1e6fb5e83155373521f744fd05bb",
+      "adaptedPreNormalizationSha256": "b832015713b70e4f438800a1378a1945859d0fc86516c91581ecfff508df0bae"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CanonicalProduct",
+      "originalSha256": "78e93bcdf6608ad00c46271dd3a7ee12b050a82f66902ecec3c3bc6239584b2a",
+      "adaptedPath": "Analysis/Complex/CanonicalProduct.lean",
+      "adaptedSha256": "d44aea8984d1d29f01ebf8a2822381bd955e7d241f08576936b4d06e03f3ddea",
+      "adaptedPreNormalizationSha256": "351710f4547b2d7199b00ce200fd8f78576d0e30e53f71d0a07f3c2e1fdb9e94"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanBound",
+      "originalSha256": "a345cb625ec7ab58455a62192bcd48ddb95cf529f9423536a790d322d9c53816",
+      "adaptedPath": "Analysis/Complex/CartanBound.lean",
+      "adaptedSha256": "a944da505569957a52675e39809b045b2b341a71423fddba37d5c6367212abf7",
+      "adaptedPreNormalizationSha256": "85cb16d198825256b3dc9af7ff29848b9c1dee95c44eeee825d77753e2e14cb3"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanInverseFactorBound",
+      "originalSha256": "8cc0786aa999c34f58270971a8f3a871b58a32043e0bf50dc077a41d5e4655d1",
+      "adaptedPath": "Analysis/Complex/CartanInverseFactorBound.lean",
+      "adaptedSha256": "8b3a798d054cd9adddad0ad9d898cc8c84cc7343f4741e7d19b7b9bd653cb110",
+      "adaptedPreNormalizationSha256": "6e23372c8a24dca00653e713a08d35c53b22f72cb4d26e3f3ee59f439b28cb60"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanMajorantBound",
+      "originalSha256": "df43040f66644c99724c2af103f0d9444a51c7a73ff5f8c7f83951e69ddf2912",
+      "adaptedPath": "Analysis/Complex/CartanMajorantBound.lean",
+      "adaptedSha256": "ce796e90eb5dcf9d038134588f509ca002f8b4df313aa3b72f4302cca8a24bf9",
+      "adaptedPreNormalizationSha256": "fa65e54b77cab5211875c7d4c0169cf217419d5d3e11e67d41a758d9318b31b0"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.CartanProductBound",
+      "originalSha256": "7aed7d388a3bd15e3c7d0679d8c00240dab881d1eae6032fd8bbf92b13e6b7ff",
+      "adaptedPath": "Analysis/Complex/CartanProductBound.lean",
+      "adaptedSha256": "dd9a96521ce2528a213eb3f620efb9a4e017d3f70bb2e4ab81395c095c547f11",
+      "adaptedPreNormalizationSha256": "2d5555702d7fb45760d796aa7e597a10b8a35db9d615645b4f0e41ffa7dbbc9d"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.Divisor",
+      "originalSha256": "c58700c9835c4f2323e1746ef26acbd335655e8c68ae5ee6340ce9186f4e4c72",
+      "adaptedPath": "Analysis/Complex/Divisor.lean",
+      "adaptedSha256": "587bbbb36a503cdb1e375cd8791ef743e95fd2c7ac4c7fe9b66546d429abad8a",
+      "adaptedPreNormalizationSha256": "caf6db598013969df458ac4cc5907dfbc1d037172f08aae51a386af1cffec30d"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorComplement",
+      "originalSha256": "d6a6385133e82f84b76a2225be08f01976dd42a79d247d2eecaa414d5df6dc72",
+      "adaptedPath": "Analysis/Complex/DivisorComplement.lean",
+      "adaptedSha256": "1dbc005cd3a86c6e8a2975bd513a13f783ce8e427ee9a9be7df53232f848d1e5",
+      "adaptedPreNormalizationSha256": "c931ff9b8459817b3e04dc5d0b37c96126b465536335eb2339362b8c35473b41"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorConvergence",
+      "originalSha256": "0e1be01ce75e7b0df7bd351abed628d30da18db5fd178df961ec575e70cdbeeb",
+      "adaptedPath": "Analysis/Complex/DivisorConvergence.lean",
+      "adaptedSha256": "f221404b18ef84cd9ee8babf7b4c6adc1bd5d780c0ef348bcd1419ba2a557048",
+      "adaptedPreNormalizationSha256": "2c5a053ef8613543091ae57c3b9262ec280b2d61f6f7f8360c5b6d798e30e152"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorFiber",
+      "originalSha256": "7ae7c84bb6f1cdb4164abdfe3b8ff7ae37d88c6a8e42d202d0e43335a5f9f5d5",
+      "adaptedPath": "Analysis/Complex/DivisorFiber.lean",
+      "adaptedSha256": "a7478026b584e5a5e22a8cfbbf66dce1e3ad2cf451e3463747734a1b5bd6c27e",
+      "adaptedPreNormalizationSha256": "d1ed1d365ad8648d5977575dfaa2f13f047b3b1145fa56c347f4eb98862f223e"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorIndex",
+      "originalSha256": "e97aa456b5d77aa4ebbc03032252c09e7ba48b791205653fa108e54e25e03428",
+      "adaptedPath": "Analysis/Complex/DivisorIndex.lean",
+      "adaptedSha256": "b12c2205395434c033d7939f2dc9b230ae850b7ade1daa5e8dd7970933e0e614",
+      "adaptedPreNormalizationSha256": "0fde6b25373127ed2dbd27a610d15ba2bdf3a0f4e1db29f0015263a8fd4607a2"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorPartialProductFactor",
+      "originalSha256": "a412dafbdcc4da3d1f50798a64ffbfca171b166865658dae0b9cfe9167ce03eb",
+      "adaptedPath": "Analysis/Complex/DivisorPartialProductFactor.lean",
+      "adaptedSha256": "eb095eb377bfed9697e5f3dcb413df37f6bce6b988bd7b80fca85a16df693b8e",
+      "adaptedPreNormalizationSha256": "beea65ee5a163a91d8e340689616badf4abd8efad5db3c3a00ccbe3a021691d7"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorQuotientConvergence",
+      "originalSha256": "417322eba6b461a9992559609b7780df6841bb67b3ee52b47d86637b6531ce08",
+      "adaptedPath": "Analysis/Complex/DivisorQuotientConvergence.lean",
+      "adaptedSha256": "f82b6173f9873468e858c4f9aed3ef676f9a7ce36059db66ce33a6260b5dc33f",
+      "adaptedPreNormalizationSha256": "60f1ff0b79a6c453021ace7730fa2ef52839be61c126c0e10aa3b1d1c1391092"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorQuotientRemovable",
+      "originalSha256": "0f13f9c7b5b8b804b759e3d581f38f88a4bf7a76c76f7f8b10f0fcdaafb0a966",
+      "adaptedPath": "Analysis/Complex/DivisorQuotientRemovable.lean",
+      "adaptedSha256": "831f6dfc361232a30b07d9e6b567e8b16b549210bd9ff8e5e24cdd23a9239c17",
+      "adaptedPreNormalizationSha256": "296e292dd77d7db06d0c101ceccadb5646155f611a215b20cd72f6da413511ad"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.DivisorUnits",
+      "originalSha256": "a4a934f86c5a9301336213b9c6f4de8670ae103aeaea17048c2e700282ebe74c",
+      "adaptedPath": "Analysis/Complex/DivisorUnits.lean",
+      "adaptedSha256": "d85aa0c85662030285c9e75ae85e084bd5ff28591ecf42b1e2d37b7d0b3bb625",
+      "adaptedPreNormalizationSha256": "a4d82a0467a60caf3d280bce34effb5e9f70e5daa5107bdbef03dab8f779b245"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ExpPoly",
+      "originalSha256": "9f0746ffb029dbbb071dbfcca3b12660b4c459ec6789f4d99e83c1b32eddb3f0",
+      "adaptedPath": "Analysis/Complex/ExpPoly.lean",
+      "adaptedSha256": "6f29d7848ffb37d1a5d9f924b11481a2478df1d5c26b9b2966dd0264ee87b3da",
+      "adaptedPreNormalizationSha256": "c9d7231ede62d458f384bcf1e65c984786288dfa8ff77fe70568478ebf97f596"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ExpPoly.Growth",
+      "originalSha256": "07248e3c9192712a5994728ed6e0d9f8fb483b398a093f114f8e0b787a8dd1de",
+      "adaptedPath": "Analysis/Complex/ExpPoly/Growth.lean",
+      "adaptedSha256": "96bb1a799ee68e02550caa69309421076e6ecc12587e2866047aab7a0bf3753a",
+      "adaptedPreNormalizationSha256": "14947b3327286ceba795736986404a8ef3e743aca756eddd78a1472f3ab81e3a"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization",
+      "originalSha256": "012e7212ff5809f61ead3792e1eb56839b6652079cdedb0b12a8c4d3374c14d3",
+      "adaptedPath": "Analysis/Complex/HadamardFactorization.lean",
+      "adaptedSha256": "0289966ae4cd9f4ddd1c70a4f154036c8013e6b959669091b19a786d5cffc40c",
+      "adaptedPreNormalizationSha256": "20c6d762b16d92f62ebd723d85f65f63919167047740c951a98ec1aee6fd83e6"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Growth",
+      "originalSha256": "45cfe32410d9ff91243e62f11ff02b8b5e44c85397dfc4bf1bf8a010e7ddc1a5",
+      "adaptedPath": "Analysis/Complex/HadamardFactorization/Growth.lean",
+      "adaptedSha256": "0fb6ac70103178dec1ece89407f378d4c2b9b3c294cb763f49bb739ba4733591",
+      "adaptedPreNormalizationSha256": "8c32359520ff0cee1f00cebe988423652e2209508e0af0a5f29d6a57f0cf32da"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Order",
+      "originalSha256": "b6ea09c3d6899d20a4bdda914ecd95d697f98e78025341b833ca11d5f41175ff",
+      "adaptedPath": "Analysis/Complex/HadamardFactorization/Order.lean",
+      "adaptedSha256": "bb2dc7b2378fdf8c160531f89bcc0580501432032874c90db3280abed9cf9dad",
+      "adaptedPreNormalizationSha256": "677c46d49a5cbaa212e9124fd5b1ea05672ee9193835b2b8c89c55c90f4153bf"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.HadamardFactorization.Summability",
+      "originalSha256": "37e39b463319463de3ccd6900dd49b9f63ffd9c3c0166c29c798df66181d2201",
+      "adaptedPath": "Analysis/Complex/HadamardFactorization/Summability.lean",
+      "adaptedSha256": "73efa3a16a4cb4561ce4257e944d3993a7ae2eb77541ae918592fbf17f161244",
+      "adaptedPreNormalizationSha256": "6e68af295928cb6d7940f587e9772ab86edafb2f32f5c91a2eaef0eb9bee4792"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.LocallyUniformLimit",
+      "originalSha256": "183cf35e182c8d5977218ca05e25f7eb4fdb34685cdfa1631122698977492ec8",
+      "adaptedPath": "Analysis/Complex/LocallyUniformLimit.lean",
+      "adaptedSha256": "183cf35e182c8d5977218ca05e25f7eb4fdb34685cdfa1631122698977492ec8",
+      "adaptedPreNormalizationSha256": "04c514b4fe245b18f0c44273c6f7429b86a6236d4db2ce674172d225477e33c1"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.Norm",
+      "originalSha256": "2ef3c5113ea813e4ea8186cfc977b894e18d89a7d0a284125f41f1e1acacb098",
+      "adaptedPath": "Analysis/Complex/Norm.lean",
+      "adaptedSha256": "2ef3c5113ea813e4ea8186cfc977b894e18d89a7d0a284125f41f1e1acacb098",
+      "adaptedPreNormalizationSha256": "b44b8cadedb91b616299c50c8714e8ef613afa5a6f96ee0df9ba7e5a086de048"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ValueDistribution.LogCounting.Basic",
+      "originalSha256": "bfade9ca2307b6c487430da99fdba5777cace94c5eafd9dd9553b332c3db3211",
+      "adaptedPath": "Analysis/Complex/ValueDistribution/LogCounting/Basic.lean",
+      "adaptedSha256": "bfade9ca2307b6c487430da99fdba5777cace94c5eafd9dd9553b332c3db3211",
+      "adaptedPreNormalizationSha256": "21f5185452a9fd32b0aed76ff4aac196cddde52532ed169f5c2f1457050ca4a9"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.ValueDistribution.LogCounting.Growth",
+      "originalSha256": "c921b080c18a4d07f001587351d611537ca57609a9564380fdaed27532e2c7fc",
+      "adaptedPath": "Analysis/Complex/ValueDistribution/LogCounting/Growth.lean",
+      "adaptedSha256": "ed474b72b6fad04849bc4a588dfc80856528b369d132afd6454cddd7d4ca7319",
+      "adaptedPreNormalizationSha256": "5663d497cb26a620a9a0d2dba2ded885c76321d7da9d507be270074dc9fa914d"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Complex.WeierstrassFactor",
+      "originalSha256": "708ee42d01623d8069706070abd6d280ca9720da2a7e879c081ef53991725fb4",
+      "adaptedPath": "Analysis/Complex/WeierstrassFactor.lean",
+      "adaptedSha256": "1cb61055603cb089a3ca346afc36c0b31e970ec448efb3f2640024da77120a4f",
+      "adaptedPreNormalizationSha256": "080c4c68f2a906a9b6105950e31b9d84f97f320543f30fee1fc1dc8df34e1aa9"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Meromorphic.DivisorHolomorphic",
+      "originalSha256": "659acca72481754f11695bb3ffdaad1737a85bdaa31f92466194349d8b9a44a9",
+      "adaptedPath": "Analysis/Meromorphic/DivisorHolomorphic.lean",
+      "adaptedSha256": "659acca72481754f11695bb3ffdaad1737a85bdaa31f92466194349d8b9a44a9",
+      "adaptedPreNormalizationSha256": "22d19bbd1edb63a1faf723851bb9a2e5fa461ff663d7dafb3b09f192deb16302"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.Meromorphic.DivisorSupport",
+      "originalSha256": "fd1f0e1bbb4ca0d93b273b2cc301277b7084180d989e47a71796dd146db0cac1",
+      "adaptedPath": "Analysis/Meromorphic/DivisorSupport.lean",
+      "adaptedSha256": "fd1f0e1bbb4ca0d93b273b2cc301277b7084180d989e47a71796dd146db0cac1",
+      "adaptedPreNormalizationSha256": "9af62e515bff9e1d895a0f75c2914ec9e579cf3712cceb47c5d0d78b190b048a"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Complex.LogBounds",
+      "originalSha256": "fbf87552005e163d104d8cca8b6077589d661d4845e9b139dede275a040bd848",
+      "adaptedPath": "Analysis/SpecialFunctions/Complex/LogBounds.lean",
+      "adaptedSha256": "fbf87552005e163d104d8cca8b6077589d661d4845e9b139dede275a040bd848",
+      "adaptedPreNormalizationSha256": "d0400f709ff90fa4d614edb9aaadab7f2fded6ac24a4649b9c7aa258f5e003d2"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Exp",
+      "originalSha256": "a8228ccf1321af80c613c43ffa5868e7cd487f0e5d142c2ed5bc8b355af9ec05",
+      "adaptedPath": "Analysis/SpecialFunctions/Exp.lean",
+      "adaptedSha256": "a8228ccf1321af80c613c43ffa5868e7cd487f0e5d142c2ed5bc8b355af9ec05",
+      "adaptedPreNormalizationSha256": "42a7d3f7376530f77c7341c322f0d8609b021336cd81cdee15a970a6cf81abcd"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.Dyadic",
+      "originalSha256": "485adc8786e3bb1887d0aa2e28393813ed622dfafccb2bdd7f5c99f06c2c8252",
+      "adaptedPath": "Analysis/SpecialFunctions/Log/Dyadic.lean",
+      "adaptedSha256": "485adc8786e3bb1887d0aa2e28393813ed622dfafccb2bdd7f5c99f06c2c8252",
+      "adaptedPreNormalizationSha256": "593c1ccef432d1534575dc1cdfc210c849b306f6af66e42af66e239e41959e72"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.ExpGrowth",
+      "originalSha256": "8c4a1e7a4e70ab37c43226832b73d42ea194325645ce97e1cbe607cf95a8fd8a",
+      "adaptedPath": "Analysis/SpecialFunctions/Log/ExpGrowth.lean",
+      "adaptedSha256": "0bcd5ce123299a4eea2fd617e037ee83500acb22137343ac352bd92f9c4fdf2f",
+      "adaptedPreNormalizationSha256": "20338918939be7c11426a69456490cbc9c2383937e3348e67160f04882bf7203"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Analysis.SpecialFunctions.Log.PosLog",
+      "originalSha256": "6859adaca57af1bada5c21a3555334b1849b2368797d9622856158b253b090a9",
+      "adaptedPath": "Analysis/SpecialFunctions/Log/PosLog.lean",
+      "adaptedSha256": "6859adaca57af1bada5c21a3555334b1849b2368797d9622856158b253b090a9",
+      "adaptedPreNormalizationSha256": "78de8bc060bdc5444a3b2a38487c988a84b4eef4e59371cf6c8cf24f999086a8"
+    },
+    {
+      "originalModule": "PrimeNumberTheoremAnd.Mathlib.Topology.MetricSpace.Annulus",
+      "originalSha256": "9a77239ef06c3ab55fb21a13f9c0359bc354774d02feccf219e941264c999eb3",
+      "adaptedPath": "Topology/MetricSpace/Annulus.lean",
+      "adaptedSha256": "9a77239ef06c3ab55fb21a13f9c0359bc354774d02feccf219e941264c999eb3",
+      "adaptedPreNormalizationSha256": "36ffbaee44341b00072be2e1520a65e8fa43e750afb0b550e9846d1e297f5a98"
+    }
+  ],
+  "lineEndings": "Adapted sources are committed with LF; pre-normalization hashes retain the original adaptation evidence."
+}

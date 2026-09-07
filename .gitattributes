@@ -1,0 +1,3 @@
+# Keep imported-source provenance hashes stable across checkouts.
+LeanCert/Analysis/HadamardSupport/**/*.lean text eol=lf
+LeanCert/Analysis/HadamardSupport/provenance.json text eol=lf
