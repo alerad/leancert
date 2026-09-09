@@ -81,17 +81,17 @@ soundness-guard workflow checks the exported trust manifest.
 
 ## Scope
 
-The unconditional result proves the real-zero endpoint; it does not yet
-establish all the threshold foundations needed to state a bound for a
-real-valued de Bruijn–Newman constant. It does not assert the general time-dependent strip theorem,
-finite-height RH verification, or sharper numerical bounds. Numerical
-mollifier research is deliberately outside this change.
+The endpoint theorem alone proves real-only zeros at time one half. The
+forward-contraction component described below proves the general time-dependent
+strip theorem; `Threshold.lean` adds the finite real threshold and the bound
+`Lambda ≤ 1/2`. These results do not assert finite-height RH verification or
+sharper numerical bounds. Numerical mollifier research is separate.
 
 ## Toward the threshold: closed real-zero times
 
 `LeanCert.Analysis.DBN.RealZeroTimes` now defines
 
-```lean
+```text
 realZeroTimes : Set ℝ := {t | ∀ z : ℂ, H t z = 0 → z.im = 0}
 ```
 
