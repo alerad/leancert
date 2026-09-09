@@ -42,6 +42,13 @@ them unchanged. -/
 
 /-! ## DBN endpoint: unconditional analytic theorem, no native evaluation -/
 
+#assert_trust kernel LeanCert.Analysis.DBN.H_norm_le_exp_order
+#assert_trust kernel LeanCert.Analysis.DBN.H_hadamard
+#assert_trust kernel LeanCert.Analysis.DBN.H_eq_normalized_canonicalProduct
+#assert_trust kernel LeanCert.Analysis.DBN.StripPolynomialApproximation.heat_limit_strip
+#assert_trust kernel LeanCert.Analysis.DBN.StripPolynomialApproximation.heat_limit_real
+#assert_trust kernel LeanCert.Analysis.DBN.isClosed_realZeroTimes
+#assert_trust kernel LeanCert.Analysis.DBN.realZeroTimes_eq_Ici
 #assert_trust kernel LeanCert.Analysis.DBN.H_half_real_zeros
 #assert_trust kernel LeanCert.Analysis.DBN.H_half_ne_zero_of_im_ne_zero
 #assert_trust kernel LeanCert.API.Bounds.verifyLowerBoundBox
@@ -58,3 +65,19 @@ depending on native trust, the pins below fail and should be tightened to
 #assert_trust native EulerMascheroni.gamma_upper
 #assert_trust native EulerMascheroni.gamma_bounds
 #assert_trust native EulerMascheroni.gamma_approx
+
+#assert_trust kernel LeanCert.Analysis.DBN.timeShift_convergence
+#assert_trust kernel LeanCert.Analysis.DBN.H_forward_strip
+#assert_trust kernel LeanCert.Analysis.DBN.realZeroTimes_forward
+#assert_trust kernel LeanCert.Analysis.DBN.H_real_zeros_of_half_le
+
+/-! ## Classical DBN threshold: unconditional and kernel-trusted -/
+
+#assert_trust kernel LeanCert.Analysis.DBN.Phi_four_point_obstruction
+#assert_trust kernel LeanCert.Analysis.DBN.H_four_point_normSq
+#assert_trust kernel LeanCert.Analysis.DBN.gaussianAverage_tendsto
+#assert_trust kernel LeanCert.Analysis.DBN.exists_bad_negative_square
+#assert_trust kernel LeanCert.Analysis.DBN.realZeroTimes_bddBelow
+#assert_trust kernel LeanCert.Analysis.DBN.real_zeros_iff_Lambda_le
+#assert_trust kernel LeanCert.Analysis.DBN.Lambda_le_half
+#assert_trust kernel LeanCert.Analysis.DBN.dbn_certificate

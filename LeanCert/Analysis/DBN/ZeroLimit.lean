@@ -76,4 +76,19 @@ theorem entire_limit_ne_zero {ι : Type*} {l : Filter ι} [l.NeBot]
   simp only [hfz, dist_zero_left] at hh
   linarith
 
+/-- Closed horizontal strip control survives a nontrivial entire limit. The
+bound is squared, so zero-width strips need no separate topological argument. -/
+theorem entire_limit_strip {ι : Type*} {l : Filter ι} [l.NeBot]
+    {F : ι → ℂ → ℂ} {f : ℂ → ℂ} {B : ℝ}
+    (hF : ∀ i, Differentiable ℂ (F i)) (hf : Differentiable ℂ f)
+    (hnot : ∃ w, f w ≠ 0) (hlim : TendstoLocallyUniformly F f l)
+    (hstrip : ∀ i z, F i z = 0 → z.im^2 ≤ B)
+    {z : ℂ} (hz : f z = 0) : z.im^2 ≤ B := by
+  by_contra h
+  exact (entire_limit_ne_zero hF hf hnot hlim
+    (U := {w : ℂ | B < w.im^2})
+    (isOpen_lt continuous_const (Complex.continuous_im.pow 2))
+    (fun i w hw hzero => (not_lt_of_ge (hstrip i w hzero)) hw)
+    (lt_of_not_ge h)) hz
+
 end LeanCert.Analysis.DBN

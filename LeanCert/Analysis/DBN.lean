@@ -9,9 +9,12 @@ import LeanCert.Analysis.DBN.StripShift
 import LeanCert.Analysis.DBN.HeatShift
 import LeanCert.Analysis.DBN.Hadamard
 import LeanCert.Analysis.DBN.CanonicalProduct
+import LeanCert.Analysis.DBN.PolynomialHeatTransfer
 import LeanCert.Analysis.DBN.RealZeros
+import LeanCert.Analysis.DBN.RealZeroTimes
+import LeanCert.Analysis.DBN.ForwardPreservation
+import LeanCert.Analysis.DBN.Threshold
 
-/-! Analytic definitions, majorants, and the unconditional real-zero theorem
-at time one half for the de Bruijn–Newman heat flow.
-Numerical mollifier certificates and their approximation-error transfers are
-separate from this analytic endpoint and are not supplied by this module. -/
+/-! Analytic definitions and the unconditional classical de Bruijn–Newman
+certificate: a unique finite threshold for real-only zeros, at most one half.
+Sharper numerical bounds and mollifier certificates are separate. -/
