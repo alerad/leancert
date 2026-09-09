@@ -2,42 +2,42 @@ import LeanCert.Analysis.DBN.Hadamard
 import Mathlib.Algebra.Polynomial.Degree.SmallDegree
 import Mathlib.Tactic
 
-/-! Removing the exponential prefactor from the actual H_0 factorization. -/
+/-! Removing the exponential prefactor from the actual H_t factorization at every real time. -/
 namespace LeanCert.Analysis.DBN
 open Complex Complex.Hadamard Polynomial
 
 /-- Every genus-one factor is normalized to have derivative zero at the origin. -/
-theorem H_zero_canonicalProduct_deriv_zero :
-    deriv (divisorCanonicalProduct 1 (H 0) Set.univ) 0 = 0 := by
-  have h := logDeriv_divisorCanonicalProduct_one_eq_tsum H_zero_inverse_square_summable
+theorem H_canonicalProduct_deriv_zero (t : ℝ) :
+    deriv (divisorCanonicalProduct 1 (H t) Set.univ) 0 = 0 := by
+  have h := logDeriv_divisorCanonicalProduct_one_eq_tsum (H_inverse_square_summable t)
     (z := 0) (fun p => (divisorZeroIndex₀_val_ne_zero p).symm)
-    (divisorCanonicalProduct_ne_zero_at_zero 1 (H 0) Set.univ)
+    (divisorCanonicalProduct_ne_zero_at_zero 1 (H t) Set.univ)
   simpa [logDeriv] using h
 
-theorem H_zero_deriv_zero : deriv (H 0) 0 = 0 := by
-  have hd := ((H_entire 0 (-(0 : ℂ))).hasDerivAt).comp (h := fun z : ℂ => -z) 0 (hasDerivAt_neg (0 : ℂ))
-  have he : (fun z : ℂ => H 0 (-z)) = H 0 := funext (H_even 0)
+theorem H_deriv_zero (t : ℝ) : deriv (H t) 0 = 0 := by
+  have hd := ((H_entire t (-(0 : ℂ))).hasDerivAt).comp (h := fun z : ℂ => -z) 0 (hasDerivAt_neg (0 : ℂ))
+  have he : (fun z : ℂ => H t (-z)) = H t := funext (H_even t)
   simp only [Function.comp_def] at hd
   rw [he] at hd
-  have h := hd.unique ((H_entire 0 (0 : ℂ)).hasDerivAt)
+  have h := hd.unique ((H_entire t (0 : ℂ)).hasDerivAt)
   simp only [neg_zero, mul_neg, mul_one] at h
   linear_combination -h / 2
 
 /-- The entire linear exponential prefactor is constant, not merely nonvanishing. -/
-theorem H_zero_eq_normalized_canonicalProduct (z : ℂ) :
-    H 0 z = H 0 0 * divisorCanonicalProduct 1 (H 0) Set.univ z := by
-  obtain ⟨P, hP, hfac⟩ := H_zero_hadamard
+theorem H_eq_normalized_canonicalProduct (t : ℝ) (z : ℂ) :
+    H t z = H t 0 * divisorCanonicalProduct 1 (H t) Set.univ z := by
+  obtain ⟨P, hP, hfac⟩ := H_hadamard t
   obtain ⟨a, b, rfl⟩ := P.exists_eq_X_add_C_of_natDegree_le_one (natDegree_le_of_degree_le hP)
   simp only [eval_add, eval_mul, eval_C, eval_X] at hfac
-  have hQ := differentiable_divisorCanonicalProduct_univ 1 (H 0) H_zero_inverse_square_summable
+  have hQ := differentiable_divisorCanonicalProduct_univ 1 (H t) (H_inverse_square_summable t)
   have hder := (((hasDerivAt_id (0 : ℂ)).const_mul a).add_const b).cexp.mul ((hQ 0).hasDerivAt)
-  have he : (fun z : ℂ => Complex.exp (a*z+b) * divisorCanonicalProduct 1 (H 0) Set.univ z) = H 0 :=
+  have he : (fun z : ℂ => Complex.exp (a*z+b) * divisorCanonicalProduct 1 (H t) Set.univ z) = H t :=
     funext (fun z => (hfac z).symm)
   simp only [Pi.mul_def, id_eq] at hder
   rw [he] at hder
   have hd := hder.deriv
-  rw [H_zero_deriv_zero] at hd
-  simp only [H_zero_canonicalProduct_deriv_zero, divisorCanonicalProduct_zero, mul_zero,
+  rw [(H_deriv_zero t)] at hd
+  simp only [(H_canonicalProduct_deriv_zero t), divisorCanonicalProduct_zero, mul_zero,
     zero_add, mul_one, add_zero] at hd
   have ha : a = 0 := (mul_eq_zero.mp hd.symm).resolve_left (Complex.exp_ne_zero b)
   have h0 := hfac 0
@@ -45,11 +45,26 @@ theorem H_zero_eq_normalized_canonicalProduct (z : ℂ) :
   simpa only [ha, zero_mul, zero_add, ← h0] using hfac z
 
 /-- The canonical product inherits evenness once its prefactor is removed. -/
+theorem H_canonicalProduct_even (t : ℝ) (z : ℂ) :
+    divisorCanonicalProduct 1 (H t) Set.univ (-z) =
+      divisorCanonicalProduct 1 (H t) Set.univ z := by
+  apply mul_left_cancel₀ (H_zero_ne_zero t)
+  rw [← (H_eq_normalized_canonicalProduct t), ← (H_eq_normalized_canonicalProduct t), H_even]
+
+/-- Time-zero compatibility interfaces. -/
+theorem H_zero_canonicalProduct_deriv_zero :
+    deriv (divisorCanonicalProduct 1 (H 0) Set.univ) 0 = 0 :=
+  H_canonicalProduct_deriv_zero 0
+
+theorem H_zero_deriv_zero : deriv (H 0) 0 = 0 := H_deriv_zero 0
+
+theorem H_zero_eq_normalized_canonicalProduct (z : ℂ) :
+    H 0 z = H 0 0 * divisorCanonicalProduct 1 (H 0) Set.univ z :=
+  H_eq_normalized_canonicalProduct 0 z
+
 theorem H_zero_canonicalProduct_even (z : ℂ) :
     divisorCanonicalProduct 1 (H 0) Set.univ (-z) =
-      divisorCanonicalProduct 1 (H 0) Set.univ z := by
-  apply mul_left_cancel₀ (H_zero_ne_zero 0)
-  rw [← H_zero_eq_normalized_canonicalProduct, ← H_zero_eq_normalized_canonicalProduct, H_even]
+      divisorCanonicalProduct 1 (H 0) Set.univ z := H_canonicalProduct_even 0 z
 
 /-- A negation-invariant finite root multiset has zero reciprocal sum. -/
 theorem reciprocal_sum_eq_zero (roots : Multiset ℂ)
