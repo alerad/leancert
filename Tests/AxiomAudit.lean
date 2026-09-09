@@ -330,3 +330,121 @@ run_meta do
   unless offenders.isEmpty do
     throwError "Declarations depending on sorryAx outside the sanctioned \
       LeanCert.CertifiedBounds.Li2 interface:\n{offenders.toList}"
+
+/--
+info: 'LeanCert.Analysis.DirichletGaussian.negative_time_exists_zero' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DirichletGaussian.negative_time_exists_zero
+
+/--
+info: 'LeanCert.Engine.DirichletGaussian.certified_tail' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Engine.DirichletGaussian.certified_tail
+
+/--
+info: 'LeanCert.Analysis.DirichletGaussian.zeros_at_arbitrary_height' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DirichletGaussian.zeros_at_arbitrary_height
+
+/--
+info: 'LeanCert.Analysis.DBN.verticalGaussianIntegral' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.verticalGaussianIntegral
+
+/--
+info: 'LeanCert.Analysis.DBN.normalizedContourTerm_tsum' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.normalizedContourTerm_tsum
+
+/--
+info: 'LeanCert.Analysis.DBN.norm_inv_dobnerGamma_le_exp_on_strip' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.norm_inv_dobnerGamma_le_exp_on_strip
+
+/--
+info: 'LeanCert.Analysis.DBN.normalizedContourTerm_eq_shifted_integral' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.normalizedContourTerm_eq_shifted_integral
+
+/--
+info: 'LeanCert.Analysis.DBN.saddleIntegrand_normalized_factorization' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.saddleIntegrand_normalized_factorization
+
+/--
+info: 'LeanCert.Analysis.GammaRatio.relative_error_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.GammaRatio.relative_error_bound
+
+/--
+info: 'LeanCert.Analysis.GammaRatio.relative_error_bound_growing' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.GammaRatio.relative_error_bound_growing
+
+/--
+info: 'LeanCert.Analysis.DBN.xiGamma_relative_error_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.xiGamma_relative_error_bound
+
+/--
+info: 'LeanCert.Analysis.DBN.xiGamma_relative_error_eventually' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.xiGamma_relative_error_eventually
+
+/--
+info: 'LeanCert.Analysis.DBN.saddleIntegrand_quadratic_relative_error_bound' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.saddleIntegrand_quadratic_relative_error_bound
+
+/--
+info: 'LeanCert.Analysis.DBN.real_Gamma_le_exp_sq' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.real_Gamma_le_exp_sq
+
+/--
+info: 'LeanCert.Analysis.DBN.centeredKernel_joint_majorant' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.centeredKernel_joint_majorant
+
+/--
+info: 'LeanCert.Analysis.DBN.normalizedHeat_sub_series_tendsto' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.normalizedHeat_sub_series_tendsto
+
+/--
+info: 'LeanCert.Analysis.DBN.normalizedHeatApproximation' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.normalizedHeatApproximation
+
+/--
+info: 'LeanCert.Analysis.DBN.Lambda_nonneg' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Analysis.DBN.Lambda_nonneg

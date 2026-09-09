@@ -144,3 +144,13 @@ lean-runtime build LeanCert.Test.DBNThreshold LeanCert.Test.DBNForwardPreservati
 lean-runtime check --using . Tests/TrustManifest.lean Tests/AxiomAudit.lean
 python3 scripts/check_test_wiring.py
 ```
+
+## Nonnegative lower bound — now proved
+
+[Newman nonnegativity](dbn-nonnegative.md) proves the unconditional
+`Lambda_nonneg : 0 ≤ Lambda`. Together with `Lambda_le_half`, the existing
+actual threshold satisfies `0 ≤ Lambda ≤ 1/2`.
+
+The Gaussian Dirichlet series, recurrence, zero transfer, normalized contour
+approximation, and final threshold argument are all connected. This does not
+prove the RH-side inequality `Lambda ≤ 0`.
