@@ -132,6 +132,7 @@ nav:
   - Certificate Engines:
     - Analytic Number Theory: certificates/ant.md
     - DBN Real-Zero Theorem: certificates/dbn-real-zeros.md
+    - DBN Newman Nonnegativity: certificates/dbn-nonnegative.md
     - Asymptotic Envelopes: certificates/ant-asymp.md
     - Chebyshev: certificates/chebyshev.md
     - QProduct: certificates/qproduct.md

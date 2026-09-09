@@ -176,3 +176,21 @@ This layer does not yet automate:
 
 Those are natural future constructors.  The current API is the reusable
 orientation and limit algebra that those constructors should target.
+
+## Holomorphic and integrable constructors
+
+The extension module provides constructors without changing the base
+certificate's sequence-relative semantics:
+
+```lean
+import LeanCert.Analysis.ContourShift.Decay
+
+#check LeanCert.Analysis.ContourShift.RectangleShiftCert.ofHolomorphicStrip
+#check LeanCert.Analysis.ContourShift.horizontalBoundOfStrip
+#check LeanCert.Analysis.ContourShift.integral_vertical_eq_of_holomorphic_of_vanish
+```
+
+The last theorem uses absolute integrability to identify the certificate's
+limits with actual whole-line integrals. See the
+[DBN application](dbn-dobner-contour-shift.md) for proved holomorphy, decay,
+and the change of variables connecting the result to existing coefficients.
