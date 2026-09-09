@@ -5,10 +5,11 @@
 Descriptions of remaining work below record the earlier stage of development.
 
 
-**Proved:** actual termwise contour shifts between any two positive vertical
+**At the contour-shift stage documented here, proved:** actual termwise contour shifts between any two positive vertical
 lines, including the change of variables connecting them to
-`normalizedContourTerm`. **Not proved:** the relative saddle asymptotic or
-`Lambda≥0`.
+`normalizedContourTerm`. **At that stage, not yet proved:** the relative
+saddle asymptotic or `Lambda≥0`. Both were established in the subsequent
+[completed proof](dbn-nonnegative.md).
 
 This uses the existing [contour-shift certificate engine](contour-shift.md),
 not a new contour integration axiom.
@@ -43,7 +44,7 @@ On each fixed positive strip `p≤Re(z)≤q`, we prove a bound
 |F(z)| ≤ C (1+Im(z)^2) exp(-Im(z)^2/(2b)).
 ```
 
-**The constant depends on `b,w,L,p,q`.** It is not yet uniform as the center
+**The constant depends on `b,w,L,p,q`.** This fixed-parameter estimate does not assert uniformity as the center
 moves to infinite height or as the Dirichlet index grows. The estimate proves
 horizontal-side vanishing and absolute integrability on every positive
 vertical line. Gamma's Euler integral controls its modulus there, and
@@ -117,13 +118,13 @@ application of Stirling with an unproved remainder.
 2. **Done:** bound remote portions uniformly after normalization as the center moves.
 3. **Done:** establish a summable all-index envelope and pass to the infinite series.
 
-The new fixed-parameter decay bounds do not discharge (2) or (3). Together
-with the previously proved reciprocal-normalization bound, they remove the
-basic contour deformation and orientation obligations, but not the uniform
-asymptotic analysis.
+The fixed-parameter decay bounds alone did not discharge (2) or (3). Together
+with the reciprocal-normalization bound, they removed the basic contour
+deformation and orientation obligations. The subsequent `DobnerCenteredKernel.lean`
+and `DobnerLimit.lean` proofs supplied the uniform bounds and limit interchanges.
 
 Tests: `LeanCert/Test/DBNContourShift.lean`. The contour identity and exact
 factorization are pinned by the trust and axiom audits.
 
-The next implementation steps and reusable-library audit are in the
+The historical implementation plan and reusable-library audit are in the
 [DBN completion strategy](dbn-completion-strategy.md).

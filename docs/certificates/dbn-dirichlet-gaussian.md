@@ -2,7 +2,8 @@
 
 **Proved:** the Gaussian-damped Dirichlet series is entire, has an explicit
 order-at-most-two growth bound, and has a complex zero for every positive
-damping parameter. This is **not yet** a proof that `0 ≤ Lambda`.
+damping parameter. These Phase 1 results alone do not prove `0 ≤ Lambda`. The full bound is
+now proved by `Lambda_nonneg`; see [the completed proof](dbn-nonnegative.md).
 
 For `a > 0`, define
 
@@ -80,17 +81,17 @@ a tail bound. The simple cutoff can be very large when damping is small.
 
 [Phase 2 progress](dbn-dobner-route.md) now proves vertical recurrence,
 zeros at arbitrarily large heights in a fixed strip, local zero transfer,
-and the logarithmic coordinate geometry. The analytic approximation is
-still missing.
+and the logarithmic coordinate geometry. The analytic approximation is also
+proved in `DobnerLimit.lean`, completing the unconditional bound.
 
-### Full bridge required
+### Full bridge — now completed
 
-The zeros above belong to `D_a`, not the DBN heat integral `H`. The remaining
-bridge requires vertical recurrence, a uniform approximation of an
+The zeros above belong to `D_a`, not the DBN heat integral `H`. The completed
+bridge combines vertical recurrence, a uniform approximation of an
 appropriately transformed/normalized heat integral by this series, and a
-zero-transfer argument with the correct location. Only after proving a
-nonreal zero of `H t` for **every** `t < 0` can the existing threshold
-characterization yield `0 ≤ Lambda`.
+zero-transfer argument with the correct location. It proves a nonreal zero
+of `H t` for **every** `t < 0`, so the existing threshold characterization
+yields `0 ≤ Lambda`.
 
 The key analytic and checker theorems are pinned as kernel-trusted in
 `Tests/TrustManifest.lean`. Regression tests include successful and rejected

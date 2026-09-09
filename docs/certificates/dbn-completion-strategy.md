@@ -5,12 +5,12 @@ was implemented through the unconditional theorem `Lambda_nonneg : 0 ≤ Lambda`
 See [the final result](dbn-nonnegative.md). The material below is the historical
 library audit and pre-completion plan, not a list of currently open obligations.
 
-## Decision and exact finish line
+## Historical decision and exact finish line
 
-Keep the specialized Dobner route. Do not restart zero theory, build another
-conditional final connector, or attempt to certify infinitely many heights by
-sampling. The critical new mathematics is a **relative complex Gamma estimate**
-and **uniform normalized contour bounds**.
+The decision was to keep the specialized Dobner route rather than restart zero
+theory, build another conditional final connector, or attempt to certify
+infinitely many heights by sampling. The critical new mathematics was a
+**relative complex Gamma estimate** and **uniform normalized contour bounds**.
 
 For each fixed `a>0` and `M≥0`, write `s=x+iy`, `|x|≤M`,
 `L=log(k+1)`, `T_k(s)=normalizedContourTerm a s k`, and
@@ -27,13 +27,13 @@ B. There are Y,C,c>0, depending only on a,M, such that
 
 The single `Y` in B must work for ALL indices. In A the height threshold may
 also depend on k and epsilon. Neither condition requires constants uniform as
-`a→0`. We need absolute errors, not a relative error uniformly over all k.
+`a→0`. The plan required absolute errors, not a relative error uniformly over all k.
 
 A+B imply `NormalizedHeatApproximation a`. The existing
 `Lambda_nonneg_of_normalizedHeatApproximation` then supplies the final bound.
 No additional numerical zero certificate is needed.
 
-## What the audit found
+## What the historical audit found
 
 Paths below are relative to `LeanCert/` unless prefixed by `Mathlib/`.
 
@@ -71,11 +71,17 @@ Paths below are relative to `LeanCert/` unless prefixed by `Mathlib/`.
 - `ParametricIntegral` may support an integral representation of a remainder,
   but its continuity theorem is local; it is not convergence at infinite height.
 - Borel–Carathéodory needs analytic and real-part bounds already in hand.
-  It does not supply the missing Gamma asymptotic for free.
+  It does not supply the then-missing Gamma asymptotic for free.
 - The earlier `simplicalcomplex/MATH.md` connection is a conceptual analogy,
-  not an analytic estimate or a formal bridge for this gap.
+  not an analytic estimate or a formal bridge for the gap identified at that stage.
 
-## Dependency-ordered execution plan
+## Historical dependency-ordered execution plan
+
+> The instructions and exit criteria below record the pre-completion plan.
+> The final implementation used the [linear-cutoff route](dbn-linear-cutoff-completion.md),
+> not the proposed fractional-power split in step 3. All obligations needed
+> for `Lambda_nonneg` are now discharged; these proposed intermediate bounds
+> are not claims about the exact statements ultimately formalized.
 
 ### 1. Gamma-ratio foundation — now proved
 
@@ -101,8 +107,9 @@ justified logarithmic telescoping, explicit Taylor remainders, and the actual
 GammaSeq limit provide the proof.
 
 `saddleIntegrand_quadratic_relative_error_bound` now connects this to the
-actual normalized contour integrand. It remains a **pointwise** bound; the
-integrated uniform bounds below have not been proved.
+actual normalized contour integrand. This is a **pointwise** bound; at the
+stage of this audit, the integrated uniform bounds had not yet been proved.
+They were subsequently supplied by the centered-kernel and limit proofs.
 
 **Exit criterion achieved:** compiled relative estimates for the actual Gamma
 and xi-Gamma factors on a region covering the required strips, with explicit
@@ -138,7 +145,8 @@ For B, retain a medium/large index split rather than seeking global relative
 convergence. [Dobner's Lemma 4](https://arxiv.org/html/2005.05142v2#S4) supplies
 an established contour-estimate architecture; specialize it to zeta and our
 `b=4a` normalization, rather than formalizing the extended Selberg class.
-The exponents and constants still need checked translation into our conventions.
+At that stage, the exponents and constants still needed checked translation
+into our conventions; the final implementation instead used linear cutoffs.
 
 A sufficient target is:
 
@@ -157,8 +165,9 @@ square absorbs `M L` in the first estimate. Both then yield B, for example
 with `c=a/10` after enlarging constants and thresholds.
 
 **Exit criterion:** one majorant and one height threshold valid for all k.
-The unnormalized large-index bound and the medium-index relative bound remain
-new mathematics; the displayed targets are not current repository theorems.
+The proposed unnormalized large-index and medium-index relative bounds
+required new mathematics at that stage. The displayed targets describe the
+original plan, not the exact bounds used in the completed linear-cutoff proof.
 
 ### 4. Reuse the existing telescoping tail and finish the limit
 
@@ -188,11 +197,13 @@ Completion means:
 - trust, test wiring, and docs checks pass;
 - docs distinguish `Lambda≥0` from the additional RH-side claim `Lambda≤0`.
 
-## Work discipline
+## Historical work discipline
 
-Do Gamma-ratio analysis first, not more certificate packaging. Reuse the
-existing tail adapters and contour proofs. Use interval checkers only for
-finite scalar inequalities after analytic reductions; explicit cutoffs are
-optional because qualitative convergence suffices. Do not promise a one-pass
-completion: the Gamma remainder is now proved, but the uniform integrated
-estimates and limit assembly still require substantial formal-analysis work.
+The priority was Gamma-ratio analysis rather than more certificate packaging,
+with reuse of existing tail adapters and contour proofs. Interval checkers
+were reserved for finite scalar inequalities after analytic reductions;
+explicit cutoffs were optional because qualitative convergence sufficed.
+At the time of this audit, the Gamma remainder had been proved, but the
+uniform integrated estimates and limit assembly still required substantial
+formal-analysis work. That work is now completed in `DobnerCenteredKernel.lean`
+and `DobnerLimit.lean`.

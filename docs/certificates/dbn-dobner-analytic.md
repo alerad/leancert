@@ -129,12 +129,13 @@ exponential growth in height, which a sufficiently strong large-index
 Gaussian tail can absorb.
 
 **This is not a relative Gamma expansion.** The unnormalized large-index
-tail and the fixed-/medium-index saddle estimates still need proofs. No
+tail and fixed-/medium-index saddle estimates required separate proofs, now
+supplied by the completed contour analysis. No
 saddle-point approximation hypothesis was used to prove this reciprocal bound.
 
 ## Exact approximation target — now proved
 
-`NormalizedHeatApproximation a` is a proposition defining the still-unproved
+`NormalizedHeatApproximation a` is a proposition defining the
 locally uniform limit
 
 ```text
@@ -144,7 +145,7 @@ normalizedHeat(a,s+i*y) - D_a(s+i*y) → 0, as real y → +infinity.
 This definition is a proposition, not an axiom or an automatically supplied
 instance. The theorem `normalizedHeatApproximation` now proves it.
 `Lambda_nonneg_of_normalizedHeatApproximation` proves that establishing this
-proposition for every `a>0` would yield the unconditional nonnegative bound.
+proposition for every `a>0` yields the unconditional nonnegative bound.
 The actual normalization, eventual holomorphy, multiplication identity,
 recurrence, zero transfer, and final threshold argument are already connected.
 
@@ -163,4 +164,5 @@ Tests: `LeanCert/Test/DBNDobnerAnalytic.lean`; trust and axiom pins are in
 now proves termwise shifts between arbitrary positive vertical lines and the
 exact normalized-integrand factorization. It supplies actual finite-parameter
 horizontal decay and absolute integrability through the contour certificate
-engine. Uniform moving-center/index asymptotics remain unproved.
+engine. The subsequent centered-kernel and limit proofs establish the
+uniform moving-center/index estimates and the unconditional endpoint.

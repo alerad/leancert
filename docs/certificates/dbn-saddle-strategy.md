@@ -5,12 +5,13 @@
 Descriptions of remaining work below record the earlier stage of development.
 
 
-For the current dependency-ordered implementation plan, see the
+For the historical dependency-ordered implementation plan, see the
 [repository-audited completion strategy](dbn-completion-strategy.md).
 
-Status: **strategy, not a proof of `0 ≤ Lambda`**. The numerical exploration
+**Historical scope: experimental strategy, not itself a proof of `0 ≤ Lambda`.** The numerical exploration
 added no Lean theorem. A subsequent implementation proved the coarse
-reciprocal-normalization bound below; the analytic bridge remains conditional.
+reciprocal-normalization bound below. At that stage the analytic bridge was
+conditional; the [final proof](dbn-nonnegative.md) has since discharged its premises.
 
 Reproduce the numerical diagnostics with:
 
@@ -117,7 +118,9 @@ No uniformity as `a→0` is needed: all constants may depend on fixed `a,M`.
 medium-, and large-index contour estimates. Specializing its parameters to
 our zeta normalization suggests retaining its medium/large estimates and
 using only fixed-index convergence from the small-index argument. These
-estimates are **not yet formalized in this repository**.
+estimates had not been formalized at that stage. The completed proof instead
+uses the [linear-cutoff bounds](dbn-linear-cutoff-completion.md); it does not
+require these exact proposed estimates.
 
 Here is our envelope assembly, conditional on those estimates. With
 `L=log n`, the medium range `L≤y^(3/5)/(4a)` gives
@@ -140,10 +143,13 @@ In the large range, `L^2 > y^(6/5)/(16a^2)`, so eventually
 In the medium range, completing the square absorbs `M L`; both ranges admit
 an envelope `C' exp(-a L^2/10)` independent of n and y.
 This explains why the proposed interface is sufficient; it does not supply
-the missing contour estimates. The Gamma reciprocal bound itself is now
+the contour estimates that were missing at that stage. The Gamma reciprocal bound itself is now
 proved in `DobnerGammaReciprocal.lean`.
 
-## 4. Concrete implementation order and stop conditions
+## 4. Historical implementation order and stop conditions
+
+> This is the original plan, not a list of open obligations. The final proof
+> uses linear cutoffs and dominated convergence in place of parts of this plan.
 
 1. **Gamma analytic foundation first.** Establish a complex Gamma ratio
    estimate with a proved remainder in the relevant upper-half-plane sector,
@@ -179,4 +185,5 @@ unconditional Lean theorem about the actual heat integral. It would establish
 `DobnerContourShift.lean` now proves the positive-line contour shifts, their
 connection to the original normalized coefficients, and exact saddle
 cancellation. The detailed [contour-analysis status](dbn-dobner-contour-shift.md)
-separates these results from the remaining uniform relative/tail estimates.
+distinguishes these contour identities from the uniform relative/tail
+estimates supplied by the subsequent completed proof.

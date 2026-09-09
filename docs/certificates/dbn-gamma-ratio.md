@@ -77,7 +77,7 @@ example {s u : ℂ} (hr : 0 ≤ s.re+s.im/2) (hy : 2 ≤ s.im)
 Theorems are pinned as kernel-trusted in `Tests/TrustManifest.lean` and
 covered by `LeanCert/Test/GammaRatio.lean` and `Tests/AxiomAudit.lean`.
 
-## Connection to the contour, and remaining gap
+## Connection to the contour and completion
 
 `saddleIntegrand_quadratic_relative_error_bound` applies the proved estimate
 to the **actual normalized contour integrand**, divided by its quadratic

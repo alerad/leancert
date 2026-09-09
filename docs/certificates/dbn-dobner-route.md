@@ -1,4 +1,4 @@
-# DBN lower-bound route: Phase 2 progress
+# DBN lower-bound route: Phase 2 completed
 
 **Completion update:** the full lower bound `0 ≤ Lambda` is now proved in
 `DBN/DobnerLimit.lean`. See [the final theorem](dbn-nonnegative.md).
@@ -81,7 +81,7 @@ the connector inputs to one concrete uniform-approximation proposition.
 That proposition is now proved by `normalizedHeatApproximation` in
 `DobnerLimit.lean`.
 
-## Original conditional connector — not the missing approximation
+## Conditional helper lemmas used by the unconditional proof
 
 `nonreal_zero_of_dobner_limit` concludes a nonreal zero of `H t`, for `t<0`,
 from these **explicit inputs**:
@@ -96,11 +96,12 @@ These hypotheses are not constructed by that theorem. There is no axiom,
 `sorry`, or instance supplying them. In particular, the entire-function
 result for `D_a` says nothing by itself about the normalized heat functions.
 If `F` is defined by division by a Gamma factor, its nonvanishing and local
-holomorphy must also be proved.
+holomorphy must also be proved; the completed analytic bridge supplies these proofs.
 
 `Lambda_nonneg_of_negative_time_zeros` checks the final logical implication
 from a nonreal heat zero for every negative time to `0 ≤ Lambda`.
-Its premise remains required; it is not an unconditional lower bound.
+This helper retains its premise. The completed theorem `Lambda_nonneg` supplies
+that premise and states the lower bound unconditionally.
 
 ## Completed approximation
 
@@ -110,8 +111,8 @@ See [Newman nonnegativity](dbn-nonnegative.md) for the implementation and audits
 The concrete approximation proposition is `NormalizedHeatApproximation a`,
 documented in the [analytic progress page](dbn-dobner-analytic.md). It is now proved
 for every positive damping, closing the existing chain to `0 ≤ Lambda`.
-The analytic approximation is still a substantial gap, not a numerical
-certificate waiting to be run.
+Closing this analytic gap required uniform contour estimates and limit
+interchanges, not merely running a numerical certificate.
 
 Regression tests: `LeanCert/Test/DBNDobner.lean`. Public results, including
 the clearly conditional connectors, are pinned in `Tests/TrustManifest.lean`.
