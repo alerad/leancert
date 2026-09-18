@@ -41,7 +41,7 @@ theorem qProd_le_one (S : Finset Nat) {u : ℝ} (hu : u ∈ Set.Icc (0 : ℝ) 1)
     qProd S u ≤ 1 := by
   classical
   unfold qProd
-  apply Finset.prod_le_one
+  apply Finset.prod_le_one₀
   · intro n hn
     exact sub_nonneg.mpr (pow_mem_unit_interval hu n).2
   · intro n hn
@@ -134,7 +134,7 @@ theorem one_sub_prod_one_sub_le_sum {ι : Type*} (s : Finset ι) (x : ι → ℝ
         intro i hi
         exact sub_nonneg.mpr (h1s i hi)
       have hprod_le_one : (∏ i ∈ s, (1 - x i)) ≤ 1 := by
-        apply Finset.prod_le_one
+        apply Finset.prod_le_one₀
         · intro i hi
           exact sub_nonneg.mpr (h1s i hi)
         · intro i hi

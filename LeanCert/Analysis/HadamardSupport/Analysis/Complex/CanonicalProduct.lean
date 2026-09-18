@@ -119,7 +119,7 @@ theorem logDeriv_weierstrassFactor_one_div {a z : ℂ} (ha : a ≠ 0) (hz : z �
     have hdiv : z / a = 1 := by
       exact (sub_eq_zero.mp hzero).symm
     exact hz ((div_eq_one_iff_eq ha).1 hdiv)
-  rw [hE, logDeriv_mul z hf (exp_ne_zero (z / a)) (by fun_prop) (by fun_prop)]
+  rw [hE, logDeriv_fun_mul z hf (exp_ne_zero (z / a)) (by fun_prop) (by fun_prop)]
   have hleft : logDeriv (fun w : ℂ => 1 - w / a) z = 1 / (z - a) := by
     rw [logDeriv_apply]
     have hderiv : deriv (fun w : ℂ => 1 - w / a) z = -(1 / a) := by

@@ -44,7 +44,7 @@ theorem productLowerRat_le_finiteProduct
     (productLowerRat S lo : ℝ) ≤ finiteProduct S g := by
   unfold productLowerRat finiteProduct
   rw [Rat.cast_prod]
-  exact Finset.prod_le_prod (fun n hn => by exact_mod_cast hlo_nonneg n hn) hlo
+  exact Finset.prod_le_prod₀ (fun n hn => by exact_mod_cast hlo_nonneg n hn) hlo
 
 /-- Upper product certificate from pointwise nonnegative factor envelopes. -/
 theorem finiteProduct_le_productUpperRat
@@ -55,7 +55,7 @@ theorem finiteProduct_le_productUpperRat
     finiteProduct S g ≤ (productUpperRat S hi : ℝ) := by
   unfold productUpperRat finiteProduct
   rw [Rat.cast_prod]
-  exact Finset.prod_le_prod
+  exact Finset.prod_le_prod₀
     (fun n hn => by
       have hlo0 : (0 : ℝ) ≤ (lo n : ℝ) := by exact_mod_cast hlo_nonneg n hn
       exact hlo0.trans (hlo n hn))
