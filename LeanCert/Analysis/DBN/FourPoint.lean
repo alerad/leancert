@@ -35,7 +35,7 @@ private theorem normSq_root_factor (y : ℝ) {r : ℂ} (hr : r.im = 0) :
   have he : r = (r.re : ℂ) := by simpa [hr] using (Complex.re_add_im r).symm
   rw [he]
   simp [normSq_apply, Complex.mul_re, Complex.mul_im]
-  <;> ring
+  ring
 
 private theorem roots_real (t : ℝ) (ht : t ∈ realZeroTimes) (n : ℕ)
     {r : ℂ} (hr : r ∈ TimeApproximation.HZeroRoots t n) : r.im = 0 := by

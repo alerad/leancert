@@ -15,8 +15,8 @@ example : HZeroCutoff 0 = ∅ := by
   apply Finset.eq_empty_iff_forall_notMem.mpr
   intro p hp
   have h := (mem_HZeroCutoff 0 p).mp hp
-  have hz : Hadamard.divisorZeroIndex₀_val p = 0 := norm_eq_zero.mp (by simpa using h)
-  exact Hadamard.divisorZeroIndex₀_val_ne_zero p hz
+  simp only [Nat.cast_zero, norm_le_zero_iff] at h
+  exact Hadamard.divisorZeroIndex₀_val_ne_zero p h
 
 example (n : ℕ) : (HZeroPolynomial n).eval 0 = H 0 0 := HZeroPolynomial_at_zero n
 example (n : ℕ) : HZeroPolynomial n ≠ 0 := HZeroPolynomial_ne_zero n

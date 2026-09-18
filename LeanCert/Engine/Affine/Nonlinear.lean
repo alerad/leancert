@@ -244,7 +244,7 @@ theorem mem_inv {a : AffineForm} {eps : NoiseAssignment} {v : ℝ}
   have hv_pos' : 0 < v := by linarith
 
   -- For inv a with positive interval
-  simp only [inv, dif_pos hI_pos]
+  simp only [inv, dite_eq_left hI_pos]
 
   -- The result has c0 = (1/I.hi + 1/I.lo)/2, r = (1/I.lo - 1/I.hi)/2, coeffs = []
   -- So evalLinear = c0 and we need |1/v - c0| ≤ r

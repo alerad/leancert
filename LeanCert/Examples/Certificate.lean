@@ -55,35 +55,35 @@ def I012 : IntervalRat := ⟨0, 6/5, by norm_num⟩
 def exprXSq : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 /-- Support proof for x² -/
-def exprXSq_core : ExprSupportedCore exprXSq :=
+theorem exprXSq_core : ExprSupportedCore exprXSq :=
   ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0)
 
 /-- The expression exp(x) -/
 def exprExp : Expr := Expr.exp (Expr.var 0)
 
 /-- Support proof for exp(x) -/
-def exprExp_core : ExprSupportedCore exprExp :=
+theorem exprExp_core : ExprSupportedCore exprExp :=
   ExprSupportedCore.exp (ExprSupportedCore.var 0)
 
 /-- The expression sin(x) -/
 def exprSin : Expr := Expr.sin (Expr.var 0)
 
 /-- Support proof for sin(x) -/
-def exprSin_core : ExprSupportedCore exprSin :=
+theorem exprSin_core : ExprSupportedCore exprSin :=
   ExprSupportedCore.sin (ExprSupportedCore.var 0)
 
 /-- The expression cos(x) -/
 def exprCos : Expr := Expr.cos (Expr.var 0)
 
 /-- Support proof for cos(x) -/
-def exprCos_core : ExprSupportedCore exprCos :=
+theorem exprCos_core : ExprSupportedCore exprCos :=
   ExprSupportedCore.cos (ExprSupportedCore.var 0)
 
 /-- The expression x * exp(x) -/
 def exprXExp : Expr := Expr.mul (Expr.var 0) (Expr.exp (Expr.var 0))
 
 /-- Support proof for x * exp(x) -/
-def exprXExp_core : ExprSupportedCore exprXExp :=
+theorem exprXExp_core : ExprSupportedCore exprXExp :=
   ExprSupportedCore.mul (ExprSupportedCore.var 0)
     (ExprSupportedCore.exp (ExprSupportedCore.var 0))
 

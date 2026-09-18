@@ -292,12 +292,12 @@ def tryCloseRpowSideGoal : TacticM Bool := do
       let hPos0Syn ← Lean.Elab.Term.exprToSyntax hPos0
       if powOnLeft then
         evalTactic (← `(tactic|
-          simpa [Real.rpow_def_of_pos $hPos0Syn, Rat.divInt_eq_div,
+          simp [Real.rpow_def_of_pos $hPos0Syn, Rat.divInt_eq_div,
             mul_comm, mul_left_comm, mul_assoc]))
       else
         evalTactic (← `(tactic|
           symm;
-          simpa [Real.rpow_def_of_pos $hPos0Syn, Rat.divInt_eq_div,
+          simp [Real.rpow_def_of_pos $hPos0Syn, Rat.divInt_eq_div,
             mul_comm, mul_left_comm, mul_assoc]))
 
       if (← getGoals).isEmpty then

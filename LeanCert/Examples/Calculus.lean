@@ -30,7 +30,7 @@ open LeanCert.Engine
 def exprXSquared : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 /-- Proof that x² is in the supported subset -/
-def exprXSquared_supported : ADSupported exprXSquared :=
+theorem exprXSquared_supported : ADSupported exprXSquared :=
   ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)
 
 /-- The expression x³ = x * x * x -/
@@ -38,7 +38,7 @@ def exprXCubed : Expr :=
   Expr.mul (Expr.var 0) (Expr.mul (Expr.var 0) (Expr.var 0))
 
 /-- Proof that x³ is supported -/
-def exprXCubed_supported : ADSupported exprXCubed :=
+theorem exprXCubed_supported : ADSupported exprXCubed :=
   ADSupported.mul (ADSupported.var 0)
     (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
 
@@ -46,7 +46,7 @@ def exprXCubed_supported : ADSupported exprXCubed :=
 def exprSinCos : Expr := Expr.mul (Expr.sin (Expr.var 0)) (Expr.cos (Expr.var 0))
 
 /-- Proof that sin(x)*cos(x) is supported -/
-def exprSinCos_supported : ADSupported exprSinCos :=
+theorem exprSinCos_supported : ADSupported exprSinCos :=
   ADSupported.mul
     (ADSupported.sin (ADSupported.var 0))
     (ADSupported.cos (ADSupported.var 0))
@@ -131,11 +131,11 @@ def exprExp : Expr := Expr.exp (Expr.var 0)
 def exprExpXSquared : Expr := Expr.exp (Expr.mul (Expr.var 0) (Expr.var 0))
 
 /-- Proof that exp(x) is in the extended supported subset -/
-def exprExp_supportedExt : ExprSupportedExt exprExp :=
+theorem exprExp_supportedExt : ExprSupportedExt exprExp :=
   ExprSupportedExt.exp (ExprSupportedExt.var 0)
 
 /-- Proof that exp(x²) is in the extended supported subset -/
-def exprExpXSquared_supportedExt : ExprSupportedExt exprExpXSquared :=
+theorem exprExpXSquared_supportedExt : ExprSupportedExt exprExpXSquared :=
   ExprSupportedExt.exp
     (ExprSupportedExt.mul (ExprSupportedExt.var 0) (ExprSupportedExt.var 0))
 

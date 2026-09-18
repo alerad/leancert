@@ -149,7 +149,7 @@ theorem exists_noise_toAffineEnv (box : List IntervalRat) (rho : Nat → ℝ)
         have hrad_eq : ((I.hi - I.lo) / 2 : ℚ) = rad := rfl
         by_cases hrad : (rad : ℝ) = 0
         · simp only [hI_eq, hrad_eq]
-          rw [dif_pos hrad]
+          rw [dite_eq_left hrad]
           simp only [hrad]
           have hrhoi : rho i ∈ I := by
             have h := hrho i hi
@@ -160,7 +160,7 @@ theorem exists_noise_toAffineEnv (box : List IntervalRat) (rho : Nat → ℝ)
           have hge : 0 ≤ rho i - mid := by linarith [habs.1, hrad]
           linarith
         · simp only [hI_eq, hrad_eq]
-          rw [dif_neg hrad, dif_pos hi]
+          rw [dite_eq_right hrad, dite_eq_left hi]
           field_simp [hrad]
           ring
       · have hzeroi : rho i = 0 := hzero i (not_lt.mp hi)

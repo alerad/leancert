@@ -597,7 +597,7 @@ theorem mem_layerNorm_forwardInterval {xs : List ℝ} {Is : IntervalVector}
     simp [hn, hxs_nil, List.zipWith3]
   · -- Non-empty input case
     dsimp [LayerNormParams.forwardInterval]
-    rw [if_neg hn]
+    rw [ite_eq_right hn]
 
     -- Use local let bindings to define values without rewriting hypothesis
     -- Define real intermediate values

@@ -68,7 +68,7 @@ is used in this chain.
 
 ## Reproduction
 
-In the project's pinned Lean 4.33.1 / Mathlib v4.33.1 environment:
+In the project's pinned Lean 4.34.0 / Mathlib v4.34.0 environment:
 
 ```powershell
 lean-runtime build LeanCert.Test.DBNRealZeros LeanCert.Analysis.DBN

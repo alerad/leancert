@@ -240,7 +240,7 @@ private theorem evalTotalCore_der_correct_idx_of_check (e : Expr)
           mkDualEnv, ↓reduceIte, DualInterval.varActive]
         exact_mod_cast IntervalRat.mem_singleton 1
       · simp only [Expr.evalAlong_var_passive _ _ _ hi, deriv_const,
-          LeanCert.Internal.AD.evalTotalCore, mkDualEnv, if_neg hi, DualInterval.varPassive]
+          LeanCert.Internal.AD.evalTotalCore, mkDualEnv, ite_eq_right hi, DualInterval.varPassive]
         exact_mod_cast IntervalRat.mem_singleton 0
   | add a b iha ihb =>
       simp only [checkADDomain, Bool.and_eq_true] at hcheck

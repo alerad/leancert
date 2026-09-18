@@ -131,7 +131,7 @@ theorem fatPositive_mem
   simp only [checkFatPositive, Bool.and_eq_true, decide_eq_true_eq] at hcheck
   rcases hcheck with ⟨hpositive, rfl⟩
   have hxpositive : 0 < x := lt_of_lt_of_le (by exact_mod_cast hpositive) hx.1
-  simp only [fatPositive, if_neg (not_le.mpr hxpositive), IntervalRat.mem_def,
+  simp only [fatPositive, ite_eq_right (not_le.mpr hxpositive), IntervalRat.mem_def,
     fatPositiveOutput]
   simp only [IntervalRat.mem_def] at hx
   constructor <;> push_cast <;> linarith [hx.1, hx.2]

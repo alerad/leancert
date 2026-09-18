@@ -510,15 +510,15 @@ private lemma prod_sqSeries_applyComposition {n : ℕ} (comp : Composition n) :
     ∏ i, sqSeries.applyComposition comp (1 : Fin n → ℝ) i =
       if ∀ i, comp.blocksFun i = 2 then 1 else 0 := by
   by_cases hall : ∀ i, comp.blocksFun i = 2
-  · rw [if_pos hall]
+  · rw [ite_eq_left hall]
     apply Finset.prod_eq_one
     intro i _
-    rw [sqSeries_applyComposition_one_i, if_pos (hall i)]
-  · rw [if_neg hall]
+    rw [sqSeries_applyComposition_one_i, ite_eq_left (hall i)]
+  · rw [ite_eq_right hall]
     push Not at hall
     obtain ⟨j, hj⟩ := hall
     apply Finset.prod_eq_zero (Finset.mem_univ j)
-    rw [sqSeries_applyComposition_one_i, if_neg hj]
+    rw [sqSeries_applyComposition_one_i, ite_eq_right hj]
 
 -- Coefficient of composed series: composing (ofScalars c) with sqSeries
 -- For odd n: 0 (no composition with all blocks of size 2)
@@ -536,7 +536,7 @@ private lemma coeff_comp_sq_ofScalars (c : ℕ → ℝ) (n : ℕ) :
     sum_apply]
   by_cases hn : n % 2 = 0
   case neg =>
-    rw [if_neg hn]
+    rw [ite_eq_right hn]
     apply Finset.sum_eq_zero
     intro comp _
     simp only [FormalMultilinearSeries.compAlongComposition_apply]
@@ -544,10 +544,10 @@ private lemma coeff_comp_sq_ofScalars (c : ℕ → ℝ) (n : ℕ) :
     have hodd : n % 2 = 1 := by omega
     have hne := odd_composition_has_non_two_block hodd comp
     have hne' : ¬∀ i, comp.blocksFun i = 2 := fun h => hne.elim fun i hi => hi (h i)
-    rw [if_neg hne']
+    rw [ite_eq_right hne']
     ring
   case pos =>
-    rw [if_pos hn]
+    rw [ite_eq_left hn]
     -- n is even, write n = 2 * k
     obtain ⟨k, hk⟩ : ∃ k, n = 2 * k := ⟨n / 2, by omega⟩
     subst hk
@@ -560,25 +560,25 @@ private lemma coeff_comp_sq_ofScalars (c : ℕ → ℝ) (n : ℕ) :
       simp only [FormalMultilinearSeries.compAlongComposition_apply]
       rw [ofScalars_apply_prod, prod_sqSeries_applyComposition]
       by_cases hall : ∀ i, comp.blocksFun i = 2
-      · rw [if_pos hall, if_pos hall]
+      · rw [ite_eq_left hall, ite_eq_left hall]
         have hlength : comp.length = k := by
           have := blocks_all_two_implies comp hall
           omega
         simp [hlength]
-      · rw [if_neg hall, if_neg hall]
+      · rw [ite_eq_right hall, ite_eq_right hall]
         ring
     simp_rw [hsplit]
     -- Sum of (if condition then c k else 0) over all compositions
     -- Only the twosComposition k satisfies the condition
     have hall_twos : ∀ i, (twosComposition k).blocksFun i = 2 := twosComposition_blocksFun k
     rw [Finset.sum_eq_single (twosComposition k)]
-    · rw [if_pos hall_twos]
+    · rw [ite_eq_left hall_twos]
       simp
     · intro comp _ hne
       by_cases hall : ∀ i, comp.blocksFun i = 2
       · exfalso
         exact hne (twosComposition_unique k comp hall)
-      · rw [if_neg hall]
+      · rw [ite_eq_right hall]
     · intro hnot
       exfalso
       exact hnot (Finset.mem_univ _)

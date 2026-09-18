@@ -286,7 +286,7 @@ theorem symmetricLogComb_le_four_thirds (t : ℝ) (ht_pos : 0 < t) (ht_le : t �
           field_simp [h1mt_ne]
         _ = log ((1 : ℝ) / (1 - t)) := by congr 1; ring
         _ = log ((1 - t)⁻¹) := by field_simp [h1mt_ne]
-        _ = -log (1 - t) := by simpa using log_inv h1mt_ne
+        _ = -log (1 - t) := by simp
     rw [hleft, hright] at h
     linarith
 

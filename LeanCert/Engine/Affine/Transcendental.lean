@@ -394,7 +394,7 @@ theorem mem_log {a : AffineForm} {eps : NoiseAssignment} {v : ℝ}
   let rad := (logI.hi - logI.lo) / 2
 
   -- The result has coeffs = [], so evalLinear = c0 = mid
-  simp only [log, dif_pos hI_pos, mem_affine, evalLinear, linearSum, List.zipWith, List.sum_nil, add_zero]
+  simp only [log, dite_eq_left hI_pos, mem_affine, evalLinear, linearSum, List.zipWith, List.sum_nil, add_zero]
 
   simp only [IntervalRat.mem_def] at hlog_in
   have hlo : (logI.lo : ℝ) ≤ Real.log v := hlog_in.1

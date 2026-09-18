@@ -5,7 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.VecSimp
 import LeanCert.Tactic.FinSumExpand
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 import Mathlib.Data.Fin.Basic
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Matrix.Basic

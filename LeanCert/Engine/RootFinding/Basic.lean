@@ -244,7 +244,7 @@ theorem signChange_correct_idx (e : Expr) (hsupp : ADSupported e)
     · subst hi
       simp only [Expr.updateVar_same, ρ_lo, ↓reduceIte]
       exact IntervalRat.mem_singleton _
-    · simp only [Expr.updateVar_other _ _ _ _ hi, ρ_lo, if_neg hi]
+    · simp only [Expr.updateVar_other _ _ _ _ hi, ρ_lo, ite_eq_right hi]
       exact hρ i hi
   -- Show ρ_real with hi at idx is in ρ_hi
   have hρ_hi : ∀ i, Expr.updateVar ρ_real idx (ρ_int idx).hi i ∈ ρ_hi i := by
@@ -253,7 +253,7 @@ theorem signChange_correct_idx (e : Expr) (hsupp : ADSupported e)
     · subst hi
       simp only [Expr.updateVar_same, ρ_hi, ↓reduceIte]
       exact IntervalRat.mem_singleton _
-    · simp only [Expr.updateVar_other _ _ _ _ hi, ρ_hi, if_neg hi]
+    · simp only [Expr.updateVar_other _ _ _ _ hi, ρ_hi, ite_eq_right hi]
       exact hρ i hi
   -- Get bounds from interval evaluation
   have hflo := evalInterval_correct e hsupp (Expr.updateVar ρ_real idx (ρ_int idx).lo) ρ_lo hρ_lo
@@ -464,7 +464,7 @@ theorem bisectRootIdx_found_correct (e : Expr) (hsupp : ADSupported e)
         ((updateIntervalEnv' ρ_int idx I idx).hi : ℝ)) := by
     simp only [henv_eq]; exact hCont
   have hroot := signChange_correct_idx e hsupp (updateIntervalEnv' ρ_int idx I) idx ρ_real
-    (fun i hi => by simp only [updateIntervalEnv']; rw [if_neg hi]; exact hρ i hi)
+    (fun i hi => by simp only [updateIntervalEnv']; rw [ite_eq_right hi]; exact hρ i hi)
     hsign hCont'
   -- Convert from updateIntervalEnv' membership to I membership
   simp only [henv_eq] at hroot

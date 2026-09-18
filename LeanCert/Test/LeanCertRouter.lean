@@ -630,6 +630,11 @@ example : ∃ M : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 1,
     ∀ y ∈ Set.Icc (0 : ℝ) 1, x + y ≤ M := by
   expect_mv_discovery_report maximum
 
+/--
+warning: ⚠️ Optimization gap [-1, 1] exceeds tolerance 1/1000.
+Consider increasing maxIterations or taylorDepth.
+-/
+#guard_msgs in
 example : ∃ m : ℚ, ∀ x ∈ Set.Icc (0 : ℝ) 7, Real.sin x ≥ m := by
   expect_loose_discovery_success
 

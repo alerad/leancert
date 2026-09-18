@@ -29,7 +29,7 @@ open LeanCert.Engine
 def xSq : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 /-- Proof that x² is in the supported subset -/
-def xSq_supported : ADSupported xSq :=
+theorem xSq_supported : ADSupported xSq :=
   ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)
 
 /-- The expression x² + 2x + 1 = (x + 1)² -/
@@ -39,7 +39,7 @@ def exprSquare : Expr :=
            (Expr.const 1)
 
 /-- Proof that x² + 2x + 1 is in the supported subset -/
-def exprSquare_supported : ADSupported exprSquare :=
+theorem exprSquare_supported : ADSupported exprSquare :=
   ADSupported.add
     (ADSupported.add
       (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
@@ -51,7 +51,7 @@ def exprSinCos : Expr :=
   Expr.add (Expr.sin (Expr.var 0)) (Expr.cos (Expr.var 0))
 
 /-- Proof that sin(x) + cos(x) is in the supported subset -/
-def exprSinCos_supported : ADSupported exprSinCos :=
+theorem exprSinCos_supported : ADSupported exprSinCos :=
   ADSupported.add
     (ADSupported.sin (ADSupported.var 0))
     (ADSupported.cos (ADSupported.var 0))
@@ -123,7 +123,7 @@ example (x : ℝ) (hx : x ∈ I01) :
 /-- The expression x * y (product of two variables) -/
 def exprXY : Expr := Expr.mul (Expr.var 0) (Expr.var 1)
 
-def exprXY_supported : ADSupported exprXY :=
+theorem exprXY_supported : ADSupported exprXY :=
   ADSupported.mul (ADSupported.var 0) (ADSupported.var 1)
 
 /-- Multi-variable interval environment -/

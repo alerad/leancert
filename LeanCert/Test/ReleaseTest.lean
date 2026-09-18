@@ -162,6 +162,11 @@ def B01_2D : Box := [I01r, I01r]
 /-! ### `discover` - Meta-tactic that auto-routes to minimize/maximize -/
 
 -- discover should auto-detect ≥ m and call interval_minimize
+/--
+warning: ⚠️ Optimization gap [-1, 1/1000000000000] exceeds tolerance 1/1000.
+Consider increasing maxIterations or taylorDepth.
+-/
+#guard_msgs in
 theorem test_discover_min : ∃ m : ℚ, ∀ x ∈ I_neg1_1,
     Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ≥ m := by
   discover
@@ -291,7 +296,7 @@ theorem test_subdiv_tight : ∀ x ∈ Set.Icc (0:ℝ) 1, Real.exp x ≤ (272/100
 /-! ### Low-level manual tactics (interval_le, interval_ge) -/
 
 def xSq : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
-def xSq_supp : ExprSupportedCore xSq := ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0)
+theorem xSq_supp : ExprSupportedCore xSq := ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0)
 
 -- Manual interval_le: ∀ x ∈ I, f(x) ≤ c
 theorem test_manual_interval_le : ∀ x ∈ I01r, Expr.eval (fun _ => x) xSq ≤ (1 : ℚ) := by

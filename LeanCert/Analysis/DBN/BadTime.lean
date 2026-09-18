@@ -38,7 +38,7 @@ private theorem gaussianAverage_four_point_sq {c : ℝ} (hc : 0 < c)
       d * E^(k^2) * (H (-c^2) (((k : ℝ)*y : ℝ)*I)).re := by
     rw [gaussianAverage_eq_H hc]
     have hex : Real.exp (-c^2*(k : ℝ)^2) = E^(k^2) := by
-      convert he (k^2) using 1 <;> push_cast <;> rfl
+      convert he (k^2) using 1; push_cast; rfl
     rw [hex]
     have harg : 2*c^2*(k : ℝ) = (k : ℝ)*y := by dsimp [y]; ring
     rw [harg]

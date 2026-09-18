@@ -488,7 +488,7 @@ theorem newton_step_core_at_most_one_root (e : Expr) (hsupp : ADSupported e) (_h
   by_cases hzero : dI.containsZero
   · -- If dI contains zero, newtonStepCore returns none, but hN says it's some N
     unfold newtonStepCore at hN
-    simp only [← hdI_def, dif_pos hzero, reduceCtorEq] at hN
+    simp only [← hdI_def, dite_eq_left hzero, reduceCtorEq] at hN
   · -- dI doesn't contain zero, so derivative is nonzero everywhere on I
     simp only [IntervalRat.containsZero, not_and_or, not_le] at hzero
 
