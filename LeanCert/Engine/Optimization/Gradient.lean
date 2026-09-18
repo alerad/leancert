@@ -84,7 +84,7 @@ theorem evalDualTotalCore_der_correct_idx (e : Expr) (hsupp : ADSupported e)
           ↓reduceIte, DualInterval.varActive, deriv_id]
         exact_mod_cast IntervalRat.mem_singleton 1
       · simp only [Expr.evalAlong_var_passive _ _ _ hi, deriv_const, LeanCert.Internal.AD.evalTotalCore,
-          mkDualEnvCore, if_neg hi, DualInterval.varPassive]
+          mkDualEnvCore, ite_eq_right hi, DualInterval.varPassive]
         exact_mod_cast IntervalRat.mem_singleton 0
   | add h₁ h₂ ih₁ ih₂ =>
       have hd₁ := evalAlong_differentiable _ h₁ ρ_real idx
@@ -317,7 +317,7 @@ theorem pruneToLo_preserves_min (e : Expr) (hsupp : ADSupported e)
       · exact le_refl _
       · have := B[i.val].le
         exact_mod_cast this
-    · simp only [if_neg h, ρ']
+    · simp only [ite_eq_right h, ρ']
       exact hρ ⟨j, hj⟩
   constructor
   · -- ρ' j = 0 for j ≥ B.length
@@ -327,7 +327,7 @@ theorem pruneToLo_preserves_min (e : Expr) (hsupp : ADSupported e)
       intro heq
       rw [heq] at hj
       exact absurd i.isLt (not_lt.mpr hj)
-    simp only [if_neg hne]
+    simp only [ite_eq_right hne]
     exact hzero j hj
   constructor
   · -- ρ' i = B[i].lo
@@ -392,7 +392,7 @@ theorem pruneToHi_preserves_min (e : Expr) (hsupp : ADSupported e)
       · have := B[i.val].le
         exact_mod_cast this
       · exact le_refl _
-    · simp only [if_neg h, ρ']
+    · simp only [ite_eq_right h, ρ']
       exact hρ ⟨j, hj⟩
   constructor
   · -- ρ' j = 0 for j ≥ B.length
@@ -402,7 +402,7 @@ theorem pruneToHi_preserves_min (e : Expr) (hsupp : ADSupported e)
       intro heq
       rw [heq] at hj
       exact absurd i.isLt (not_lt.mpr hj)
-    simp only [if_neg hne]
+    simp only [ite_eq_right hne]
     exact hzero j hj
   constructor
   · simp only [↓reduceIte, ρ']
@@ -717,7 +717,7 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
       simp only [ρ_seq]
       -- j < 0 ∧ j < B.length is always false since j : Nat
       have h_neg : ¬(j < 0 ∧ j < B.length) := fun h => Nat.not_lt_zero j h.1
-      simp only [dif_neg h_neg]
+      simp only [dite_eq_right h_neg]
       -- Now we have: (if hj : j < B.length then ρ j else 0) = if j < B.length then ρ j else 0
       split_ifs <;> rfl
 
@@ -728,10 +728,10 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
       by_cases hj : j < B.length
       · -- j < B.length
         have h_and : j < B.length ∧ j < B.length := ⟨hj, hj⟩
-        simp only [dif_pos h_and, dif_pos hj]
+        simp only [dite_eq_left h_and, dite_eq_left hj]
       · -- j ≥ B.length
         have h_nand : ¬(j < B.length ∧ j < B.length) := fun h => hj h.2
-        simp only [dif_neg h_nand, dif_neg hj]
+        simp only [dite_eq_right h_nand, dite_eq_right hj]
 
     -- Key property: each step ρ_seq k → ρ_seq (k+1) only changes coord k
     have hρ_seq_step : ∀ k j, k ≠ j → ρ_seq k j = ρ_seq (k + 1) j := by
@@ -740,7 +740,7 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
       by_cases h1 : j < k ∧ j < B.length
       · -- j < k and j < B.length: both difs are positive
         have h2 : j < k + 1 ∧ j < B.length := ⟨Nat.lt_of_lt_of_le h1.1 (Nat.le_succ k), h1.2⟩
-        simp only [dif_pos h1, dif_pos h2]
+        simp only [dite_eq_left h1, dite_eq_left h2]
       · by_cases h2 : j < k + 1 ∧ j < B.length
         · -- j < k + 1 but not (j < k ∧ j < B.length)
           -- Since j < B.length (from h2.2), we must have ¬(j < k)
@@ -751,7 +751,7 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
           have hj_eq_k : j = k := Nat.eq_of_le_of_lt_succ hj_ge_k hj_lt_k1
           exact absurd hj_eq_k.symm hne
         · -- Neither condition holds
-          simp only [dif_neg h1, dif_neg h2]
+          simp only [dite_eq_right h1, dite_eq_right h2]
 
     -- The main induction: prove f(ρ_seq k) is non-increasing in k
     -- Use the single-coordinate monotonicity lemmas
@@ -775,7 +775,7 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
               simp only [ρ_seq, hgrad_m, hj_eq]
               have h1 : ¬(m < m ∧ m < B.length) := fun h => Nat.lt_irrefl m h.1
               have h2 : m < m + 1 ∧ m < B.length := ⟨Nat.lt_succ_self m, hm⟩
-              simp only [dif_neg h1, dif_pos h2, dif_pos hm]
+              simp only [dite_eq_right h1, dite_eq_left h2, dite_eq_left hm]
             · exact (hρ_seq_step m j (Ne.symm hj_eq)).symm
           simp only [funext heq]
           exact le_refl _
@@ -789,19 +789,19 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
             have hcoord_m_before : ρ_seq m m = ρ m := by
               simp only [ρ_seq]
               have h1 : ¬(m < m ∧ m < B.length) := fun h => Nat.lt_irrefl m h.1
-              simp only [dif_neg h1, dif_pos hm]
+              simp only [dite_eq_right h1, dite_eq_left hm]
 
             have hcoord_m_after : ρ_seq (m + 1) m = B[m].lo := by
               simp only [ρ_seq, hgrad_m, hlo, ↓reduceIte]
               have h2 : m < m + 1 ∧ m < B.length := ⟨Nat.lt_succ_self m, hm⟩
-              simp only [dif_pos h2]
+              simp only [dite_eq_left h2]
 
             -- ρ_seq m is in B
             have hρ_seq_m_mem : Box.envMem (ρ_seq m) B := by
               intro ⟨j, hj⟩
               simp only [ρ_seq]
               by_cases h1 : j < m ∧ j < B.length
-              · simp only [dif_pos h1]
+              · simp only [dite_eq_left h1]
                 cases hgrad_j : grad[j]? with
                 | none => exact hρB ⟨j, hj⟩
                 | some dj =>
@@ -814,16 +814,16 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
                       exact ⟨by exact_mod_cast B[j].le, le_refl _⟩
                     · simp only [hlo_j, Bool.false_eq_true, ↓reduceIte, hhi_j]
                       exact hρB ⟨j, hj⟩
-              · simp only [dif_neg h1, dif_pos hj]
+              · simp only [dite_eq_right h1, dite_eq_left hj]
                 exact hρB ⟨j, hj⟩
 
             have hρ_seq_m_zero : ∀ j, j ≥ B.length → ρ_seq m j = 0 := by
               intro j hjge
               simp only [ρ_seq]
               have h1 : ¬(j < m ∧ j < B.length) := fun h => absurd h.2 (not_lt.mpr hjge)
-              simp only [dif_neg h1]
+              simp only [dite_eq_right h1]
               have h2 : ¬(j < B.length) := not_lt.mpr hjge
-              simp only [dif_neg h2]
+              simp only [dite_eq_right h2]
 
             -- The gradient at coord m is strictly positive
             have hgrad_di : derivIntervalCoreN e (Box.toEnv B) m cfg = di := by
@@ -878,7 +878,7 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
               · subst hj_eq
                 simp only [↓reduceIte]
                 exact hcoord_m_after
-              · simp only [if_neg hj_eq]
+              · simp only [ite_eq_right hj_eq]
                 exact (hρ_seq_step m j (Ne.symm hj_eq)).symm
 
             have hupdate_lo : Expr.updateVar (ρ_seq m) m ((ρ_int m).lo : ℝ) = ρ_seq (m + 1) := by
@@ -892,18 +892,18 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
               have hcoord_m_before : ρ_seq m m = ρ m := by
                 simp only [ρ_seq]
                 have h1 : ¬(m < m ∧ m < B.length) := fun h => Nat.lt_irrefl m h.1
-                simp only [dif_neg h1, dif_pos hm]
+                simp only [dite_eq_right h1, dite_eq_left hm]
 
               have hcoord_m_after : ρ_seq (m + 1) m = B[m].hi := by
                 simp only [ρ_seq, hgrad_m, hlo, Bool.false_eq_true, ↓reduceIte, hhi]
                 have h2 : m < m + 1 ∧ m < B.length := ⟨Nat.lt_succ_self m, hm⟩
-                simp only [dif_pos h2]
+                simp only [dite_eq_left h2]
 
               have hρ_seq_m_mem : Box.envMem (ρ_seq m) B := by
                 intro ⟨j, hj⟩
                 simp only [ρ_seq]
                 by_cases h1 : j < m ∧ j < B.length
-                · simp only [dif_pos h1]
+                · simp only [dite_eq_left h1]
                   cases hgrad_j : grad[j]? with
                   | none => exact hρB ⟨j, hj⟩
                   | some dj =>
@@ -916,16 +916,16 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
                         exact ⟨by exact_mod_cast B[j].le, le_refl _⟩
                       · simp only [hlo_j, Bool.false_eq_true, ↓reduceIte, hhi_j]
                         exact hρB ⟨j, hj⟩
-                · simp only [dif_neg h1, dif_pos hj]
+                · simp only [dite_eq_right h1, dite_eq_left hj]
                   exact hρB ⟨j, hj⟩
 
               have hρ_seq_m_zero : ∀ j, j ≥ B.length → ρ_seq m j = 0 := by
                 intro j hjge
                 simp only [ρ_seq]
                 have h1 : ¬(j < m ∧ j < B.length) := fun h => absurd h.2 (not_lt.mpr hjge)
-                simp only [dif_neg h1]
+                simp only [dite_eq_right h1]
                 have h2 : ¬(j < B.length) := not_lt.mpr hjge
-                simp only [dif_neg h2]
+                simp only [dite_eq_right h2]
 
               have hgrad_di : derivIntervalCoreN e (Box.toEnv B) m cfg = di := by
                 simp only [grad, gradientIntervalCore] at hgrad_m
@@ -979,7 +979,7 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
                 · subst hj_eq
                   simp only [↓reduceIte]
                   exact hcoord_m_after
-                · simp only [if_neg hj_eq]
+                · simp only [ite_eq_right hj_eq]
                   exact (hρ_seq_step m j (Ne.symm hj_eq)).symm
 
               have hupdate_hi : Expr.updateVar (ρ_seq m) m ((ρ_int m).hi : ℝ) = ρ_seq (m + 1) := by
@@ -995,7 +995,7 @@ theorem pruneBoxForMin_correct (e : Expr) (hsupp : ADSupported e) (B : Box)
                   simp only [ρ_seq, hgrad_m, hlo, Bool.false_eq_true, ↓reduceIte, hhi, hj_eq]
                   have h1 : ¬(m < m ∧ m < B.length) := fun h => Nat.lt_irrefl m h.1
                   have h2 : m < m + 1 ∧ m < B.length := ⟨Nat.lt_succ_self m, hm⟩
-                  simp only [dif_neg h1, dif_pos h2, dif_pos hm]
+                  simp only [dite_eq_right h1, dite_eq_left h2, dite_eq_left hm]
                   -- Both sides are ρ m since we're not pruning
                 · exact (hρ_seq_step m j (Ne.symm hj_eq)).symm
               simp only [funext heq]

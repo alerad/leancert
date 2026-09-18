@@ -11,7 +11,7 @@ import LeanCert.Test.DownstreamPatterns.Extension
 namespace LeanCert.Test.ExtensionExecution
 
 open LeanCert.Test.DownstreamPatterns.Extension
-open Lean Meta Elab Tactic
+open Lean Meta Elab Lean.Elab.Tactic
 open LeanCert.Tactic.Semantic
 open LeanCert.Tactic.Extension
 

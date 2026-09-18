@@ -35,7 +35,7 @@ example :
     checkExprLeOnSlabsDyadic lhsX rhsEleven [slab010] (-53) 10 = true := by
   native_decide
 
-def lhsLeRhsIntervalCert :
+theorem lhsLeRhsIntervalCert :
     ExprLeOnIntervalDyadicCert lhsX rhsEleven slab010 (-53) 10 where
   prec_ok := by norm_num
   checked := by native_decide
@@ -65,7 +65,7 @@ def slabTailZeroLeOne : SlabTailCert lhsZero rhsOne where
     intro N _hN
     simp [evalAtNat, lhsZero, rhsOne]
 
-def zeroLeOneSlabsCert :
+theorem zeroLeOneSlabsCert :
     ExprLeOnSlabsDyadicCert lhsZero rhsOne slabTailZeroLeOne.slabs (-53) 10 where
   prec_ok := by norm_num
   checked := by native_decide

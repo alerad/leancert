@@ -108,7 +108,7 @@ private theorem lucasUPairMod_eq_mod (P Q : Int) (m : Nat) (n : Nat) :
       simp only [Int.emod_emod_of_dvd _ dvd_rfl]
       rw [← Int.mul_emod (a := P), ← Int.mul_emod (a := Q), ← Int.sub_emod]
 
-theorem lucasUMod_eq_mod (P Q : Int) (m : Nat) (hm : 0 < m) (n : Nat) :
+theorem lucasUMod_eq_mod (P Q : Int) (m : Nat) (_hm : 0 < m) (n : Nat) :
     lucasUMod P Q m n = lucasU P Q n % m := by
   simp only [lucasUMod, lucasU, lucasUPairMod_eq_mod P Q m n]
 

@@ -152,7 +152,7 @@ From `γ < eulerMascheroniSeq' N`:
 theorem gamma_upper : Real.eulerMascheroniConstant ≤ (0.5772162 : ℝ) := by
   have h := Real.eulerMascheroniConstant_lt_eulerMascheroniSeq' N
   have hN0 : N ≠ 0 := by norm_num [N]
-  rw [Real.eulerMascheroniSeq', if_neg hN0] at h
+  rw [Real.eulerMascheroniSeq', ite_eq_right hN0] at h
   -- h : γ < (harmonic N : ℝ) - log (N : ℝ)
   have hlog : (13.862943606 : ℝ) < Real.log (N : ℝ) := by
     rw [log_N_eq]

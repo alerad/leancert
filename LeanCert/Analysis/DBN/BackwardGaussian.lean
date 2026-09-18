@@ -79,7 +79,8 @@ theorem gaussianAverage_eq_convolution {c : ℝ} (hc : 0 < c) (x : ℝ) :
   apply Eventually.of_forall
   intro v
   dsimp [f]
-  congr 2 <;> field_simp <;> ring
+  congr 2 <;> field_simp
+  ring
 
 theorem H_imaginary_re (t y : ℝ) :
     (H t ((y : ℂ)*I)).re =

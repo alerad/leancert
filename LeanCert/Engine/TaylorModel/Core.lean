@@ -390,7 +390,7 @@ theorem monomial_bernstein_expansion (n j : ℕ) (hjn : j ≤ n) (t : ℝ) :
     intro m hm
     simp only [Finset.mem_range] at hm
     have hjle : j ≤ j + m := Nat.le_add_right j m
-    rw [if_pos hjle]
+    rw [ite_eq_left hjle]
     have h1 : j + m - j = m := by omega
     have h2 : n - (j + m) = n - j - m := by omega
     rw [h1, h2]
@@ -506,7 +506,7 @@ private theorem bernstein_representation (qs : List ℚ) (n : ℕ) (hn : qs.leng
     apply Finset.sum_congr rfl
     intro j hj
     simp only [Finset.mem_range] at hj
-    rw [if_pos (show j ≤ k from by omega)]
+    rw [ite_eq_left (show j ≤ k from by omega)]
     ring
   rw [factor_lhs]
   -- Need: (Σ_{j≤k} q_j * C(n-j,k-j)) * (t^k * (1-t)^(n-k)) = b_k * (C(n,k) * t^k * (1-t)^(n-k))

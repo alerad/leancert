@@ -181,7 +181,7 @@ private theorem rpow_one_point_five_eq_mul_sqrt (x : ℝ) :
 private def intervalNormSafeSimp : TacticM Unit := do
   evalTactic (← `(tactic|
     simp only [ge_iff_le, gt_iff_lt, sub_eq_add_neg, Rat.divInt_eq_div,
-      Set.mem_setOf, pow_two, sq,
+      Set.mem_ofPred, pow_two, sq,
       rpow_one_half_eq_sqrt, rpow_inv_two_eq_sqrt,
       rpow_three_halves_eq_mul_sqrt, rpow_one_point_five_eq_mul_sqrt] at *))
 

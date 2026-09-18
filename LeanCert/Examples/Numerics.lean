@@ -34,19 +34,19 @@ open MeasureTheory
 def constOne : Expr := Expr.const 1
 
 /-- Proof that constOne is in the supported subset -/
-def constOne_supported : ADSupported constOne := ADSupported.const 1
+theorem constOne_supported : ADSupported constOne := ADSupported.const 1
 
 /-- The identity function x -/
 def identity : Expr := Expr.var 0
 
 /-- Proof that identity is supported -/
-def identity_supported : ADSupported identity := ADSupported.var 0
+theorem identity_supported : ADSupported identity := ADSupported.var 0
 
 /-- The expression x² -/
 def xSquared : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 /-- Proof that xSquared is supported -/
-def xSquared_supported : ADSupported xSquared :=
+theorem xSquared_supported : ADSupported xSquared :=
   ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)
 
 /-- Unit interval for integration -/
@@ -104,7 +104,7 @@ For sin(x) over [0, 1], we get verified bounds using the global [-1,1] bound.
 def exprSin : Expr := Expr.sin (Expr.var 0)
 
 /-- Proof that sin(x) is supported -/
-def exprSin_supported : ADSupported exprSin :=
+theorem exprSin_supported : ADSupported exprSin :=
   ADSupported.sin (ADSupported.var 0)
 
 /-- The computed interval bound for ∫₀¹ sin(x) dx -/
@@ -145,7 +145,7 @@ def xSquaredMinus2 : Expr :=
 def searchInterval : IntervalRat := ⟨1, 2, by norm_num⟩
 
 /-- ADSupported proof for x² - 2 -/
-def xSquaredMinus2_supported : ADSupported xSquaredMinus2 :=
+theorem xSquaredMinus2_supported : ADSupported xSquaredMinus2 :=
   ADSupported.add
     (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
     (ADSupported.neg (ADSupported.const 2))
@@ -186,7 +186,7 @@ We demonstrate using minimizeInterval to get verified bounds.
 -/
 
 /-- ADSupported proof for quadratic (x² - 2x + 1) -/
-def quadratic_supported : ADSupported quadratic :=
+theorem quadratic_supported : ADSupported quadratic :=
   ADSupported.add
     (ADSupported.add
       (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
@@ -201,7 +201,7 @@ noncomputable def quad_min_result : OptResult :=
   minimizeInterval quadratic I02 0 5
 
 /-- UsesOnlyVar0 proof for quadratic -/
-def quadratic_var0 : UsesOnlyVar0 quadratic :=
+theorem quadratic_var0 : UsesOnlyVar0 quadratic :=
   -- quadratic = (x² - 2x) + 1 = add (add (mul x x) (neg (mul 2 x))) 1
   UsesOnlyVar0.add _ _
     (UsesOnlyVar0.add _ _

@@ -36,7 +36,7 @@ private theorem modified_theta_decomposition {x : ℝ} (hx : 0 < x) :
       indicator_of_notMem (show x ∉ Ioi (1 : ℝ) by exact not_lt.mpr h.le),
       indicator_of_mem (show x ∈ Ioo (0 : ℝ) 1 from ⟨hx, h⟩),
       indicator_of_mem (show x⁻¹ ∈ Ioi (1 : ℝ) from hinv),
-      if_true, zero_add, one_mul, smul_eq_mul, mul_one, hpow]
+      ite_true, zero_add, one_mul, smul_eq_mul, mul_one, hpow]
     rw [hfe]
     push_cast
     simp only [one_div]

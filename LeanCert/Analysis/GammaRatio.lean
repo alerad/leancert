@@ -107,7 +107,7 @@ theorem log_step {s : ℂ} (hi : 0 < s.im) :
   have hb' : (s+1).arg < Real.pi := Complex.arg_lt_pi_iff.mpr (Or.inr (by simpa using ne_of_gt hi))
   have hπ : s.arg ≠ Real.pi := ne_of_lt hb
   have hlog := Complex.log_mul (inv_ne_zero hs) hs' (show (s⁻¹).arg+(s+1).arg ∈ Ioc (-Real.pi) Real.pi from by
-    rw [Complex.arg_inv, if_neg hπ]
+    rw [Complex.arg_inv, ite_eq_right hπ]
     constructor <;> linarith)
   rw [Complex.log_inv _ hπ] at hlog
   have he : s⁻¹*(s+1) = 1+s⁻¹ := by field_simp

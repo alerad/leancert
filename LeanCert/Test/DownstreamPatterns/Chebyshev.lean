@@ -34,7 +34,7 @@ example (x : ℝ) (hxlo : (3 : ℝ) ≤ x) (hxhi : x < (3 : ℝ) + 1) :
     |Chebyshev.theta x - x| ≤ (((9 : ℚ) / 10 : ℚ) : ℝ) * x := by
   have hpoint := checkAllThetaRelErrorReal_implies
     3 5 (9 / 10) 20 thetaChecks 3 (by omega) (by omega) (by omega)
-  rw [if_pos (by omega : 3 < 5)] at hpoint
+  rw [ite_eq_left (by omega : 3 < 5)] at hpoint
   exact abs_theta_sub_le_mul_of_checkThetaRelErrorReal
     3 20 (9 / 10) (by norm_num) (by norm_num) hpoint x hxlo hxhi
 

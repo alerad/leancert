@@ -698,9 +698,9 @@ lemma newtonStepTM_structure (e : Expr) (I N : IntervalRat)
       -- Step 3: Split on containsZero for dI
       by_cases hzero : (derivInterval e (fun _ => I) 0).containsZero
       · -- If dI contains zero, the branch returns none; contradiction
-        simp only [dif_pos hzero, reduceCtorEq] at hTM
+        simp only [dite_eq_left hzero, reduceCtorEq] at hTM
       · -- Else branch: we really have an intersection = some N
-        simp only [dif_neg hzero] at hTM
+        simp only [dite_eq_right hzero] at hTM
         -- Step 4: Build the witness
         have hcenter := fromExpr?_center e I 1 tm hFrom
         refine ⟨tm, hzero, rfl, hcenter, ?_⟩

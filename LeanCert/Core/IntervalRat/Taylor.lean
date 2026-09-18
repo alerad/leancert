@@ -769,10 +769,10 @@ theorem mem_evalTaylorSeries_sin {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   · -- i % 4 = 0: i is even, iteratedDeriv = 0
     have hi_even : i % 2 = 0 := by omega
     have hi_ne : i % 2 ≠ 1 := by omega
-    simp only [h0, ↓reduceIte, zero_div, if_neg hi_ne, Rat.cast_zero]
+    simp only [h0, ↓reduceIte, zero_div, ite_eq_right hi_ne, Rat.cast_zero]
   · -- i % 4 = 1: i is odd, iteratedDeriv = 1, coefficient = (-1)^((i-1)/2) / i!
     have hi_odd : i % 2 = 1 := by omega
-    simp only [h1, ↓reduceIte, if_pos hi_odd]
+    simp only [h1, ↓reduceIte, ite_eq_left hi_odd]
     simp only [Rat.cast_div, Rat.cast_pow, Rat.cast_neg, Rat.cast_one, Rat.cast_natCast]
     congr 1
     have heven : Even ((i - 1) / 2) := ⟨(i - 1) / 2 / 2, by omega⟩
@@ -780,11 +780,11 @@ theorem mem_evalTaylorSeries_sin {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   · -- i % 4 = 2: i is even, iteratedDeriv = 0
     have hi_even : i % 2 = 0 := by omega
     have hi_ne : i % 2 ≠ 1 := by omega
-    simp only [h2, ↓reduceIte, if_neg hi_ne]
+    simp only [h2, ↓reduceIte, ite_eq_right hi_ne]
     norm_num
   · -- i % 4 = 3: i is odd, iteratedDeriv = -1, coefficient = (-1)^((i-1)/2) / i!
     have hi_odd : i % 2 = 1 := by omega
-    simp only [h3, if_pos hi_odd]
+    simp only [h3, ite_eq_left hi_odd]
     simp only [Rat.cast_div, Rat.cast_pow, Rat.cast_neg, Rat.cast_one, Rat.cast_natCast]
     have hodd : Odd ((i - 1) / 2) := ⟨(i - 1) / 2 / 2, by omega⟩
     rw [hodd.neg_one_pow]
@@ -863,7 +863,7 @@ theorem mem_evalTaylorSeries_cos {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   rcases (by omega : i % 4 = 0 ∨ i % 4 = 1 ∨ i % 4 = 2 ∨ i % 4 = 3) with h0 | h1 | h2 | h3
   · -- i % 4 = 0: i is even, iteratedDeriv = 1, coefficient = (-1)^(i/2) / i!
     have hi_even : i % 2 = 0 := by omega
-    simp only [h0, ↓reduceIte, one_div, if_pos hi_even]
+    simp only [h0, ↓reduceIte, one_div, ite_eq_left hi_even]
     simp only [Rat.cast_div, Rat.cast_pow, Rat.cast_neg, Rat.cast_one, Rat.cast_natCast]
     have heven : Even (i / 2) := ⟨i / 2 / 2, by omega⟩
     rw [heven.neg_one_pow]
@@ -871,11 +871,11 @@ theorem mem_evalTaylorSeries_cos {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   · -- i % 4 = 1: i is odd, iteratedDeriv = 0
     have hi_odd : i % 2 = 1 := by omega
     have hi_ne : i % 2 ≠ 0 := by omega
-    simp only [h1, ↓reduceIte, if_neg hi_ne]
+    simp only [h1, ↓reduceIte, ite_eq_right hi_ne]
     norm_num
   · -- i % 4 = 2: i is even, iteratedDeriv = -1, coefficient = (-1)^(i/2) / i!
     have hi_even : i % 2 = 0 := by omega
-    simp only [h2, if_pos hi_even]
+    simp only [h2, ite_eq_left hi_even]
     simp only [Rat.cast_div, Rat.cast_pow, Rat.cast_neg, Rat.cast_one, Rat.cast_natCast]
     have hodd : Odd (i / 2) := ⟨i / 2 / 2, by omega⟩
     rw [hodd.neg_one_pow]
@@ -883,7 +883,7 @@ theorem mem_evalTaylorSeries_cos {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n :
   · -- i % 4 = 3: i is odd, iteratedDeriv = 0
     have hi_odd : i % 2 = 1 := by omega
     have hi_ne : i % 2 ≠ 0 := by omega
-    simp only [h3, if_neg hi_ne]
+    simp only [h3, ite_eq_right hi_ne]
     norm_num
 
 /-! ### Taylor remainder micro-lemmas -/

@@ -5,7 +5,7 @@ Authors: LeanCert Contributors
 -/
 import Mathlib.Data.Rat.Cast.Order
 import Mathlib.Algebra.Order.Field.Basic
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 
 /-!
 # Dyadic Rationals (n * 2^e)

@@ -584,7 +584,7 @@ private theorem go_true_implies_checkAllThetaRelErrorReal
       split at hgo
       case isTrue hn_eq_limit =>
         have hmn : m = n := by omega
-        rw [if_neg (show ¬(m < limit) from by omega)]
+        rw [ite_eq_right (show ¬(m < limit) from by omega)]
         subst hmn
         unfold checkThetaRelError
         rw [Bool.and_eq_true] at hgo ⊢
@@ -604,7 +604,7 @@ private theorem go_true_implies_checkAllThetaRelErrorReal
             rw [thetaLB_eq_acc n hn_pos depth, ← haccLB]; exact hcheckLB
           by_cases hmn : m = n
           case pos =>
-            rw [if_pos (show m < limit from by omega)]
+            rw [ite_eq_left (show m < limit from by omega)]
             subst hmn
             unfold checkThetaRelErrorReal
             rw [Bool.and_eq_true]

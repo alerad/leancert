@@ -54,7 +54,7 @@ theorem verify_lower_affine_cover (e : Expr) (hsupp : ExprSupportedCore e)
     -- the piece [lo, hi] must be ordered and pass the affine check
     have hle : lo ≤ hi := by
       by_contra h; simp [h] at hpiece
-    rw [dif_pos hle] at hpiece
+    rw [dite_eq_left hle] at hpiece
     have hleft := verify_lower_bound_affine1_strict e hsupp ⟨lo, hi, hle⟩ c cfg hpiece
     cases rest with
     | nil =>

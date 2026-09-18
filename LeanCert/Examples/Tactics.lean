@@ -43,11 +43,11 @@ open LeanCert.Tactic
 def exprXSq : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 /-- Proof that x² is in the core (computable) subset -/
-def exprXSq_core : ExprSupportedCore exprXSq :=
+theorem exprXSq_core : ExprSupportedCore exprXSq :=
   ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0)
 
 /-- Proof that x² is supported -/
-def exprXSq_supp : ADSupported exprXSq :=
+theorem exprXSq_supp : ADSupported exprXSq :=
   ADSupported.mul (ADSupported.var 0) (ADSupported.var 0)
 
 /-- The unit interval [0, 1] -/
@@ -90,11 +90,11 @@ theorem zero_le_xsq : ∀ x ∈ I01, (0 : ℚ) ≤ Expr.eval (fun _ => x) exprXS
 def exprSin : Expr := Expr.sin (Expr.var 0)
 
 /-- Proof that sin(x) is in the core subset -/
-def exprSin_core : ExprSupportedCore exprSin :=
+theorem exprSin_core : ExprSupportedCore exprSin :=
   ExprSupportedCore.sin (ExprSupportedCore.var 0)
 
 /-- Proof that sin(x) is supported -/
-def exprSin_supp : ADSupported exprSin :=
+theorem exprSin_supp : ADSupported exprSin :=
   ADSupported.sin (ADSupported.var 0)
 
 /-- Example: sin(x) ≤ 1 for all x ∈ [0, 1] using native_decide. -/
@@ -128,13 +128,13 @@ def exprXSqPlusSin : Expr :=
   Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.sin (Expr.var 0))
 
 /-- Proof that x² + sin(x) is in the core subset -/
-def exprXSqPlusSin_core : ExprSupportedCore exprXSqPlusSin :=
+theorem exprXSqPlusSin_core : ExprSupportedCore exprXSqPlusSin :=
   ExprSupportedCore.add
     (ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0))
     (ExprSupportedCore.sin (ExprSupportedCore.var 0))
 
 /-- Proof that x² + sin(x) is supported -/
-def exprXSqPlusSin_supp : ADSupported exprXSqPlusSin :=
+theorem exprXSqPlusSin_supp : ADSupported exprXSqPlusSin :=
   ADSupported.add
     (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
     (ADSupported.sin (ADSupported.var 0))
@@ -180,13 +180,13 @@ def exprXSqMinus2 : Expr :=
   Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.neg (Expr.const 2))
 
 /-- Proof that x² - 2 is in the core subset -/
-def exprXSqMinus2_core : ExprSupportedCore exprXSqMinus2 :=
+theorem exprXSqMinus2_core : ExprSupportedCore exprXSqMinus2 :=
   ExprSupportedCore.add
     (ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0))
     (ExprSupportedCore.neg (ExprSupportedCore.const 2))
 
 /-- Proof that x² - 2 is supported -/
-def exprXSqMinus2_supp : ADSupported exprXSqMinus2 :=
+theorem exprXSqMinus2_supp : ADSupported exprXSqMinus2 :=
   ADSupported.add
     (ADSupported.mul (ADSupported.var 0) (ADSupported.var 0))
     (ADSupported.neg (ADSupported.const 2))
@@ -219,7 +219,7 @@ def exprPoly : Expr :=
     (Expr.const 1)
 
 /-- Proof that 2x² + 3x + 1 is in the core subset -/
-def exprPoly_core : ExprSupportedCore exprPoly :=
+theorem exprPoly_core : ExprSupportedCore exprPoly :=
   ExprSupportedCore.add
     (ExprSupportedCore.add
       (ExprSupportedCore.mul (ExprSupportedCore.const 2)
@@ -228,7 +228,7 @@ def exprPoly_core : ExprSupportedCore exprPoly :=
     (ExprSupportedCore.const 1)
 
 /-- Proof that 2x² + 3x + 1 is supported -/
-def exprPoly_supp : ADSupported exprPoly :=
+theorem exprPoly_supp : ADSupported exprPoly :=
   ADSupported.add
     (ADSupported.add
       (ADSupported.mul (ADSupported.const 2)
@@ -284,7 +284,7 @@ demonstrate bounds using direct FTIA application rather than native_decide.
 def exprExp : Expr := Expr.exp (Expr.var 0)
 
 /-- Proof that exp(x) is supported (but NOT in ExprSupportedCore) -/
-def exprExp_supp : ADSupported exprExp :=
+theorem exprExp_supp : ADSupported exprExp :=
   ADSupported.exp (ADSupported.var 0)
 
 /-- Example: exp(x) ≤ 3 for all x ∈ [0, 1].
@@ -315,7 +315,7 @@ theorem one_le_exp : ∀ x ∈ I01, (1 : ℚ) ≤ Expr.eval (fun _ => x) exprExp
 def exprXPlusExp : Expr := Expr.add (Expr.var 0) (Expr.exp (Expr.var 0))
 
 /-- Proof that x + exp(x) is supported -/
-def exprXPlusExp_supp : ADSupported exprXPlusExp :=
+theorem exprXPlusExp_supp : ADSupported exprXPlusExp :=
   ADSupported.add (ADSupported.var 0) (ADSupported.exp (ADSupported.var 0))
 
 /-- Example: x + exp(x) ≤ 4 for all x ∈ [0, 1].

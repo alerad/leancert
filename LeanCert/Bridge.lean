@@ -1147,6 +1147,6 @@ def main : IO Unit := do
     let line ← stdin.getLine
     if line.isEmpty then break
     -- Trim whitespace
-    let trimmed := line.trim
+    let trimmed := line.trimAscii.toString
     if !trimmed.isEmpty then
       LeanCert.Bridge.processRequest trimmed

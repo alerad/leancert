@@ -145,6 +145,11 @@ NOTE: The goal format must match exactly:
 -- Test interval_minimize: x² has minimum 0 on [-1, 1]
 -- Goal: ∃ m, ∀ x ∈ I_neg1_1, m ≤ x²
 -- Uses GE.ge form: x² ≥ m (same as m ≤ x²)
+/--
+warning: ⚠️ Optimization gap [-1, 1/1000000000000] exceeds tolerance 1/1000.
+Consider increasing maxIterations or taylorDepth.
+-/
+#guard_msgs in
 theorem test_minimize_x2 : ∃ m : ℚ, ∀ x ∈ I_neg1_1,
     Expr.eval (fun _ => x) (Expr.mul (Expr.var 0) (Expr.var 0)) ≥ m := by
   interval_minimize
@@ -158,6 +163,11 @@ theorem test_maximize_x2 : ∃ M : ℚ, ∀ x ∈ I_neg1_1,
 -- Test minimize with sin: sin(x) has minimum ≈ -1 on [0, 2π]
 def I_0_7 : IntervalRat := ⟨0, 7, by norm_num⟩
 
+/--
+warning: ⚠️ Optimization gap [-1, 1] exceeds tolerance 1/1000.
+Consider increasing maxIterations or taylorDepth.
+-/
+#guard_msgs in
 theorem test_minimize_sin : ∃ m : ℚ, ∀ x ∈ I_0_7,
     Expr.eval (fun _ => x) (Expr.sin (Expr.var 0)) ≥ m := by
   interval_minimize

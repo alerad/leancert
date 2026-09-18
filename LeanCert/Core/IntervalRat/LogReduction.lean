@@ -5,7 +5,7 @@ Authors: LeanCert Contributors
 -/
 import Mathlib.Data.Rat.Defs
 import Mathlib.Data.Nat.Log
-import Mathlib.Data.Real.Basic
+import Mathlib.Basic.Real.Basic
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import LeanCert.Core.Expr  -- for Real.atanh

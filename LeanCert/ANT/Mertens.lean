@@ -110,7 +110,7 @@ theorem mertensAbelSum_eq_mertensLogSum (N : Nat) :
   intro i _
   unfold thetaIncrement invNatRat
   by_cases hi : i.Prime
-  · rw [if_pos hi, if_pos hi]
+  · rw [ite_eq_left hi, ite_eq_left hi]
     push_cast
     ring
   · simp [hi]

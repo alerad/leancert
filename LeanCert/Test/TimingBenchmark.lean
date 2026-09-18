@@ -91,7 +91,7 @@ def timeAction (n : Nat) (action : IO Unit) : IO Nat := do
 def formatNanos (ns : Nat) : String :=
   let ms := ns / 1000000
   let frac := (ns % 1000000) / 10000
-  s!"{ms}.{String.mk (if frac < 10 then ['0', Char.ofNat (48 + frac)] else (frac.repr.toList.take 2))}"
+  s!"{ms}.{String.ofList (if frac < 10 then ['0', Char.ofNat (48 + frac)] else (frac.repr.toList.take 2))}"
 
 /-- Benchmark a single expression with both backends -/
 def benchmarkExpr (name : String) (e : Expr) (Irat : IntervalRat) (Idyad : IntervalDyadic)

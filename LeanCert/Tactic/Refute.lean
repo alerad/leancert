@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import Lean
+import Mathlib.Tactic.Linter.UnusedTactic
 import LeanCert.Tactic.IntervalAuto
 import LeanCert.Engine.Search.CounterExample
 
@@ -297,6 +298,9 @@ where
 
 /-- Syntax for the refute tactic -/
 syntax (name := intervalRefute) "interval_refute" (num)? : tactic
+
+-- Counter-example search is diagnostic and intentionally leaves the goal unchanged.
+#allow_unused_tactic! intervalRefute
 
 @[tactic intervalRefute]
 def evalIntervalRefute : Tactic := fun stx => do

@@ -45,7 +45,7 @@ def I_negative : IntervalRat := ⟨-5, -1, by norm_num⟩
 
 -- sqrt(x) on [-5, -1] should contain 0 since Real.sqrt returns 0 for negative inputs
 def exprSqrt : Expr := Expr.sqrt (Expr.var 0)
-def exprSqrt_core : ExprSupportedCore exprSqrt :=
+theorem exprSqrt_core : ExprSupportedCore exprSqrt :=
   ExprSupportedCore.sqrt (ExprSupportedCore.var 0)
 
 -- The interval for sqrt on negative domain should be [0, something]
@@ -77,7 +77,7 @@ This is sound (conservative) but not tight.
 def exprX2 : Expr := Expr.mul (Expr.var 0) (Expr.var 0)
 
 -- Check that x² is bounded above by 1 on [-1, 1]
-def exprX2_core : ExprSupportedCore exprX2 :=
+theorem exprX2_core : ExprSupportedCore exprX2 :=
   ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0)
 
 theorem x_sq_bounded_above : ∀ x ∈ I_cross_zero, Expr.eval (fun _ => x) exprX2 ≤ (1 : ℚ) := by
@@ -91,7 +91,7 @@ theorem x_sq_nonneg_on_positive : ∀ x ∈ I_positive, (0 : ℚ) ≤ Expr.eval 
 
 -- x³ on [-1, 1] spans zero
 def exprX3 : Expr := Expr.mul (Expr.var 0) (Expr.mul (Expr.var 0) (Expr.var 0))
-def exprX3_core : ExprSupportedCore exprX3 :=
+theorem exprX3_core : ExprSupportedCore exprX3 :=
   ExprSupportedCore.mul (ExprSupportedCore.var 0)
     (ExprSupportedCore.mul (ExprSupportedCore.var 0) (ExprSupportedCore.var 0))
 
@@ -148,7 +148,7 @@ def exprDeepPoly : Expr :=
   let x8 := Expr.mul x4 x4
   Expr.mul x8 x8 -- x^16
 
-def exprDeepPoly_core : ExprSupportedCore exprDeepPoly :=
+theorem exprDeepPoly_core : ExprSupportedCore exprDeepPoly :=
   let xc := ExprSupportedCore.var 0
   let x2c := ExprSupportedCore.mul xc xc
   let x4c := ExprSupportedCore.mul x2c x2c
@@ -174,7 +174,7 @@ Test a function with oscillating behavior: x · sin(10x) on [0.1, 1].
 def exprWiggle : Expr :=
   Expr.mul (Expr.var 0) (Expr.sin (Expr.mul (Expr.const 10) (Expr.var 0)))
 
-def exprWiggle_core : ExprSupportedCore exprWiggle :=
+theorem exprWiggle_core : ExprSupportedCore exprWiggle :=
   ExprSupportedCore.mul (ExprSupportedCore.var 0)
     (ExprSupportedCore.sin
       (ExprSupportedCore.mul (ExprSupportedCore.const 10) (ExprSupportedCore.var 0)))
@@ -205,7 +205,7 @@ Evaluating a constant expression (0 variables) on an empty domain.
 -/
 
 def exprConst5 : Expr := Expr.const 5
-def exprConst5_core : ExprSupportedCore exprConst5 :=
+theorem exprConst5_core : ExprSupportedCore exprConst5 :=
   ExprSupportedCore.const 5
 
 -- A constant function evaluates correctly

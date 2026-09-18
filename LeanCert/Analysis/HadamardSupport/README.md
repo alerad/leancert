@@ -26,9 +26,9 @@ axiom audits in `LeanCert.Test.DBNHadamard` (standard axioms only).
   logarithmic derivative of a pointwise product.
 * `Analysis/Complex/CartanBound.lean`: discharge the generalized `-1 ≤ x`
   hypothesis of `Real.posLog_le_posLog` from nonnegativity.
-* All 35 import paths are relocated as described above. Existing style and
-  deprecation warnings are retained rather than mixing a broad cleanup into
-  this adaptation.
+* Updated deprecated Mathlib lemma names and simplified local instance
+  declarations as recommended by the Lean 4.34 linters.
+* All 35 import paths are relocated as described above.
 
 `provenance.json` records original and adapted source hashes, including these
 compatibility edits. Adapted Lean sources use LF line endings, enforced

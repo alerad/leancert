@@ -375,7 +375,7 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
         simpa [DualIntervalDyadic.one, Core.Dyadic.toRat_ofInt] using
           IntervalDyadic.mem_singleton (Core.Dyadic.ofInt 1)
       · simp only [Expr.evalAlong_var_passive _ _ _ hi, deriv_const,
-          LeanCert.Internal.AD.Dyadic.evalTotal, mkDualDyadicEnv, if_neg hi,
+          LeanCert.Internal.AD.Dyadic.evalTotal, mkDualDyadicEnv, ite_eq_right hi,
           DualIntervalDyadic.varPassive]
         norm_num [DualIntervalDyadic.zero, IntervalDyadic.mem_def, IntervalDyadic.singleton,
           Core.Dyadic.zero, Core.Dyadic.toRat]

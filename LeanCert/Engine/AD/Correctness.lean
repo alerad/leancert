@@ -137,7 +137,7 @@ theorem updateVar_mem_mkDualEnv_val (ρ_real : Nat → ℝ) (ρ_int : IntervalEn
   · subst hi
     simp only [Expr.updateVar_same, mkDualEnv, ↓reduceIte, DualInterval.varActive]
     exact hx
-  · simp only [Expr.updateVar_other _ _ _ _ hi, mkDualEnv, if_neg hi, DualInterval.varPassive]
+  · simp only [Expr.updateVar_other _ _ _ _ hi, mkDualEnv, ite_eq_right hi, DualInterval.varPassive]
     exact hρ i
 
 /-! ### evalFunc1 unfolding lemmas -/
@@ -376,7 +376,7 @@ theorem evalDualUnchecked_der_correct_idx (e : Expr) (hsupp : ADSupported e)
       norm_cast
     · -- Passive variable: d/dt (const) = 0
       simp only [Expr.evalAlong_var_passive _ _ _ h, deriv_const, LeanCert.Internal.AD.evalUnchecked, mkDualEnv,
-        if_neg h, DualInterval.varPassive]
+        ite_eq_right h, DualInterval.varPassive]
       convert IntervalRat.mem_singleton 0 using 1
       norm_cast
   | add h₁ h₂ ih₁ ih₂ =>
