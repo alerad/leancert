@@ -77,6 +77,7 @@ What do you want to prove?
 | Lower bound on interval | `leancert` | `∀ x ∈ Set.Icc 0 1, 0 ≤ exp x` |
 | Bound with explicit Taylor depth | `certify_bound` | Same goals, direct interval-engine control |
 | Bound with kernel-only trust | `certify_bound (trust := kernel)` | Same solver, kernel-only certificate verification |
+| Polynomial bound on an interval | `leancert` (or `bernstein_bound`) | `∀ x ∈ Set.Icc 0 1, x * (1 - x) ≤ 27/100` by exact Bernstein coefficients |
 | Multivariate bound | `leancert` | `∀ x ∈ I, ∀ y ∈ J, x + y ≤ 2` |
 | Function has no roots | `leancert` | `∀ x ∈ I, x² + 1 ≠ 0` |
 | Root exists | `leancert` | `∃ x ∈ I, x² - 2 = 0` |

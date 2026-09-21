@@ -85,8 +85,28 @@ assert_no_sorry LeanCert.Validity.combine_upper_bound_general_split
 assert_no_sorry LeanCert.Validity.combine_lower_bound_general_split
 assert_no_sorry LeanCert.Validity.combine_strict_upper_bound_general_split
 assert_no_sorry LeanCert.Validity.combine_strict_lower_bound_general_split
+assert_no_sorry LeanCert.Engine.QPoly.aeval_mem_bernsteinEnclosure
+assert_no_sorry LeanCert.Engine.QPoly.bernsteinCheck_sound
+assert_no_sorry LeanCert.Validity.Bernstein.verify_poly_lower_bound
+assert_no_sorry LeanCert.Validity.Bernstein.verify_poly_upper_bound
+assert_no_sorry LeanCert.Validity.Bernstein.verify_poly_strict_lower_bound
+assert_no_sorry LeanCert.Validity.Bernstein.verify_poly_strict_upper_bound
 
 /-! ### Exact axiom pinning (catches `native_decide` / `ofReduceBool` creep) -/
+
+/--
+info: 'LeanCert.Validity.Bernstein.verify_poly_lower_bound' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Validity.Bernstein.verify_poly_lower_bound
+
+/--
+info: 'LeanCert.Validity.Bernstein.verify_poly_strict_upper_bound_Icc' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Validity.Bernstein.verify_poly_strict_upper_bound_Icc
 
 /--
 info: 'LeanCert.Engine.evalIntervalCore_correct' depends on axioms: [propext, Classical.choice, Quot.sound]

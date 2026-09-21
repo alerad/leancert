@@ -43,6 +43,7 @@ Golden Theorems are defined across multiple files:
 - `ANT/Asymp/Stieltjes.lean` - Stieltjes-Abel envelope transform certificates
 - `ANT/Asymp/Hyperbola.lean` - Dirichlet-hyperbola envelope certificates
 - `ANT/Asymp/Checkers.lean` - dyadic domination checkers for envelope errors
+- `Validity/Bernstein.lean` - Bernstein certificates for univariate polynomial bounds
 - `QProduct/Certificate.lean` - Exact finite q-product integrals
 - `QProduct/PrimeLambda.lean` - Prime-limit q-product certificates
 
@@ -54,6 +55,8 @@ Golden Theorems are defined across multiple files:
 | Lower bound $c \le f(x)$ | `verify_lower_bound` | `checkLowerBound` |
 | Strict upper $f(x) < c$ | `verify_strict_upper_bound` | `checkStrictUpperBound` |
 | Strict lower $c < f(x)$ | `verify_strict_lower_bound` | `checkStrictLowerBound` |
+| Polynomial upper bound $p(x) \le c$ | `Bernstein.verify_poly_upper_bound` | `Bernstein.checkPolyUpperBound` |
+| Polynomial lower bound $c \le p(x)$ | `Bernstein.verify_poly_lower_bound` | `Bernstein.checkPolyLowerBound` |
 
 ```lean
 #check verify_upper_bound

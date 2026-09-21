@@ -190,6 +190,7 @@ inductive StrategyId where
   | certificateCheck
   | pointEnclosure
   | intervalEnclosure
+  | bernsteinPolynomial
   | registeredEnclosure
   | subdivision
   | globalOptimization
@@ -315,6 +316,10 @@ def AttemptOutcome.disposition : AttemptOutcome → AttemptDisposition
 structure SemanticSolver where
   plan : SolverPlan
   supports : SemanticGoal → Bool
+  /-- Cheap applicability check on the prepared goal. A solver that returns
+  `false` is skipped without spending budget or appearing in the attempt
+  ledger. -/
+  applicableTo : Semantic.PreparedGoal → Elab.Tactic.TacticM Bool := fun _ => pure true
   attempt : Semantic.PreparedGoal → LeanCertConfig →
     Elab.Tactic.TacticM AttemptOutcome
 

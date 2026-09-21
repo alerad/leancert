@@ -34,16 +34,19 @@ example : ∀ x ∈ Set.Icc (-1 : ℝ) 1, Real.log x ≤ 1 := by
 ```
 
 A true statement may also remain uncertified at the current numerical budget.
-Here the exact maximum is `1 / 4`, but the default enclosure and subdivision
-budget are intentionally insufficient:
+Here the exact maximum is `1`, attained at `x = 0`, but the default enclosure
+and subdivision budget are intentionally insufficient:
 
 ```lean expect-error: Subdivision reached its configured depth
 import LeanCert.Tactic
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1,
-    x * (1 - x) ≤ (1 / 4 : ℚ) := by
+    Real.exp x * (1 - x) ≤ (1 : ℚ) := by
   leancert?
 ```
+
+(The polynomial analogue `x * (1 - x) ≤ 1 / 4` is now proved outright by the
+exact Bernstein certificate, which is tight at dyadic touching points.)
 
 Question mode exposes the successful decision:
 

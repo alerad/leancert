@@ -39,6 +39,10 @@ them unchanged. -/
 #assert_trust kernel LeanCert.Engine.verify_finsum_upper_full
 #assert_trust kernel LeanCert.Engine.verify_finsum_lower_full
 #assert_trust kernel LeanCert.API.Bounds.verifyUpperBoundBox
+#assert_trust kernel LeanCert.Validity.Bernstein.verify_poly_lower_bound
+#assert_trust kernel LeanCert.Validity.Bernstein.verify_poly_upper_bound
+#assert_trust kernel LeanCert.Validity.Bernstein.verify_poly_strict_lower_bound
+#assert_trust kernel LeanCert.Validity.Bernstein.verify_poly_strict_upper_bound
 
 /-! ## DBN endpoint: unconditional analytic theorem, no native evaluation -/
 

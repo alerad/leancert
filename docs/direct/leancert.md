@@ -110,6 +110,13 @@ Taylor depth passed to a dedicated tactic such as `certify_bound 20` remains
 fixed at `20`; only Dyadic precision (and spatial depth where relevant) is
 refined.
 
+Univariate interval bounds whose function reifies to a rational polynomial
+first try an exact Bernstein certificate (see
+[Bounds](bounds.md)): the Bernstein coefficients on the interval are computed
+exactly over `ℚ`, bisecting at most `subdivisions` times inside a single
+Boolean certificate. The strategy is skipped, without spending budget, when
+the function is not a polynomial.
+
 This scheduling logic is untrusted search. Every successful stage still runs
 the existing Boolean checker and applies its Golden Theorem; an unsuccessful
 stage cannot create a proof. Rational fallback is attempted once, after the
@@ -207,7 +214,7 @@ Exact checker names and numerical details vary by the selected strategy.
 Dedicated tactics remain available when you intentionally want to control one
 algorithm:
 
-- `certify_bound` and `interval_bound_subdiv` for interval bounds;
+- `certify_bound`, `interval_bound_subdiv`, and `bernstein_bound` for interval bounds;
 - `multivariate_bound` and `opt_bound` for box bounds and optimization;
 - `interval_roots`, `interval_unique_root`, and `root_bound` for roots;
 - `eventual_bound` for fixed or discovered reciprocal-power tail bounds;

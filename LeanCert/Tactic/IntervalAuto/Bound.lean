@@ -193,7 +193,10 @@ private def closeBoundCertificate (_verifier : Name) (goal : MVarId) :
   | .rejected => throwError "certify_bound: certificate checker evaluated to false"
   | .failed failure => throwError (failure.message "certify_bound")
 
-private def closeBoundTransport (goal : MVarId) (proof : Lean.Expr)
+/-- Transport a verified bound proof onto the (possibly `Set.Icc`-normalised)
+goal, closing the residual side goals. Shared by the direct, subdivision, and
+Bernstein strategies. -/
+def closeBoundTransport (goal : MVarId) (proof : Lean.Expr)
     (reified? : Option LeanCert.Meta.ReifyReport := none) :
     TacticM Bool := do
   let saved ← saveState

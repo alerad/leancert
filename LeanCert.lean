@@ -48,6 +48,7 @@ import LeanCert.Engine.Integrate
 import LeanCert.Engine.Optimize
 import LeanCert.Engine.RootFinding.Main
 import LeanCert.Engine.Algebra.QPolyIntegral
+import LeanCert.Engine.Algebra.QPolyBernstein
 import LeanCert.Engine.TaylorModel
 import LeanCert.Engine.IntervalEvalRefined
 

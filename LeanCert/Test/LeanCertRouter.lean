@@ -1012,7 +1012,9 @@ example : ∃ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1,
 example : ∑ _k ∈ Finset.Icc 1 10, (1 : ℝ) ≤ 11 := by
   leancert
 
--- The direct enclosure is too wide; the third isolated strategy uses subdivision.
+-- The direct enclosure is too wide; the isolated subdivision strategy proves it.
+-- The sine keeps the goal outside the Bernstein polynomial strategy, which
+-- proves the polynomial `x * (1 - x) ≤ 27/100` itself without subdividing.
 /--
 info: LeanCert recognized: univariate interval bound
 
@@ -1024,16 +1026,16 @@ Numerical computation:
   Rational interval evaluation
 
 Certificate verification:
-  requested kernel → used kernel (14 checks)
+  requested kernel → used kernel (4 checks)
 Checker: LeanCert.Validity.checkUpperBound
 Verifier: LeanCert.Validity.verify_upper_bound_Icc_core
 
 Subdivision:
-  Taylor depth: 30
-  Configured maximum depth: 8
-  Deepest depth used: 5
-  Boxes examined: 27
-  Certified leaves: 14
+  Taylor depth: 20
+  Configured maximum depth: 4
+  Deepest depth used: 2
+  Boxes examined: 7
+  Certified leaves: 4
   Addressed frontier checked: true
 
 Suggested proof:
@@ -1041,7 +1043,7 @@ Suggested proof:
     leancert (subdivisions := 8) (trust := kernel)
 -/
 #guard_msgs in
-example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.sin x * (1 - x) ≤ (9 / 20 : ℚ) := by
   leancert? (subdivisions := 8) (trust := kernel)
 
 example : ∀ x ∈ Set.Icc (0 : ℝ) 1, (-27 / 100 : ℚ) ≤ x * x - x := by

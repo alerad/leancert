@@ -214,6 +214,53 @@ theorem toPoly_antiderivative_derivative (p : QPoly) :
 theorem toPoly_trim (p : QPoly) : p.trim.toPoly = p.toPoly := by
   simpa [trim, toPoly] using listToPoly_trimCoeffs p.coeffs.toList
 
+/-! ### Composition and coefficient sums -/
+
+private def composeCoeffs (q : QPoly) : List ℚ → QPoly
+  | [] => zero
+  | c :: cs => (constant c).add (q.mul (composeCoeffs q cs))
+
+/-- Horner composition `p ∘ q`, exact over the rationals. -/
+def compose (p q : QPoly) : QPoly :=
+  composeCoeffs q p.coeffs.toList
+
+private theorem toPoly_composeCoeffs (q : QPoly) (cs : List ℚ) :
+    (composeCoeffs q cs).toPoly = (listToPoly cs).comp q.toPoly := by
+  induction cs with
+  | nil => simp [composeCoeffs, listToPoly]
+  | cons c cs ih =>
+      simp only [composeCoeffs, toPoly_add, toPoly_constant, toPoly_mul, ih, listToPoly,
+        Polynomial.add_comp, Polynomial.mul_comp, Polynomial.C_comp, Polynomial.X_comp]
+
+theorem toPoly_compose (p q : QPoly) : (p.compose q).toPoly = p.toPoly.comp q.toPoly :=
+  toPoly_composeCoeffs q p.coeffs.toList
+
+/-- Evaluating a composition evaluates the inner polynomial first. -/
+theorem aeval_compose (p q : QPoly) (x : ℝ) :
+    Polynomial.aeval x (p.compose q).toPoly =
+      Polynomial.aeval (Polynomial.aeval x q.toPoly) p.toPoly := by
+  rw [toPoly_compose, Polynomial.aeval_comp]
+
+private theorem aeval_listToPoly_eq_sum (xs : List ℚ) (x : ℝ) :
+    Polynomial.aeval x (listToPoly xs) =
+      ∑ j ∈ Finset.range xs.length, (xs.getD j 0 : ℝ) * x ^ j := by
+  induction xs with
+  | nil => simp [listToPoly]
+  | cons c cs ih =>
+      simp only [listToPoly, map_add, map_mul, Polynomial.aeval_C, Polynomial.aeval_X, ih,
+        List.length_cons]
+      rw [Finset.sum_range_succ', Finset.mul_sum, add_comm]
+      simp only [List.getD_cons_succ, List.getD_cons_zero, pow_zero, mul_one]
+      congr 1
+      refine Finset.sum_congr rfl fun j _ => ?_
+      ring
+
+/-- The represented polynomial is the finite sum of its coefficient list. -/
+theorem aeval_toPoly_eq_sum (p : QPoly) (x : ℝ) :
+    Polynomial.aeval x p.toPoly =
+      ∑ j ∈ Finset.range p.coeffs.toList.length, (p.coeffs.toList.getD j 0 : ℝ) * x ^ j :=
+  aeval_listToPoly_eq_sum p.coeffs.toList x
+
 private def listToExpr : List ℚ → Expr
   | [] => .const 0
   | x :: xs => .add (.const x) (.mul (.var 0) (listToExpr xs))

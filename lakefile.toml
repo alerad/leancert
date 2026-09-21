@@ -120,6 +120,7 @@ roots = [
   "LeanCert.Test.AsympTransforms",
   "LeanCert.Test.BridgeTest",
   "LeanCert.Test.BoxAddress",
+  "LeanCert.Test.BernsteinBounds",
   "LeanCert.Test.CubicCount",
   "LeanCert.Test.CubicIsolation",
   "LeanCert.Test.DocsExamples",

@@ -19,6 +19,7 @@ import LeanCert.Validity.Eventual
 import LeanCert.Validity.RelativeCompleteness
 import LeanCert.Validity.Krawczyk
 import LeanCert.Validity.Algebra
+import LeanCert.Validity.Bernstein
 
 /-!
 # Validity Layer

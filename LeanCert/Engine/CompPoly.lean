@@ -8,6 +8,7 @@ import LeanCert.Core.IntervalRat.Basic
 import LeanCert.Core.IntervalRat.Taylor
 import LeanCert.Engine.Integrate
 import LeanCert.Engine.IntervalEvalDyadic
+import LeanCert.Engine.Algebra.QPolyBernstein
 
 /-!
 # Dyadic Polynomial Taylor Models
@@ -54,6 +55,23 @@ def evalInterval (p : DyPoly) (I : IntervalDyadic) (prec : Int) : IntervalDyadic
     (fun c acc =>
       IntervalDyadic.addRounded (IntervalDyadic.singleton c) (IntervalDyadic.mulRounded I acc prec) prec)
     (IntervalDyadic.singleton LeanCert.Core.Dyadic.zero)
+
+/-- Exact Bernstein enclosure of `p` over `I`, rounded outward to `prec`.
+Search-only: the trusted certificate path never depends on it. -/
+def bernsteinBound (p : DyPoly) (I : IntervalDyadic) (prec : Int) : IntervalDyadic :=
+  let q : QPoly := ⟨p.coeffs.map LeanCert.Core.Dyadic.toRat⟩
+  IntervalDyadic.ofIntervalRat (QPoly.bernsteinEnclosure q I.toIntervalRat) prec
+
+/-- Horner interval evaluation intersected with the Bernstein enclosure. The
+Horner bound suffers from the dependency problem on wide domains; the
+Bernstein bound is exact at the endpoints, so the intersection is never wider
+than either. Falls back to the Horner bound if rounding makes them disjoint. -/
+def boundOn (p : DyPoly) (I : IntervalDyadic) (prec : Int) : IntervalDyadic :=
+  let h := p.evalInterval I prec
+  let b := p.bernsteinBound I prec
+  let lo := LeanCert.Core.Dyadic.max h.lo b.lo
+  let hi := LeanCert.Core.Dyadic.min h.hi b.hi
+  if hle : lo.toRat ≤ hi.toRat then ⟨lo, hi, hle⟩ else h
 
 /-- Add two polynomials. -/
 def add (p q : DyPoly) : DyPoly :=
@@ -164,7 +182,7 @@ private def shiftedDomain (tm : DyTM) : IntervalDyadic :=
   IntervalDyadic.addRounded tm.domain (IntervalDyadic.neg (IntervalDyadic.singleton tm.center)) tm.prec
 
 def bound (tm : DyTM) : IntervalDyadic :=
-  IntervalDyadic.addRounded (tm.poly.evalInterval tm.shiftedDomain tm.prec) tm.remainder tm.prec
+  IntervalDyadic.addRounded (tm.poly.boundOn tm.shiftedDomain tm.prec) tm.remainder tm.prec
 
 def const (c : Dy) (domain : IntervalDyadic) (prec : Int) : DyTM :=
   { poly := DyPoly.const c
@@ -208,9 +226,9 @@ def mul (tm1 tm2 : DyTM) (maxDeg : ℕ) (maxBits : Nat := 256) : DyTM :=
   let fullProd := tm1.poly.mul tm2.poly maxBits
   let sd := tm1.shiftedDomain
   let p := tm1.prec
-  let tailBound := fullProd.tail maxDeg |>.evalInterval sd p
-  let p1Bound := tm1.poly.evalInterval sd p
-  let p2Bound := tm2.poly.evalInterval sd p
+  let tailBound := fullProd.tail maxDeg |>.boundOn sd p
+  let p1Bound := tm1.poly.boundOn sd p
+  let p2Bound := tm2.poly.boundOn sd p
   let p1r2 := IntervalDyadic.mulRounded p1Bound tm2.remainder p
   let p2r1 := IntervalDyadic.mulRounded p2Bound tm1.remainder p
   let r1r2 := IntervalDyadic.mulRounded tm1.remainder tm2.remainder p
