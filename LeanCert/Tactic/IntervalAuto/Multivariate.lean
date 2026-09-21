@@ -255,7 +255,9 @@ where
         have hmem : Box.envMem $rhoSyntax $boxSyntax := by
           intro i
           fin_cases i <;>
-            simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc] at * <;>
+            simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc,
+              Rat.divInt_eq_div] at * <;>
+            norm_num at * <;>
             first | assumption | constructor <;> assumption
         have hzero : ∀ i, i ≥ ($boxSyntax).length → $rhoSyntax i = 0 := by
           intro i hi
@@ -358,7 +360,9 @@ where
         have hmem : Box.envMem $rhoSyntax $boxSyntax := by
           intro i
           fin_cases i <;>
-            simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc] at * <;>
+            simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc,
+              Rat.divInt_eq_div] at * <;>
+            norm_num at * <;>
             first | assumption | constructor <;> assumption
         have hzero : ∀ i, i ≥ ($boxSyntax).length → $rhoSyntax i = 0 := by
           intro i hi
