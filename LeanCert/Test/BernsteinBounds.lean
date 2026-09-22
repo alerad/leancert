@@ -152,3 +152,23 @@ example : (QPoly.bernsteinEnclosure Q16 I01).lo =
     173583348686897205568920457842667584980439352718239 /
       132215406841558530489146031727131054876622501861872000 := by
   native_decide
+
+/-! ## Goal isolation and inexpensive polynomial routing regressions -/
+
+-- Success must preserve the second goal instead of dropping it during transport.
+example : (∀ x ∈ Icc (0 : ℝ) 1, x ≤ 1) ∧ True := by
+  constructor
+  bernstein_bound
+  trivial
+
+-- Failure must restore both the main goal and its pending sibling.
+example : (∀ x ∈ Icc (0 : ℝ) 1, Real.exp x ≤ 3) ∧ True := by
+  constructor
+  fail_if_success bernstein_bound
+  · certify_bound
+  · trivial
+
+-- Horner handles this immediately; Bernstein kernel verification exceeds the
+-- default heartbeat allowance. Keep the default allowance in this regression.
+example : ∀ x ∈ Icc (0 : ℝ) 1, x ^ 100 ≤ 2 := by
+  leancert (trust := kernel)

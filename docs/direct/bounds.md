@@ -41,10 +41,11 @@ for example `certify_bound 20`, keeps Taylor depth fixed and still adapts
 Dyadic precision. The final Rational fallback runs only after the Dyadic
 stages are exhausted.
 
-Univariate rational polynomials take a separate route. `leancert` first tries
-a Bernstein certificate: it composes the polynomial with the affine map of
-`[0,1]` onto the interval, converts to Bernstein coefficients exactly over `ℚ`,
-and closes one Boolean certificate when every coefficient satisfies the bound,
+When direct interval enclosure is insufficient, `leancert` next tries
+a Bernstein certificate for univariate rational polynomials: it composes the
+polynomial with the affine map of `[0,1]` onto the interval, converts to
+Bernstein coefficients exactly over `ℚ`, and closes one Boolean certificate
+when every coefficient satisfies the bound,
 bisecting at most `subdivisions` times otherwise. Bernstein enclosures are
 exact at the endpoints and immune to the dependency problem of Horner
 interval evaluation, so bounds that are tight near an endpoint need no

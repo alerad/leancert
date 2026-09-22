@@ -964,14 +964,8 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solve := adaptivePointAttemptTyped
           (NumericalRefinementPolicy.adaptive d 0) }]
   | .intervalBound => #[
-      { report := report intent "Bernstein polynomial certificate" cfg mode
-          (.fixed .exactRational)
-          (some (suggestion "bernstein_bound" #[toString cfg.subdivisions]))
-          (some s!"exact Bernstein coefficients, bisecting up to depth \
-            {cfg.subdivisions}; polynomial goals only")
-          (strategyId := .bernsteinPolynomial),
-        solve := bernsteinAttemptTyped cfg.subdivisions
-        applicable := bernsteinApplicable },
+      -- Preserve the inexpensive Horner route before attempting exact Bernstein
+      -- verification, which can exhaust kernel heartbeats on high-degree goals.
       { report := report intent "adaptive direct interval enclosure" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound"))
@@ -980,6 +974,14 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (strategyId := .intervalEnclosure),
         solve := adaptiveDirectBoundAttemptTyped
           (NumericalRefinementPolicy.adaptive d cfg.subdivisions) },
+      { report := report intent "Bernstein polynomial certificate" cfg mode
+          (.fixed .exactRational)
+          (some (suggestion "bernstein_bound" #[toString cfg.subdivisions]))
+          (some s!"exact Bernstein coefficients, bisecting up to depth \
+            {cfg.subdivisions}; polynomial goals only")
+          (strategyId := .bernsteinPolynomial),
+        solve := bernsteinAttemptTyped cfg.subdivisions
+        applicable := bernsteinApplicable },
       { report := report intent "recursive interval subdivision" cfg mode
           (.fixed .rationalInterval)
           none

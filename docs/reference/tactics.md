@@ -222,8 +222,8 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, (-27 / 100 : ℚ) < x * x - x := by
   bernstein_bound 4 (trust := kernel)
 ```
 
-`leancert` runs this strategy first for interval bounds whose reified
-function is a polynomial and skips it otherwise.
+`leancert` runs this strategy after direct interval enclosure for interval
+bounds whose reified function is a polynomial and skips it otherwise.
 
 ### Verification routes
 

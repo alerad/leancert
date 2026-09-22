@@ -240,13 +240,19 @@ private unsafe def bernsteinBoundCoreTypedImpl (maxDepth : Nat) :
       bernsteinBoundAttempt goal intervalInfo func bound maxDepth true true
 
 /-- Typed and exception-total Bernstein entry point. Every non-success restores
-the complete caller tactic state. -/
+the complete caller tactic state. Success preserves pending sibling goals. -/
 unsafe def bernsteinBoundCoreTyped (maxDepth : Nat) :
     TacticM (Except BernsteinBoundFailure BernsteinBoundOutcome) := do
   let original ← saveState
+  let originalGoals ← getGoals
   try
+    -- Certificate verification and transport replace the active goal list.
+    -- Isolate the main goal, then restore its siblings only after success.
+    setGoals [← getMainGoal]
     match ← bernsteinBoundCoreTypedImpl maxDepth with
-    | .ok outcome => return .ok outcome
+    | .ok outcome =>
+        setGoals originalGoals.tail
+        return .ok outcome
     | .error failure =>
         original.restore
         return .error failure

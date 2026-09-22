@@ -111,7 +111,7 @@ fixed at `20`; only Dyadic precision (and spatial depth where relevant) is
 refined.
 
 Univariate interval bounds whose function reifies to a rational polynomial
-first try an exact Bernstein certificate (see
+try an exact Bernstein certificate after direct interval enclosure (see
 [Bounds](bounds.md)): the Bernstein coefficients on the interval are computed
 exactly over `ℚ`, bisecting at most `subdivisions` times inside a single
 Boolean certificate. The strategy is skipped, without spending budget, when
