@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic.IntervalAuto.Basic
 import LeanCert.Tactic.IntervalAuto.Bound
+import LeanCert.Tactic.IntervalAuto.Bernstein
 import LeanCert.Tactic.IntervalAuto.Multivariate
 import LeanCert.Tactic.IntervalAuto.OptBound
 import LeanCert.Tactic.IntervalAuto.RootBound

@@ -427,8 +427,9 @@ private theorem poly_aeval_eq_sum (p : Polynomial ℚ) (x : ℝ) :
     This connects the mathematical expansion (via monomial_bernstein_expansion)
     to the concrete Bernstein coefficients. The proof requires showing that
     the double sum can be reindexed to match the Bernstein coefficient formula. -/
-/-- Auxiliary: length of monomialToBernstein output -/
-private theorem monomialToBernstein_length (qs : List ℚ) (hn : 0 < qs.length) :
+/-- Length of `monomialToBernstein` output. Public so computable Bernstein
+certificates (`Engine/Algebra/QPolyBernstein.lean`) can reuse the enclosure. -/
+theorem monomialToBernstein_length (qs : List ℚ) (hn : 0 < qs.length) :
     (monomialToBernstein qs).length = qs.length := by
   simp only [monomialToBernstein]
   have : ¬ (qs.length - 1 < 0) := by omega
@@ -436,7 +437,7 @@ private theorem monomialToBernstein_length (qs : List ℚ) (hn : 0 < qs.length) 
   omega
 
 /-- Auxiliary: getElem of monomialToBernstein output -/
-private theorem monomialToBernstein_getElem (qs : List ℚ) (k : ℕ) (hk : k < qs.length)
+theorem monomialToBernstein_getElem (qs : List ℚ) (k : ℕ) (hk : k < qs.length)
     (hn : 0 < qs.length) :
     (monomialToBernstein qs)[k]'(by rw [monomialToBernstein_length qs hn]; exact hk) =
     (Finset.range (k + 1)).sum (fun j =>
@@ -450,7 +451,7 @@ private theorem monomialToBernstein_getElem (qs : List ℚ) (k : ℕ) (hk : k < 
   rw [List.getElem_ofFn]
   rfl
 
-private theorem bernstein_representation (qs : List ℚ) (n : ℕ) (hn : qs.length = n + 1)
+theorem bernstein_representation (qs : List ℚ) (n : ℕ) (hn : qs.length = n + 1)
     (t : ℝ) (_ht0 : 0 ≤ t) (_ht1 : t ≤ 1) :
     let bs := monomialToBernstein qs
     (Finset.range (n + 1)).sum (fun j => (qs.getD j 0 : ℝ) * t ^ j) =
@@ -653,7 +654,7 @@ private theorem transformPolyCoeffs_correct (p : Polynomial ℚ) (α β : ℚ) (
 
 /-- The core Bernstein enclosure: for coefficients of length n+1 on [0,1],
     Σⱼ qⱼ tʲ lies in the Bernstein bounds interval. -/
-private theorem bernstein_enclosure_01 (qs : List ℚ) (n : ℕ) (hn : qs.length = n + 1)
+theorem bernstein_enclosure_01 (qs : List ℚ) (n : ℕ) (hn : qs.length = n + 1)
     (t : ℝ) (ht0 : 0 ≤ t) (ht1 : t ≤ 1) :
     let bs := monomialToBernstein qs
     let bounds := listMinMax bs (bs[0]'(by rw [monomialToBernstein_length qs (by omega)]; omega))

@@ -156,6 +156,35 @@ example : (1 : ℝ) / 2 < primeLambda := by
   exact primeLambda_gt_half
 ```
 
+## Sparse Evaluation and High-Precision Digits
+
+`finiteIntegralRat` expands the product over the powerset of `S`, which is
+exponential in `|S|`. `LeanCert.QProduct.Sparse` multiplies out
+`∏ (1 - X^n)` as an executable `QPoly` in linear time per factor and integrates
+termwise; the values agree exactly:
+
+```lean
+#check LeanCert.QProduct.finiteIntegralRatSparse_correct
+#check LeanCert.QProduct.momentRatSparse_correct
+#check LeanCert.QProduct.truncatedIntegralRat_correct
+```
+
+`truncatedIntegralRat S c` is the exact value of `∫₀ᶜ qProd S` for a rational
+cutoff `c`. The prime truncations `primeFRatSparse` and
+`primeSandwichErrorRatSparse` feed the directed-limit verifier, so many digits
+of the prime constant become one native evaluation (primes up to `2003`
+certify 26 decimal digits in about a minute):
+
+```lean
+example : ((5506530112728420906 / 10 ^ 19 : ℚ) : ℝ) ≤ primeLambda ∧
+    primeLambda ≤ ((5506530112728432345 / 10 ^ 19 : ℚ) : ℝ) :=
+  LeanCert.Validity.verify_limit_interval
+    LeanCert.QProduct.primeLambda_le_shiftedTruncSparse
+    LeanCert.QProduct.shiftedTruncSparse_sub_tail_le_primeLambda 501
+    (5506530112728420906 / 10 ^ 19) (5506530112728432345 / 10 ^ 19)
+    (by native_decide)
+```
+
 ## Current Scope
 
 The implemented framework certifies:
@@ -168,5 +197,7 @@ The implemented framework certifies:
 - reusable odd-prime tail sandwich certificates;
 - the formal lower bound `19 / 36 ≤ primeLambda`, hence `1 / 2 < primeLambda`.
 
-High-precision prime-limit sandwiches and eta-function closed-form benchmarks
-fit the same API shape, but are not part of this initial module.
+- high-precision prime-limit sandwiches through the sparse truncations.
+
+Eta-function closed-form benchmarks fit the same API shape, but are not part
+of this module.

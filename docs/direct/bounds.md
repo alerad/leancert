@@ -41,6 +41,32 @@ for example `certify_bound 20`, keeps Taylor depth fixed and still adapts
 Dyadic precision. The final Rational fallback runs only after the Dyadic
 stages are exhausted.
 
+When direct interval enclosure is insufficient, `leancert` next tries
+a Bernstein certificate for univariate rational polynomials: it composes the
+polynomial with the affine map of `[0,1]` onto the interval, converts to
+Bernstein coefficients exactly over `ℚ`, and closes one Boolean certificate
+when every coefficient satisfies the bound,
+bisecting at most `subdivisions` times otherwise. Bernstein enclosures are
+exact at the endpoints and immune to the dependency problem of Horner
+interval evaluation, so bounds that are tight near an endpoint need no
+subdivision. The strategy is skipped silently for non-polynomial goals. The
+dedicated form is `bernstein_bound [depth]`:
+
+```lean
+import LeanCert.Tactic
+
+-- Tight at the dyadic point `x = 1/2`: one bisection, no interval slack.
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (1 / 4 : ℚ) := by
+  bernstein_bound
+
+example : ∀ x ∈ Set.Icc (1 / 2 : ℝ) 2, x ^ 3 - x ≥ -1 := by
+  leancert
+```
+
+A polynomial with a double root inside the interval (for example
+`(x - 1/3) ^ 2 ≥ 0`) has no Bernstein certificate at any bisection depth; the
+typed diagnostic reports the coefficient enclosure on the whole interval.
+
 `interval_bound_subdiv depth maxDepth` splits candidate boxes and certifies
 every retained leaf. `leancert?` reports its configured and deepest depths,
 boxes examined, certified leaves, whether the addressed frontier passed its

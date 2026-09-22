@@ -46,6 +46,9 @@ structure SolverSpec where
   /-- Comparisons accepted by this solver. `none` means the solver accepts the
   full comparison language for its intent. -/
   comparisons : Option (Array Semantic.Comparison) := none
+  /-- Cheap applicability check on the prepared goal, evaluated before any
+  budget is spent. Inapplicable solvers are skipped silently. -/
+  applicable : Semantic.PreparedGoal → TacticM Bool := fun _ => pure true
 
 private def suggestion (tactic : String) (args : Array String := #[]) : ProofSuggestion :=
   { tactic, positionalArgs := args }
@@ -213,6 +216,54 @@ private def adaptivePointAttemptTyped (policy : NumericalRefinementPolicy) :
       return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
   | .error (.internalFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
+
+private def bernsteinExecution (outcome : Auto.BernsteinBoundOutcome) :
+    SolverExecution := {
+  backend := some .exactRational
+  verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
+  checker := some outcome.checker
+  verifier := some outcome.verifier
+  enclosure := some outcome.enclosure
+  notes := #[s!"bisection depth used: {outcome.depthUsed} of {outcome.configuredDepth}",
+    s!"boxes examined: {outcome.boxesExamined}"]
+}
+
+private def bernsteinFailure : Auto.BernsteinBoundFailure → AttemptFailure
+  | .unsupported expression detail =>
+      .unsupported { expression, detail := some detail }
+  | .notPolynomial expression =>
+      .unsupported { expression
+                     detail := some "not a univariate rational polynomial" }
+  | .exhausted depth enclosure =>
+      .inconclusive {
+        enclosure := some enclosure
+        detail := s!"No Bernstein certificate up to bisection depth {depth}; the \
+          coefficient enclosure on the whole interval is \
+          [{enclosure.lo}, {enclosure.hi}]"
+      }
+  | .rejected checker detail => .rejected { checker := some checker, detail }
+  | .transportFailure detail =>
+      .internalError `LeanCert.Tactic.Auto.bernsteinBoundCoreTyped detail
+  | .internalFailure detail =>
+      .internalError `LeanCert.Tactic.Auto.bernsteinBoundCoreTyped detail
+
+private unsafe def bernsteinAttemptTyped (maxDepth : Nat) :
+    TacticM (Except AttemptFailure SolverExecution) := do
+  match ← Auto.bernsteinBoundCoreTyped maxDepth with
+  | .ok outcome => return .ok (bernsteinExecution outcome)
+  | .error failure => return .error (bernsteinFailure failure)
+
+/-- The Bernstein strategy applies when every prepared function is a
+univariate rational polynomial. -/
+private unsafe def bernsteinApplicable (prepared : Semantic.PreparedGoal) :
+    TacticM Bool := do
+  if prepared.functions.isEmpty then return false
+  for function in prepared.functions do
+    match function with
+    | .ready _ reified _ =>
+        unless ← Auto.isPolynomialAst reified.ast do return false
+    | .unsupported .. | .deferred .. => return false
+  return true
 
 private def directBoundExecution (outcome : Auto.IntervalBoundOutcome) :
     SolverExecution := Id.run do
@@ -913,6 +964,8 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solve := adaptivePointAttemptTyped
           (NumericalRefinementPolicy.adaptive d 0) }]
   | .intervalBound => #[
+      -- Preserve the inexpensive Horner route before attempting exact Bernstein
+      -- verification, which can exhaust kernel heartbeats on high-degree goals.
       { report := report intent "adaptive direct interval enclosure" cfg mode
           (.policy "Dyadic-first, then checked Rational fallback")
           (some (suggestion "certify_bound"))
@@ -921,6 +974,14 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
           (strategyId := .intervalEnclosure),
         solve := adaptiveDirectBoundAttemptTyped
           (NumericalRefinementPolicy.adaptive d cfg.subdivisions) },
+      { report := report intent "Bernstein polynomial certificate" cfg mode
+          (.fixed .exactRational)
+          (some (suggestion "bernstein_bound" #[toString cfg.subdivisions]))
+          (some s!"exact Bernstein coefficients, bisecting up to depth \
+            {cfg.subdivisions}; polynomial goals only")
+          (strategyId := .bernsteinPolynomial),
+        solve := bernsteinAttemptTyped cfg.subdivisions
+        applicable := bernsteinApplicable },
       { report := report intent "recursive interval subdivision" cfg mode
           (.fixed .rationalInterval)
           none
@@ -1243,6 +1304,7 @@ private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) 
 def SolverSpec.toSemanticSolver (spec : SolverSpec) : SemanticSolver := {
   plan := { spec.report with cost := spec.cost }
   supports := spec.isApplicableTo
+  applicableTo := spec.applicable
   attempt := fun prepared _ => trySolverFor spec prepared.semantic
 }
 
@@ -1762,6 +1824,9 @@ unsafe def runLeanCert (cfg : LeanCertConfig)
   let mut spent := preliminarySpent
   for solver in solvers do
     unless solver.supports semantic do
+      continue
+    unless ← solver.applicableTo prepared do
+      trace[LeanCert.router] "skipping {solver.plan.strategy}: not applicable"
       continue
     if spent + solver.plan.cost > cfg.budget then
       continue

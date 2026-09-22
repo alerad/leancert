@@ -259,7 +259,8 @@ private unsafe def proveWithSubdiv
       left.execution right.execution
   }
 
-private def closeSubdivisionTransport (proof : Lean.Expr) (fromSetIcc : Bool) :
+private def closeSubdivisionTransport (proof : Lean.Expr) (fromSetIcc : Bool)
+    (reified? : Option LeanCert.Meta.ReifyReport := none) :
     TacticM (Except SubdivisionFailure Unit) := do
   let proofSyntax ← Term.exprToSyntax proof
   try
@@ -296,6 +297,23 @@ private def closeSubdivisionTransport (proof : Lean.Expr) (fromSetIcc : Bool) :
           simp only [sq, pow_two, pow_succ, pow_zero, pow_one, one_mul,
             mul_one]))) then continue
       if ← tryClose (evalTactic (← `(tactic| field_simp; ring))) then continue
+      -- Reification bridge: the normalised goal and the reified AST may differ
+      -- by `Expr.eval` unfolding and ring normalisation (e.g. `x ^ 18` against
+      -- its `pow_succ` expansion).
+      if ← tryClose (evalTactic (← `(tactic|
+          simp only [LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_mul,
+            LeanCert.Core.Expr.eval_neg, LeanCert.Core.Expr.eval_const,
+            LeanCert.Core.Expr.eval_var, LeanCert.Core.Expr.eval_sin,
+            LeanCert.Core.Expr.eval_cos, LeanCert.Core.Expr.eval_exp,
+            LeanCert.Core.Expr.eval_log, LeanCert.Core.Expr.eval_sqrt,
+            LeanCert.Core.Expr.eval_sub, Real.sqrt_mul_self_eq_abs,
+            LeanCert.Meta.max_eq_half_add_abs_sub,
+            LeanCert.Meta.min_eq_half_sub_abs_sub, Rat.divInt_eq_div,
+            div_eq_mul_inv, sub_eq_add_neg];
+          try push_cast; try ring_nf))) then
+        continue
+      if let some reified := reified? then
+        if ← tryClose (closeReificationBridge reified) then continue
       return .error <| .transportFailure
         s!"could not close side goal {← sideGoal.getType}"
     unless (← getGoals).isEmpty do
@@ -344,10 +362,11 @@ private unsafe def intervalBoundSubdivCoreTypedImpl
   let comparison := comparisonOfGoal boundGoal
   let (intervalInfo, func, boundExpr) := partsOfGoal boundGoal
 
-  let ast ←
-    try pure (← getAstWithReport func).expr
+  let reified ←
+    try getAstWithReport func
     catch e =>
       return .error <| .unsupported (toString func) (← e.toMessageData.toString)
+  let ast := reified.expr
   let boundRat ←
     try extractRatBound boundExpr
     catch e =>
@@ -381,7 +400,7 @@ private unsafe def intervalBoundSubdivCoreTypedImpl
               "completed subdivision produced an invalid addressed frontier"
         let execution := { proof.execution with frontierChecked := true }
         setGoals transportGoals
-        match ← closeSubdivisionTransport proof.proof fromSetIcc with
+        match ← closeSubdivisionTransport proof.proof fromSetIcc (some reified) with
         | .ok _ =>
             return .ok {
               comparison

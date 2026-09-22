@@ -98,10 +98,14 @@ example (h : ∀ x ∈ Set.Icc (-1 : ℝ) 1, Real.log x ≤ 1) :
   exact h
 
 set_option linter.unusedTactic false in
-example (h : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (1 / 4 : ℚ)) :
-    ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (1 / 4 : ℚ) := by
+example (h : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x * (1 - x) ≤ (1 : ℚ)) :
+    ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x * (1 - x) ≤ (1 : ℚ) := by
   expect_resolution_advice_showcase
   exact h
+
+/-- The former showcase example is now proved by the Bernstein strategy. -/
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (1 / 4 : ℚ) := by
+  leancert
 
 private def largeSumBody : LeanCert.Core.Expr := .var 0
 

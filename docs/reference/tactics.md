@@ -12,6 +12,7 @@ proof strategy.
 | `interval_decide`, `interval_auto`, `certify_bound` | optional positional Taylor depth, followed by optional `(trust := native\|kernel\|auto)` |
 | `interval_refute` | optional positional depth |
 | `interval_bound_subdiv` | optional positional Taylor depth and subdivision depth, followed by optional `(trust := ...)` |
+| `bernstein_bound` | optional positional bisection depth (default `8`), followed by optional `(trust := ...)`; univariate rational polynomials only |
 | `multivariate_bound` | optional positional iteration count, followed by optional `(trust := ...)` |
 | `opt_bound` | optional positional iteration count, followed by optional `mono` and `(trust := ...)` |
 | `root_bound`, `interval_roots`, `interval_unique_root` | optional positional Taylor depth, followed by optional `(trust := ...)` |
@@ -201,6 +202,28 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, Real.exp x < 3 := by certify_bound
 **Note on rational exponents:** general rational exponents like `x^(1/3)` are lowered to `exp(log(x) * q)`, which requires the base to be provably positive from interval bounds.
 
 ---
+
+### `bernstein_bound`
+
+Proves `∀ x ∈ I, p x ⋈ c` for a univariate rational polynomial `p` by exact
+Bernstein coefficients on `I`, bisecting at most `depth` times (default `8`).
+Recognition by `QPoly.ofExpr` is the only support condition; the checker is
+`LeanCert.Validity.Bernstein.checkPoly*Bound` and the golden theorems are the
+matching `verify_poly_*_bound` (with `_Icc` bridges). One Boolean certificate
+covers the whole bisection tree.
+
+```lean
+import LeanCert.Tactic
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * (1 - x) ≤ (27 / 100 : ℚ) := by
+  bernstein_bound
+
+example : ∀ x ∈ Set.Icc (0 : ℝ) 1, (-27 / 100 : ℚ) < x * x - x := by
+  bernstein_bound 4 (trust := kernel)
+```
+
+`leancert` runs this strategy after direct interval enclosure for interval
+bounds whose reified function is a polynomial and skips it otherwise.
 
 ### Verification routes
 

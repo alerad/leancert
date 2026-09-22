@@ -214,6 +214,102 @@ theorem toPoly_antiderivative_derivative (p : QPoly) :
 theorem toPoly_trim (p : QPoly) : p.trim.toPoly = p.toPoly := by
   simpa [trim, toPoly] using listToPoly_trimCoeffs p.coeffs.toList
 
+/-! ### Sparse products with `1 - X^n` and monomial shifts
+
+`mul` is dense (`O(deg p · deg q)`), which is far too slow for products of a
+few hundred factors `1 - X^n` of total degree in the hundreds of thousands.
+`mulOneSubPow` computes `p · (1 - X^n)` as `p - X^n · p` in linear time. -/
+
+private def negCoeffs : List ℚ → List ℚ
+  | [] => []
+  | x :: xs => (-x) :: negCoeffs xs
+
+private theorem listToPoly_negCoeffs (xs : List ℚ) :
+    listToPoly (negCoeffs xs) = -listToPoly xs := by
+  induction xs with
+  | nil => simp [negCoeffs, listToPoly]
+  | cons x xs ih =>
+      simp only [negCoeffs, listToPoly, ih, map_neg]
+      ring
+
+private theorem listToPoly_replicate_append (n : Nat) (xs : List ℚ) :
+    listToPoly (List.replicate n 0 ++ xs) = Polynomial.X ^ n * listToPoly xs := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+      rw [List.replicate_succ, List.cons_append]
+      simp only [listToPoly, ih, map_zero]
+      ring
+
+/-- `X^k · p`, in linear time. -/
+def shiftPow (p : QPoly) (k : Nat) : QPoly :=
+  ⟨(List.replicate k 0 ++ p.coeffs.toList).toArray⟩
+
+theorem toPoly_shiftPow (p : QPoly) (k : Nat) :
+    (p.shiftPow k).toPoly = Polynomial.X ^ k * p.toPoly := by
+  simpa [shiftPow, toPoly] using listToPoly_replicate_append k p.coeffs.toList
+
+/-- `p · (1 - X^n)`, in linear time. -/
+def mulOneSubPow (p : QPoly) (n : Nat) : QPoly :=
+  ⟨(addCoeffs p.coeffs.toList (List.replicate n 0 ++ negCoeffs p.coeffs.toList)).toArray⟩
+
+theorem toPoly_mulOneSubPow (p : QPoly) (n : Nat) :
+    (p.mulOneSubPow n).toPoly = p.toPoly * (1 - Polynomial.X ^ n) := by
+  have h := listToPoly_addCoeffs p.coeffs.toList
+    (List.replicate n 0 ++ negCoeffs p.coeffs.toList)
+  rw [listToPoly_replicate_append, listToPoly_negCoeffs] at h
+  show listToPoly (addCoeffs p.coeffs.toList
+    (List.replicate n 0 ++ negCoeffs p.coeffs.toList)) = _
+  rw [h, toPoly]
+  ring
+
+/-! ### Composition and coefficient sums -/
+
+private def composeCoeffs (q : QPoly) : List ℚ → QPoly
+  | [] => zero
+  | c :: cs => (constant c).add (q.mul (composeCoeffs q cs))
+
+/-- Horner composition `p ∘ q`, exact over the rationals. -/
+def compose (p q : QPoly) : QPoly :=
+  composeCoeffs q p.coeffs.toList
+
+private theorem toPoly_composeCoeffs (q : QPoly) (cs : List ℚ) :
+    (composeCoeffs q cs).toPoly = (listToPoly cs).comp q.toPoly := by
+  induction cs with
+  | nil => simp [composeCoeffs, listToPoly]
+  | cons c cs ih =>
+      simp only [composeCoeffs, toPoly_add, toPoly_constant, toPoly_mul, ih, listToPoly,
+        Polynomial.add_comp, Polynomial.mul_comp, Polynomial.C_comp, Polynomial.X_comp]
+
+theorem toPoly_compose (p q : QPoly) : (p.compose q).toPoly = p.toPoly.comp q.toPoly :=
+  toPoly_composeCoeffs q p.coeffs.toList
+
+/-- Evaluating a composition evaluates the inner polynomial first. -/
+theorem aeval_compose (p q : QPoly) (x : ℝ) :
+    Polynomial.aeval x (p.compose q).toPoly =
+      Polynomial.aeval (Polynomial.aeval x q.toPoly) p.toPoly := by
+  rw [toPoly_compose, Polynomial.aeval_comp]
+
+private theorem aeval_listToPoly_eq_sum (xs : List ℚ) (x : ℝ) :
+    Polynomial.aeval x (listToPoly xs) =
+      ∑ j ∈ Finset.range xs.length, (xs.getD j 0 : ℝ) * x ^ j := by
+  induction xs with
+  | nil => simp [listToPoly]
+  | cons c cs ih =>
+      simp only [listToPoly, map_add, map_mul, Polynomial.aeval_C, Polynomial.aeval_X, ih,
+        List.length_cons]
+      rw [Finset.sum_range_succ', Finset.mul_sum, add_comm]
+      simp only [List.getD_cons_succ, List.getD_cons_zero, pow_zero, mul_one]
+      congr 1
+      refine Finset.sum_congr rfl fun j _ => ?_
+      ring
+
+/-- The represented polynomial is the finite sum of its coefficient list. -/
+theorem aeval_toPoly_eq_sum (p : QPoly) (x : ℝ) :
+    Polynomial.aeval x p.toPoly =
+      ∑ j ∈ Finset.range p.coeffs.toList.length, (p.coeffs.toList.getD j 0 : ℝ) * x ^ j :=
+  aeval_listToPoly_eq_sum p.coeffs.toList x
+
 private def listToExpr : List ℚ → Expr
   | [] => .const 0
   | x :: xs => .add (.const x) (.mul (.var 0) (listToExpr xs))
