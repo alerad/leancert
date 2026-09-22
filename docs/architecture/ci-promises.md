@@ -27,7 +27,8 @@ lake build \
   BKLNWVerified \
   ChebyshevPsiTest \
   ChebyshevThetaTest \
-  TableTest
+  TableTest \
+  PrimeLambdaDigits
 ```
 
 The benchmark smoke check is:

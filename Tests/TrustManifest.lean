@@ -43,6 +43,8 @@ them unchanged. -/
 #assert_trust kernel LeanCert.Validity.Bernstein.verify_poly_upper_bound
 #assert_trust kernel LeanCert.Validity.Bernstein.verify_poly_strict_lower_bound
 #assert_trust kernel LeanCert.Validity.Bernstein.verify_poly_strict_upper_bound
+#assert_trust kernel LeanCert.QProduct.finiteIntegralRatSparse_correct
+#assert_trust kernel LeanCert.QProduct.shiftedTruncSparse_sub_tail_le_primeLambda
 
 /-! ## DBN endpoint: unconditional analytic theorem, no native evaluation -/
 

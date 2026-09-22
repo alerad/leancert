@@ -214,6 +214,55 @@ theorem toPoly_antiderivative_derivative (p : QPoly) :
 theorem toPoly_trim (p : QPoly) : p.trim.toPoly = p.toPoly := by
   simpa [trim, toPoly] using listToPoly_trimCoeffs p.coeffs.toList
 
+/-! ### Sparse products with `1 - X^n` and monomial shifts
+
+`mul` is dense (`O(deg p · deg q)`), which is far too slow for products of a
+few hundred factors `1 - X^n` of total degree in the hundreds of thousands.
+`mulOneSubPow` computes `p · (1 - X^n)` as `p - X^n · p` in linear time. -/
+
+private def negCoeffs : List ℚ → List ℚ
+  | [] => []
+  | x :: xs => (-x) :: negCoeffs xs
+
+private theorem listToPoly_negCoeffs (xs : List ℚ) :
+    listToPoly (negCoeffs xs) = -listToPoly xs := by
+  induction xs with
+  | nil => simp [negCoeffs, listToPoly]
+  | cons x xs ih =>
+      simp only [negCoeffs, listToPoly, ih, map_neg]
+      ring
+
+private theorem listToPoly_replicate_append (n : Nat) (xs : List ℚ) :
+    listToPoly (List.replicate n 0 ++ xs) = Polynomial.X ^ n * listToPoly xs := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+      rw [List.replicate_succ, List.cons_append]
+      simp only [listToPoly, ih, map_zero]
+      ring
+
+/-- `X^k · p`, in linear time. -/
+def shiftPow (p : QPoly) (k : Nat) : QPoly :=
+  ⟨(List.replicate k 0 ++ p.coeffs.toList).toArray⟩
+
+theorem toPoly_shiftPow (p : QPoly) (k : Nat) :
+    (p.shiftPow k).toPoly = Polynomial.X ^ k * p.toPoly := by
+  simpa [shiftPow, toPoly] using listToPoly_replicate_append k p.coeffs.toList
+
+/-- `p · (1 - X^n)`, in linear time. -/
+def mulOneSubPow (p : QPoly) (n : Nat) : QPoly :=
+  ⟨(addCoeffs p.coeffs.toList (List.replicate n 0 ++ negCoeffs p.coeffs.toList)).toArray⟩
+
+theorem toPoly_mulOneSubPow (p : QPoly) (n : Nat) :
+    (p.mulOneSubPow n).toPoly = p.toPoly * (1 - Polynomial.X ^ n) := by
+  have h := listToPoly_addCoeffs p.coeffs.toList
+    (List.replicate n 0 ++ negCoeffs p.coeffs.toList)
+  rw [listToPoly_replicate_append, listToPoly_negCoeffs] at h
+  show listToPoly (addCoeffs p.coeffs.toList
+    (List.replicate n 0 ++ negCoeffs p.coeffs.toList)) = _
+  rw [h, toPoly]
+  ring
+
 /-! ### Composition and coefficient sums -/
 
 private def composeCoeffs (q : QPoly) : List ℚ → QPoly

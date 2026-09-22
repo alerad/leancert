@@ -42,6 +42,10 @@ example : ((19 / 36 : ℚ) : ℝ) ≤ primeLambda ∧ primeLambda ≤ ((7 / 12 :
     (by native_decide)
 ```
 
+`LeanCert.QProduct.primeLambdaLimitCertSparse` is the same certificate with
+sparse exact truncations (`primeFRatSparse`), the form to use beyond a dozen
+primes; see [QProduct Certificates](../certificates/qproduct.md).
+
 Compare `LeanCert.QProduct.verify_primeLambda_interval_of_forall`, which
 requires a per-use `∀ M` tail hypothesis: this template factors that
 hypothesis out into the certificate, once.

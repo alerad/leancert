@@ -11,6 +11,7 @@ import LeanCert.QProduct.PrimeLambda
 import LeanCert.QProduct.LimitCert
 import LeanCert.QProduct.Differences
 import LeanCert.QProduct.InfiniteProduct
+import LeanCert.QProduct.Sparse
 
 /-!
 # QProduct

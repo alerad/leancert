@@ -91,6 +91,10 @@ assert_no_sorry LeanCert.Validity.Bernstein.verify_poly_lower_bound
 assert_no_sorry LeanCert.Validity.Bernstein.verify_poly_upper_bound
 assert_no_sorry LeanCert.Validity.Bernstein.verify_poly_strict_lower_bound
 assert_no_sorry LeanCert.Validity.Bernstein.verify_poly_strict_upper_bound
+assert_no_sorry LeanCert.QProduct.finiteIntegralRatSparse_correct
+assert_no_sorry LeanCert.QProduct.momentRatSparse_correct
+assert_no_sorry LeanCert.QProduct.truncatedIntegralRat_correct
+assert_no_sorry LeanCert.QProduct.shiftedTruncSparse_sub_tail_le_primeLambda
 
 /-! ### Exact axiom pinning (catches `native_decide` / `ofReduceBool` creep) -/
 
@@ -107,6 +111,12 @@ info: 'LeanCert.Validity.Bernstein.verify_poly_strict_upper_bound_Icc' depends o
 -/
 #guard_msgs in
 #print axioms LeanCert.Validity.Bernstein.verify_poly_strict_upper_bound_Icc
+
+/--
+info: 'LeanCert.QProduct.finiteIntegralRatSparse_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.QProduct.finiteIntegralRatSparse_correct
 
 /--
 info: 'LeanCert.Engine.evalIntervalCore_correct' depends on axioms: [propext, Classical.choice, Quot.sound]

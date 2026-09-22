@@ -52,6 +52,13 @@ roots = [
 ]
 precompileModules = false
 
+# 26 digits of the prime q-product constant by one sparse native evaluation
+# (about two minutes). Heavy tier: lake build PrimeLambdaDigits
+[[lean_lib]]
+name = "PrimeLambdaDigits"
+roots = ["LeanCert.Test.PrimeLambdaDigits"]
+precompileModules = false
+
 # Downstream interface guard: imports every LeanCert module referenced by
 # PrimeNumberTheoremAnd and #check-pins every declaration it uses by name.
 # Removing or renaming any of them must fail CI here, not in the downstream
@@ -121,6 +128,7 @@ roots = [
   "LeanCert.Test.BridgeTest",
   "LeanCert.Test.BoxAddress",
   "LeanCert.Test.BernsteinBounds",
+  "LeanCert.Test.QProductSparse",
   "LeanCert.Test.CubicCount",
   "LeanCert.Test.CubicIsolation",
   "LeanCert.Test.DocsExamples",
