@@ -25,6 +25,15 @@ open LeanCert.Validity
 open LeanCert.Validity.GlobalOpt
 open LeanCert.Engine.Optimization
 
+macro "solve_multivariate_env_mem" : tactic =>
+  `(tactic| (
+    intro i
+    fin_cases i <;>
+      simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc,
+        Rat.divInt_eq_div] at * <;>
+      norm_num at * <;>
+      first | assumption | constructor <;> assumption))
+
 /-- Runtime facts from the retained multivariate global-bound certificate. -/
 inductive MultivariateBoundDirection where
   | upper
@@ -253,10 +262,7 @@ where
       try
         evalTactic (← `(tactic| exact (by
         have hmem : Box.envMem $rhoSyntax $boxSyntax := by
-          intro i
-          fin_cases i <;>
-            simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc] at * <;>
-            first | assumption | constructor <;> assumption
+          solve_multivariate_env_mem
         have hzero : ∀ i, i ≥ ($boxSyntax).length → $rhoSyntax i = 0 := by
           intro i hi
           have hnot : ¬ i < ($boxSyntax).length := by exact not_lt.mpr hi
@@ -356,10 +362,7 @@ where
       try
         evalTactic (← `(tactic| exact (by
         have hmem : Box.envMem $rhoSyntax $boxSyntax := by
-          intro i
-          fin_cases i <;>
-            simp [Box.envMem, IntervalRat.mem_iff_mem_Icc, Set.mem_Icc] at * <;>
-            first | assumption | constructor <;> assumption
+          solve_multivariate_env_mem
         have hzero : ∀ i, i ≥ ($boxSyntax).length → $rhoSyntax i = 0 := by
           intro i hi
           have hnot : ¬ i < ($boxSyntax).length := by exact not_lt.mpr hi
