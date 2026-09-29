@@ -2,8 +2,8 @@
 
 Proof templates are reusable certificate strategies.  Use them when your theorem
 is not just one interval inequality, but has a repeatable proof shape:
-generated rows, main/error envelopes, perturbations of a base object,
-product-integral identities, or contour-shift bookkeeping.
+generated rows, main/error envelopes, directed limits, or contour-shift
+bookkeeping.
 
 A proof template usually has this form:
 
@@ -24,8 +24,6 @@ that must be supplied by project-specific mathematics.
 | [Table certificates](table-certificates.md) | many generated finite rows with one row checker |
 | [Asymptotic envelopes](asymptotic-envelopes.md) | a summatory function, main term, and nonnegative error term |
 | [Pointwise envelopes](pointwise-envelopes.md) | a real-variable approximation and an error radius |
-| [ConstantFactory](constant-factory.md) | a base object with reusable moments and finite perturbations |
-| [QProduct finite integrals](qproduct-finite-integrals.md) | exact finite product-integral identities |
 | [Contour-shift certificates](contour-shift.md) | rectangle identities, horizontal vanishing, vertical limits, and residue data |
 | [Directed-limit certificates](directed-limits.md) | a limit object enclosed by computable truncations with a computable tail majorant |
 | [Wall quotients](wall-quotients.md) | a `0/0` removable singularity whose enclosure must come from derivative data |

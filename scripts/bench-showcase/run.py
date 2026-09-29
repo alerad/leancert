@@ -31,14 +31,6 @@ example : ∃! x, x ∈ Set.Icc (1 : ℝ) 2 ∧ x ^ 2 - 2 = 0 := by leancert
     "exact_integral": """import LeanCert.Tactic
 example : (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 := by leancert
 """,
-    "qproduct_limit": """import LeanCert.QProduct
-open LeanCert.QProduct
-example : ((19 / 36 : ℚ) : ℝ) ≤ primeLambda ∧
-    primeLambda ≤ ((7 / 12 : ℚ) : ℝ) :=
-  LeanCert.Validity.verify_limit_interval
-    primeLambda_le_shiftedTrunc shiftedTrunc_sub_tail_le_primeLambda
-    1 (19 / 36) (7 / 12) (by native_decide)
-""",
 }
 
 

@@ -87,6 +87,6 @@ fixed-level route. Its `depth` is a binary refinement depth, so the returned
 `partitionCount` is exactly `2^depth`. The function accepts only `.auto` or
 `.dyadic`; both select the Dyadic backend for this specialized operation.
 
-For lower-level Taylor-model generated integral certificates, see
-[Proof Templates → ConstantFactory](../proof-templates/constant-factory.md) and the
-Taylor integration notes there.
+Lower-level Taylor-model generated integral certificates for q-product
+constants (ConstantFactory) now live in the downstream **leancert-qproduct**
+package; see the [migration guide](../qproduct-migration.md).

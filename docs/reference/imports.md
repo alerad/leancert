@@ -54,9 +54,6 @@ importing the full semantic router.
 ```lean
 import LeanCert.Engine.Table
 import LeanCert.ANT.Asymp
-import LeanCert.ConstantFactory
-import LeanCert.ConstantFactory.IntervalBank
-import LeanCert.QProduct
 import LeanCert.Analysis.ContourShift
 ```
 
@@ -122,3 +119,6 @@ import LeanCert.ML.Optimized
 ```lean
 import LeanCert
 ```
+
+QProduct and ConstantFactory imports moved to the downstream
+**leancert-qproduct** package; see [migration](../qproduct-migration.md).

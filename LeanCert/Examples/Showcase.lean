@@ -4,23 +4,19 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Tactic
-import LeanCert.QProduct
 
 /-!
 # LeanCert Showcase
 
-Six ordinary mathematical statements covering the main public proof shapes.
+Five ordinary mathematical statements covering the main public proof shapes.
 Every theorem deliberately uses the semantic `leancert` front door where that
-front door applies. The q-product example demonstrates a domain certificate
-whose Boolean premise is checked natively and lifted by a Golden Theorem.
+front door applies.
 
 The mirrored guide records the selected strategy, trust boundary, and measured
 runtime for each theorem.
 -/
 
 namespace LeanCert.Examples.Showcase
-
-open LeanCert.QProduct
 
 /-- A closed transcendental inequality. -/
 theorem log_two_lt_seven_tenths : Real.log 2 < 7 / 10 := by
@@ -66,15 +62,5 @@ theorem square_integral :
 private example :
     (∫ x in (0 : ℝ)..1, x ^ 2) = 1 / 3 := by
   integral_exact
-
-/-- A checked finite q-product bounds the prime-indexed limiting constant. -/
-theorem prime_lambda_enclosure :
-    ((19 / 36 : ℚ) : ℝ) ≤ primeLambda ∧
-      primeLambda ≤ ((7 / 12 : ℚ) : ℝ) :=
-  LeanCert.Validity.verify_limit_interval
-    primeLambda_le_shiftedTrunc
-    shiftedTrunc_sub_tail_le_primeLambda
-    1 (19 / 36) (7 / 12)
-    (by native_decide)
 
 end LeanCert.Examples.Showcase

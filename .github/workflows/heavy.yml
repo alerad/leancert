@@ -21,8 +21,7 @@ jobs:
             BKLNWVerified \
             ChebyshevPsiTest \
             ChebyshevThetaTest \
-            TableTest \
-            PrimeLambdaDigits
+            TableTest
 
   benchmark-smoke:
     name: Benchmark harness smoke

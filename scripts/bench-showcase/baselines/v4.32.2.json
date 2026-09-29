@@ -68,18 +68,6 @@
       "median_seconds": 6.149,
       "min_seconds": 6.094,
       "max_seconds": 6.163
-    },
-    {
-      "case": "qproduct_limit",
-      "runs": 3,
-      "seconds": [
-        4.542,
-        4.474,
-        4.476
-      ],
-      "median_seconds": 4.476,
-      "min_seconds": 4.474,
-      "max_seconds": 4.542
     }
   ]
 }

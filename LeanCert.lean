@@ -92,11 +92,6 @@ import LeanCert.Engine.Extended
 -- Search + Certify APIs
 import LeanCert.Engine.SearchAPI
 
--- Q-product product-integral certificates
-import LeanCert.QProduct
-import LeanCert.ConstantFactory
-import LeanCert.ConstantFactory.IntervalBank
-
 -- Analytic number theory certificate machinery
 import LeanCert.ANT
 
@@ -543,90 +538,6 @@ export LeanCert.Engine.Chebyshev.Theta (
   verify_all_theta_le_mul
   verify_all_theta_abs_error
   verify_all_theta_rel_error
-)
-
--- Re-export QProduct API
-export LeanCert.QProduct (
-  qProd
-  F
-  subsetSign
-  subsetWeight
-  finiteIntegralRat
-  momentRat
-  moment
-  finiteIntegralRat_correct
-  momentRat_correct
-  qProd_powerset_expand
-  qProd_nonneg
-  qProd_le_one
-  pow_mem_unit_interval
-  F_nonneg
-  F_le_one
-  F_antitone
-  one_sub_prod_one_sub_le_sum
-  qProd_sub_le_commonPrefix_sum
-  odd_tail_telescope_bound
-  odd_tail_sum_le_geom
-  checkFiniteIntegralInterval
-  verify_finiteIntegral_interval
-  checkFiniteIntegralUpper
-  checkFiniteIntegralLower
-  verify_finiteIntegral_upper
-  verify_finiteIntegral_lower
-  primesLE
-  primeFRat
-  primeSandwichErrorRat
-  primeSandwichLowerRat
-  primeSandwichLowerFun
-  primeLambda
-  primeFRat_antitone
-  primeLambda_le_trunc
-  primeLambda_lower_of_forall
-  checkPrimeLambdaUpper
-  verify_primeLambda_upper
-  verify_primeLambda_interval_of_forall
-  prime_odd_of_gt_two
-  odd_ge_form
-  telescope_odd_sum_bound_from
-  primeSandwichLowerFun_pointwise_of_tail_ge
-  primeSandwichLowerFun_le_prime_truncation_of_tail_ge
-  integral_primeSandwichLowerFun_eq_rat
-  primeSandwichLowerRat_le_truncation_of_tail_ge
-  primeSandwichLowerRat_le_lambda_of_tail_ge
-  primeLambda_rational_sandwich
-  primeLambda_sandwich
-  primeSandwichErrorRat_three_five
-  primeSandwichLowerRat_three_five
-  primeSandwichLowerRat_three_five_le_lambda
-  primeFRat_lower_nineteen_thirtysix
-  primeLambda_lower_nineteen_thirtysix
-  primeLambda_gt_half
-)
-
--- Re-export ConstantFactory API
-export LeanCert.ConstantFactory (
-  observerIntegralRat
-  observerIntegral
-  observerIntegralRat_correct
-  F_union_eq_observerIntegral
-  observerIntegralRat_eq_F_union
-  checkConstantFactoryInterval
-  verify_constantFactory_interval
-  checkConstantFactoryUpper
-  checkConstantFactoryLower
-  verify_constantFactory_upper
-  verify_constantFactory_lower
-  KernelIntervalBank
-  observerTerm
-  observerIntervalTerm
-  observerIntegralList
-  observerIntervalList
-  observerInterval
-  observerTerm_mem_interval
-  observerIntegralList_mem_observerIntervalList
-  observerIntegralList_powerset_eq
-  F_union_mem_observerInterval
-  exactKernelIntervalBank
 )
 
 -- Re-export ANT certificate API

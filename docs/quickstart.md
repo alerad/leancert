@@ -53,30 +53,11 @@ import LeanCert.Discovery.Commands
 
 Discovery commands help estimate constants before writing the final theorem.
 
-## 5. Proof Template Preview: ConstantFactory
+## 5. Domain-specific extensions
 
-This final example is intentionally more specialized: it previews LeanCert's
-reusable certificate workflows rather than another one-off tactic call.
-ConstantFactory is a perturbation-observer template: it reuses
-certified kernel data for a base object and verifies finite perturbations around
-it.
-
-```lean
-import LeanCert.ConstantFactory.IntervalBank
-
-open LeanCert.ConstantFactory
-open LeanCert.QProduct
-
-example :
-    observerIntegralRat ({2} : Finset Nat) ({3} : Finset Nat) = 7 / 12 := by
-  native_decide
-
-example :
-    ((7 / 12 : ℚ) : ℝ) ≤ F (({2} : Finset Nat) ∪ ({3} : Finset Nat)) ∧
-      F (({2} : Finset Nat) ∪ ({3} : Finset Nat)) ≤ ((7 / 12 : ℚ) : ℝ) :=
-  verify_constantFactory_interval ({2} : Finset Nat) ({3} : Finset Nat)
-    (7 / 12) (7 / 12) (by native_decide)
-```
+Q-product constants and perturbation observers are provided by the separate
+**leancert-qproduct** package, rather than by LeanCert itself. See the
+[migration guide](qproduct-migration.md).
 
 ## Notes
 
@@ -84,6 +65,5 @@ example :
   intentionally want the dedicated interval-bound engine or explicit Taylor-depth control.
 - Use discovery commands to estimate constants before writing the final theorem.
 - Use proof templates when the proof has reusable structure: generated rows,
-  main/error envelopes, perturbation observers, product-integral identities, or
-  contour-shift bookkeeping.
+  main/error envelopes, directed limits, or contour-shift bookkeeping.
 - Use `lake exe check-compat` to validate Mathlib compatibility in larger projects.

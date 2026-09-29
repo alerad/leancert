@@ -44,8 +44,6 @@ Golden Theorems are defined across multiple files:
 - `ANT/Asymp/Hyperbola.lean` - Dirichlet-hyperbola envelope certificates
 - `ANT/Asymp/Checkers.lean` - dyadic domination checkers for envelope errors
 - `Validity/Bernstein.lean` - Bernstein certificates for univariate polynomial bounds
-- `QProduct/Certificate.lean` - Exact finite q-product integrals
-- `QProduct/PrimeLambda.lean` - Prime-limit q-product certificates
 
 ### Bound Verification
 
@@ -129,45 +127,11 @@ instead of exposing finite fallback bounds.
 #check LeanCert.Validity.IntegrationDyadic.integratePartitionDyadicChecked_fst
 #check LeanCert.Validity.IntegrationDyadic.integratePartitionDyadicChecked_snd
 ```
-### QProduct Product Integrals
+### Downstream q-product certificates
 
-`LeanCert.QProduct` is a specialized exact-arithmetic certificate family for
-finite products
-
-$$
-F(S) = \int_0^1 \prod_{n \in S} (1 - u^n)\,du.
-$$
-
-The finite checker expands the product into a signed subset-sum polynomial and
-integrates exactly over `ℚ`.
-
-| Goal | Theorem | Checker |
-|------|---------|---------|
-| Exact finite interval | `verify_finiteIntegral_interval` | `checkFiniteIntegralInterval` |
-| Finite upper bound | `verify_finiteIntegral_upper` | `checkFiniteIntegralUpper` |
-| Finite lower bound | `verify_finiteIntegral_lower` | `checkFiniteIntegralLower` |
-| Prime-limit upper bound | `verify_primeLambda_upper` | `checkPrimeLambdaUpper` |
-
-```lean
-#check verify_finiteIntegral_interval
-```
-```lean
-#check verify_primeLambda_upper
-```
-Prime-limit lower bounds are intentionally hybrid: the finite arithmetic is
-exact, but the lower side needs a mathematical tail proof. The bridge theorem
-is:
-
-```lean
-#check primeLambda_lower_of_forall
-```
-The reusable odd-prime tail certificate is:
-
-```lean
-#check primeLambda_sandwich
-```
-The initial module includes the formally proved tail certificate
-`primeLambda_gt_half : (1 : ℝ) / 2 < primeLambda`.
+Q-product and ConstantFactory theorems now live in **leancert-qproduct**.
+The generic directed-limit verifier remains in LeanCert. See
+[migration](../qproduct-migration.md).
 
 ### Chebyshev Certificates
 

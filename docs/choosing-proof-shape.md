@@ -39,7 +39,7 @@ Use domain libraries when the theorem is naturally about a mathematical domain:
 - Euler/log products;
 - Dirichlet and Mertens sums;
 - explicit-PNT transfer schemas;
-- q-product prime-limit certificates.
+- q-product prime-limit certificates (downstream **leancert-qproduct** package).
 
 Go to [Domain Libraries](domains/overview.md).
 

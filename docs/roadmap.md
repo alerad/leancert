@@ -96,7 +96,7 @@ and warm/cold metadata.
 
 ## Downstream applications
 
-**Current state:** LeanCert includes ANT, QProduct, certified-table, and ML
+**Current state:** LeanCert includes ANT, certified-table, and ML
 infrastructure plus interface tests derived from downstream use.
 
 **Milestone:** expand maintained applications while keeping the stable

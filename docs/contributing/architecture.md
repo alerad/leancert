@@ -11,7 +11,7 @@ convenient to import.
 | `LeanCert/API` | stable checked programmatic entry points | stable |
 | `LeanCert/Tactic` | `leancert`, dedicated tactics, routing, diagnostics, and proof construction | stable front door; internals may evolve |
 | `LeanCert/CertifiedBounds` | reusable, named certified numerical results | stable |
-| `LeanCert/ANT`, `LeanCert/QProduct` | supported domain umbrellas | stable |
+| `LeanCert/ANT` | supported domain umbrella | stable |
 | `LeanCert/Examples` | demonstrations and showcase material | examples, not declaration ownership |
 | `LeanCert/Test` | regression, protocol, import-isolation, and public-message tests | test-only |
 | `LeanCert/Benchmark` | compiled benchmark runner | measurement-only |

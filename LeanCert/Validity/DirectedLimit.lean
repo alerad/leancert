@@ -22,11 +22,9 @@ is a boolean check at a single index `N`. This module provides the checker,
 the golden theorem, a packaging structure, and the convergence corollary
 (`approx N → x` whenever `tail N → 0`).
 
-Existing instances of this shape in the library include the prime q-product
-sandwich (`LeanCert.QProduct.primeLambda_sandwich`, packaged as a
-`DirectedLimitCert` in `LeanCert.QProduct.LimitCert`) and the tail-interval
-decompositions in the Li2 and BKLNW developments. The symmetric (monotone
-from below) variant is obtained by negation and is not duplicated here.
+Instances of this shape include the prime q-product sandwich in the downstream
+`leancert-qproduct` package and the tail-interval decompositions in the Li2 and
+BKLNW developments. The symmetric (monotone from below) variant is obtained by negation and is not duplicated here.
 
 ## Main definitions
 
