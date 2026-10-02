@@ -12,7 +12,8 @@ The stable front doors are `LeanCert`, `LeanCert.Tactic`,
 `LeanCert.API.Eval`, `LeanCert.API.Backend`, `LeanCert.API.Bounds`,
 `LeanCert.API.AD`, `LeanCert.API.Integration`, `LeanCert.API.Capabilities`,
 `LeanCert.API.Optimization`, and selected domain umbrellas including
-`LeanCert.ANT` and `LeanCert.QProduct`.
+`LeanCert.ANT`. QProduct and ConstantFactory now belong to the downstream
+`leancert-qproduct` package; see [migration](../qproduct-migration.md).
 
 LeanCert provides three stable umbrella imports for downstream developments:
 

@@ -24,8 +24,6 @@ reference.
 | [Chebyshev](chebyshev.md) | finite-range bounds for the Chebyshev functions `ψ` and `θ` |
 | [ANT finite bridges](ant.md) | step sums, Abel transforms, Euler products, log products, Dirichlet truncations, prime-power extensionality, and explicit-PNT compiler schemas |
 | [ANT asymptotic envelopes](ant-asymp.md) | main-term plus error-term certificates for summatory functions, pointwise estimates, dyadic slab inequalities, and transforms |
-| [QProduct](qproduct.md) | exact finite q-product integrals and prime-limit sandwich certificates |
-| [ConstantFactory](constants.md) | exact and interval observer-generated q-product constants from perturbation sums and reusable moment kernels |
 | [Contour Shift](contour-shift.md) | finite rectangle identities, horizontal-side vanishing, vertical-line limits, and residue-sum shift identities |
 
 ## Imports
@@ -35,9 +33,6 @@ Most certificate families can be imported directly:
 ```lean
 import LeanCert.ANT
 import LeanCert.ANT.Asymp
-import LeanCert.QProduct
-import LeanCert.ConstantFactory
-import LeanCert.ConstantFactory.IntervalBank
 import LeanCert.Analysis.ContourShift
 import LeanCert.Engine.Chebyshev.Psi
 import LeanCert.Engine.Chebyshev.Theta
@@ -60,12 +55,9 @@ summatory main term plus an error term from some cutoff onward.
 Use Chebyshev certificates for specialized `ψ` and `θ` finite-range bounds.
 These can feed into ANT and asymptotic envelope arguments.
 
-Use QProduct certificates for exact product-integral identities and finite
-prime-limit sandwich arguments.
-
-Use ConstantFactory certificates when a q-product constant is best proved by
-holding a base kernel bank fixed and verifying finite observer perturbations
-around it.
+QProduct and ConstantFactory certificates (exact product-integral identities,
+prime-limit sandwiches, observer perturbations) live in the downstream
+**leancert-qproduct** package; see the [migration guide](../qproduct-migration.md).
 
 Use contour-shift certificates when the analytic work has been decomposed into
 finite rectangle identities, horizontal decay, vertical-line convergence, and a

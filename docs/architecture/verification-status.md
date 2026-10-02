@@ -35,7 +35,7 @@ logged errors are terminal internal failures.
 | Dyadic-list partition integration | `checkIntegralBoundsDyadicList` | `integral_bounds_of_check_dyadic_list` in `Validity/IntegrationDyadic.lean` | Separate lower-level checker validating domains and complete partition coverage. |
 | Finite sums | checked `checkFinSum*` and `checkWitnessSum*` functions | matching `verify_finsum_*_checked` and `verify_witness_sum_*` theorems | Candidate evaluation distinguishes domain obstruction from an insufficient enclosure. The retained combined certificate is closed once, transactionally, through the shared verification boundary. |
 | Generic tables | `TableCert.checkAll` | `TableCert.verify` in `Engine/Table.lean` | Generated rows remain untrusted until every row check succeeds. |
-| ANT and QProduct templates | certificate structures and exact observers | nearby `verify_*` and consequence theorems | Projects must supply the analytic estimates and convergence/envelope hypotheses required by each template. |
+| ANT templates | certificate structures and exact observers | nearby `verify_*` and consequence theorems | Projects must supply the analytic estimates and convergence/envelope hypotheses required by each template. |
 | Dense and elementwise neural-network bounds | interval forward functions | `Layer.mem_forwardInterval`, `TwoLayerNet.mem_forwardInterval`, and activation membership theorems | Soundness requires the dimension, input-membership, and precision premises in each theorem. |
 | Transformer attention | `scaledDotProductAttention` | `mem_scaledDotProductAttention` in `ML/Attention.lean` | Currently proves an output-length relation, not elementwise semantic enclosure. |
 | Quantized inference | `QuantizedLayer.forwardQuantized` | `QuantizedLayer.forwardQuantized_sound` | Currently proves lower endpoints do not exceed upper endpoints; it is not a real-forward containment theorem. |
@@ -55,9 +55,6 @@ checkers; others expose mathematical obligations that a project must supply.
 | `TableCert` | Generic traversal and row-soundness lifting | A sound checker for each row's semantic claim |
 | `AsympEnv` | Lower/upper envelope consequences and algebra | The certificate proof for the summatory estimate |
 | `PointwiseEnvelope` | Pointwise lower/upper consequences and algebra | The pointwise error proof on the domain |
-| Exact product-integral certificates | Exact rational finite checkers and soundness theorems | The finite certificate data |
-| ConstantFactory exact observers | Finite observer identity for disjoint base/perturbation data | Disjointness and observer-checker obligations |
-| ConstantFactory interval banks | Observer theorem from kernel-bank correctness | Exact or analytic proofs of kernel interval correctness |
 | `ContourShiftCert` | Orientation and limit algebra for stable finite residue data | Rectangle identities, residue values, decay, and convergence |
 
 ## Trust and placeholder audit

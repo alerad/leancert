@@ -24,10 +24,12 @@ LeanCert is organized around proof intent:
 1. **Direct automation** closes concrete bounds, roots, optimizations, and
    integral goals over explicit expressions.
 2. **Proof templates** package reusable certificate strategies such as table
-   checking, main-term/error envelopes, perturbation observers, product-integral
-   identities, and contour-shift bookkeeping.
+   checking, main-term/error envelopes, directed limits, and contour-shift
+   bookkeeping.
 3. **Domain libraries** provide specialized mathematics, especially analytic
-   number theory and q-product certificates, built on top of the templates.
+   number theory, built on top of the templates. Q-product and ConstantFactory
+   certificates live in the downstream **leancert-qproduct** package (see the
+   [migration guide](qproduct-migration.md)).
 4. **Architecture and trust** explains checkers, Golden Theorems, arithmetic
    backends, and verification status.
 
@@ -46,8 +48,7 @@ LeanCert is organized around proof intent:
 | Generated finite rows to verify | [Proof Templates → Table Certificates](proof-templates/table-certificates.md) |
 | A summatory function with a main term and error term | [Proof Templates → Asymptotic Envelopes](proof-templates/asymptotic-envelopes.md) |
 | A real-variable approximation with an error radius | [Proof Templates → Pointwise Envelopes](proof-templates/pointwise-envelopes.md) |
-| A constant built by perturbing a reusable base object | [Proof Templates → ConstantFactory](proof-templates/constant-factory.md) |
-| A finite q-product integral | [Proof Templates → Exact Product-Integral Certificates](proof-templates/qproduct-finite-integrals.md) |
+| A q-product constant or finite q-product integral | the downstream **leancert-qproduct** package ([migration guide](qproduct-migration.md)) |
 | A contour-shift identity | [Proof Templates → Contour Shift](proof-templates/contour-shift.md) |
 | A limit enclosed by truncations and computable tails | [Proof Templates → Directed Limits](proof-templates/directed-limits.md) |
 | A removable `0/0` singularity controlled by derivative data | [Proof Templates → Wall Quotients](proof-templates/wall-quotients.md) |

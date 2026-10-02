@@ -114,8 +114,6 @@ nav:
     - Table Certificates: proof-templates/table-certificates.md
     - Asymptotic Envelopes: proof-templates/asymptotic-envelopes.md
     - Pointwise Envelopes: proof-templates/pointwise-envelopes.md
-    - ConstantFactory: proof-templates/constant-factory.md
-    - Exact Product-Integral Certificates: proof-templates/qproduct-finite-integrals.md
     - Contour Shift: proof-templates/contour-shift.md
     - Directed Limits: proof-templates/directed-limits.md
     - Wall Quotients: proof-templates/wall-quotients.md
@@ -127,16 +125,13 @@ nav:
       - Finite ANT: domains/ant/finite-ant.md
       - ANT Asymptotic: domains/ant/asymptotic-ant.md
       - Explicit PNT: domains/ant/explicit-pnt.md
-    - QProduct Prime Limits: domains/qproduct-prime-limits.md
-    - Constants: domains/constants.md
   - Certificate Engines:
     - Analytic Number Theory: certificates/ant.md
     - DBN Real-Zero Theorem: certificates/dbn-real-zeros.md
     - DBN Newman Nonnegativity: certificates/dbn-nonnegative.md
     - Asymptotic Envelopes: certificates/ant-asymp.md
     - Chebyshev: certificates/chebyshev.md
-    - QProduct: certificates/qproduct.md
-    - ConstantFactory: certificates/constants.md
+    - QProduct (moved downstream): qproduct-migration.md
     - Contour Shift: certificates/contour-shift.md
   - ML Verification:
     - Verification: ml/neural-networks.md
