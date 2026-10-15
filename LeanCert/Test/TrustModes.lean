@@ -23,6 +23,12 @@ verification. These pins are the guard against a repeat.
 
 open Lean Meta Elab Tactic
 
+-- Historical native axioms must remain classified even after Lean removes their declarations.
+#guard LeanCert.Tactic.classifyAxiom `Lean.ofReduceBool == .nativeCompiler
+#guard LeanCert.Tactic.classifyAxiom `Lean.ofReduceNat == .nativeCompiler
+#guard LeanCert.Tactic.classifyAxiom `Lean.trustCompiler == .nativeCompiler
+#guard LeanCert.Tactic.classifyAxiom `unexpectedAxiom == .custom
+
 private def closeAndExpectVerificationEvent
     (cfg : LeanCert.Tactic.VerificationConfig)
     (requested : LeanCert.Tactic.VerificationMode)
@@ -189,7 +195,7 @@ run_meta do
     match a with
     | .str (.str _ "native_decide") _ => true
     | _ => false
-  unless axs.any isNativeAux || axs.contains ``Lean.ofReduceBool do
+  unless axs.any isNativeAux || axs.contains `Lean.ofReduceBool do
     throwError "expected trustDefaultNative to be native_decide-verified \
       (default mode changed?); axioms: {axs.toList}"
 

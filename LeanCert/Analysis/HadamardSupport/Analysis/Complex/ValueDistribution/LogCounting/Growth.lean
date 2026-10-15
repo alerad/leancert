@@ -7,7 +7,7 @@ module
 
 public import Mathlib.Analysis.Complex.CauchyIntegral
 public import LeanCert.Analysis.HadamardSupport.Analysis.Complex.ValueDistribution.LogCounting.Basic
-public import Mathlib.Analysis.SpecialFunctions.Integrability.LogMeromorphic
+public import Mathlib.Analysis.SpecialFunctions.Integrability.Log
 public import LeanCert.Analysis.HadamardSupport.Analysis.SpecialFunctions.Log.ExpGrowth
 public import Mathlib.MeasureTheory.Integral.CircleAverage
 
