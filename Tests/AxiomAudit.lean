@@ -284,16 +284,17 @@ run_meta do
 
 `EulerMascheroni.gamma_lower` / `gamma_upper` are sorry-free but verified via
 inline `native_decide` (a `2^20`-term reflective harmonic sum), so their axiom
-set is the three standard axioms plus `Lean.ofReduceBool` — the same trust
+set is the three standard axioms plus per-declaration native auxiliaries — the same trust
 shape as `PNT_PsiBounds` and the BKLNW bounds. The check below fails if the
 set ever grows (in particular, if a `sorry` sneaks in). -/
 
 open Lean in
 run_meta do
   let allowedAxioms : Array Name :=
-    #[``propext, ``Classical.choice, ``Quot.sound, ``Lean.ofReduceBool]
+    #[``propext, ``Classical.choice, ``Quot.sound, `Lean.ofReduceBool]
   -- `native_decide` mints one auxiliary axiom per declaration, named
-  -- `<decl>._native.native_decide.ax_*` and backed by `Lean.ofReduceBool`.
+  -- `<decl>._native.native_decide.ax_*` in Lean 4.35. Retain recognition of
+  -- the historical `Lean.ofReduceBool` name without requiring its declaration.
   let isNativeDecideAux (a : Name) : Bool :=
     match a with
     | .str (.str _ "native_decide") _ => true
@@ -306,7 +307,7 @@ run_meta do
         throwError "{n} depends on unexpected axiom {a} \
           (allowed: propext, Classical.choice, Quot.sound, Lean.ofReduceBool, \
           native_decide auxiliaries)"
-    unless axs.contains ``Lean.ofReduceBool || axs.any isNativeDecideAux do
+    unless axs.contains `Lean.ofReduceBool || axs.any isNativeDecideAux do
       -- Sanity: the bounds are *supposed* to be native_decide-verified; if
       -- that dependency vanishes, the proof changed shape — re-review.
       logInfo m!"note: {n} no longer depends on native_decide"

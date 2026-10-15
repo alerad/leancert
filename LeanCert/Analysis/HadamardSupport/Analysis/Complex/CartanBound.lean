@@ -7,6 +7,9 @@ module
 
 public import Mathlib.MeasureTheory.Integral.Average
 public import Mathlib.Analysis.SpecialFunctions.Pow.Integral
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+public import Mathlib.Analysis.SpecialFunctions.Integrability.Basic
+public import Mathlib.Analysis.Calculus.Deriv.MeanValue
 public import LeanCert.Analysis.HadamardSupport.Analysis.SpecialFunctions.Log.PosLog
 
 

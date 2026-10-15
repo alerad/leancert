@@ -27,7 +27,7 @@ Design rules:
   error telling the user how to opt in to native trust explicitly.
 * `.auto` may fall back, and reports when it does (`trace[leancert.verification]`
   always; one `logInfo` per process on first fallback).
-* The typed boundary reduces the `Decidable` instance first, so a conclusive
+* The typed boundary reduces the `Decidable` Boolean decision first, so a conclusive
   `false` result is data rather than an exception. Successful kernel proofs
   still go through `mkAuxLemma` for eager kernel validation and per-module
   caching.
@@ -329,14 +329,16 @@ private def closeKernelTypedCore (certificate : CertificateGoal)
     (certGoal : MVarId) : TacticM VerificationAttempt := do
   try
     let proof ← mkDecideProof certificate.type
-    let decidableInst := proof.appFn!.appArg!
+    -- Since Lean 4.35, Decidable is a structure with a Boolean field, not
+    -- an inductive with isTrue/isFalse constructors. Reduce its decision
+    -- rather than inspecting the representation of the instance.
     let reduced ← withOptions (fun opts => opts.set `maxRecDepth 100000) do
-      withAtLeastTransparency .all <| whnf decidableInst
-    if reduced.isAppOf ``isFalse then
+      withAtLeastTransparency .all <| whnf certificate.decision
+    if reduced.isConstOf ``Bool.false then
       return .rejected
-    unless reduced.isAppOf ``isTrue do
+    unless reduced.isConstOf ``Bool.true do
       return .failed s!"certificate decision procedure did not reduce to \
-        `isTrue` or `isFalse`: {reduced}"
+        `true` or `false`: {reduced}"
     let levelsInType := (collectLevelParams {} certificate.type).params
     let lemmaLevels := (← Term.getLevelNames).reverse.filter levelsInType.contains
     let lemmaName ← withOptions (Elab.async.set · false) do
@@ -615,8 +617,10 @@ inductive TrustClass where
 def classifyAxiom (n : Name) : TrustClass :=
   if n == ``propext || n == ``Classical.choice || n == ``Quot.sound then
     .foundational
-  else if n == ``Lean.ofReduceBool || n == ``Lean.ofReduceNat
-      || n == ``Lean.trustCompiler then
+  -- Historical native axioms are no longer declarations in Lean 4.35.
+  -- Keep recognizing their names without requiring them to exist in the environment.
+  else if n == `Lean.ofReduceBool || n == `Lean.ofReduceNat
+      || n == `Lean.trustCompiler then
     .nativeCompiler
   else if n == ``sorryAx then
     .sorryAx
