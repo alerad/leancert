@@ -311,7 +311,7 @@ def forwardInterval (params : LayerNormParams) (x : IntervalVector)
       (IntervalRat.singleton params.epsilon) prec
     let var_eps := IntervalDyadic.add var eps_interval
 
-    -- Sqrt (conservative: assumes non-negative input)
+    -- Precision-aware sqrt; a positive lower bound avoids the fallback below
     let std_dev := IntervalDyadic.sqrt var_eps prec
 
     -- Invert: Since var + eps ≥ eps > 0, the interval is positive

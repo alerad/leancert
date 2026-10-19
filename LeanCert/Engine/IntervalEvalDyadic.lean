@@ -156,7 +156,7 @@ def invIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic
   let result := invInterval Irat
   IntervalDyadic.ofIntervalRat result cfg.precision
 
-/-- sqrt interval: uses conservative bound [0, max(hi, 1)] -/
+/-- Square-root interval with precision-aware, outward-rounded endpoints. -/
 def sqrtIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
   IntervalDyadic.sqrt I cfg.precision
 

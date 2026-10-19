@@ -5,6 +5,7 @@ Authors: LeanCert Contributors
 -/
 import LeanCert.Core.Dyadic
 import LeanCert.Core.IntervalReal
+import LeanCert.Core.IntervalRat.Transcendental
 import Mathlib.Data.Rat.Cast.Order
 
 /-!
@@ -561,82 +562,6 @@ def scale (I : IntervalDyadic) (c : Dyadic) : IntervalDyadic :=
 def scale2 (I : IntervalDyadic) (n : Int) : IntervalDyadic :=
   ⟨I.lo.scale2 n, I.hi.scale2 n, Dyadic.toRat_scale2_le_scale2 I.lo I.hi n I.le⟩
 
-/-! ### Square Root -/
-
-/-- Square root of an interval.
-    Returns a conservative bound [0, max(hi, 1)].
-    This is sound because:
-    - sqrt(x) = 0 for x < 0 (by definition in Mathlib)
-    - sqrt(x) ≥ 0 for all x
-    - sqrt(x) ≤ max(x, 1) for x ≥ 0
-    Therefore for any x ∈ [lo, hi], sqrt(x) ∈ [0, max(hi, 1)]. -/
-def sqrt (I : IntervalDyadic) (_prec : Int := -53) : IntervalDyadic :=
-  -- Conservative bound: [0, max(hi, 1)]
-  -- sqrt(x) ≥ 0 for all x (including negative where sqrt returns 0)
-  -- sqrt(x) ≤ max(x, 1) for x ≥ 0
-  -- sqrt(x) = 0 ≤ max(hi, 1) for x < 0
-  let one := Dyadic.ofInt 1
-  let hi_bound := Dyadic.max I.hi one
-  ⟨Dyadic.zero, hi_bound, by
-    have hz : Dyadic.zero.toRat = 0 := Dyadic.toRat_zero
-    rw [Dyadic.max_toRat, Dyadic.toRat_ofInt, hz]
-    exact le_max_of_le_right (by norm_num : (0 : ℚ) ≤ 1)⟩
-
-/-- sqrt(x) ≤ max(x, 1) for all x ≥ 0 -/
-private theorem sqrt_le_max_one {x : ℝ} (hx : 0 ≤ x) : Real.sqrt x ≤ max x 1 := by
-  by_cases! h : x ≤ 1
-  · -- Case x ≤ 1: sqrt(x) ≤ 1 ≤ max(x, 1)
-    -- sqrt(x) ≤ 1 when x ≤ 1 because sqrt(x)^2 = x ≤ 1 and sqrt(x) ≥ 0
-    have hsqrt_le_one : Real.sqrt x ≤ 1 := by
-      rw [← Real.sqrt_one]
-      exact Real.sqrt_le_sqrt h
-    calc Real.sqrt x ≤ 1 := hsqrt_le_one
-      _ ≤ max x 1 := le_max_right x 1
-  · -- Case x > 1: sqrt(x) ≤ x = max(x, 1)
-    -- sqrt(x) ≤ x for x ≥ 1 follows from sqrt(x) * sqrt(x) = x and sqrt(x) ≥ 1
-    have h1 : 1 ≤ Real.sqrt x := by
-      rw [← Real.sqrt_one]
-      exact Real.sqrt_le_sqrt (le_of_lt h)
-    have hsqrt_le_x : Real.sqrt x ≤ x := by
-      calc Real.sqrt x = Real.sqrt x * 1 := by ring
-        _ ≤ Real.sqrt x * Real.sqrt x := mul_le_mul_of_nonneg_left h1 (Real.sqrt_nonneg x)
-        _ = x := by rw [← sq, Real.sq_sqrt hx]
-    calc Real.sqrt x ≤ x := hsqrt_le_x
-      _ ≤ max x 1 := le_max_left x 1
-
-/-- Soundness of interval sqrt: if x ∈ I, x ≥ 0, then Real.sqrt x ∈ sqrt I -/
-theorem mem_sqrt {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (hx_nn : 0 ≤ x) (prec : Int) :
-    Real.sqrt x ∈ sqrt I prec := by
-  simp only [sqrt, mem_def, Dyadic.max_toRat, Dyadic.toRat_ofInt]
-  have hz : Dyadic.zero.toRat = 0 := Dyadic.toRat_zero
-  constructor
-  · -- Lower bound: 0 ≤ sqrt(x)
-    simp only [hz, Rat.cast_zero]
-    exact Real.sqrt_nonneg x
-  · -- Upper bound: sqrt(x) ≤ max(hi, 1)
-    have hhi_ge : x ≤ (I.hi.toRat : ℝ) := hx.2
-    calc Real.sqrt x
-        ≤ max x 1 := sqrt_le_max_one hx_nn
-      _ ≤ max (I.hi.toRat : ℝ) 1 := max_le_max_right 1 hhi_ge
-      _ = (↑(max I.hi.toRat 1) : ℝ) := by simp [Rat.cast_max]
-
-/-- General soundness of interval sqrt for any real input.
-    Handles both non-negative inputs and negative inputs (where Real.sqrt returns 0). -/
-theorem mem_sqrt' {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (prec : Int) :
-    Real.sqrt x ∈ sqrt I prec := by
-  rcases le_or_gt 0 x with hx_nn | hx_neg
-  · -- Non-negative case
-    exact mem_sqrt hx hx_nn prec
-  · -- Negative case: sqrt(x) = 0 for x < 0
-    have hsqrt_zero : Real.sqrt x = 0 := Real.sqrt_eq_zero'.mpr (le_of_lt hx_neg)
-    simp only [sqrt, mem_def, Dyadic.max_toRat, Dyadic.toRat_ofInt, hsqrt_zero]
-    have hz : Dyadic.zero.toRat = 0 := Dyadic.toRat_zero
-    simp only [hz, Rat.cast_zero, Rat.cast_max]
-    constructor
-    · norm_num
-    · apply le_max_of_le_right
-      norm_num
-
 /-! ### Comparison and Containment -/
 
 /-- Check if interval contains zero -/
@@ -748,6 +673,32 @@ theorem mem_ofIntervalRat {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (prec : Int
         _ ≤ (⌈I.hi * (2 : ℚ) ^ (-prec).toNat⌉ : ℚ) * (2 : ℚ) ^ prec := by
             apply mul_le_mul_of_nonneg_right hceil (le_of_lt hzpow_pos)
     exact le_trans hx.2 (by exact_mod_cast hle)
+
+/-! ### Square Root -/
+
+/-- Precision-aware square root with outward-rounded dyadic endpoints.
+
+The existing rational endpoint algorithms use `(-prec).toNat` scaling bits.
+Conversion uses the nonpositive exponent `min prec 0`; a final outward round
+also handles positive requested exponents. Positive lower endpoints are
+preserved when the requested resolution permits it. Nonpositive inputs follow
+Mathlib's total `Real.sqrt` convention and map to zero. -/
+def sqrt (I : IntervalDyadic) (prec : Int := -53) : IntervalDyadic :=
+  (ofIntervalRat (IntervalRat.sqrtIntervalTightPrec I.toIntervalRat (-prec).toNat)
+    (min prec 0)).roundOut prec
+
+/-- Soundness of interval square root for every real input and every precision. -/
+theorem mem_sqrt' {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (prec : Int) :
+    Real.sqrt x ∈ sqrt I prec := by
+  exact roundOut_contains
+    (mem_ofIntervalRat
+      (IntervalRat.mem_sqrtIntervalTightPrec' (mem_toIntervalRat.mp hx) (-prec).toNat)
+      (min prec 0) (min_le_right _ _)) prec
+
+/-- Nonnegative-input specialization, preserving the existing caller contract. -/
+theorem mem_sqrt {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (hx_nn : 0 ≤ x) (prec : Int) :
+    Real.sqrt x ∈ sqrt I prec :=
+  mem_sqrt' hx prec
 
 end IntervalDyadic
 end LeanCert.Core

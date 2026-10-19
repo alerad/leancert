@@ -166,4 +166,26 @@ def testVec : IntervalVector := [
 -- All tests pass if this file compiles!
 #check "Transformer module tests passed!"
 
+/-! ### Square-root precision regression in the production LayerNorm caller
+
+For separated inputs, the positive denominator now avoids the epsilon-only
+reciprocal fallback. The existing near-equal-input case still loses correlations.
+These guards check computed outputs; `mem_layerNorm_forwardInterval` supplies the
+real-valued soundness contract, pinned to kernel trust in `Tests/TrustManifest`.
+-/
+
+private def separatedInput : IntervalVector := [
+  IntervalDyadic.singleton (LeanCert.Core.Dyadic.ofInt (-1)),
+  IntervalDyadic.singleton (LeanCert.Core.Dyadic.ofInt 1)
+]
+
+private def separatedResult := testLN2D.forwardInterval separatedInput
+#guard separatedResult.length = 2
+#guard (separatedResult[0]!).hi.toRat < -99 / 100
+#guard (separatedResult[0]!).hi.toRat - (separatedResult[0]!).lo.toRat < 1 / 1000000000000
+
+-- This regression deliberately records the correlation limitation.
+#guard ((testLNParams.forwardInterval testLNInput)[0]!).hi.toRat -
+    ((testLNParams.forwardInterval testLNInput)[0]!).lo.toRat > 100000
+
 end LeanCert.ML.Transformer.Test
