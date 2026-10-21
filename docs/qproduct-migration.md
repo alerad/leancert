@@ -1,7 +1,8 @@
 # QProduct extraction
 
-QProduct and ConstantFactory now live in a separate **leancert-qproduct**
-Lake project. LeanCert no longer imports, re-exports, builds, or tests that
+QProduct and ConstantFactory now live in a separate
+[**leancert-qproduct**](https://github.com/alerad/leancert-qproduct) Lake
+project. LeanCert no longer imports, re-exports, builds, or tests that
 application. Its mathematical proofs and certificate audits move with it.
 
 ## Import and namespace changes
@@ -23,8 +24,17 @@ Aliases formerly re-exported directly under `LeanCert` are no longer provided.
 
 Add the downstream package as a dependency before changing imports. Existing
 applications cannot obtain these declarations from `import LeanCert` alone.
-The new package's README documents the local two-checkout setup; a remote
-package revision must be pinned when the extracted repository is published.
+It requires LeanCert itself, so a downstream `lakefile.toml` needs only:
+
+```toml
+[[require]]
+name = "QProduct"
+git = "https://github.com/alerad/leancert-qproduct.git"
+rev = "main"
+```
+
+Its first release targets Lean/Mathlib 4.35.0 and pins LeanCert `v4.35.0`;
+keep your toolchain equal to the one it pins.
 
 ## Ownership
 
