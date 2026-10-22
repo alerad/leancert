@@ -60,23 +60,23 @@ open LeanCert.Engine
 
 /-! ## Test 3: IntervalDyadic.sqrt -/
 
--- sqrt of [0, 4] should contain [0, 2] but we use conservative [0, max(4, 1)] = [0, 4]
+-- Exact square endpoints: sqrt([0, 4]) = [0, 2]
 def testInterval1 : IntervalDyadic :=
   ⟨⟨0, 0⟩, ⟨4, 0⟩, by native_decide⟩
 
 def sqrtResult1 := IntervalDyadic.sqrt testInterval1
 
 #guard sqrtResult1.lo.toRat = 0  -- Lower bound is 0
-#guard sqrtResult1.hi.toRat ≥ 1  -- Upper bound is max(hi, 1) ≥ 1
+#guard sqrtResult1.hi.toRat = 2
 
--- sqrt of [1, 9] should give conservative bounds
+-- Positive lower endpoints survive at sufficient precision
 def testInterval2 : IntervalDyadic :=
   ⟨⟨1, 0⟩, ⟨9, 0⟩, by native_decide⟩
 
 def sqrtResult2 := IntervalDyadic.sqrt testInterval2
 
-#guard sqrtResult2.lo.toRat = 0  -- Conservative lower bound
-#guard sqrtResult2.hi.toRat = 9  -- max(9, 1) = 9
+#guard sqrtResult2.lo.toRat = 1
+#guard sqrtResult2.hi.toRat = 3
 
 -- sqrt of interval with small values [0, 1/2]
 def testInterval3 : IntervalDyadic :=
@@ -85,7 +85,7 @@ def testInterval3 : IntervalDyadic :=
 def sqrtResult3 := IntervalDyadic.sqrt testInterval3
 
 #guard sqrtResult3.lo.toRat = 0
-#guard sqrtResult3.hi.toRat = 1  -- max(0.5, 1) = 1
+#guard sqrtResult3.hi.toRat < 71 / 100
 
 /-! ## Test 4: Expr.sqrt constructor and evaluation -/
 
@@ -133,11 +133,10 @@ def sqrtEvalResult := LeanCert.Internal.Dyadic.evalUnchecked sqrtVarExpr testEnv
 -- The result should be a valid interval (lo ≤ hi)
 #guard sqrtEvalResult.lo.toRat ≤ sqrtEvalResult.hi.toRat
 
--- Lower bound should be 0 (conservative)
-#guard sqrtEvalResult.lo.toRat = 0
+-- The evaluator consumes the tighter primitive
+#guard sqrtEvalResult.lo.toRat = 1
 
--- Upper bound should be max(4, 1) = 4 (conservative)
-#guard sqrtEvalResult.hi.toRat = 4
+#guard sqrtEvalResult.hi.toRat = 2
 
 /-! ## Test 7: Composed expressions with sqrt -/
 
@@ -186,5 +185,63 @@ def mixedResult := LeanCert.Internal.Dyadic.evalUnchecked mixedExpr testEnv
 
 -- Verify eval_abs theorem exists
 #check @Expr.eval_abs
+
+/-! ## Test 11: Domain boundaries and precision
+
+These `#guard` checks exercise executable endpoints. Generic real membership
+and the production caller contracts are separately pinned in the trust manifest.
+-/
+
+private def ratInterval (lo hi : ℚ) (h : lo ≤ hi := by norm_num) : IntervalRat :=
+  ⟨lo, hi, h⟩
+
+#guard (IntervalRat.sqrtIntervalTightPrec (ratInterval (1/4) (1/4))).lo = 1/2
+#guard (IntervalRat.sqrtIntervalTightPrec (ratInterval (1/4) (1/4))).hi = 1/2
+#guard (IntervalRat.sqrtIntervalTightPrec (ratInterval (-4) (-1))).lo = 0
+#guard (IntervalRat.sqrtIntervalTightPrec (ratInterval (-4) (-1))).hi = 0
+#guard (IntervalRat.sqrtIntervalTightPrec (ratInterval (-1) 4)).lo = 0
+#guard (IntervalRat.sqrtIntervalTightPrec (ratInterval (-1) 4)).hi = 2
+#guard (IntervalRat.sqrtIntervalTightPrec (ratInterval 0 0)).hi = 0
+
+private def ratTwo := ratInterval 2 2
+#guard (IntervalRat.sqrtIntervalTightPrec ratTwo 16).hi -
+    (IntervalRat.sqrtIntervalTightPrec ratTwo 16).lo <
+  (IntervalRat.sqrtIntervalTightPrec ratTwo 8).hi -
+    (IntervalRat.sqrtIntervalTightPrec ratTwo 8).lo
+
+private def dyadicTwo := IntervalDyadic.singleton (LeanCert.Core.Dyadic.ofInt 2)
+#guard (IntervalDyadic.sqrt dyadicTwo (-16)).hi.toRat -
+    (IntervalDyadic.sqrt dyadicTwo (-16)).lo.toRat <
+  (IntervalDyadic.sqrt dyadicTwo (-8)).hi.toRat -
+    (IntervalDyadic.sqrt dyadicTwo (-8)).lo.toRat
+
+private def dyadicQuarter := IntervalDyadic.singleton ⟨1, -2⟩
+#guard (IntervalDyadic.sqrt dyadicQuarter (-16)).lo.toRat = 1/2
+#guard (IntervalDyadic.sqrt dyadicQuarter (-16)).hi.toRat = 1/2
+#guard (IntervalDyadic.sqrt (IntervalDyadic.singleton (LeanCert.Core.Dyadic.ofInt (-4)))).hi.toRat = 0
+#guard (IntervalDyadic.sqrt (IntervalDyadic.singleton LeanCert.Core.Dyadic.zero)).hi.toRat = 0
+
+-- Positive precision is handled by outward rounding to a coarser lattice.
+#guard (IntervalDyadic.sqrt testInterval2 2).lo.toRat = 0
+#guard (IntervalDyadic.sqrt testInterval2 2).hi.toRat = 4
+
+-- Very small positive values can round down to zero at coarse precision.
+private def tiny := IntervalDyadic.singleton ⟨1, -80⟩
+#guard (IntervalDyadic.sqrt tiny (-53)).lo.toRat > 0
+#guard (IntervalDyadic.sqrt tiny (-10)).lo.toRat = 0
+
+-- The unrestricted real-membership contract is preserved, including prec > 0.
+example {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (prec : Int) :
+    Real.sqrt x ∈ IntervalDyadic.sqrt I prec := IntervalDyadic.mem_sqrt' hx prec
+
+/-! ## Test 12: The checked public evaluators return the tighter enclosure -/
+
+private def checkedQuarter (backend : LeanCert.BackendChoice) : Bool :=
+  match LeanCert.evalInterval (.sqrt (.var 0)) [ratInterval (1/4) (1/4)] { backend } with
+  | .ok outcome => decide (outcome.interval.lo = 1/2 ∧ outcome.interval.hi = 1/2)
+  | .error _ => false
+
+#guard checkedQuarter .rational
+#guard checkedQuarter .dyadic
 
 end LeanCert.Test.SqrtTest

@@ -158,3 +158,10 @@ depending on native trust, the pins below fail and should be tightened to
 #assert_trust kernel LeanCert.Analysis.DBN.normalizedHeat_sub_series_tendsto
 #assert_trust kernel LeanCert.Analysis.DBN.normalizedHeatApproximation
 #assert_trust kernel LeanCert.Analysis.DBN.Lambda_nonneg
+
+/-! ## Precision-aware square-root values and their production caller -/
+
+#assert_trust kernel LeanCert.Core.IntervalRat.mem_sqrtIntervalTightPrec'
+#assert_trust kernel LeanCert.Core.IntervalDyadic.mem_sqrt'
+#assert_trust kernel LeanCert.Core.IntervalDyadic.mem_sqrt
+#assert_trust kernel LeanCert.ML.Transformer.mem_layerNorm_forwardInterval
