@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
 import LeanCert.Benchmark.Harness
-import LeanCert.Engine.AD.Dyadic
+import LeanCert.API.AD
 
 /-! Benchmarks for checked reciprocal/logarithm automatic differentiation. -/
 
@@ -76,6 +76,47 @@ private def deepDyadicRun : IO Outcome := do
   | .error err =>
       return { status := "error", error := some s!"{repr err}", backendUsed := some "dyadic" }
 
+private def rootExpression (direct : Bool) (a : Expr) : Expr :=
+  if direct then .sqrt a else .exp (.mul (.const (1 / 2)) (.log a))
+
+private def normalizationArg : Expr := .add (.const 1) (.mul (.var 0) (.var 0))
+private def recurrenceArg : Expr := .inv (.add (.const 4) (.neg (.mul (.const 6) (.var 0))))
+private def recurrenceBox : IntervalRat := ⟨0, 1 / 1500000, by norm_num⟩
+
+private def sqrtPublicRun (e : Expr) (box : IntervalRat) (backend : BackendChoice) : IO Outcome := do
+  let I ← chooseInterval box
+  match evalWithDerivative e [I] 0 { backend := backend } with
+  | .ok result =>
+      return {
+        status := "success"
+        interval := some result.derivative
+        backendUsed := some (if result.backend == .rational then "rational" else "dyadic") }
+  | .error err => return { status := "error", error := some s!"{repr err}" }
+
+/-- Matched public-API workloads, using the existing log/exp route as the baseline. -/
+private def sqrtCases : List Case :=
+  ([false, true].flatMap fun direct =>
+    ([ ("rational", BackendChoice.rational), ("dyadic", BackendChoice.dyadic) ].flatMap
+      fun (backendName, backend) =>
+        [false, true].map fun recurrence =>
+          let route := if direct then "direct" else "log_exp"
+          let workload := if recurrence then "recurrence" else "normalization"
+          let e : Expr := if recurrence then .neg (rootExpression direct recurrenceArg)
+                   else rootExpression direct normalizationArg
+          let I := if recurrence then recurrenceBox else positive
+          { name := s!"ad.sqrt.{workload}.{backendName}.{route}"
+            family := "automatic_differentiation"
+            layer := .checkedAPI
+            backendRequested := backendName
+            suites := ["ad", "full", "all"]
+            parameters := [("route", route), ("domain", if recurrence then "[0,1/1500000]" else "[1,2]"),
+              ("taylor_depth", "10"), ("dyadic_precision", "-53"), ("rational_sqrt_bits", "20")]
+            input := { astNodes := (if recurrence then 9 else 6) + (if direct then 0 else 3),
+                       astDepth := (if recurrence then 7 else 4) + (if direct then 0 else 2),
+                       variableCount := 1 }
+            innerIterations := 3
+            run := sqrtPublicRun e I backend }))
+
 def cases : List Case := [
   {
     name := "ad.inv_log_nested.unchecked"
@@ -146,6 +187,6 @@ def cases : List Case := [
     innerIterations := 5
     run := deepDyadicRun
   }
-]
+] ++ sqrtCases
 
 end LeanCert.Benchmark.DomainAwareAD

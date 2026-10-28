@@ -305,7 +305,8 @@ private def discoveryTermination (result : GlobalResult)
   else .stopped
 
 private partial def evalErrorIsDomain : EvalError → Bool
-  | .reciprocalContainsZero _ | .logNonpositive _ | .atanhOutsideUnitBall _ => true
+  | .reciprocalContainsZero _ | .logNonpositive _ | .atanhOutsideUnitBall _ |
+      .sqrtNonpositive _ | .sqrtLowerBoundZero _ => true
   | .nestedFailure _ cause => evalErrorIsDomain cause
   | _ => false
 
