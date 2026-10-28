@@ -10,7 +10,7 @@ import LeanCert.Engine.Eval.Result
 # Computable domain-aware automatic differentiation
 
 This module extends LeanCert's computable forward-mode AD path with checked
-reciprocal and logarithm nodes.  The existing `ADSupported` fragment remains
+reciprocal, logarithm and square-root nodes.  The existing `ADSupported` fragment remains
 the domain-free fast path.  Here, successful evaluation itself certifies both
 syntactic support and every partial-domain side condition.
 -/
@@ -20,7 +20,7 @@ namespace LeanCert.Engine
 open LeanCert.Core
 
 /-- The computable domain-aware AD fragment.  Unlike `ADSupported`, this is a
-box-dependent check because reciprocal and logarithm have partial domains. -/
+box-dependent check because reciprocal, logarithm and square-root derivatives have domain conditions. -/
 def checkADDomain (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : Bool :=
   match e with
   | .const _ | .var _ => true
@@ -34,6 +34,11 @@ def checkADDomain (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : Bool :=
       checkADDomain a ρ cfg &&
         decide (IntervalRat.isPositive
           (LeanCert.Internal.AD.evalTotalCore a ρ cfg).val)
+  | .sqrt a =>
+      checkADDomain a ρ cfg && decide
+        (0 < (LeanCert.Internal.AD.evalTotalCore a ρ cfg).val.lo ∧
+         0 < (IntervalRat.sqrtIntervalTightPrec
+           (LeanCert.Internal.AD.evalTotalCore a ρ cfg).val).lo)
   | _ => false
 
 /-- Best-effort structured explanation for a failed domain-aware AD check. -/
@@ -56,12 +61,19 @@ def diagnoseADDomainFailure (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) :
         .logNonpositive (LeanCert.Internal.AD.evalTotalCore a ρ cfg).val
       else
         .nestedFailure "logarithm operand" (diagnoseADDomainFailure a ρ cfg)
+  | .sqrt a =>
+      if checkADDomain a ρ cfg then
+        let I := (LeanCert.Internal.AD.evalTotalCore a ρ cfg).val
+        if 0 < I.lo then .sqrtLowerBoundZero (IntervalRat.sqrtIntervalTightPrec I)
+        else .sqrtNonpositive I
+      else .nestedFailure "square-root operand" (diagnoseADDomainFailure a ρ cfg)
   | .const _ | .var _ => .invalidConfiguration "successful AD expression diagnosed as failure"
   | _ => .unsupportedFeature "domain-aware automatic differentiation"
 
 /-- Computable checked dual evaluation.  No finite derivative enclosure is
 returned unless every reciprocal denominator excludes zero and every logarithm
-argument is strictly positive on the input box. -/
+argument is strictly positive on the input box. Square-root derivatives also
+require the computed root lower endpoint to stay strictly positive. -/
 def evalDualChecked (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) :
     EvalResult DualInterval :=
   if checkADDomain e ρ cfg then
@@ -142,7 +154,10 @@ private theorem evalTotalCore_val_correct_of_check (e : Expr)
   | log a ih =>
       simp only [checkADDomain, Bool.and_eq_true, decide_eq_true_eq] at hcheck
       exact IntervalRat.mem_logComputable (ih hcheck.1) hcheck.2 cfg.taylorDepth
-  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | sqrt | namedConst =>
+  | sqrt a ih =>
+      simp only [checkADDomain, Bool.and_eq_true, decide_eq_true_eq] at hcheck
+      exact IntervalRat.mem_sqrtIntervalTightPrec' (ih hcheck.1)
+  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | namedConst =>
       simp [checkADDomain] at hcheck
 
 /-- Successful checked dual evaluation encloses the expression value for every
@@ -206,7 +221,15 @@ private theorem evalAlong_differentiableAt_of_check (e : Expr)
         rw [Expr.evalAlong_eq]
         exact lt_of_lt_of_le (by exact_mod_cast hcheck.2) hval.1
       exact (Real.differentiableAt_log (ne_of_gt hpos)).comp x (ih hcheck.1)
-  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | sqrt | namedConst =>
+  | sqrt a ih =>
+      simp only [checkADDomain, Bool.and_eq_true, decide_eq_true_eq] at hcheck
+      have hval := evalTotalCore_val_correct_of_check a (Expr.updateVar ρReal idx x)
+        (mkDualEnv ρInt idx) cfg hmem hcheck.1
+      have hpos : 0 < Expr.evalAlong a ρReal idx x := by
+        rw [Expr.evalAlong_eq]
+        exact lt_of_lt_of_le (by exact_mod_cast hcheck.2.1) hval.1
+      exact (ih hcheck.1).sqrt (ne_of_gt hpos)
+  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | namedConst =>
       simp [checkADDomain] at hcheck
 
 /-- A successful checked evaluation proves differentiability at every point in
@@ -338,7 +361,26 @@ private theorem evalTotalCore_der_correct_idx_of_check (e : Expr)
         exact (not_lt_of_ge hz.1) hcheck.2
       have hinv := mem_invInterval_nonzero hval' (not_containsZero_cases hnz)
       exact IntervalRat.mem_mul hinv hder
-  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | sqrt | namedConst =>
+  | sqrt a ih =>
+      simp only [checkADDomain, Bool.and_eq_true, decide_eq_true_eq] at hcheck
+      have hval := evalTotalCore_val_correct_of_check a (Expr.updateVar ρReal idx x)
+        (mkDualEnv ρInt idx) cfg hmem hcheck.1
+      have hval' : Expr.evalAlong a ρReal idx x ∈
+          (LeanCert.Internal.AD.evalTotalCore a (mkDualEnv ρInt idx) cfg).val := hval
+      have hpos : 0 < Expr.evalAlong a ρReal idx x :=
+        lt_of_lt_of_le (by exact_mod_cast hcheck.2.1) hval'.1
+      have hd := evalAlong_differentiableAt_of_check a ρReal ρInt idx cfg x hx hρ hcheck.1
+      have hderiv := hd.hasDerivAt.sqrt (ne_of_gt hpos)
+      change deriv (fun t => Real.sqrt (Expr.evalAlong a ρReal idx t)) x ∈ _
+      rw [hderiv.deriv]
+      have hs := IntervalRat.mem_sqrtIntervalTightPrec' hval'
+      have hinv := mem_invInterval_nonzero hs (Or.inl hcheck.2.2)
+      have hhalf : (1 / 2 : ℝ) ∈ IntervalRat.singleton (1 / 2) := by
+        simpa using IntervalRat.mem_singleton (1 / 2)
+      change _ ∈ IntervalRat.mul _ (IntervalRat.mul (IntervalRat.singleton (1 / 2)) _)
+      convert IntervalRat.mem_mul (ih hcheck.1) (IntervalRat.mem_mul hhalf hinv) using 1
+      ring
+  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | namedConst =>
       simp [checkADDomain] at hcheck
 
 /-- Successful checked indexed AD encloses the true partial derivative. -/

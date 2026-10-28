@@ -77,6 +77,10 @@ lake exe leancert-bench --suite evaluation
 # Compare checked Rational and Dyadic AD, including denominator growth
 lake exe leancert-bench --suite ad --samples 15 --warmups 3
 
+# Compare direct checked sqrt derivatives with exp(log(x)/2)
+lake exe leancert-bench \
+  --suite ad --case ad.sqrt --samples 15 --warmups 3 --format jsonl
+
 # Run the moderately larger explicit-backend matrix
 lake exe leancert-bench --suite heavy
 
@@ -141,6 +145,17 @@ together with:
 - AST node count, depth, and variable arity;
 - requested and selected backend;
 - benchmark parameters and inner iteration count.
+
+The `ad.sqrt` family compares the public derivative API on `sqrt(1+x*x)`
+over `[1,2]` and `-sqrt(1/(4-6*h))` over `[0,1/1500000]`, with both Rational
+and Dyadic backends. The comparison rewrites each square root as
+`exp(log(x)/2)` on the same positive input and reports the derivative interval.
+Both routes use the default Taylor depth of 10; the Rational square-root
+enclosure uses its default 20-bit scale, and Dyadic uses exponent `-53`.
+These are comparisons at matching API defaults, not at matching output
+accuracy. Changing the Taylor depth or precision can change both enclosure
+widths and costs. The two development workloads do not establish a general
+performance result.
 
 The `end-to-end` tier measures the checked computational algorithm underlying
 the expensive Li₂ theorem, not compilation of the theorem itself. The harness

@@ -82,6 +82,14 @@ def tanhCore (d : DualInterval) (_n : ℕ := 10) : DualInterval :=
     -- tanh'(x) = sech²(x) ∈ (0, 1], use [0, 1] as bound
     der := IntervalRat.mul d.der ⟨0, 1, by norm_num⟩ }
 
+/-- Direct square-root dual kernel. Checked callers require positive input and
+root lower endpoints before using the reciprocal derivative coefficient. -/
+def sqrtCore (d : DualInterval) : DualInterval :=
+  let s := IntervalRat.sqrtIntervalTightPrec d.val
+  { val := s
+    der := IntervalRat.mul d.der
+      (IntervalRat.mul (IntervalRat.singleton (1 / 2)) (invInterval s)) }
+
 end DualInterval
 
 end LeanCert.Engine
@@ -119,7 +127,7 @@ def evalTotalCore (e : Expr) (ρ : DualEnv) (cfg : EvalConfig := {}) : DualInter
   | Expr.sinh e => DualInterval.sinhCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.cosh e => DualInterval.coshCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.tanh e => DualInterval.tanhCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg) cfg.taylorDepth
-  | Expr.sqrt e => DualInterval.sqrt (LeanCert.Internal.AD.evalTotalCore e ρ cfg)
+  | Expr.sqrt e => DualInterval.sqrtCore (LeanCert.Internal.AD.evalTotalCore e ρ cfg)
   | Expr.namedConst c => DualInterval.ofMathConst c
 
 end LeanCert.Internal.AD
@@ -200,8 +208,8 @@ theorem evalDualTotalCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
     exact IntervalRat.mem_expComputable (ih hdom) cfg.taylorDepth
   | sqrt _ ih =>
     simp only [evalDomainValidDual] at hdom
-    simp only [Expr.eval_sqrt, LeanCert.Internal.AD.evalTotalCore, DualInterval.sqrt]
-    exact IntervalRat.mem_sqrtInterval' (ih hdom)
+    simp only [Expr.eval_sqrt, LeanCert.Internal.AD.evalTotalCore, DualInterval.sqrtCore]
+    exact IntervalRat.mem_sqrtIntervalTightPrec' (ih hdom)
   | sinh _ ih =>
     simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_sinh, LeanCert.Internal.AD.evalTotalCore, DualInterval.sinhCore]

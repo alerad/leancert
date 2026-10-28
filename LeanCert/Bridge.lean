@@ -120,6 +120,10 @@ def evalErrorToJson : EvalError → Json
   | .logNonpositive I => Json.mkObj [
       ("kind", "log_nonpositive"),
       ("interval", toJson (toRawInterval I))]
+  | .sqrtNonpositive I => Json.mkObj [
+      ("kind", "sqrt_nonpositive"), ("interval", toJson (toRawInterval I))]
+  | .sqrtLowerBoundZero I => Json.mkObj [
+      ("kind", "sqrt_lower_bound_zero"), ("interval", toJson (toRawInterval I))]
   | .atanhOutsideUnitBall I => Json.mkObj [
       ("kind", "atanh_outside_unit_ball"),
       ("interval", toJson (toRawInterval I))]

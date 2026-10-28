@@ -54,8 +54,7 @@ def invalidPrecision {T : Type} (result : EvalResult T) : Bool :=
   .error (.logNonpositive nonpositive)
 #guard derivIntervalChecked (.log reciprocal) crossesZeroEnv 0 =
   .error (.nestedFailure "logarithm operand" (.reciprocalContainsZero crossesZero))
-#guard derivIntervalChecked (.sqrt (.var 0)) positiveEnv 0 =
-  .error (.unsupportedFeature "domain-aware automatic differentiation")
+#guard succeeds (derivIntervalChecked (.sqrt (.var 0)) positiveEnv 0)
 
 example (D : DualInterval) (x : ℝ) (hx : x ∈ positive)
     (hok : evalWithDerivChecked nested positiveEnv 0 {} = .ok D) :
@@ -102,7 +101,7 @@ def crossesZeroDyadicEnv : IntervalDyadicEnv := fun _ => crossesZeroDyadic
 #guard !succeeds (derivIntervalDyadicChecked logarithm negativeDyadicEnv 0)
 #guard invalidPrecision
   (derivIntervalDyadicChecked reciprocal positiveDyadicEnv 0 { precision := 1 })
-#guard !succeeds (derivIntervalDyadicChecked (.sqrt (.var 0)) positiveDyadicEnv 0)
+#guard succeeds (derivIntervalDyadicChecked (.sqrt (.var 0)) positiveDyadicEnv 0)
 
 example (D : DualIntervalDyadic) (x : ℝ) (hx : x ∈ positiveDyadic)
     (hok : evalWithDerivDyadicChecked nested positiveDyadicEnv 0 {} = .ok D) :
