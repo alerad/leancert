@@ -553,57 +553,44 @@ theorem sqrt_le_sqrtRatUpperPrec {q : ℚ} (hq : 0 ≤ q) (k : Nat) :
         _ ≤ (s + 1 : ℕ) / (den * 2 ^ k) :=
             div_le_div_of_nonneg_right (le_of_lt hsqrt_lt) (le_of_lt hden2k_pos)
 
-/-- High-precision square root interval.
-    For a non-negative interval [lo, hi] with lo ≥ 0:
-    - Lower bound: sqrtRatLowerPrec(lo)
-    - Upper bound: sqrtRatUpperPrec(hi)
+/-- Extend the lower endpoint bound to Mathlib's total real square root. -/
+private theorem sqrtRatLowerPrec_le_sqrt_total (q : ℚ) (k : Nat) :
+    (sqrtRatLowerPrec q k : ℝ) ≤ Real.sqrt q := by
+  by_cases h : 0 ≤ q
+  · exact sqrtRatLowerPrec_le_sqrt h k
+  · simp [sqrtRatLowerPrec, le_of_not_ge h, Real.sqrt_nonneg]
 
-    Uses scaling to achieve ~6 decimal digits of precision. -/
-def sqrtIntervalTightPrec (I : IntervalRat) : IntervalRat :=
-  if h : 0 ≤ I.lo then
-    ⟨sqrtRatLowerPrec I.lo, max (sqrtRatUpperPrec I.hi) 1,
-     by
-       simp only [le_max_iff]
-       left
-       have hlo_le_hi : I.lo ≤ I.hi := I.le
-       have h1 : (sqrtRatLowerPrec I.lo : ℝ) ≤ Real.sqrt I.lo := sqrtRatLowerPrec_le_sqrt h sqrtScaleBits
-       have h2 : Real.sqrt I.hi ≤ (sqrtRatUpperPrec I.hi : ℝ) :=
-         sqrt_le_sqrtRatUpperPrec (le_trans h hlo_le_hi) sqrtScaleBits
-       have h3 : Real.sqrt I.lo ≤ Real.sqrt I.hi := Real.sqrt_le_sqrt (by exact_mod_cast hlo_le_hi)
-       have h4 : (sqrtRatLowerPrec I.lo : ℝ) ≤ (sqrtRatUpperPrec I.hi : ℝ) := le_trans h1 (le_trans h3 h2)
-       exact_mod_cast h4⟩
-  else
-    ⟨0, max (sqrtRatUpperPrec I.hi) 1, le_sup_of_le_right rfl⟩
+/-- Extend the upper endpoint bound to Mathlib's total real square root. -/
+private theorem sqrt_le_sqrtRatUpperPrec_total (q : ℚ) (k : Nat) :
+    Real.sqrt q ≤ (sqrtRatUpperPrec q k : ℝ) := by
+  by_cases h : 0 ≤ q
+  · exact sqrt_le_sqrtRatUpperPrec h k
+  · have hq : q ≤ 0 := le_of_not_ge h
+    have hr : (q : ℝ) ≤ 0 := by exact_mod_cast hq
+    simp [sqrtRatUpperPrec, hq, Real.sqrt_eq_zero_of_nonpos hr]
 
-/-- Membership theorem for sqrtIntervalTightPrec -/
-theorem mem_sqrtIntervalTightPrec' {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
-    Real.sqrt x ∈ sqrtIntervalTightPrec I := by
-  simp only [sqrtIntervalTightPrec, mem_def]
-  split_ifs with h
-  · -- lo ≥ 0: use tight bounds
-    constructor
-    · calc (sqrtRatLowerPrec I.lo : ℝ) ≤ Real.sqrt I.lo := sqrtRatLowerPrec_le_sqrt h sqrtScaleBits
-        _ ≤ Real.sqrt x := Real.sqrt_le_sqrt hx.1
-    · simp only [Rat.cast_max, Rat.cast_one]
-      calc Real.sqrt x ≤ Real.sqrt I.hi := Real.sqrt_le_sqrt hx.2
-        _ ≤ (sqrtRatUpperPrec I.hi : ℝ) := sqrt_le_sqrtRatUpperPrec (le_trans h I.le) sqrtScaleBits
-        _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_left _ _
-  · -- lo < 0: use 0 as lower bound
-    push Not at h
-    simp only [Rat.cast_zero, Rat.cast_max, Rat.cast_one]
-    constructor
-    · exact Real.sqrt_nonneg x
-    · -- sqrt(x) ≤ max(sqrtRatUpperPrec I.hi, 1)
-      by_cases! hhi_neg : I.hi < 0
-      · -- If hi < 0, then x ≤ I.hi < 0, but sqrt(x) ≥ 0, so sqrt(x) ≤ 1 ≤ max(_, 1)
-        have hx_neg : x < 0 := lt_of_le_of_lt hx.2 (by exact_mod_cast hhi_neg)
-        have hsqrt_zero : Real.sqrt x = 0 := Real.sqrt_eq_zero'.mpr (le_of_lt hx_neg)
-        rw [hsqrt_zero]
-        calc (0 : ℝ) ≤ 1 := by norm_num
-          _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_right _ _
-      · calc Real.sqrt x ≤ Real.sqrt I.hi := Real.sqrt_le_sqrt hx.2
-          _ ≤ (sqrtRatUpperPrec I.hi : ℝ) := sqrt_le_sqrtRatUpperPrec hhi_neg sqrtScaleBits
-          _ ≤ max (sqrtRatUpperPrec I.hi : ℝ) 1 := le_max_left _ _
+/-- Precision-aware square-root enclosure using the existing scaled integer
+square-root endpoints. The default is 20 scaling bits. Nonpositive endpoints
+map to zero, matching `Real.sqrt`; an entirely nonpositive interval maps to
+`[0, 0]`. No artificial upper floor at one is imposed. -/
+def sqrtIntervalTightPrec (I : IntervalRat) (scaleBits : Nat := sqrtScaleBits) :
+    IntervalRat :=
+  ⟨sqrtRatLowerPrec I.lo scaleBits, sqrtRatUpperPrec I.hi scaleBits, by
+    have hlo := sqrtRatLowerPrec_le_sqrt_total I.lo scaleBits
+    have hhi := sqrt_le_sqrtRatUpperPrec_total I.hi scaleBits
+    have hmono := Real.sqrt_le_sqrt (show (I.lo : ℝ) ≤ I.hi by exact_mod_cast I.le)
+    exact_mod_cast hlo.trans (hmono.trans hhi)⟩
+
+/-- Membership in the precision-aware square-root enclosure, including
+negative inputs under Mathlib's total `Real.sqrt` convention. -/
+theorem mem_sqrtIntervalTightPrec' {x : ℝ} {I : IntervalRat} (hx : x ∈ I)
+    (scaleBits : Nat := sqrtScaleBits) :
+    Real.sqrt x ∈ sqrtIntervalTightPrec I scaleBits := by
+  constructor
+  · exact (sqrtRatLowerPrec_le_sqrt_total I.lo scaleBits).trans
+      (Real.sqrt_le_sqrt hx.1)
+  · exact (Real.sqrt_le_sqrt hx.2).trans
+      (sqrt_le_sqrtRatUpperPrec_total I.hi scaleBits)
 
 /-- Helper: sqrt(x) ≤ max(x, 1) for x ≥ 0 -/
 private theorem sqrt_le_max_one {x : ℝ} (hx : 0 ≤ x) : Real.sqrt x ≤ max x 1 := by

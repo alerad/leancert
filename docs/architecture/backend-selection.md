@@ -135,6 +135,26 @@ report a domain failure. The former total `CoreDiv` helpers were removed
 because their return type could not distinguish a certified enclosure from a
 finite heuristic fallback.
 
+## Square-root value precision
+
+The Rational square-root enclosure uses scaled integer square-root bounds with
+20 scaling bits by default. Advanced callers of
+`IntervalRat.sqrtIntervalTightPrec` can choose the scaling-bit count directly.
+The Dyadic square-root enclosure derives that count from the requested exponent
+and rounds both endpoints outward. For example, at the default precision the
+square root of `[1, 9]` is enclosed by `[1, 3]`, and the square root of `[1/4, 1/4]`
+by `[1/2, 1/2]`.
+
+At the primitive level, nonpositive inputs map to zero, matching Mathlib's total
+`Real.sqrt` convention. A positive lower endpoint may still round down to zero
+when the requested resolution is too coarse. Preserving it when possible helps
+callers such as LayerNorm avoid loose reciprocal fallbacks. It does not recover
+correlations lost earlier in interval evaluation.
+
+These are value enclosures. Checked square-root automatic differentiation remains
+unsupported; improving value precision does not change derivative capabilities
+or the checked evaluators' domain and configuration policies.
+
 ## Options
 
 The common JSON options are:
