@@ -8,6 +8,9 @@ import LeanCert.Core.Support
 import LeanCert.Core.IntervalReal
 import LeanCert.Core.IntervalRealEndpoints
 import LeanCert.Core.IntervalRat.TrigReduced
+import LeanCert.Core.IntervalRat.Arctan
+import LeanCert.Core.IntervalRat.Derived
+import LeanCert.Core.IntervalRat.Erf
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
@@ -80,30 +83,20 @@ theorem mem_cosInterval {x : ℝ} {I : IntervalRat} (_hx : x ∈ I) :
   simp only [Rat.cast_neg, Rat.cast_one]
   exact h
 
-/-- Simple interval bound for atan.
-    Since atan x ∈ (-π/2, π/2) for all x, we use the global bound [-2, 2].
-    This is sound but not tight (π/2 ≈ 1.57). -/
-def atanInterval (_I : IntervalRat) : IntervalRat :=
-  ⟨-2, 2, by norm_num⟩
+/-- Interval bound for atan: Maclaurin series with argument reduction
+    (see `IntervalRat.arctanComputable`), at 15 series terms. -/
+def atanInterval (I : IntervalRat) : IntervalRat :=
+  IntervalRat.arctanComputable I 15
 
-/-- Correctness of atan interval: arctan x ∈ [-2, 2] for all x -/
-theorem mem_atanInterval {x : ℝ} {I : IntervalRat} (_hx : x ∈ I) :
-    Real.arctan x ∈ atanInterval I := by
-  simp only [IntervalRat.mem_def, atanInterval, Rat.cast_neg, Rat.cast_ofNat]
-  -- arctan x ∈ (-π/2, π/2), and π/2 < 2 since π < 4
-  have h_lo : Real.arctan x > -Real.pi / 2 := by
-    have := Real.neg_pi_div_two_lt_arctan x; linarith
-  have h_hi : Real.arctan x < Real.pi / 2 := Real.arctan_lt_pi_div_two x
-  have hpi_lt_four : Real.pi < 4 := Real.pi_lt_four
-  have hpi_lo : -Real.pi / 2 > (-2 : ℝ) := by linarith
-  have hpi_hi : Real.pi / 2 < (2 : ℝ) := by linarith
-  constructor <;> linarith
+/-- Correctness of the atan interval. -/
+theorem mem_atanInterval {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
+    Real.arctan x ∈ atanInterval I :=
+  IntervalRat.mem_arctanComputable hx 15
 
-/-- Interval bound for erf using computable Taylor series.
-    erf(x) = (2/√π) * ∫₀ˣ exp(-t²) dt, strictly monotone increasing.
-    This computes tight bounds using verified Taylor series. -/
+/-- Interval bound for erf: alternating Gaussian series integrated over `[0, x]`,
+    with monotonicity and oddness (see `IntervalRat.erfTight`). -/
 def erfInterval (I : IntervalRat) (taylorDepth : ℕ := 15) : IntervalRat :=
-  IntervalRat.erfComputable I taylorDepth
+  IntervalRat.erfTight I taylorDepth
 
 /-- Helper: The integral of exp(-t²) over (a, b] is positive when a < b.
     This follows from exp(-t²) > 0 and the interval having positive measure. -/
@@ -219,121 +212,20 @@ theorem mem_erfPointComputable (q : ℚ) (n : ℕ) :
         simpa [Real.erf] using le_of_lt herf0_lt
       exact ⟨herf_nonneg, (abs_le.mp h_abs1).2, (abs_le.mp h_abs2).2⟩
 
-/-- Correctness of erf interval using monotonicity and endpoint evaluation.
-
-    Since erf is strictly monotone increasing:
-    - For x ∈ [I.lo, I.hi], we have erf(I.lo) ≤ erf(x) ≤ erf(I.hi)
-    - erfPointComputable(I.lo) contains erf(I.lo)
-    - erfPointComputable(I.hi) contains erf(I.hi)
-    - hull of these intervals contains [erf(I.lo), erf(I.hi)]
-    - Therefore erf(x) ∈ hull(...) ∩ [-1, 1] -/
+/-- Correctness of the erf interval. -/
 theorem mem_erfInterval {x : ℝ} {I : IntervalRat} (hx : x ∈ I) (n : ℕ := 15) :
-    Real.erf x ∈ erfInterval I n := by
-  unfold erfInterval IntervalRat.erfComputable
-  simp only []
-  -- Get membership in endpoint intervals
-  have hlo_mem := mem_erfPointComputable I.lo n
-  have hhi_mem := mem_erfPointComputable I.hi n
-  -- Use monotonicity
-  have hx_bounds := hx
-  rw [IntervalRat.mem_def] at hx_bounds
-  have herf_lo : Real.erf I.lo ≤ Real.erf x :=
-    Real.strictMono_erf.monotone hx_bounds.1
-  have herf_hi : Real.erf x ≤ Real.erf I.hi :=
-    Real.strictMono_erf.monotone hx_bounds.2
-  -- erf x is in hull of endpoint intervals
-  have h_in_hull : Real.erf x ∈ IntervalRat.hull
-      (IntervalRat.erfPointComputable I.lo n) (IntervalRat.erfPointComputable I.hi n) := by
-    rw [IntervalRat.mem_def] at hlo_mem hhi_mem ⊢
-    unfold IntervalRat.hull
-    simp only []
-    constructor
-    · calc (↑(min (IntervalRat.erfPointComputable I.lo n).lo
-              (IntervalRat.erfPointComputable I.hi n).lo) : ℝ)
-          ≤ (IntervalRat.erfPointComputable I.lo n).lo := by
-            simp only [Rat.cast_min]; exact min_le_left _ _
-        _ ≤ Real.erf I.lo := hlo_mem.1
-        _ ≤ Real.erf x := herf_lo
-    · calc Real.erf x
-          ≤ Real.erf I.hi := herf_hi
-        _ ≤ (IntervalRat.erfPointComputable I.hi n).hi := hhi_mem.2
-        _ ≤ (↑(max (IntervalRat.erfPointComputable I.lo n).hi
-              (IntervalRat.erfPointComputable I.hi n).hi) : ℝ) := by
-            simp only [Rat.cast_max]; exact le_max_right _ _
-  -- erf x is in [-1, 1]
-  have h_global : Real.erf x ∈ ({lo := -1, hi := 1, le := by norm_num} : IntervalRat) := by
-    simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-    exact Real.erf_mem_Icc x
-  -- Combine via case analysis on intersection result
-  set erfLo := IntervalRat.erfPointComputable I.lo n
-  set erfHi := IntervalRat.erfPointComputable I.hi n
-  set raw := erfLo.hull erfHi
-  set globalBound : IntervalRat := ⟨-1, 1, by norm_num⟩
-  -- Use mem_intersect which says: if x ∈ I and x ∈ J, then ∃ K, intersect I J = some K ∧ x ∈ K
-  have ⟨K, hK_eq, hK_mem⟩ := IntervalRat.mem_intersect h_in_hull h_global
-  simp only [hK_eq]
-  exact hK_mem
+    Real.erf x ∈ erfInterval I n :=
+  IntervalRat.mem_erfTight hx n
 
-/-- Simple interval bound for arsinh.
-    arsinh is unbounded, so we use a very rough linear bound.
-    We use max(|lo|, |hi|) + 1 as a safe bound that always works. -/
+/-- Interval bound for arsinh: `log (x + √(1 + x²))` with monotonicity
+    (see `IntervalRat.arsinhComputable`), at 20 Taylor terms. -/
 def arsinhInterval (I : IntervalRat) : IntervalRat :=
-  let bound := max (abs I.lo) (abs I.hi) + 1
-  ⟨-bound, bound, by
-    have h1 : (0 : ℚ) ≤ |I.lo| := abs_nonneg I.lo
-    have h2 : |I.lo| ≤ |I.lo| ⊔ |I.hi| := le_max_left _ _
-    have h3 : (0 : ℚ) ≤ |I.lo| ⊔ |I.hi| := le_trans h1 h2
-    have h4 : (0 : ℚ) ≤ |I.lo| ⊔ |I.hi| + 1 := by linarith
-    have h5 : -(|I.lo| ⊔ |I.hi| + 1) ≤ |I.lo| ⊔ |I.hi| + 1 := by linarith
-    exact h5⟩
+  IntervalRat.arsinhComputable I 20
 
-/-- Correctness of arsinh interval.
-    Uses the bound |arsinh x| ≤ |x| for all x (from IntervalRealEndpoints). -/
+/-- Correctness of the arsinh interval. -/
 theorem mem_arsinhInterval {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
-    Real.arsinh x ∈ arsinhInterval I := by
-  simp only [IntervalRat.mem_def, arsinhInterval]
-  -- Key bound: |arsinh x| ≤ |x| + 1
-  -- This is a well-known bound that follows from sinh y ≥ y for y ≥ 0
-  have hbound : |Real.arsinh x| ≤ |x| + 1 := by
-    -- Use the sharper bound |arsinh x| ≤ |x| from IntervalRealEndpoints
-    have h := IntervalReal.abs_arsinh_le_abs x
-    linarith
-  simp only [IntervalRat.mem_def] at hx
-  have hx_bound : |x| ≤ max (|I.lo|) (|I.hi|) := by
-    simp only [Rat.cast_abs, Rat.cast_max]
-    rcases le_or_gt x 0 with hxneg | hxpos
-    · simp only [abs_of_nonpos hxneg]
-      calc -x ≤ -(I.lo : ℝ) := by linarith [hx.1]
-        _ ≤ |↑I.lo| := neg_le_abs _
-        _ ≤ max |↑I.lo| |↑I.hi| := le_max_left _ _
-    · simp only [abs_of_pos hxpos]
-      calc x ≤ I.hi := hx.2
-        _ ≤ |↑I.hi| := le_abs_self _
-        _ ≤ max |↑I.lo| |↑I.hi| := le_max_right _ _
-  have habs_lo : -(|x| + 1) ≤ Real.arsinh x := (abs_le.mp hbound).1
-  have habs_hi : Real.arsinh x ≤ |x| + 1 := (abs_le.mp hbound).2
-  have hmax_cast : (max (|I.lo|) (|I.hi|) : ℝ) = max |↑I.lo| |↑I.hi| := by
-    rfl
-  constructor
-  · simp only [Rat.cast_neg, Rat.cast_add, Rat.cast_one, Rat.cast_max, Rat.cast_abs]
-    have h1 : -(|↑I.lo| ⊔ |↑I.hi| + 1) = -(max |↑I.lo| |↑I.hi|) - (1 : ℝ) := by ring
-    have h2 : -(max |↑I.lo| |↑I.hi|) - (1 : ℝ) ≤ -|x| - 1 := by
-      have hxb : |x| ≤ max |↑I.lo| |↑I.hi| := by
-        convert hx_bound using 1
-        simp [Rat.cast_max, Rat.cast_abs]
-      linarith
-    have h3 : -|x| - (1 : ℝ) ≤ Real.arsinh x := by
-      have : -(|x| + 1) = -|x| - 1 := by ring
-      rw [← this]; exact habs_lo
-    linarith
-  · simp only [Rat.cast_add, Rat.cast_one, Rat.cast_max, Rat.cast_abs]
-    have h1 : Real.arsinh x ≤ |x| + 1 := habs_hi
-    have h2 : |x| + (1 : ℝ) ≤ max |↑I.lo| |↑I.hi| + 1 := by
-      have hxb : |x| ≤ max |↑I.lo| |↑I.hi| := by
-        convert hx_bound using 1
-        simp [Rat.cast_max, Rat.cast_abs]
-      linarith
-    linarith
+    Real.arsinh x ∈ arsinhInterval I :=
+  IntervalRat.mem_arsinhComputable hx 20
 
 /-- Interval bound for atanh.
     atanh is defined for (-1, 1). If interval is within this range,
@@ -357,36 +249,15 @@ theorem mem_atanhInterval {x : ℝ} {I : IntervalRat} (hx : x ∈ I)
     exact hx
   exact IntervalRat.mem_atanhIntervalComputed hx_ball
 
-/-- Tight interval bound for tanh.
-    Since tanh(x) ∈ (-1, 1) for all x ∈ ℝ, we use the global bound [-1, 1].
-    This avoids the interval explosion that occurs when desugaring to exp. -/
-def tanhInterval (_I : IntervalRat) : IntervalRat :=
-  ⟨-1, 1, by norm_num⟩
+/-- Interval bound for tanh through `exp (2x)` (see `IntervalRat.tanhComputable`),
+    at 10 Taylor terms. -/
+def tanhInterval (I : IntervalRat) : IntervalRat :=
+  IntervalRat.tanhComputable I 10
 
-/-- Correctness of tanh interval: tanh x ∈ [-1, 1] for all x -/
-theorem mem_tanhInterval {x : ℝ} {I : IntervalRat} (_hx : x ∈ I) :
-    Real.tanh x ∈ tanhInterval I := by
-  simp only [IntervalRat.mem_def, tanhInterval, Rat.cast_neg, Rat.cast_one]
-  constructor
-  -- tanh x ≥ -1 for all x: use that tanh = sinh/cosh and cosh > 0
-  · rw [Real.tanh_eq_sinh_div_cosh]
-    have hcosh : Real.cosh x > 0 := Real.cosh_pos x
-    -- -1 ≤ sinh/cosh iff -cosh ≤ sinh (since cosh > 0)
-    rw [le_div_iff₀ hcosh, neg_one_mul]
-    -- Need: -cosh x ≤ sinh x
-    -- sinh x = (exp x - exp(-x))/2, cosh x = (exp x + exp(-x))/2
-    -- sinh x + cosh x = exp x ≥ 0 ✓
-    rw [Real.sinh_eq, Real.cosh_eq]
-    have h1 : Real.exp x > 0 := Real.exp_pos x
-    linarith
-  -- tanh x ≤ 1 for all x: use that sinh ≤ cosh (since exp(-x) > 0)
-  · rw [Real.tanh_eq_sinh_div_cosh]
-    have hcosh : Real.cosh x > 0 := Real.cosh_pos x
-    rw [div_le_one₀ hcosh]
-    -- Need: sinh x ≤ cosh x
-    rw [Real.sinh_eq, Real.cosh_eq]
-    have h2 : Real.exp (-x) > 0 := Real.exp_pos (-x)
-    linarith
+/-- Correctness of the tanh interval. -/
+theorem mem_tanhInterval {x : ℝ} {I : IntervalRat} (hx : x ∈ I) :
+    Real.tanh x ∈ tanhInterval I :=
+  IntervalRat.mem_tanhComputable hx 10
 
 /-- Interval enclosure for π.
     Uses tight bounds from Mathlib's pi_gt_d20 and pi_lt_d20 which give 20 decimal digits.
@@ -738,14 +609,14 @@ def evalTotalCore (e : Expr) (ρ : IntervalEnv) (cfg : EvalConfig := {}) : Inter
   | Expr.sin e => IntervalRat.sinComputableReduced (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.cos e => IntervalRat.cosComputableReduced (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.log e => IntervalRat.logComputable (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
-  | Expr.atan e => atanInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
-  | Expr.arsinh e => arsinhInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
+  | Expr.atan e => IntervalRat.arctanComputable (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
+  | Expr.arsinh e => IntervalRat.arsinhComputable (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.atanh _ => default  -- Not in ExprSupportedCore; use evalInterval? for atanh
-  | Expr.sinc _ => ⟨-1, 1, by norm_num⟩  -- sinc is bounded by [-1, 1]
+  | Expr.sinc e => IntervalRat.sincComputable (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.erf e => erfInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.sinh e => sinhInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.cosh e => coshInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
-  | Expr.tanh e => tanhInterval (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)  -- Tight bounds: [-1, 1]
+  | Expr.tanh e => IntervalRat.tanhComputable (LeanCert.Internal.Rational.evalTotalCore e ρ cfg) cfg.taylorDepth
   | Expr.sqrt e => IntervalRat.sqrtIntervalTightPrec (LeanCert.Internal.Rational.evalTotalCore e ρ cfg)
   | Expr.namedConst c => c.interval
 
@@ -1071,12 +942,24 @@ theorem evalIntervalCore_correct (e : Expr) (hsupp : ExprSupportedCore e)
     exact IntervalRat.mem_coshComputable (ih hdom) cfg.taylorDepth
   | tanh _ ih =>
     simp only [evalDomainValid] at hdom
-    simp only [Expr.eval_tanh, LeanCert.Internal.Rational.evalTotalCore, tanhInterval]
-    exact mem_tanhInterval (ih hdom)
+    simp only [Expr.eval_tanh, LeanCert.Internal.Rational.evalTotalCore]
+    exact IntervalRat.mem_tanhComputable (ih hdom) cfg.taylorDepth
   | erf _ ih =>
     simp only [evalDomainValid] at hdom
     simp only [Expr.eval_erf, LeanCert.Internal.Rational.evalTotalCore]
     exact mem_erfInterval (ih hdom) cfg.taylorDepth
+  | atan _ ih =>
+    simp only [evalDomainValid] at hdom
+    simp only [Expr.eval_atan, LeanCert.Internal.Rational.evalTotalCore]
+    exact IntervalRat.mem_arctanComputable (ih hdom) cfg.taylorDepth
+  | arsinh _ ih =>
+    simp only [evalDomainValid] at hdom
+    simp only [Expr.eval_arsinh, LeanCert.Internal.Rational.evalTotalCore]
+    exact IntervalRat.mem_arsinhComputable (ih hdom) cfg.taylorDepth
+  | sinc _ ih =>
+    simp only [evalDomainValid] at hdom
+    simp only [Expr.eval_sinc, LeanCert.Internal.Rational.evalTotalCore]
+    exact IntervalRat.mem_sincComputable (ih hdom) cfg.taylorDepth
   | namedConst c =>
     simp only [Expr.eval_namedConst, LeanCert.Internal.Rational.evalTotalCore]
     exact c.mem_interval

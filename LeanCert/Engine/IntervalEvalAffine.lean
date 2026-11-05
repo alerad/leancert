@@ -137,12 +137,9 @@ def evalUnchecked (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) : Affin
         -- Fallback for non-positive inputs
         { c0 := 0, coeffs := [], r := 10^30, r_nonneg := by norm_num }
   | Expr.atan e =>
-      -- Global bound [-π/2, π/2] ≈ [-2, 2]
-      let neg2 := (-2 : ℚ)
-      let pos2 := (2 : ℚ)
-      let mid := (neg2 + pos2) / 2
-      let rad := (pos2 - neg2) / 2
-      { c0 := mid, coeffs := [], r := rad, r_nonneg := by norm_num }
+      AffineForm.ofIntervalFallback
+        (IntervalRat.arctanComputable (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval
+          cfg.taylorDepth)
   | Expr.arsinh e =>
       AffineForm.ofIntervalFallback
         (arsinhInterval (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval)
@@ -156,11 +153,12 @@ def evalUnchecked (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) : Affin
         -- `evalIntervalAffineChecked`, which rejects this case.
         default
   | Expr.sinc e =>
-      -- sinc(x) = sin(x)/x, bounded in [-1, 1]
-      { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
+      AffineForm.ofIntervalFallback
+        (IntervalRat.sincComputable (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval
+          cfg.taylorDepth)
   | Expr.erf e =>
-      -- erf bounded in [-1, 1]
-      { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
+      AffineForm.ofIntervalFallback
+        (erfInterval (LeanCert.Internal.Affine.evalUnchecked e ρ cfg).toInterval cfg.taylorDepth)
   | Expr.namedConst c =>
       let I := c.interval
       let mid := (I.lo + I.hi) / 2
@@ -256,12 +254,9 @@ def evalIntervalAffine? (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) :
       | none => none
   | Expr.atan e =>
       match evalIntervalAffine? e ρ cfg with
-      | some _ =>
-          let neg2 := (-2 : ℚ)
-          let pos2 := (2 : ℚ)
-          let mid := (neg2 + pos2) / 2
-          let rad := (pos2 - neg2) / 2
-          some { c0 := mid, coeffs := [], r := rad, r_nonneg := by norm_num }
+      | some a =>
+          some (AffineForm.ofIntervalFallback
+            (IntervalRat.arctanComputable a.toInterval cfg.taylorDepth))
       | none => none
   | Expr.arsinh e =>
       match evalIntervalAffine? e ρ cfg with
@@ -278,8 +273,17 @@ def evalIntervalAffine? (e : Expr) (ρ : AffineEnv) (cfg : AffineConfig := {}) :
           else
             none
       | none => none
-  | Expr.sinc _ => some { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
-  | Expr.erf _ => some { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
+  | Expr.sinc e =>
+      match evalIntervalAffine? e ρ cfg with
+      | some a =>
+          some (AffineForm.ofIntervalFallback
+            (IntervalRat.sincComputable a.toInterval cfg.taylorDepth))
+      | none => some { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
+  | Expr.erf e =>
+      match evalIntervalAffine? e ρ cfg with
+      | some a =>
+          some (AffineForm.ofIntervalFallback (erfInterval a.toInterval cfg.taylorDepth))
+      | none => some { c0 := 0, coeffs := [], r := 1, r_nonneg := by norm_num }
   | Expr.namedConst c =>
       let I := c.interval
       let mid := (I.lo + I.hi) / 2
@@ -459,8 +463,8 @@ theorem evalIntervalAffine?_correct (e : Expr)
         simp only [h] at hsuccess
         cases hsuccess
         have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
-        simpa [atanInterval] using
-          (AffineForm.mem_affine_of_interval (eps := eps) (mem_atanInterval hv))
+        exact AffineForm.mem_ofIntervalFallback
+          (IntervalRat.mem_arctanComputable hv cfg.taylorDepth)
   | arsinh e ih =>
       simp only [evalIntervalAffine?] at hsuccess
       cases h : evalIntervalAffine? e ρ_affine cfg with
@@ -485,22 +489,38 @@ theorem evalIntervalAffine?_correct (e : Expr)
         · contradiction
   | sinc e ih =>
       simp only [evalIntervalAffine?] at hsuccess
-      cases hsuccess
-      show AffineForm.mem_affine
-        { c0 := 0, coeffs := [], r := 1, r_nonneg := _ } eps _
-      unfold AffineForm.mem_affine AffineForm.evalLinear AffineForm.linearSum
-      simp only [List.zipWith_nil_left, List.sum_nil, Rat.cast_zero, zero_add, Rat.cast_one]
-      use Real.sinc (Expr.eval ρ_real e)
-      exact ⟨(by simpa [abs_le] using Real.sinc_mem_Icc (Expr.eval ρ_real e)), rfl⟩
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        show AffineForm.mem_affine
+          { c0 := 0, coeffs := [], r := 1, r_nonneg := _ } eps _
+        unfold AffineForm.mem_affine AffineForm.evalLinear AffineForm.linearSum
+        simp only [List.zipWith_nil_left, List.sum_nil, Rat.cast_zero, zero_add, Rat.cast_one]
+        use Real.sinc (Expr.eval ρ_real e)
+        exact ⟨(by simpa [abs_le] using Real.sinc_mem_Icc (Expr.eval ρ_real e)), rfl⟩
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+        exact AffineForm.mem_ofIntervalFallback (IntervalRat.mem_sincComputable hv cfg.taylorDepth)
   | erf e ih =>
       simp only [evalIntervalAffine?] at hsuccess
-      cases hsuccess
-      show AffineForm.mem_affine
-        { c0 := 0, coeffs := [], r := 1, r_nonneg := _ } eps _
-      unfold AffineForm.mem_affine AffineForm.evalLinear AffineForm.linearSum
-      simp only [List.zipWith_nil_left, List.sum_nil, Rat.cast_zero, zero_add, Rat.cast_one]
-      use Real.erf (Expr.eval ρ_real e)
-      exact ⟨(by simpa [abs_le] using Real.erf_mem_Icc (Expr.eval ρ_real e)), rfl⟩
+      cases h : evalIntervalAffine? e ρ_affine cfg with
+      | none =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        show AffineForm.mem_affine
+          { c0 := 0, coeffs := [], r := 1, r_nonneg := _ } eps _
+        unfold AffineForm.mem_affine AffineForm.evalLinear AffineForm.linearSum
+        simp only [List.zipWith_nil_left, List.sum_nil, Rat.cast_zero, zero_add, Rat.cast_one]
+        use Real.erf (Expr.eval ρ_real e)
+        exact ⟨(by simpa [abs_le] using Real.erf_mem_Icc (Expr.eval ρ_real e)), rfl⟩
+      | some a =>
+        simp only [h] at hsuccess
+        cases hsuccess
+        have hv := AffineForm.mem_toInterval_weak hvalid (ih a h)
+        exact AffineForm.mem_ofIntervalFallback (mem_erfInterval hv cfg.taylorDepth)
   | sinh e ih =>
       simp only [evalIntervalAffine?] at hsuccess
       cases h : evalIntervalAffine? e ρ_affine cfg with
@@ -637,23 +657,26 @@ theorem evalIntervalAffine_correct (e : Expr) (hsupp : ExprSupportedCore e)
     simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_tanh, LeanCert.Internal.Affine.evalUnchecked]
     exact AffineForm.mem_tanh hvalid (ih hdom)
-  | @erf arg _ ih =>
+  | erf _ ih =>
     simp only [evalDomainValidAffine] at hdom
-    -- erf returns trivial affine form { c0 := 0, coeffs := [], r := 1 } representing [-1, 1]
-    -- Just need to show Real.erf x ∈ [-1, 1]
     simp only [Expr.eval_erf, LeanCert.Internal.Affine.evalUnchecked]
-    -- mem_affine requires: ∃ err, |err| ≤ r ∧ v = evalLinear af eps + err
-    -- For { c0 := 0, coeffs := [], r := 1 }, evalLinear is just 0
-    -- So we need: ∃ err, |err| ≤ 1 ∧ erf(x) = err
-    -- Take err = erf(x), then need |erf(x)| ≤ 1
-    show AffineForm.mem_affine { c0 := 0, coeffs := [], r := 1, r_nonneg := _ } eps _
-    unfold AffineForm.mem_affine AffineForm.evalLinear AffineForm.linearSum
-    simp only [List.zipWith_nil_left, List.sum_nil, Rat.cast_zero, zero_add, Rat.cast_one]
-    use Real.erf (Expr.eval ρ_real arg)
-    constructor
-    · rw [abs_le]
-      exact Real.erf_mem_Icc _
-    · ring
+    have hv := AffineForm.mem_toInterval_weak hvalid (ih hdom)
+    exact AffineForm.mem_ofIntervalFallback (mem_erfInterval hv cfg.taylorDepth)
+  | atan _ ih =>
+    simp only [evalDomainValidAffine] at hdom
+    simp only [Expr.eval_atan, LeanCert.Internal.Affine.evalUnchecked]
+    have hv := AffineForm.mem_toInterval_weak hvalid (ih hdom)
+    exact AffineForm.mem_ofIntervalFallback (IntervalRat.mem_arctanComputable hv cfg.taylorDepth)
+  | arsinh _ ih =>
+    simp only [evalDomainValidAffine] at hdom
+    simp only [Expr.eval_arsinh, LeanCert.Internal.Affine.evalUnchecked]
+    have hv := AffineForm.mem_toInterval_weak hvalid (ih hdom)
+    exact AffineForm.mem_ofIntervalFallback (mem_arsinhInterval hv)
+  | sinc _ ih =>
+    simp only [evalDomainValidAffine] at hdom
+    simp only [Expr.eval_sinc, LeanCert.Internal.Affine.evalUnchecked]
+    have hv := AffineForm.mem_toInterval_weak hvalid (ih hdom)
+    exact AffineForm.mem_ofIntervalFallback (IntervalRat.mem_sincComputable hv cfg.taylorDepth)
   | sqrt _ ih =>
     simp only [evalDomainValidAffine] at hdom
     simp only [Expr.eval_sqrt, LeanCert.Internal.Affine.evalUnchecked]

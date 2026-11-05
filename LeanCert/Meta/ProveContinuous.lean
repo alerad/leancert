@@ -74,6 +74,9 @@ inductive ExprContinuousCore : LExpr → Prop where
   | cosh {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.cosh e)
   | tanh {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.tanh e)
   | erf {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.erf e)
+  | atan {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.atan e)
+  | arsinh {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.arsinh e)
+  | sinc {e : LExpr} : ExprContinuousCore e → ExprContinuousCore (Expr.sinc e)
   | namedConst (c : MathConst) : ExprContinuousCore (Expr.namedConst c)
 
 /-- ExprContinuousCore implies ExprSupportedCore -/
@@ -93,6 +96,9 @@ theorem ExprContinuousCore.toSupported {e : LExpr} (h : ExprContinuousCore e) :
   | cosh _ ih => exact .cosh ih
   | tanh _ ih => exact .tanh ih
   | erf _ ih => exact .erf ih
+  | atan _ ih => exact .atan ih
+  | arsinh _ ih => exact .arsinh ih
+  | sinc _ ih => exact .sinc ih
   | namedConst c => exact .namedConst c
 
 /-! ## Base Continuity Theorem
@@ -106,7 +112,7 @@ We prove this by induction on the structure of `ExprContinuousCore`.
 This is the foundational theorem that allows automatic continuity proof generation.
 Since ExprContinuousCore only includes operations that are continuous everywhere
 (const, var, add, mul, neg, sin, cos, exp, sqrt, sinh, cosh, tanh, erf,
-named constants), the result
+atan, arsinh, sinc, named constants), the result
 follows by structural induction.
 
 NOTE: inv and log are NOT included because they are not continuous at 0. -/
@@ -171,6 +177,15 @@ theorem exprContinuousCore_continuousOn (e : LExpr) (hsupp : ExprContinuousCore 
         exact (hcont.integral_hasStrictDerivAt 0 y).hasStrictFDerivAt.differentiableAt
       exact hdiff.continuous
     exact herf_cont.comp_continuousOn ih
+  | atan _ ih =>
+    simp only [LeanCert.Core.Expr.eval]
+    exact Real.continuous_arctan.comp_continuousOn ih
+  | arsinh _ ih =>
+    simp only [LeanCert.Core.Expr.eval]
+    exact Real.continuous_arsinh.comp_continuousOn ih
+  | sinc _ ih =>
+    simp only [LeanCert.Core.Expr.eval]
+    exact Real.continuous_sinc.comp_continuousOn ih
   | namedConst _ =>
     simp only [LeanCert.Core.Expr.eval]
     exact continuousOn_const
@@ -249,6 +264,9 @@ theorem exprContinuousDomainValid_of_ExprContinuousCore {e : LExpr} (hcont : Exp
   | cosh _ ih => exact ih
   | tanh _ ih => exact ih
   | erf _ ih => exact ih
+  | atan _ ih => exact ih
+  | arsinh _ ih => exact ih
+  | sinc _ ih => exact ih
   | namedConst _ => trivial
 
 /-- All ExprSupportedCore expressions are continuous on sets where log arguments are positive.
@@ -325,6 +343,18 @@ theorem exprSupportedCore_continuousOn (e : LExpr) (hsupp : LeanCert.Engine.Expr
         exact (hcont.integral_hasStrictDerivAt 0 y).hasStrictFDerivAt.differentiableAt
       exact hdiff.continuous
     exact herf_cont.comp_continuousOn (ih hdom)
+  | atan _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
+    simp only [LeanCert.Core.Expr.eval]
+    exact Real.continuous_arctan.comp_continuousOn (ih hdom)
+  | arsinh _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
+    simp only [LeanCert.Core.Expr.eval]
+    exact Real.continuous_arsinh.comp_continuousOn (ih hdom)
+  | sinc _ ih =>
+    simp only [exprContinuousDomainValid] at hdom
+    simp only [LeanCert.Core.Expr.eval]
+    exact Real.continuous_sinc.comp_continuousOn (ih hdom)
   | @log arg _ ih =>
     simp only [exprContinuousDomainValid] at hdom
     simp only [LeanCert.Core.Expr.eval]
@@ -457,6 +487,21 @@ partial def mkContinuousCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
     let e := args[0]!
     let h ← mkContinuousCoreProof e
     mkAppM ``ExprContinuousCore.erf #[h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.atan then
+    let e := args[0]!
+    let h ← mkContinuousCoreProof e
+    mkAppM ``ExprContinuousCore.atan #[h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.arsinh then
+    let e := args[0]!
+    let h ← mkContinuousCoreProof e
+    mkAppM ``ExprContinuousCore.arsinh #[h]
+
+  else if fn.isConstOf ``LeanCert.Core.Expr.sinc then
+    let e := args[0]!
+    let h ← mkContinuousCoreProof e
+    mkAppM ``ExprContinuousCore.sinc #[h]
 
   else if fn.isConstOf ``LeanCert.Core.Expr.namedConst then
     let c := args[0]!

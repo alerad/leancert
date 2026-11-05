@@ -259,6 +259,44 @@ info: 'LeanCert.Engine.QPoly.integral_eq_of_check' depends on axioms: [propext, 
 #guard_msgs in
 #print axioms LeanCert.Engine.QPoly.integral_eq_of_check
 
+/-! ### Tight transcendental enclosures (atan, tanh, sinc, arsinh, erf, π/4) -/
+
+/--
+info: 'LeanCert.Core.IntervalRat.mem_arctanComputable' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Core.IntervalRat.mem_arctanComputable
+
+/--
+info: 'LeanCert.Core.IntervalRat.mem_tanhComputable' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Core.IntervalRat.mem_tanhComputable
+
+/--
+info: 'LeanCert.Core.IntervalRat.mem_sincComputable' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Core.IntervalRat.mem_sincComputable
+
+/--
+info: 'LeanCert.Core.IntervalRat.mem_arsinhComputable' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Core.IntervalRat.mem_arsinhComputable
+
+/--
+info: 'LeanCert.Core.IntervalRat.mem_erfTight' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Core.IntervalRat.mem_erfTight
+
+/--
+info: 'LeanCert.Core.IntervalRat.mem_piQuarterComputable' depends on axioms: [propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs in
+#print axioms LeanCert.Core.IntervalRat.mem_piQuarterComputable
+
 /-! ### Whole-library sweep: no axioms minted inside LeanCert
 
 Every `native_decide` use inside the library mints a per-declaration axiom

@@ -114,22 +114,22 @@ def coshIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadi
   let result := IntervalRat.coshComputable Irat cfg.taylorDepth
   IntervalDyadic.ofIntervalRat result cfg.precision
 
-/-- atan interval: global bound [-2, 2] -/
-def atanIntervalDyadic (_I : IntervalDyadic) (_cfg : DyadicConfig) : IntervalDyadic :=
-  let neg2 := Core.Dyadic.ofInt (-2)
-  let pos2 := Core.Dyadic.ofInt 2
-  ⟨neg2, pos2, by rw [Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]; norm_num⟩
+/-- atan interval: series with argument reduction via rational arctanComputable -/
+def atanIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
+  let Irat := I.toIntervalRat
+  let result := IntervalRat.arctanComputable Irat cfg.taylorDepth
+  IntervalDyadic.ofIntervalRat result cfg.precision
 
-/-- tanh interval: global bound [-1, 1] -/
-def tanhIntervalDyadic (_I : IntervalDyadic) (_cfg : DyadicConfig) : IntervalDyadic :=
-  let neg1 := Core.Dyadic.ofInt (-1)
-  let pos1 := Core.Dyadic.ofInt 1
-  ⟨neg1, pos1, by rw [Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]; norm_num⟩
+/-- tanh interval: via exp(2x) using rational tanhComputable -/
+def tanhIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
+  let Irat := I.toIntervalRat
+  let result := IntervalRat.tanhComputable Irat cfg.taylorDepth
+  IntervalDyadic.ofIntervalRat result cfg.precision
 
-/-- arsinh interval: wide box bound via rational arsinhInterval -/
+/-- arsinh interval: log(x + √(1 + x²)) via rational arsinhComputable -/
 def arsinhIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
   let Irat := I.toIntervalRat
-  let result := arsinhInterval Irat
+  let result := IntervalRat.arsinhComputable Irat cfg.taylorDepth
   IntervalDyadic.ofIntervalRat result cfg.precision
 
 /-- atanh interval: computable Taylor series via rational atanhComputable -/
@@ -138,17 +138,17 @@ def atanhIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyad
   let result := IntervalRat.atanhComputable Irat cfg.taylorDepth
   IntervalDyadic.ofIntervalRat result cfg.precision
 
-/-- sinc interval: global bound [-1, 1] -/
-def sincIntervalDyadic (_I : IntervalDyadic) (_cfg : DyadicConfig) : IntervalDyadic :=
-  let neg1 := Core.Dyadic.ofInt (-1)
-  let pos1 := Core.Dyadic.ofInt 1
-  ⟨neg1, pos1, by rw [Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]; norm_num⟩
+/-- sinc interval: via rational sincComputable -/
+def sincIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
+  let Irat := I.toIntervalRat
+  let result := IntervalRat.sincComputable Irat cfg.taylorDepth
+  IntervalDyadic.ofIntervalRat result cfg.precision
 
-/-- erf interval: global bound [-1, 1] -/
-def erfIntervalDyadic (_I : IntervalDyadic) (_cfg : DyadicConfig) : IntervalDyadic :=
-  let neg1 := Core.Dyadic.ofInt (-1)
-  let pos1 := Core.Dyadic.ofInt 1
-  ⟨neg1, pos1, by rw [Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]; norm_num⟩
+/-- erf interval: Taylor series via rational erfInterval -/
+def erfIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
+  let Irat := I.toIntervalRat
+  let result := erfInterval Irat cfg.taylorDepth
+  IntervalDyadic.ofIntervalRat result cfg.precision
 
 /-- Compute inv interval: convert to Rat, use invInterval, convert back to Dyadic -/
 def invIntervalDyadic (I : IntervalDyadic) (cfg : DyadicConfig) : IntervalDyadic :=
@@ -790,35 +790,36 @@ theorem evalIntervalDyadic_correct (e : Expr) (hsupp : ExprSupportedCore e)
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hcosh := IntervalRat.mem_coshComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hcosh cfg.precision hprec
-  | @tanh e' _ ih =>
+  | tanh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_tanh, LeanCert.Internal.Dyadic.evalUnchecked, tanhIntervalDyadic]
-    -- tanh x ∈ [-1, 1] for all x
-    rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
-    simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
-    set x := Expr.eval ρ_real e' with hx
-    constructor
-    -- tanh x ≥ -1: use tanh = sinh/cosh, cosh > 0, and -cosh ≤ sinh
-    · rw [Real.tanh_eq_sinh_div_cosh]
-      have hcosh : Real.cosh x > 0 := Real.cosh_pos x
-      rw [le_div_iff₀ hcosh, neg_one_mul]
-      rw [Real.sinh_eq, Real.cosh_eq]
-      have h1 : Real.exp x > 0 := Real.exp_pos x
-      linarith
-    -- tanh x ≤ 1: use sinh ≤ cosh (since exp(-x) > 0)
-    · rw [Real.tanh_eq_sinh_div_cosh]
-      have hcosh : Real.cosh x > 0 := Real.cosh_pos x
-      rw [div_le_one₀ hcosh]
-      rw [Real.sinh_eq, Real.cosh_eq]
-      have h2 : Real.exp (-x) > 0 := Real.exp_pos (-x)
-      linarith
-  | @erf e' _ ih =>
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have htanh := IntervalRat.mem_tanhComputable hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat htanh cfg.precision hprec
+  | erf _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_erf, LeanCert.Internal.Dyadic.evalUnchecked, erfIntervalDyadic]
-    -- erf x ∈ [-1, 1] for all x
-    rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
-    simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
-    exact Real.erf_mem_Icc _
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have herf := mem_erfInterval hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat herf cfg.precision hprec
+  | atan _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
+    simp only [Expr.eval_atan, LeanCert.Internal.Dyadic.evalUnchecked, atanIntervalDyadic]
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have hmem := IntervalRat.mem_arctanComputable hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hmem cfg.precision hprec
+  | arsinh _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
+    simp only [Expr.eval_arsinh, LeanCert.Internal.Dyadic.evalUnchecked, arsinhIntervalDyadic]
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have hmem := IntervalRat.mem_arsinhComputable hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hmem cfg.precision hprec
+  | sinc _ ih =>
+    simp only [evalDomainValidDyadic] at hdom
+    simp only [Expr.eval_sinc, LeanCert.Internal.Dyadic.evalUnchecked, sincIntervalDyadic]
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have hmem := IntervalRat.mem_sincComputable hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hmem cfg.precision hprec
   | log _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_log, LeanCert.Internal.Dyadic.evalUnchecked, logIntervalDyadic]
@@ -909,46 +910,30 @@ theorem evalIntervalDyadic_correct_of_domain (e : Expr)
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
     have hcosh := IntervalRat.mem_coshComputable hrat cfg.taylorDepth
     exact IntervalDyadic.mem_ofIntervalRat hcosh cfg.precision hprec
-  | tanh e' ih =>
+  | tanh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_tanh, LeanCert.Internal.Dyadic.evalUnchecked, tanhIntervalDyadic]
-    rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
-    simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
-    set x := Expr.eval ρ_real e' with hx
-    constructor
-    · rw [Real.tanh_eq_sinh_div_cosh]
-      have hcosh : Real.cosh x > 0 := Real.cosh_pos x
-      rw [le_div_iff₀ hcosh, neg_one_mul]
-      rw [Real.sinh_eq, Real.cosh_eq]
-      have h1 : Real.exp x > 0 := Real.exp_pos x
-      linarith
-    · rw [Real.tanh_eq_sinh_div_cosh]
-      have hcosh : Real.cosh x > 0 := Real.cosh_pos x
-      rw [div_le_one₀ hcosh]
-      rw [Real.sinh_eq, Real.cosh_eq]
-      have h2 : Real.exp (-x) > 0 := Real.exp_pos (-x)
-      linarith
-  | atan e' ih =>
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have hmem := IntervalRat.mem_tanhComputable hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hmem cfg.precision hprec
+  | atan _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_atan, LeanCert.Internal.Dyadic.evalUnchecked, atanIntervalDyadic]
-    rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
-    simp only [Int.cast_neg, Int.cast_ofNat, Rat.cast_neg, Rat.cast_ofNat]
-    set x := Expr.eval ρ_real e' with hx
-    constructor
-    · linarith [Real.neg_pi_div_two_lt_arctan x, Real.pi_lt_four]
-    · linarith [Real.arctan_lt_pi_div_two x, Real.pi_lt_four]
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have hmem := IntervalRat.mem_arctanComputable hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hmem cfg.precision hprec
   | sinc _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_sinc, LeanCert.Internal.Dyadic.evalUnchecked, sincIntervalDyadic]
-    rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
-    simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
-    exact Real.sinc_mem_Icc _
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have hmem := IntervalRat.mem_sincComputable hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hmem cfg.precision hprec
   | arsinh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_arsinh, LeanCert.Internal.Dyadic.evalUnchecked, arsinhIntervalDyadic]
     have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
-    have harsinh := mem_arsinhInterval hrat
-    exact IntervalDyadic.mem_ofIntervalRat harsinh cfg.precision hprec
+    have hmem := IntervalRat.mem_arsinhComputable hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hmem cfg.precision hprec
   | atanh _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     obtain ⟨hdom_sub, hlo_gt, hhi_lt⟩ := hdom
@@ -959,9 +944,9 @@ theorem evalIntervalDyadic_correct_of_domain (e : Expr)
   | erf _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_erf, LeanCert.Internal.Dyadic.evalUnchecked, erfIntervalDyadic]
-    rw [IntervalDyadic.mem_def, Dyadic.toRat_ofInt, Dyadic.toRat_ofInt]
-    simp only [Int.cast_neg, Int.cast_one, Rat.cast_neg, Rat.cast_one]
-    exact Real.erf_mem_Icc _
+    have hrat := IntervalDyadic.mem_toIntervalRat.mp (ih hdom)
+    have hmem := mem_erfInterval hrat cfg.taylorDepth
+    exact IntervalDyadic.mem_ofIntervalRat hmem cfg.precision hprec
   | sqrt _ ih =>
     simp only [evalDomainValidDyadic] at hdom
     simp only [Expr.eval_sqrt, LeanCert.Internal.Dyadic.evalUnchecked, sqrtIntervalDyadic]

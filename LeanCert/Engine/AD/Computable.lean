@@ -217,8 +217,19 @@ theorem evalDualTotalCore_val_correct (e : Expr) (hsupp : ExprSupportedCore e)
   | erf _ ih =>
     simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_erf, LeanCert.Internal.AD.evalTotalCore, DualInterval.erfCore]
-    simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-    exact Real.erf_mem_Icc _
+    exact mem_erfInterval (ih hdom) cfg.taylorDepth
+  | atan _ ih =>
+    simp only [evalDomainValidDual] at hdom
+    simp only [Expr.eval_atan, LeanCert.Internal.AD.evalTotalCore, DualInterval.atan]
+    exact mem_atanInterval (ih hdom)
+  | arsinh _ ih =>
+    simp only [evalDomainValidDual] at hdom
+    simp only [Expr.eval_arsinh, LeanCert.Internal.AD.evalTotalCore, DualInterval.arsinh]
+    exact mem_arsinhInterval (ih hdom)
+  | sinc _ ih =>
+    simp only [evalDomainValidDual] at hdom
+    simp only [Expr.eval_sinc, LeanCert.Internal.AD.evalTotalCore, DualInterval.sinc]
+    exact IntervalRat.mem_sincComputable (ih hdom) 10
   | log _ ih =>
     simp only [evalDomainValidDual] at hdom
     simp only [Expr.eval_log, LeanCert.Internal.AD.evalTotalCore, DualInterval.logCore]

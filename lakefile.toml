@@ -191,6 +191,7 @@ roots = [
   "LeanCert.Test.TacticDiscovery",
   "LeanCert.Test.TestDyadicEval",
   "LeanCert.Test.TestPhase3",
+  "LeanCert.Test.TightEnclosures",
   "LeanCert.Test.TransformerTest",
   "LeanCert.Test.TrigReduction",
   "LeanCert.Test.TrustModes",

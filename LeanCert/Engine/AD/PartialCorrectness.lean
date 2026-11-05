@@ -208,8 +208,7 @@ theorem evalDual?_val_correct (e : Expr)
       simp only [heq, Option.some.injEq] at hsome
       rw [← hsome]
       simp only [Expr.eval_sinc, DualInterval.sinc]
-      simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-      exact Real.sinc_mem_Icc _
+      exact IntervalRat.mem_sincComputable (ih d heq) 10
   | erf e' ih =>
     simp only [evalDual?] at hsome
     cases heq : evalDual? e' ρ_dual with
@@ -218,8 +217,7 @@ theorem evalDual?_val_correct (e : Expr)
       simp only [heq, Option.some.injEq] at hsome
       rw [← hsome]
       simp only [Expr.eval_erf, DualInterval.erf]
-      simp only [IntervalRat.mem_def, Rat.cast_neg, Rat.cast_one]
-      exact Real.erf_mem_Icc _
+      exact mem_erfInterval (ih d heq) 15
   | sqrt e' ih =>
     simp only [evalDual?] at hsome
     cases heq : evalDual? e' ρ_dual with

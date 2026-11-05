@@ -318,7 +318,10 @@ partial def mkSupportedCoreProof (e_ast : Lean.Expr) : MetaM Lean.Expr := do
         , ⟨``LeanCert.Core.Expr.sinh, ``LeanCert.Core.ExprSupportedCore.sinh⟩
         , ⟨``LeanCert.Core.Expr.cosh, ``LeanCert.Core.ExprSupportedCore.cosh⟩
         , ⟨``LeanCert.Core.Expr.tanh, ``LeanCert.Core.ExprSupportedCore.tanh⟩
-        , ⟨``LeanCert.Core.Expr.erf, ``LeanCert.Core.ExprSupportedCore.erf⟩ ] then
+        , ⟨``LeanCert.Core.Expr.erf, ``LeanCert.Core.ExprSupportedCore.erf⟩
+        , ⟨``LeanCert.Core.Expr.atan, ``LeanCert.Core.ExprSupportedCore.atan⟩
+        , ⟨``LeanCert.Core.Expr.arsinh, ``LeanCert.Core.ExprSupportedCore.arsinh⟩
+        , ⟨``LeanCert.Core.Expr.sinc, ``LeanCert.Core.ExprSupportedCore.sinc⟩ ] then
       return h
     throwError "Cannot generate ExprSupportedCore proof for: {e_ast}\n\
                 This expression contains operations outside the total core evaluator.\n\

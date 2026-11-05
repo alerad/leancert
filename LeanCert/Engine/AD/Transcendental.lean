@@ -121,7 +121,7 @@ def two_div_sqrt_pi : IntervalRat :=
 /-- Dual for erf (chain rule: d(erf f) = (2/√π) * exp(-f²) * f')
     erf'(x) = (2/√π) * exp(-x²), which is always positive and bounded by 2/√π ≈ 1.13 -/
 noncomputable def erf (d : DualInterval) : DualInterval :=
-  { val := ⟨-1, 1, by norm_num⟩  -- erf is bounded in [-1, 1]
+  { val := erfInterval d.val 15
     der :=
       let valSq := IntervalRat.mul d.val d.val
       let negValSq := IntervalRat.neg valSq
@@ -131,7 +131,7 @@ noncomputable def erf (d : DualInterval) : DualInterval :=
 
 /-- Computable dual for erf using expComputable -/
 def erfCore (d : DualInterval) (n : ℕ := 10) : DualInterval :=
-  { val := ⟨-1, 1, by norm_num⟩  -- erf is bounded in [-1, 1]
+  { val := erfInterval d.val n
     der :=
       let valSq := IntervalRat.mul d.val d.val
       let negValSq := IntervalRat.neg valSq
@@ -156,7 +156,7 @@ def sincDerivBound : IntervalRat := ⟨-1, 1, by norm_num⟩
     sinc'(x) = (x cos x - sin x) / x² for x ≠ 0, limit 0 at x = 0.
     We use conservative bound: |sinc'(x)| ≤ 1 for all x. -/
 def sinc (d : DualInterval) : DualInterval :=
-  { val := ⟨-1, 1, by norm_num⟩  -- sinc is bounded in [-1, 1]
+  { val := IntervalRat.sincComputable d.val 10
     -- sinc'(x) ∈ [-1, 1] (conservative bound), so d(sinc f) = sinc'(f) * f'
     der := IntervalRat.mul sincDerivBound d.der }
 

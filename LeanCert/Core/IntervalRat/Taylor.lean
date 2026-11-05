@@ -2021,16 +2021,8 @@ def erfRemainderBoundComputable (I : IntervalRat) (n : ℕ) : IntervalRat :=
     have hR : 0 ≤ R := div_nonneg (mul_nonneg (by norm_num : (0:ℚ) ≤ 2) hpow) hfact
     linarith⟩
 
-/-- Computable interval enclosure for erf at a single rational point.
-    Uses sign-aware clipped linear bounds:
-    `|erf(q)| ≤ min(1, (2257/2000)*|q|)`.
-
-    Cases:
-    - `q < 0  => erf(q) ∈ [-1, 0]`
-    - `q = 0  => erf(q) = 0`
-    - `q > 0  => erf(q) ∈ [0, 1]`
-
-    with tighter near-zero magnitude via `(2257/2000)*|q|`. -/
+/-- Coarse point enclosure for erf: `[0, min 1 (1.1285·|q|)]` (or its negation).
+    This is a global bound, not a series; use `IntervalRat.erfTight` for tight bounds. -/
 def erfPointComputable (q : ℚ) (n : ℕ := 15) : IntervalRat :=
   let _ := n
   let b : ℚ := min 1 ((2257 / 2000) * |q|)

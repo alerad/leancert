@@ -473,12 +473,12 @@ def evalUnchecked (e : Expr) (ρ : ExtendedEnv) (cfg : ExtendedConfig := {}) : E
   | Expr.atanh _ =>
       -- atanh requires |x| < 1; use conservative bounds
       ExtendedInterval.singleton ⟨-100, 100, by norm_num⟩
-  | Expr.sinc _ =>
-      -- sinc is bounded by [-1, 1]
-      ExtendedInterval.singleton ⟨-1, 1, by norm_num⟩
-  | Expr.erf _ =>
-      -- erf is bounded by [-1, 1]
-      ExtendedInterval.singleton ⟨-1, 1, by norm_num⟩
+  | Expr.sinc e =>
+      liftUnary (fun I => IntervalRat.sincComputable I cfg.taylorDepth)
+        (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
+  | Expr.erf e =>
+      liftUnary (fun I => erfInterval I cfg.taylorDepth)
+        (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.sinh e =>
       liftUnary (fun I => sinhInterval I cfg.taylorDepth) (LeanCert.Internal.Extended.evalUnchecked e ρ cfg)
   | Expr.cosh e =>
@@ -610,10 +610,20 @@ theorem evalExtendedUnchecked_correct_core (e : Expr) (hsupp : ExprSupportedCore
   | erf _ ih =>
     simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_erf, LeanCert.Internal.Extended.evalUnchecked]
-    -- erf returns singleton [-1, 1], need to show Real.erf x ∈ [-1, 1]
-    simp only [ExtendedInterval.mem_singleton, IntervalRat.mem_def]
-    simp only [Rat.cast_neg, Rat.cast_one]
-    exact Real.erf_mem_Icc _
+    exact mem_liftUnary (fun x I hx => mem_erfInterval hx cfg.taylorDepth) (ih hdom)
+  | atan _ ih =>
+    simp only [evalDomainValidExtended] at hdom
+    simp only [Expr.eval_atan, LeanCert.Internal.Extended.evalUnchecked]
+    exact mem_liftUnary (fun x I hx => mem_atanInterval hx) (ih hdom)
+  | arsinh _ ih =>
+    simp only [evalDomainValidExtended] at hdom
+    simp only [Expr.eval_arsinh, LeanCert.Internal.Extended.evalUnchecked]
+    exact mem_liftUnary (fun x I hx => mem_arsinhInterval hx) (ih hdom)
+  | sinc _ ih =>
+    simp only [evalDomainValidExtended] at hdom
+    simp only [Expr.eval_sinc, LeanCert.Internal.Extended.evalUnchecked]
+    exact mem_liftUnary (fun x I hx => IntervalRat.mem_sincComputable hx cfg.taylorDepth)
+      (ih hdom)
   | @log arg _ ih =>
     simp only [evalDomainValidExtended] at hdom
     simp only [Expr.eval_log, LeanCert.Internal.Extended.evalUnchecked]

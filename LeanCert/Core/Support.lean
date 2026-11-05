@@ -39,7 +39,8 @@ open LeanCert.Core
 /-! ### Core supported expression subset (computable) -/
 
 /-- Predicate indicating an expression is in the computable core subset.
-    Supports: const, var, add, mul, neg, sin, cos, exp, log, sqrt, sinh, cosh, tanh, erf, pi
+    Supports: const, var, add, mul, neg, sin, cos, exp, log, sqrt, sinh, cosh, tanh, erf,
+    atan, arsinh, sinc, pi
 
     Note: log requires positive domain for correctness. The correctness theorem
     `evalIntervalCore_correct` has an additional hypothesis `evalDomainValid`
@@ -61,6 +62,9 @@ inductive ExprSupportedCore : Expr → Prop where
   | cosh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.cosh e)
   | tanh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.tanh e)
   | erf {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.erf e)
+  | atan {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.atan e)
+  | arsinh {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.arsinh e)
+  | sinc {e : Expr} : ExprSupportedCore e → ExprSupportedCore (Expr.sinc e)
   | namedConst (c : MathConst) : ExprSupportedCore (Expr.namedConst c)
 
 /-! ### Extended supported expression subset (with exp) -/
