@@ -3,11 +3,16 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.DobnerGammaBounds
-import Mathlib.Analysis.SpecialFunctions.Gamma.Deriv
+module
+
+public import LeanCert.Analysis.DBN.DobnerGammaBounds
+public import Mathlib.Analysis.SpecialFunctions.Gamma.Deriv
 
 /-! Coarse reciprocal Gamma bounds from reflection and recurrence.
 These control division by a small normalization, not saddle-point errors. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Set
 

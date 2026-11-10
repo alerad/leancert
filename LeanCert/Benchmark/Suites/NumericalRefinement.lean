@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.API.Bounds
-import LeanCert.Tactic.NumericalRefinement
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.API.Bounds
+public import LeanCert.Tactic.NumericalRefinement
 
 /-!
 # Coordinated numerical-refinement benchmarks
@@ -14,6 +16,8 @@ These compiled checker benchmarks distinguish a cheap first-stage success from
 a tight bound which requires the complete precision/Taylor schedule. They
 measure candidate checking only, not tactic elaboration or kernel proof replay.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.NumericalRefinement
 

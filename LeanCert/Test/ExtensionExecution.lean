@@ -3,10 +3,14 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
-import LeanCert.Test.DownstreamPatterns.Extension
+module
+
+public import LeanCert.Tactic
+public import LeanCert.Test.DownstreamPatterns.Extension
 
 /-! # End-to-end execution of downstream enclosure rules -/
+
+public section
 
 namespace LeanCert.Test.ExtensionExecution
 

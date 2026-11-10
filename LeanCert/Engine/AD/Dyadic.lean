@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD.DomainChecked
-import LeanCert.Engine.IntervalEvalDyadic
+module
+
+public import LeanCert.Engine.AD.DomainChecked
+public import LeanCert.Engine.IntervalEvalDyadic
 
 /-!
 # Domain-aware automatic differentiation with Dyadic intervals
@@ -19,6 +21,8 @@ The public entry points are checked: unsupported syntax, invalid reciprocal or
 logarithm domains, and positive rounding precisions return `EvalError` rather
 than a finite interval.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 
@@ -38,8 +42,8 @@ abbrev DualDyadicEnv := Nat → DualIntervalDyadic
 
 namespace DualIntervalDyadic
 
-private def zero : IntervalDyadic := IntervalDyadic.singleton Core.Dyadic.zero
-private def one : IntervalDyadic := IntervalDyadic.singleton (Core.Dyadic.ofInt 1)
+def zero : IntervalDyadic := IntervalDyadic.singleton Core.Dyadic.zero
+def one : IntervalDyadic := IntervalDyadic.singleton (Core.Dyadic.ofInt 1)
 
 def const (q : ℚ) (cfg : DyadicConfig := {}) : DualIntervalDyadic :=
   ⟨IntervalDyadic.ofIntervalRat (IntervalRat.singleton q) cfg.precision, zero⟩

@@ -1,5 +1,7 @@
-import LeanCert.Analysis.DBN.ShiftLimit
-import LeanCert.Analysis.DBN.HeatLimit
+module
+
+public import LeanCert.Analysis.DBN.ShiftLimit
+public import LeanCert.Analysis.DBN.HeatLimit
 
 /-!
 # Real zeros at time one half
@@ -10,6 +12,9 @@ and two zero-preserving locally uniform limits. No finite-height certificate
 or assumed approximation theorem is involved. This is not yet a definition or
 bound for a real-valued de Bruijn–Newman constant.
 -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Set Filter
 open scoped Topology

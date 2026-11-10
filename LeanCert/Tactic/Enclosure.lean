@@ -3,8 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.Extension.Execute
-import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
+module
+
+public import LeanCert.Tactic.Extension.Execute
+public import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
+public meta import LeanCert.Tactic.Extension.Execute
+public meta import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
 
 /-! # Focused registered-enclosure tactic
 
@@ -14,6 +18,8 @@ execution, subdivision, and trust handling with `leancert`, but intentionally
 does not import the semantic router or unrelated solver families.
 -/
 
+public noncomputable meta section
+
 open Lean Meta Elab Tactic
 
 namespace LeanCert.Tactic
@@ -21,7 +27,7 @@ namespace LeanCert.Tactic
 open LeanCert.Tactic.Semantic
 open LeanCert.Tactic.Extension
 
-private structure EnclosureConfig where
+structure EnclosureConfig where
   taylorDepth : Nat := 10
   subdivisions : Nat := 4
   trust : Option VerificationMode := none
@@ -31,7 +37,7 @@ syntax "(" &"taylorDepth" " := " num ")" : enclosureConfigItem
 syntax "(" &"subdivisions" " := " num ")" : enclosureConfigItem
 syntax "(" &"trust" " := " leancertTrustMode ")" : enclosureConfigItem
 
-private def elaborateEnclosureConfig (items : Array Syntax) :
+def elaborateEnclosureConfig (items : Array Syntax) :
     TacticM EnclosureConfig := do
   let mut cfg : EnclosureConfig := {}
   for item in items do
@@ -48,7 +54,7 @@ private def elaborateEnclosureConfig (items : Array Syntax) :
     | _ => throwUnsupportedSyntax
   return cfg
 
-private def failureMessage : RegisteredEnclosureFailure → MessageData
+def failureMessage : RegisteredEnclosureFailure → MessageData
   | .notApplicable =>
       m!"enclosure_bound did not find an applicable registered unary enclosure rule.\n\
          Expected a goal such as `∀ x ∈ Set.Icc a b, f x ≤ c` containing a function\n\
@@ -72,7 +78,7 @@ private def failureMessage : RegisteredEnclosureFailure → MessageData
   | .verificationFailure detail =>
       m!"Registered enclosure certificate verification failed.\n{detail}"
 
-private def successReport (cfg : EnclosureConfig) (mode : VerificationMode)
+def successReport (cfg : EnclosureConfig) (mode : VerificationMode)
     (outcome : RegisteredEnclosureOutcome) : MessageData := Id.run do
   let kernelChecks := outcome.verification.kernelChecks
   let nativeChecks := outcome.verification.nativeChecks
@@ -113,7 +119,7 @@ Suggested proof:
   by enclosure_bound (taylorDepth := {cfg.taylorDepth}) \
     (subdivisions := {cfg.subdivisions}) (trust := {mode.asString})"
 
-private unsafe def runEnclosureBound (cfg : EnclosureConfig) (explain : Bool) :
+unsafe def runEnclosureBound (cfg : EnclosureConfig) (explain : Bool) :
     TacticM Unit := do
   let saved ← saveState
   let target ← instantiateMVars (← getMainTarget)

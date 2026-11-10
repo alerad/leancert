@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Krawczyk
+module
+
+public import LeanCert.Validity.Krawczyk
 
 /-!
 # Nonlinear systems certified by Krawczyk's method
@@ -16,6 +18,8 @@ We certify the unique root of
 inside `[9/10, 11/10]²`.  The untrusted certificate uses center `(1,1)` and
 the exact inverse of the center Jacobian, `(1/3) [[2,-1],[-1,2]]`.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.Krawczyk
 

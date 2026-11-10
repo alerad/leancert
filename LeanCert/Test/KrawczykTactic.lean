@@ -3,10 +3,14 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Examples.Krawczyk
-import LeanCert.Tactic
+module
+
+public import LeanCert.Examples.Krawczyk
+public import LeanCert.Tactic
 
 /-! Generalized I1/I2 regressions for manual and automatic Krawczyk front ends. -/
+
+@[expose] public section
 
 namespace LeanCert.Test.KrawczykTactic
 

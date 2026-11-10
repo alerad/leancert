@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Core.IntervalRat.Basic
+module
+
+public import Lean
+public import LeanCert.Core.IntervalRat.Basic
 
 /-!
 # Core Types for Interval Tactics
@@ -17,6 +19,8 @@ This module defines the core data structures used by interval arithmetic tactics
 - `GlobalBoundGoal`: Result of analyzing a global optimization bound goal
 - `RootGoal`: Result of analyzing a root finding goal
 -/
+
+@[expose] public section
 
 open Lean Meta
 

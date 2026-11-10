@@ -3,9 +3,13 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.DobnerGammaRatio
-import LeanCert.Analysis.DBN.DobnerGammaReciprocal
-import Mathlib.Analysis.SpecialFunctions.Gamma.BohrMollerup
+module
+
+public import LeanCert.Analysis.DBN.DobnerGammaRatio
+public import LeanCert.Analysis.DBN.DobnerGammaReciprocal
+public import Mathlib.Analysis.SpecialFunctions.Gamma.BohrMollerup
+
+public section
 
 namespace LeanCert.Analysis.DBN
 open Complex Filter Set

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Chebyshev.Psi
+module
+
+public import LeanCert.Engine.Chebyshev.Psi
 
 /-!
 # Certified ψ(N) ≤ 1.11 * N bounds
@@ -16,6 +18,8 @@ for all N ≤ 11723, verified via `native_decide`.
 The main theorem is `psi_le_mul_11723`: for all 0 < x ≤ 11723, ψ(x) ≤ 1.11 * x.
 This corresponds to PNT issue #844 (`psi_num_2`).
 -/
+
+public section
 
 open Chebyshev (psi)
 open LeanCert.Engine.Chebyshev.Psi
@@ -61,4 +65,3 @@ theorem psi_le_mul_11723 (x : ℝ) (hx : 0 < x) (hxb : x ≤ 11723) :
       _ ≤ 111 / 100 * x := by gcongr; exact Nat.floor_le hnn
 
 end LeanCert.Examples.PNT_PsiBounds
-

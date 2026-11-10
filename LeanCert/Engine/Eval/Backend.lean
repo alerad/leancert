@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Eval.Extended
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.Affine.Environment
+module
+
+public import LeanCert.Engine.Eval.Extended
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.Affine.Environment
 
 /-!
 # Unified interval-evaluation backends
@@ -21,6 +23,8 @@ denominator growth risk. Other operations resolve `auto` according to their
 certified backend support. Explicit backend requests never silently switch
 implementation, and domain errors never trigger fallback.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 
@@ -119,17 +123,17 @@ structure AutomaticIntervalStats where
   denominatorBits : Nat := 0
   deriving Repr, DecidableEq
 
-private def rationalDenominatorBits (q : ℚ) : Nat :=
+def rationalDenominatorBits (q : ℚ) : Nat :=
   if q.den = 0 then 0 else Nat.log2 q.den + 1
 
-private def AutomaticIntervalStats.combine
+def AutomaticIntervalStats.combine
     (left right : AutomaticIntervalStats) : AutomaticIntervalStats := {
   hasNonlinear := left.hasNonlinear || right.hasNonlinear
   hasExactCancellation := left.hasExactCancellation || right.hasExactCancellation
   denominatorBits := left.denominatorBits + right.denominatorBits
 }
 
-private def isExactCancellation : Expr → Expr → Bool
+def isExactCancellation : Expr → Expr → Bool
   | left, .neg right | .neg right, left => decide (left = right)
   | _, _ => false
 

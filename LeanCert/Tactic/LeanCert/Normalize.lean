@@ -3,18 +3,21 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Tactic.Ring
-import LeanCert.Meta.ToExpr
-import LeanCert.Tactic.LeanCert.Bridge.Environment
+module
+
+public import Mathlib.Tactic.Ring
+public import LeanCert.Meta.ToExpr
+public import LeanCert.Tactic.LeanCert.Bridge.Environment
 
 /-!
 # Reification Bridge Normalization
 
 The reflected expression is often definitionally related to the user's term
 but not syntactically identical: custom wrappers were unfolded, subtraction
-was lowered to addition and negation, and powers became multiplication.  This
-module centralizes that final, proof-producing conversion.
+was lowered to addition and negation, and powers became multiplication.  Thismodule centralizes that final, proof-producing conversion.
 -/
+
+@[expose] public section
 
 open Lean Meta Elab Tactic
 

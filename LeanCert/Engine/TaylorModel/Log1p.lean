@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel.Core
-import Mathlib.Analysis.SpecialFunctions.Log.Deriv
-import Mathlib.RingTheory.Polynomial.Tower
+module
+
+public import LeanCert.Engine.TaylorModel.Core
+public import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+public import Mathlib.RingTheory.Polynomial.Tower
 
 /-!
 # Taylor Models - log(1+x) and Related Functions
@@ -37,6 +39,8 @@ Using Taylor: log(1±t) ≈ ±t - t²/2 ∓ ...
   Denominator: log(1+t)·log(1-t) = -t² + O(t³)
   Therefore: g(t) → 1 as t → 0
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

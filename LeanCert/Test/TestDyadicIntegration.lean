@@ -1,9 +1,13 @@
+module
+
 /-
 Quick test: Dyadic integration on g_alt_expr (the Li2 integrand).
 Compare computation time vs rational backend.
 -/
-import LeanCert.Validity.IntegrationDyadic
-import LeanCert.Validity.Integration
+public import LeanCert.Validity.IntegrationDyadic
+public import LeanCert.Validity.Integration
+
+@[expose] public section
 
 open LeanCert.Core
 open LeanCert.Engine

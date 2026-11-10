@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Core.Expr
+module
+
+public import Lean
+public import LeanCert.Core.Expr
 
 /-!
 # Meta-level Numeral Extraction
@@ -13,6 +15,8 @@ Utilities for extracting rational constants from elaborated Lean expressions.
 The goal is to support multiple equivalent syntactic encodings (literals,
 casts, scientific notation, arithmetic on constants) in one place.
 -/
+
+@[expose] public section
 
 open Lean Meta
 

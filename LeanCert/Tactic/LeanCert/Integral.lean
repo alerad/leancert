@@ -3,15 +3,26 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Tactic
-import LeanCert.Engine.Algebra.QPolyIntegral
-import LeanCert.Meta.Numeral
-import LeanCert.Meta.ProveContinuous
-import LeanCert.Meta.ProveSupported
-import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
-import LeanCert.Tactic.LeanCert.Config
-import LeanCert.Tactic.LeanCert.Normalize
-import LeanCert.Validity.Integration
+module
+
+public import Mathlib.Tactic
+public import LeanCert.Engine.Algebra.QPolyIntegral
+public import LeanCert.Meta.Numeral
+public import LeanCert.Meta.ProveContinuous
+public import LeanCert.Meta.ProveSupported
+public import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public import LeanCert.Tactic.LeanCert.Config
+public import LeanCert.Tactic.LeanCert.Normalize
+public import LeanCert.Validity.Integration
+public meta import Mathlib.Tactic
+public meta import LeanCert.Engine.Algebra.QPolyIntegral
+public meta import LeanCert.Meta.Numeral
+public meta import LeanCert.Meta.ProveContinuous
+public meta import LeanCert.Meta.ProveSupported
+public meta import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public meta import LeanCert.Tactic.LeanCert.Config
+public meta import LeanCert.Tactic.LeanCert.Normalize
+public meta import LeanCert.Validity.Integration
 
 /-!
 # Natural integral goals
@@ -20,6 +31,8 @@ This module parses ordinary interval-integral equalities and inequalities.  It
 first tries exact rational-polynomial integration, then falls back to LeanCert's
 checked partition search for non-polynomial expressions.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic
 

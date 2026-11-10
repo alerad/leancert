@@ -3,8 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Tactic.IntervalAuto.Types
+module
+
+public import Lean
+public meta import Lean
+public import LeanCert.Tactic.IntervalAuto.Types
 
 /-!
 # Goal Normalization for Interval Tactics
@@ -14,6 +17,8 @@ This module provides utilities for normalizing goal structure before parsing:
 - Detection of goal patterns that need normalization
 - The `interval_norm` tactic
 -/
+
+public section
 
 open Lean Meta Elab Tactic
 
@@ -46,6 +51,8 @@ theorem forall_and_of_Icc_rev {α} [Preorder α] {lo hi : α} {P : α → Prop} 
   exact h x ⟨hx.2, hx.1⟩
 
 /-! ## Goal Structure Detection -/
+
+public meta section
 
 private def goalNeedsIccWrapper (goalType : Lean.Expr) : MetaM Bool := do
   let goalType ← whnf goalType
@@ -213,5 +220,7 @@ syntax (name := intervalNormTac) "interval_norm" : tactic
 
 @[tactic intervalNormTac]
 def elabIntervalNorm : Tactic := fun _ => intervalNormCore
+
+end
 
 end LeanCert.Tactic.Auto

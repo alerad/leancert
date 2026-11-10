@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel.Core
-import LeanCert.Engine.TaylorModel.Functions
-import LeanCert.Engine.TaylorModel.Expr
-import LeanCert.Engine.TaylorModel.Integral
+module
+
+public import LeanCert.Engine.TaylorModel.Core
+public import LeanCert.Engine.TaylorModel.Functions
+public import LeanCert.Engine.TaylorModel.Expr
+public import LeanCert.Engine.TaylorModel.Integral
 
 /-!
 # Taylor Models

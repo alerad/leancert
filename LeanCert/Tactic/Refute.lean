@@ -3,10 +3,15 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import Mathlib.Tactic.Linter.UnusedTactic
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.Engine.Search.CounterExample
+module
+
+public import Lean
+public import Mathlib.Tactic.Linter.UnusedTactic
+public import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Engine.Search.CounterExample
+public meta import Mathlib.Tactic.Linter.UnusedTactic
+public meta import LeanCert.Tactic.IntervalAuto
+public meta import LeanCert.Engine.Search.CounterExample
 
 /-!
 # Counter-Example Hunting Tactic
@@ -41,6 +46,8 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x * x ≤ 1 := by
 A returned counter-example is a concrete rational point whose checked singleton
 enclosure lies wholly in the violating region.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic Term
 open LeanCert.Tactic.Auto

@@ -1,7 +1,12 @@
-import Mathlib.Analysis.Complex.Exponential
-import Mathlib.Tactic
+module
+
+public import Mathlib.Analysis.Complex.Exponential
+public import Mathlib.Tactic
 
 /-! Explicit absorption of polynomial factors into exponential decay. -/
+
+public section
+
 namespace LeanCert.Analysis
 
 /-- Retain half of the exponential decay while absorbing any natural power. -/

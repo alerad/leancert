@@ -3,15 +3,17 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.VecUtil
-import LeanCert.Tactic.Verification
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
-import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Order.Interval.Finset.Nat
-import Mathlib.Tactic.Simproc.FinsetInterval
-import Mathlib.Data.Fin.Tuple.Reflection
-import Mathlib.Tactic.NormNum
-import Mathlib.Tactic.Ring
+module
+
+public import LeanCert.Tactic.VecUtil
+public import LeanCert.Tactic.Verification
+public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+public import Mathlib.Algebra.BigOperators.Fin
+public import Mathlib.Order.Interval.Finset.Nat
+public import Mathlib.Tactic.Simproc.FinsetInterval
+public import Mathlib.Data.Fin.Tuple.Reflection
+public import Mathlib.Tactic.NormNum
+public import Mathlib.Tactic.Ring
 
 /-!
 # finsum_expand: Expand Finset sums to explicit additions
@@ -30,9 +32,12 @@ import Mathlib.Tactic.Ring
 Shared utilities in `LeanCert.Tactic.VecUtil`. Debug: `set_option trace.VecUtil.debug true`
 -/
 
+public section
+
 /-- Expand finite sums: `∑ k ∈ Finset.Icc 1 3, f k` → `f 1 + f 2 + f 3`.
     Supports intervals (`Icc`, `Ico`, etc.), explicit finsets, and `∑ i : Fin n, f i`.
     See `finsum_expand!` for computed bounds, dite, abs, matrix indexing. -/
+
 macro "finsum_expand" : tactic =>
   `(tactic| (
     -- Step 0: Expand Fin sums using Mathlib's simproc (works for literal n)

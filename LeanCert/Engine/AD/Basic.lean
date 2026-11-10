@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
+module
+
+public import LeanCert.Engine.IntervalEval
 
 /-!
 # Automatic Differentiation - Basic Definitions
@@ -21,6 +23,8 @@ automatic differentiation using interval arithmetic.
 * `DualInterval.mul` - Multiplication with product rule
 * `DualInterval.neg` - Negation
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

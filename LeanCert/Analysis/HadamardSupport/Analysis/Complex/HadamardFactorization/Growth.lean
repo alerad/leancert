@@ -51,9 +51,7 @@ Hadamard (Theorem 22).
   Hadamard product theorem
 -/
 
-@[expose] public section
-
-noncomputable section
+public noncomputable section
 
 open Set Filter Asymptotics
 open scoped Topology BigOperators

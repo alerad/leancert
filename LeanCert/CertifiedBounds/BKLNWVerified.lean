@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.ReflectiveSum
-import LeanCert.Engine.BKLNW
-import LeanCert.Tactic.FinSumExpand
+module
+
+public import LeanCert.Engine.ReflectiveSum
+public import LeanCert.Engine.BKLNW
+public import LeanCert.Tactic.FinSumExpand
 
 /-!
 # BKLNW a₂ Verified Bounds via Reflective Sum Evaluator
@@ -23,6 +25,8 @@ these verified theorems through the stable bounds API.
 3. `native_decide` creates O(1) proof term by running the computation
 4. Bridge theorems connect this to the mathematical statement
 -/
+
+@[expose] public section
 
 namespace LeanCert.CertifiedBounds.BKLNW.Verified
 

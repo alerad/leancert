@@ -3,13 +3,17 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Eval
+module
+
+public import LeanCert.API.Eval
 
 /-!
 # Narrow public evaluation API contract
 
 This module intentionally imports only `LeanCert.API.Eval`.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.PublicAPI.Eval
 

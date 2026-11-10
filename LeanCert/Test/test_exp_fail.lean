@@ -1,4 +1,8 @@
-import LeanCert
+module
+
+public import LeanCert
+
+@[expose] public section
 
 open LeanCert.Core
 open LeanCert.Validity

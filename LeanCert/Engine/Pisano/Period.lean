@@ -2,7 +2,9 @@
 Copyright (c) 2025 LeanCert contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import LeanCert.Engine.Pisano.Defs
+module
+
+public import LeanCert.Engine.Pisano.Defs
 
 /-! # Pisano Period Computation
 
@@ -18,6 +20,8 @@ For Fibonacci (P=1, Q=-1), this is the classical Pisano period `π(m)`.
 - `checkPisanoPeriod`: verify a claimed period is correct
 - `checkPisanoPeriod_implies`: bridge theorem from checker to divisibility
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Pisano
 

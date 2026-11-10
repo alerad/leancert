@@ -3,13 +3,17 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel.Core
+module
+
+public import LeanCert.Engine.TaylorModel.Core
 
 /-!
 # Bernstein Bounds Test
 
 Quick test to verify Bernstein polynomial conversion is working.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.BernsteinTest
 

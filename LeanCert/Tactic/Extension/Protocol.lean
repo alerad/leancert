@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalRat.Basic
+module
+
+public import LeanCert.Core.IntervalRat.Basic
 
 /-!
 # Downstream enclosure extension protocol
@@ -15,6 +17,8 @@ registered Boolean checker and soundness theorem validate it.
 Execution of registered rules is not part of this lightweight module. The registry is
 the stable boundary consumed by the semantic tactic in a separate execution layer.
 -/
+
+public section
 
 namespace LeanCert.Tactic.Extension
 

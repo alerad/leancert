@@ -2,11 +2,15 @@
 Copyright (c) 2025 LeanCert contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import LeanCert.Engine.Pisano
+module
+
+public import LeanCert.Engine.Pisano
 
 /-! # Pisano Period Tests
 
 Verify known Pisano periods and fixed points via `native_decide` and `#eval`. -/
+
+public section
 
 open LeanCert.Engine.Pisano
 

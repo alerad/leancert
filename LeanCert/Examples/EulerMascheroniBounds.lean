@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.FinSumDyadic
-import Mathlib.NumberTheory.Harmonic.EulerMascheroni
-import Mathlib.Analysis.Complex.ExponentialBounds
+module
+
+public import LeanCert.Engine.FinSumDyadic
+public import Mathlib.NumberTheory.Harmonic.EulerMascheroni
+public import Mathlib.Analysis.Complex.ExponentialBounds
 
 /-!
 # Certified Euler–Mascheroni Constant Bounds
@@ -47,6 +49,8 @@ Tightening beyond ~1e-6 is structural, not incremental: the sandwich gap is
 `1/N`, so each extra digit costs 10× the `native_decide` work (or an
 Euler–Maclaurin midpoint refinement, which needs new analysis).
 -/
+
+@[expose] public section
 
 namespace EulerMascheroni
 

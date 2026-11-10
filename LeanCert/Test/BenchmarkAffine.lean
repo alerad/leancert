@@ -3,12 +3,14 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Expr
-import LeanCert.Core.IntervalReal
-import LeanCert.Core.IntervalDyadic
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.IntervalEvalAffine
+module
+
+public import LeanCert.Core.Expr
+public import LeanCert.Core.IntervalReal
+public import LeanCert.Core.IntervalDyadic
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.IntervalEvalAffine
 
 /-!
 # Affine Arithmetic Tests and Benchmarks
@@ -32,6 +34,8 @@ For expressions with repeated variables:
 Affine arithmetic tracks linear correlations, giving 50-90% tighter bounds
 for many real-world expressions, especially in neural network verification.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.Affine
 

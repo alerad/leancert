@@ -1,8 +1,13 @@
-import LeanCert.Analysis.SeriesTail
-import Mathlib.Analysis.SpecialFunctions.Exp
+module
+
+public import LeanCert.Analysis.SeriesTail
+public import Mathlib.Analysis.SpecialFunctions.Exp
 
 /-! Discrete Gaussian majorants. These bound series, not improper integrals
 or a heat-flow representation. -/
+
+public section
+
 namespace LeanCert.Analysis.SeriesTail
 
 /-- The discrete quadratic exponent has a geometric majorant beyond any

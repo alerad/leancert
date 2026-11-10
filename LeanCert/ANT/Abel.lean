@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT.Step
-import Mathlib.Algebra.BigOperators.Module
+module
+
+public import LeanCert.ANT.Step
+public import Mathlib.Algebra.BigOperators.Module
 
 /-!
 # Abel / partial-summation certificates
@@ -13,6 +15,8 @@ The first layer is the exact finite Abel transform.  It is deliberately discrete
 continuous Stieltjes-integral refinements can be built on top of this identity
 without changing finite certificate data.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT
 
@@ -193,7 +197,7 @@ theorem abelBoundLowerRat_le_transform
     intro i hi
     have hterm := coeffLowerRat_le_mul (c := -(f (i + 1) - f i))
       (hA (i + 1)).1 (hA (i + 1)).2
-    convert! hterm using 1 <;> simp [Nat.add_comm] <;> ring_nf
+    convert! hterm using 1; simp [Nat.add_comm]; ring_nf
 
 theorem transform_le_abelBoundUpperRat
     (f ALo AHi : Nat → ℚ) (A : Nat → ℝ) (m n : Nat)
@@ -210,7 +214,7 @@ theorem transform_le_abelBoundUpperRat
     intro i hi
     have hterm := mul_le_coeffUpperRat (c := -(f (i + 1) - f i))
       (hA (i + 1)).1 (hA (i + 1)).2
-    convert! hterm using 1 <;> simp [Nat.add_comm] <;> ring_nf
+    convert! hterm using 1; simp [Nat.add_comm]; ring_nf
 
 /-- Alias with the semantic object first in the name. -/
 theorem abelTransformOfPrefix_le_abelBoundUpperRat

@@ -3,10 +3,15 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.GammaRatio
-import LeanCert.Analysis.DBN.DobnerContourShift
+module
+
+public import LeanCert.Analysis.GammaRatio
+public import LeanCert.Analysis.DBN.DobnerContourShift
 
 /-! Quantitative relative estimates for the actual DBN Gamma normalization. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Filter
 open scoped Topology

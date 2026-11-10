@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.LeanCert
+module
+
+public import LeanCert.Tactic.LeanCert
 
 /-!
 # Isolated Solver Protocol Tests
@@ -11,6 +13,8 @@ import LeanCert.Tactic.LeanCert
 Synthetic solvers exercise proof-artifact isolation independently of numerical
 engines.
 -/
+
+@[expose] public section
 
 open Lean Meta Elab Tactic
 open LeanCert.Tactic

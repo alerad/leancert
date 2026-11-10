@@ -1,9 +1,13 @@
+module
+
 /-
 Release Smoke Test for LeanCert
 Tests core functionality expected to work in a release.
 Delete this file after verification.
 -/
-import LeanCert
+public import LeanCert
+
+@[expose] public section
 
 open LeanCert
 

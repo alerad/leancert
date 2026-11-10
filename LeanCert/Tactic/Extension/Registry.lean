@@ -3,9 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.Extension.Protocol
-import Lean.Compiler.IR.CompilerM
-import Lean.Elab.Term
+module
+
+public import LeanCert.Tactic.Extension.Protocol
+public meta import LeanCert.Tactic.Extension.Protocol
+public meta import Lean.Compiler.IR.CompilerM
+public meta import Lean.Elab.Term
 
 /-!
 # Persistent registry for downstream enclosure rules
@@ -23,6 +26,8 @@ theorem rule
 The attribute validates the candidate, checker, function, and theorem types before
 adding serializable declaration metadata to a persistent environment extension.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab
 
@@ -47,7 +52,7 @@ initialize unaryEnclosureRuleExt :
     addImportedFn := fun imported => imported.foldl (init := #[]) fun acc rules => acc ++ rules
   }
 
-private def ruleLt (a b : UnaryEnclosureRule) : Bool :=
+def ruleLt (a b : UnaryEnclosureRule) : Bool :=
   a.rulePriority > b.rulePriority ||
     (a.rulePriority == b.rulePriority && a.theoremName.toString < b.theoremName.toString)
 

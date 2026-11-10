@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Bridge
-import LeanCert.Tactic.BridgeNative
+module
+
+public import LeanCert.Bridge
+public import LeanCert.Tactic.BridgeNative
 
 /-!
 # Lean-Side Unit Tests for Bridge (Tests 32-33)
@@ -12,6 +14,8 @@ import LeanCert.Tactic.BridgeNative
 Goal: Unit test the JSON deserializers in Lean directly.
 These tests verify that the Bridge.lean serialization logic works correctly.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.BridgeTest
 

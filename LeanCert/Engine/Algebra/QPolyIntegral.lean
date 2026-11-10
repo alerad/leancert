@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.QPoly
+module
+
+public import LeanCert.Engine.Algebra.QPoly
 
 /-!
 # Exact polynomial integral certificates
@@ -14,6 +16,8 @@ checker is intentionally small: certificate discovery may happen in tactics or
 external tooling, while Lean verifies the reflected polynomial and endpoint
 evaluation.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

@@ -1,11 +1,15 @@
+module
+
 /-
   Test file for Discovery Mode features
   Testing the library as an end-user would for various applications
 -/
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.Tactic.Discovery
-import LeanCert.Tactic.Refute
-import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Tactic.Discovery
+public import LeanCert.Tactic.Refute
+public import LeanCert.Tactic.IntervalAuto
+
+@[expose] public section
 
 open LeanCert.Core
 open Set

@@ -3,10 +3,14 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Test.DownstreamPatterns.Extension
-import LeanCert.Tactic.Enclosure
+module
+
+public import LeanCert.Test.DownstreamPatterns.Extension
+public import LeanCert.Tactic.Enclosure
 
 /-! # Focused registered-enclosure tactic regressions -/
+
+public section
 
 namespace LeanCert.Test.EnclosureTactic
 

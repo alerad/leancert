@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEvalAffine
+module
+
+public import LeanCert.Engine.IntervalEvalAffine
 
 /-!
 # Certificate-Driven Verification with Affine Arithmetic
@@ -53,6 +55,8 @@ This provides an alternative verification path to both:
 Affine arithmetic typically gives the tightest bounds but is computationally more
 expensive. Use it when standard interval arithmetic is too conservative.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

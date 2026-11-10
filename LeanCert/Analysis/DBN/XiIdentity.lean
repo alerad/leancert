@@ -1,5 +1,7 @@
-import LeanCert.Analysis.DBN.ThetaIntegral
-import LeanCert.Analysis.DBN.Xi
+module
+
+public import LeanCert.Analysis.DBN.ThetaIntegral
+public import LeanCert.Analysis.DBN.Xi
 
 /-!
 # Exact H_0 / xi identity and the initial zero strip
@@ -13,6 +15,9 @@ actual value, and no division by the xi pole factors is used.
 The conclusion concerns the original `H` integral, not a redefinition.
 Strip shrinking at positive time remains a separate theorem.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open MeasureTheory Set Complex HurwitzZeta
 

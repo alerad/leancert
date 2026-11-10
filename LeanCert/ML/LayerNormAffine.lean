@@ -3,8 +3,10 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Transformer
-import LeanCert.Engine.Affine.Vector
+module
+
+public import LeanCert.ML.Transformer
+public import LeanCert.Engine.Affine.Vector
 
 /-!
 # Affine Arithmetic LayerNorm for ML
@@ -39,6 +41,8 @@ Affine forms track symbolic dependencies via noise symbols:
 
 * de Figueiredo & Stolfi, "Affine Arithmetic: Concepts and Applications", 2004
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Transformer
 

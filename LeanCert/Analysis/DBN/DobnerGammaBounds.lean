@@ -3,11 +3,16 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.DobnerNormalization
-import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
+module
+
+public import LeanCert.Analysis.DBN.DobnerNormalization
+public import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
 
 /-! Absolute Gamma bounds on the initial contour. These do not constitute
 sectorial Stirling estimates or the Dobner saddle-point approximation. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex MeasureTheory Set
 

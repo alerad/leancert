@@ -3,9 +3,11 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Optimized.IntervalArray
-import LeanCert.ML.Optimized.QuantizedLayer
-import Mathlib.Data.Matrix.Basic
+module
+
+public import LeanCert.ML.Optimized.IntervalArray
+public import LeanCert.ML.Optimized.QuantizedLayer
+public import Mathlib.Data.Matrix.Basic
 
 /-!
 # Quantized Matrix Operations
@@ -19,6 +21,8 @@ Matrix-Matrix multiplication for Intervals.
 * `IntervalMatrix` - Structure-of-Arrays interval matrix
 * `matmul` - Verified interval matrix multiplication
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Optimized
 
@@ -35,7 +39,7 @@ structure IntMatrix (rows cols : Nat) where
 namespace IntMatrix
 
 /-- Helper lemma for row-major index bounds -/
-private theorem row_major_lt_of_lt_mul_of_lt {r c i j : Nat}
+theorem row_major_lt_of_lt_mul_of_lt {r c i j : Nat}
     (hi : i < r) (hj : j < c) : i * c + j < r * c := by
   calc i * c + j < i * c + c := Nat.add_lt_add_left hj _
     _ = (i + 1) * c := by ring
@@ -48,11 +52,11 @@ private theorem row_major_lt_of_lt_mul_of_lt {r c i j : Nat}
   M.data[idx]'(by rw [M.size_eq]; exact row_major_lt_of_lt_mul_of_lt hi hj)
 
 /-- Helper: convert k < r * c to k < c * r -/
-private theorem lt_mul_comm {k r c : Nat} (h : k < r * c) : k < c * r := by
+theorem lt_mul_comm {k r c : Nat} (h : k < r * c) : k < c * r := by
   rwa [Nat.mul_comm]
 
 /-- Helper function to compute element at flat index -/
-private def flatToElem {r c : Nat} (f : Fin r → Fin c → Int) (hc : c ≠ 0)
+def flatToElem {r c : Nat} (f : Fin r → Fin c → Int) (hc : c ≠ 0)
     (k : Fin (r * c)) : Int :=
   let i := k / c
   let j := k % c

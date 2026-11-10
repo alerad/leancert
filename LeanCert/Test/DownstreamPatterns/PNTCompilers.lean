@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT
+module
+
+public import LeanCert.ANT
 
 /-!
 # PrimeNumberTheoremAnd explicit-PNT compiler pattern
@@ -11,6 +13,8 @@ import LeanCert.ANT
 PNT+ imports these three ANT modules in `IEANTN/FKS2.lean`. This example
 ensures the generic compiler theorem remains straightforward to instantiate.
 -/
+
+public section
 
 namespace LeanCert.Test.DownstreamPatterns.PNTCompilers
 

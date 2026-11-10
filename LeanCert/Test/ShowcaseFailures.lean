@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Executable failure showcase
@@ -11,6 +13,8 @@ import LeanCert.Tactic
 These tests pin searchable public diagnostics without snapshotting incidental
 internal exception text.
 -/
+
+@[expose] public section
 
 open Lean Meta Elab Tactic
 

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Algebra
+module
+
+public import LeanCert.Validity.Algebra
 
 /-!
 # Discriminant root-count certificate regressions
@@ -12,6 +14,8 @@ The shifted family is `(x-t)(x-t-1)(x-t-2)`. Its discriminant is identically
 `4`, but direct interval evaluation cannot see the cancellations on the whole
 parameter box. Adaptive subdivision succeeds.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.CubicCount
 

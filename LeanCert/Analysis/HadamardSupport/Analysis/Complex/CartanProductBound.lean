@@ -20,9 +20,7 @@ This file collects small reusable algebra and infinite-product lemmas:
 - turning a uniform bound on finite partial products into a bound on the `HasProd` limit.
 -/
 
-@[expose] public section
-
-noncomputable section
+public noncomputable section
 
 open scoped BigOperators
 open Filter Finset Real Topology

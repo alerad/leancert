@@ -1,7 +1,12 @@
-import LeanCert.Analysis.DBN.Hadamard
-import Mathlib.Analysis.Complex.AbsMax
+module
+
+public import LeanCert.Analysis.DBN.Hadamard
+public import Mathlib.Analysis.Complex.AbsMax
 
 /-! Zero exclusion under locally uniform limits of entire functions. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Complex.Hadamard Set Metric Filter
 open scoped Topology

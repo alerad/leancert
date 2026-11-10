@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD.Basic
-import LeanCert.Engine.AD.Transcendental
+module
+
+public import LeanCert.Engine.AD.Basic
+public import LeanCert.Engine.AD.Transcendental
 
 /-!
 # Automatic Differentiation - Evaluators
@@ -23,6 +25,8 @@ mapping expressions to dual intervals.
 * `derivInterval` - Get just the derivative interval
 * `evalWithDeriv1` - Single-variable evaluation and differentiation
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Tactic.LeanCert.Semantic.Domain
+module
+
+public import Lean
+public import LeanCert.Tactic.LeanCert.Semantic.Domain
 
 /-!
 # Semantic Goal Representation
@@ -12,6 +14,8 @@ import LeanCert.Tactic.LeanCert.Semantic.Domain
 The public router parses a theorem once into this internal representation.
 The original expression is retained for proof transport and diagnostics.
 -/
+
+@[expose] public section
 
 open Lean
 

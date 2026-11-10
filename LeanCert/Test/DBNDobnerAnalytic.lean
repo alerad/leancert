@@ -1,6 +1,10 @@
-import LeanCert.Analysis.DBN.DobnerDirichlet
-import LeanCert.Analysis.DBN.DobnerGammaReciprocal
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.DobnerDirichlet
+public import LeanCert.Analysis.DBN.DobnerGammaReciprocal
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open LeanCert.Analysis.DBN Complex MeasureTheory
 

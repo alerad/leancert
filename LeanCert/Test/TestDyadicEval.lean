@@ -1,8 +1,12 @@
+module
+
 /-
 Tests for dyadic interval evaluation of sinc, arsinh, and transcendental compositions.
 Verifies that `LeanCert.Internal.Dyadic.evalUnchecked` produces correct enclosures for these functions.
 -/
-import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.IntervalEvalDyadic
+
+@[expose] public section
 
 open LeanCert.Core
 open LeanCert.Engine

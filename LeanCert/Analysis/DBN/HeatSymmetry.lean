@@ -1,6 +1,11 @@
-import LeanCert.Analysis.DBN.HeatFlow
+module
+
+public import LeanCert.Analysis.DBN.HeatFlow
 
 /-! Symmetries of the actual heat integral, without using kernel evenness. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open MeasureTheory
 

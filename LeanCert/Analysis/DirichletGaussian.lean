@@ -3,13 +3,15 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.SeriesTail
-import Mathlib.Analysis.Complex.LocallyUniformLimit
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
-import Mathlib.Topology.Algebra.InfiniteSum.ENNReal
-import Mathlib.Analysis.Normed.Group.Tannery
-import LeanCert.Analysis.HadamardSupport.Analysis.Complex.ExpPoly
-import Mathlib.Analysis.Polynomial.Basic
+module
+
+public import LeanCert.Analysis.SeriesTail
+public import Mathlib.Analysis.Complex.LocallyUniformLimit
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.Topology.Algebra.InfiniteSum.ENNReal
+public import Mathlib.Analysis.Normed.Group.Tannery
+public import LeanCert.Analysis.HadamardSupport.Analysis.Complex.ExpPoly
+public import Mathlib.Analysis.Polynomial.Basic
 
 /-!
 # Gaussian-damped Dirichlet series
@@ -17,6 +19,9 @@ import Mathlib.Analysis.Polynomial.Basic
 Index n denotes the positive integer n+1. The damping parameter a is positive;
 the DBN specialization is a = -t/4, for t < 0.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DirichletGaussian
 open Complex Filter Set
 open scoped Topology

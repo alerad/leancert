@@ -1,4 +1,8 @@
-import LeanCert.Tactic.Discovery
+module
+
+public import LeanCert.Tactic.Discovery
+
+public section
 
 theorem edge_minimize_and : ∃ m : ℚ, ∀ x : ℝ, (0:ℝ) ≤ x ∧ x ≤ 1 → x * x ≥ m := by
   interval_minimize

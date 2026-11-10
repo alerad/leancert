@@ -1,7 +1,11 @@
+module
+
 /-
   Test interval_bound_subdiv with lower bounds
 -/
-import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Tactic.IntervalAuto
+
+public section
 
 open LeanCert.Core
 open Set

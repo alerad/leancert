@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD
-import LeanCert.Engine.IntervalEvalReal
+module
+
+public import LeanCert.Engine.AD
+public import LeanCert.Engine.IntervalEvalReal
 
 /-!
 # Calculus Examples
@@ -18,6 +20,8 @@ The `LeanCert.Engine.evalDualUnchecked_val_correct` theorem is **FULLY PROVED** 
 expression subset {const, var, add, mul, neg, sin, cos}. This demonstrates
 verified forward-mode automatic differentiation with interval bounds.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.Calculus
 

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Eval
+module
+
+public import LeanCert.API.Eval
 
 /-!
 # Backend capability registry
@@ -16,6 +18,8 @@ The generated Markdown matrix is checked against the documentation by
 `LeanCert.Test.CapabilityMatrix`, preventing the public support table from
 drifting away from this executable registry.
 -/
+
+@[expose] public section
 
 namespace LeanCert
 
@@ -79,17 +83,17 @@ def concreteBackendLabel : ConcreteBackend → String
   | .dyadic => "Dyadic"
   | .affine => "Affine"
 
-private def supported : SupportStatus := .supported
-private def noTactic : SupportStatus :=
+def supported : SupportStatus := .supported
+def noTactic : SupportStatus :=
   .notPlanned "programmatic checked operation; no dedicated tactic is planned"
-private def notPromoted (reason : String) : SupportStatus := .unavailable reason
-private def noAffineAD : SupportStatus :=
+def notPromoted (reason : String) : SupportStatus := .unavailable reason
+def noAffineAD : SupportStatus :=
   .notPlanned "requires a proved dual-affine evaluator and evidence of tighter derivative bounds"
-private def noAffineIntegration : SupportStatus :=
+def noAffineIntegration : SupportStatus :=
   .notPlanned "partition summation is not expected to retain enough affine correlation"
-private def noAffineRoots : SupportStatus :=
+def noAffineRoots : SupportStatus :=
   .notPlanned "depends on useful affine AD and contraction benchmarks"
-private def noDyadicRoots : SupportStatus :=
+def noDyadicRoots : SupportStatus :=
   .unavailable "checked Dyadic root certificates have not been implemented"
 
 /-- Authoritative operation/backend support registry. -/
@@ -237,7 +241,7 @@ def capabilityEngineMatchesDispatcher : Bool :=
   backendCapabilities.all fun row =>
     row.engine.implemented == backendSupports row.backend row.operation
 
-private def yesNo (value : Bool) : String := if value then "yes" else "no"
+def yesNo (value : Bool) : String := if value then "yes" else "no"
 
 def BackendCapability.markdownRow (capability : BackendCapability) : String :=
   let configs := if capability.configuration.isEmpty then "—"

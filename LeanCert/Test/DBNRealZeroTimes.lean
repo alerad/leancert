@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.RealZeroTimes
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.RealZeroTimes
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open LeanCert.Analysis.DBN Set Filter
 open scoped Topology

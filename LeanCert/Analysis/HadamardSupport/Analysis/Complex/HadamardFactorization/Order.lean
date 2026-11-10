@@ -34,9 +34,7 @@ factorization after choosing an enumeration of the nonzero divisor indices.
   genus `⌊ρ⌋` for functions of order at most `ρ`
 -/
 
-@[expose] public section
-
-noncomputable section
+@[expose] public noncomputable section
 
 open Set Filter Asymptotics
 open scoped Topology BigOperators

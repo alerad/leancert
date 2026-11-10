@@ -3,8 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Tactic.Verification
+module
+
+public import Lean
+public import LeanCert.Tactic.Verification
+public meta import LeanCert.Tactic.Verification
 
 /-!
 # Shared Bridge + Certificate-Verification Infrastructure
@@ -16,6 +19,8 @@ the case where the bridge's type isn't defEq to the goal via a
 suffices + converter fallback.
 -/
 
+@[expose] public section
+
 open Lean Meta Elab Tactic Term
 
 namespace LeanCert.Tactic
@@ -26,6 +31,15 @@ inductive BridgeFailure where
   | verificationFailure (detail : String)
   | transportFailure (detail : String)
   deriving Inhabited, Repr
+
+end LeanCert.Tactic
+end
+
+@[expose] public meta section
+
+open Lean Meta Elab Tactic Term
+
+namespace LeanCert.Tactic
 
 /-- Apply a bridge proof and close its certificate through the configured
 verification route.
@@ -46,7 +60,8 @@ Parameters:
 - `tacticName`: name for error messages (e.g., "finsum_bound")
 - `converterSteps`: fallback tactics to try (in order) for converting `proofTy → goalType`
 -/
-private def closeBridgeWithVerificationTypedImpl
+
+def closeBridgeWithVerificationTypedImpl
     (original : Lean.Elab.Tactic.SavedState)
     (goal : MVarId) (goalType : Lean.Expr)
     (proof checkMVar : Lean.Expr)
@@ -126,3 +141,5 @@ def closeBridgeWithVerificationTyped
     return .error <| .transportFailure (← e.toMessageData.toString)
 
 end LeanCert.Tactic
+
+end

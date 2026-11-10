@@ -1,5 +1,9 @@
-import LeanCert.Engine.DirichletGaussian
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Engine.DirichletGaussian
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open LeanCert.Analysis.DirichletGaussian
 open LeanCert.Engine.DirichletGaussian

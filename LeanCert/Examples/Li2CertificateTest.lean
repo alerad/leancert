@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Bounds
-import LeanCert.Validity.CertificateIntegration
+module
+
+public import LeanCert.Validity.Bounds
+public import LeanCert.Validity.CertificateIntegration
 
 /-!
 # Certificate-Based Integration Test for li(2)
@@ -31,6 +33,8 @@ The workflow is:
 3. Use checkIntegralCertLowerBound/checkIntegralCertUpperBound for verification
 4. The kernel only runs the linear checker, not the adaptive search
 -/
+
+@[expose] public section
 
 namespace Li2CertificateTest
 

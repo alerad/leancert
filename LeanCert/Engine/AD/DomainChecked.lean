@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD.Computable
-import LeanCert.Engine.Eval.Result
+module
+
+public import LeanCert.Engine.AD.Computable
+public import LeanCert.Engine.Eval.Result
 
 /-!
 # Computable domain-aware automatic differentiation
@@ -14,6 +16,8 @@ reciprocal and logarithm nodes.  The existing `ADSupported` fragment remains
 the domain-free fast path.  Here, successful evaluation itself certifies both
 syntactic support and every partial-domain side condition.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

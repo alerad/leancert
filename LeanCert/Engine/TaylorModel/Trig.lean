@@ -3,12 +3,14 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel.Core
-import LeanCert.Contrib.Sinc
-import Mathlib.Analysis.Complex.ExponentialBounds
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Series
-import Mathlib.Analysis.Calculus.IteratedDeriv.Defs
-import Mathlib.Analysis.Analytic.Uniqueness
+module
+
+public import LeanCert.Engine.TaylorModel.Core
+public import LeanCert.Contrib.Sinc
+public import Mathlib.Analysis.Complex.ExponentialBounds
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Series
+public import Mathlib.Analysis.Calculus.IteratedDeriv.Defs
+public import Mathlib.Analysis.Analytic.Uniqueness
 
 /-!
 # Taylor Models - Trigonometric Functions
@@ -24,6 +26,8 @@ models and their correctness proofs.
 * `tmSin`, `tmCos`, `tmSinc` - Function-level Taylor models
 * `tmSin_correct`, `tmCos_correct` - Correctness theorems
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.CertifiedBounds.Chebyshev
+module
+
+public import LeanCert.CertifiedBounds.Chebyshev
 
 /-!
 # PrimeNumberTheoremAnd Chebyshev checker patterns
@@ -12,6 +14,8 @@ Reduced versions of the checker-to-theorem flows in `IEANTN/Chebyshev.lean`
 and `IEANTN/Ramanujan/Ramanujan.lean`. The small ranges keep this regression
 target cheap while protecting the same APIs and elaboration shapes.
 -/
+
+public section
 
 namespace LeanCert.Test.DownstreamPatterns.Chebyshev
 

@@ -3,20 +3,22 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean.Data.Json
-import LeanCert.Core.Expr
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.IntervalEvalAffine
-import LeanCert.API.Eval
-import LeanCert.API.Integration
-import LeanCert.API.Optimization
-import LeanCert.Engine.Optimization.Global
-import LeanCert.Engine.Optimization.Backend
-import LeanCert.Engine.Optimization.Gradient
-import LeanCert.Engine.Integrate
-import LeanCert.Validity.Bounds
-import LeanCert.ML.Distillation
+module
+
+public import Lean.Data.Json
+public import LeanCert.Core.Expr
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.IntervalEvalAffine
+public import LeanCert.API.Eval
+public import LeanCert.API.Integration
+public import LeanCert.API.Optimization
+public import LeanCert.Engine.Optimization.Global
+public import LeanCert.Engine.Optimization.Backend
+public import LeanCert.Engine.Optimization.Gradient
+public import LeanCert.Engine.Integrate
+public import LeanCert.Validity.Bounds
+public import LeanCert.ML.Distillation
 
 /-!
 # LeanBridge: JSON-RPC Bridge for Python Integration
@@ -51,6 +53,8 @@ We use a simplified JSON-RPC 2.0 style over line-delimited JSON.
 - `integrate`: Compute rigorous bounds on a definite integral
 - `forward_interval`: Propagate intervals through a neural network (SequentialNet)
 -/
+
+@[expose] public section
 
 open LeanCert.Core LeanCert.Engine LeanCert.Engine.Optimization
 

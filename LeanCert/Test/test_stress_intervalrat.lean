@@ -1,4 +1,8 @@
-import LeanCert.Core.IntervalRat.Taylor
+module
+
+public import LeanCert.Core.IntervalRat.Taylor
+
+public section
 
 open LeanCert.Core
 

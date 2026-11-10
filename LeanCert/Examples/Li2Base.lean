@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel.Log1p
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+module
+
+public import LeanCert.Engine.TaylorModel.Log1p
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 
 /-!
 # Li(2) Base Definitions
@@ -25,6 +27,8 @@ allowlisted placeholder theorems. The separate `Li2Verified` target builds
 statement-identical proofs, but those public constants are not kernel-linked
 to the verified proof terms.
 -/
+
+@[expose] public section
 
 open MeasureTheory LeanCert.Engine.TaylorModel
 open scoped ENNReal

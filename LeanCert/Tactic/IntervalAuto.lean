@@ -3,15 +3,26 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto.Basic
-import LeanCert.Tactic.IntervalAuto.Bound
-import LeanCert.Tactic.IntervalAuto.Bernstein
-import LeanCert.Tactic.IntervalAuto.Multivariate
-import LeanCert.Tactic.IntervalAuto.OptBound
-import LeanCert.Tactic.IntervalAuto.RootBound
-import LeanCert.Tactic.IntervalAuto.PointIneq
-import LeanCert.Tactic.IntervalAuto.Subdiv
-import LeanCert.Tactic.IntervalAuto.Adaptive
+module
+
+public import LeanCert.Tactic.IntervalAuto.Basic
+public import LeanCert.Tactic.IntervalAuto.Bound
+public import LeanCert.Tactic.IntervalAuto.Bernstein
+public import LeanCert.Tactic.IntervalAuto.Multivariate
+public import LeanCert.Tactic.IntervalAuto.OptBound
+public import LeanCert.Tactic.IntervalAuto.RootBound
+public import LeanCert.Tactic.IntervalAuto.PointIneq
+public import LeanCert.Tactic.IntervalAuto.Subdiv
+public import LeanCert.Tactic.IntervalAuto.Adaptive
+public meta import LeanCert.Tactic.IntervalAuto.Basic
+public meta import LeanCert.Tactic.IntervalAuto.Bound
+public meta import LeanCert.Tactic.IntervalAuto.Bernstein
+public meta import LeanCert.Tactic.IntervalAuto.Multivariate
+public meta import LeanCert.Tactic.IntervalAuto.OptBound
+public meta import LeanCert.Tactic.IntervalAuto.RootBound
+public meta import LeanCert.Tactic.IntervalAuto.PointIneq
+public meta import LeanCert.Tactic.IntervalAuto.Subdiv
+public meta import LeanCert.Tactic.IntervalAuto.Adaptive
 
 /-!
 # Automated Interval Arithmetic Tactics
@@ -30,6 +41,8 @@ This module re-exports the interval arithmetic tactic suite:
 The infrastructure (types, parsing, normalization, extraction, diagnostics,
 common proving utilities) lives in `LeanCert.Tactic.IntervalAuto.Basic`.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic
 

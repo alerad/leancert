@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Bounds.Core
-import LeanCert.Engine.AD
+module
+
+public import LeanCert.Validity.Bounds.Core
+public import LeanCert.Engine.AD
 
 /-!
 # Smart Bounds with Monotonicity
@@ -30,6 +32,8 @@ bound, avoiding Taylor series remainder widening.
 * `verify_lower_bound_smart` - Smart lower bound verification
 * `verify_upper_bound_smart` - Smart upper bound verification
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

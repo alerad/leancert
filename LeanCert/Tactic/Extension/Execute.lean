@@ -3,15 +3,26 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Tactic.NormNum
-import LeanCert.Core.DyadicFrontier
-import LeanCert.Engine.Eval.Core
-import LeanCert.Meta.Numeral
-import LeanCert.Tactic.Extension.Registry
-import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
-import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
-import LeanCert.Tactic.LeanCert.Semantic.Prepare
-import LeanCert.Tactic.Verification
+module
+
+public import Mathlib.Tactic.NormNum
+public import LeanCert.Core.DyadicFrontier
+public import LeanCert.Engine.Eval.Core
+public import LeanCert.Meta.Numeral
+public import LeanCert.Tactic.Extension.Registry
+public import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
+public import LeanCert.Tactic.LeanCert.Semantic.Prepare
+public import LeanCert.Tactic.Verification
+public meta import Mathlib.Tactic.NormNum
+public meta import LeanCert.Core.DyadicFrontier
+public meta import LeanCert.Engine.Eval.Core
+public meta import LeanCert.Meta.Numeral
+public meta import LeanCert.Tactic.Extension.Registry
+public meta import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public meta import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
+public meta import LeanCert.Tactic.LeanCert.Semantic.Prepare
+public meta import LeanCert.Tactic.Verification
 
 /-!
 # Execution of registered unary enclosure rules
@@ -20,6 +31,8 @@ This module is the tactic-side consumer of the persistent extension registry.
 It deliberately leaves candidate generation untrusted: only a successfully
 verified checker and its registered soundness theorem contribute to the proof.
 -/
+
+@[expose] public section
 
 open Lean Meta Elab Tactic
 
@@ -83,7 +96,7 @@ private theorem forall_mem_of_bisect
   · exact left x hxLeft
   · exact right x hxRight
 
-private structure RegisteredSubdivisionProof where
+structure RegisteredSubdivisionProof where
   proof : Lean.Expr
   enclosure : IntervalRat
   observations : Array RegisteredEnclosureObservation
@@ -95,11 +108,11 @@ private structure RegisteredSubdivisionProof where
   leafPaths : List DyadicPath := []
   certificateTree : RegisteredEnclosureCertificateTree := default
 
-private structure RegisteredReplayCursor where
+structure RegisteredReplayCursor where
   entries : Array RegisteredEnclosureCertificateEntry
   index : IO.Ref Nat
 
-private structure EnclosedTerm where
+structure EnclosedTerm where
   value : Lean.Expr
   interval : IntervalRat
   intervalExpr : Lean.Expr
@@ -109,7 +122,7 @@ private structure EnclosedTerm where
   verification : LeanCert.Tactic.VerificationUsage := {}
 
 /-- Interval counterpart of `Bridge.realEnvironment`. -/
-private def intervalEnvironment (values : List IntervalRat) (index : Nat) : IntervalRat :=
+def intervalEnvironment (values : List IntervalRat) (index : Nat) : IntervalRat :=
   match values with
   | [value] => value
   | _ => values.getD index (IntervalRat.singleton 0)
@@ -145,7 +158,9 @@ private theorem environment_mem
           simpa [LeanCert.Tactic.Bridge.realEnvironment, intervalEnvironment] using
             getD_mem_environment (.cons hmem (.cons hmem' htail')) index
 
-private def withRealLocals {α : Type} (count : Nat)
+public noncomputable meta section
+
+def withRealLocals {α : Type} (count : Nat)
     (continuation : Array Lean.Expr → TacticM α) : TacticM α := do
   let rec loop (remaining : Nat) (locals : Array Lean.Expr) : TacticM α := do
     match remaining with
@@ -155,7 +170,7 @@ private def withRealLocals {α : Type} (count : Nat)
           loop remaining (locals.push value)
   loop count #[]
 
-private partial def collectRegisteredRoots (env : Environment) (expression : Lean.Expr)
+partial def collectRegisteredRoots (env : Environment) (expression : Lean.Expr)
     (roots : Array Lean.Expr := #[]) : Array Lean.Expr :=
   if expression.getAppFn.constName?.any fun name =>
       !(getUnaryEnclosureRules env name).isEmpty then
@@ -172,13 +187,13 @@ private partial def collectRegisteredRoots (env : Environment) (expression : Lea
         collectRegisteredRoots env body (collectRegisteredRoots env type roots)
     | _ => roots
 
-private def mkMembershipRelation : MetaM Lean.Expr := do
+def mkMembershipRelation : MetaM Lean.Expr := do
   withLocalDeclD `value (mkConst ``Real) fun value =>
     withLocalDeclD `interval (mkConst ``IntervalRat) fun interval => do
       let membership ← mkAppM ``Membership.mem #[interval, value]
       mkLambdaFVars #[value, interval] membership
 
-private def mkForall₂Membership (memberships : Array Lean.Expr) : MetaM Lean.Expr := do
+def mkForall₂Membership (memberships : Array Lean.Expr) : MetaM Lean.Expr := do
   let relation ← mkMembershipRelation
   let emptyValues ← mkListLit (mkConst ``Real) []
   let emptyIntervals ← mkListLit (mkConst ``IntervalRat) []
@@ -201,15 +216,15 @@ private def mkForall₂Membership (memberships : Array Lean.Expr) : MetaM Lean.E
     intervals ← mkAppM ``List.cons #[interval, intervals]
   return proof
 
-private def mkIntervalExpr (interval : IntervalRat) : MetaM Lean.Expr := do
+def mkIntervalExpr (interval : IntervalRat) : MetaM Lean.Expr := do
   let ordered ← mkDecideProof (← mkAppM ``LE.le #[toExpr interval.lo, toExpr interval.hi])
   mkAppM ``IntervalRat.mk #[toExpr interval.lo, toExpr interval.hi, ordered]
 
-private def mkRequestExpr (input : Lean.Expr) (precision : Int)
+def mkRequestExpr (input : Lean.Expr) (precision : Int)
     (taylorDepth : Nat) : MetaM Lean.Expr :=
   mkAppM ``UnaryEnclosureRequest.mk #[input, toExpr precision, toExpr taylorDepth]
 
-private def proveByNormNum (proposition : Lean.Expr) : TacticM Lean.Expr := do
+def proveByNormNum (proposition : Lean.Expr) : TacticM Lean.Expr := do
   let originalGoals ← getGoals
   let saved ← saveState
   let proof ← mkFreshExprMVar proposition MetavarKind.syntheticOpaque
@@ -229,7 +244,7 @@ private def proveByNormNum (proposition : Lean.Expr) : TacticM Lean.Expr := do
     saved.restore
     throw exception
 
-private def proveRatCastComparison (rational real : Lean.Expr)
+def proveRatCastComparison (rational real : Lean.Expr)
     (rationalProof : Lean.Expr) : TacticM Lean.Expr := do
   let originalGoals ← getGoals
   let saved ← saveState
@@ -251,13 +266,13 @@ private def proveRatCastComparison (rational real : Lean.Expr)
     saved.restore
     throw exception
 
-private def explicitMembership? (type : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+def explicitMembership? (type : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   guard <| type.getAppFn.constName? == some ``Membership.mem
   let args := type.getAppArgs
   guard <| 2 ≤ args.size
   return (args[args.size - 1]!, args[args.size - 2]!)
 
-private def closeCheck (check : Lean.Expr) (role : String) :
+def closeCheck (check : Lean.Expr) (role : String) :
     TacticM (Except RegisteredEnclosureFailure (Lean.Expr × VerificationEvent)) := do
   let proposition ← mkAppM ``Eq #[check, mkConst ``Bool.true]
   let proof ← mkFreshExprMVar proposition MetavarKind.syntheticOpaque
@@ -270,7 +285,7 @@ private def closeCheck (check : Lean.Expr) (role : String) :
   | .failed failure =>
       return .error <| .verificationFailure (failure.message role)
 
-private def transportMembership (equality membership : Lean.Expr) : MetaM Lean.Expr := do
+def transportMembership (equality membership : Lean.Expr) : MetaM Lean.Expr := do
   let equalityType ← inferType equality
   let some (_, _, rhs) := equalityType.eq?
     | throwError "registered enclosure transport expected an equality"
@@ -288,7 +303,7 @@ private def transportMembership (equality membership : Lean.Expr) : MetaM Lean.E
     throwError "registered enclosure membership transport produced an unexpected type"
   return transported
 
-private def transportMembershipInterval (value membership targetInterval : Lean.Expr) : MetaM Lean.Expr := do
+def transportMembershipInterval (value membership targetInterval : Lean.Expr) : MetaM Lean.Expr := do
   let membershipType ← inferType membership
   let some (_, sourceInterval) := explicitMembership? membershipType
     | throwError "registered enclosure interval transport expected interval membership"
@@ -299,7 +314,7 @@ private def transportMembershipInterval (value membership targetInterval : Lean.
   let transportedEquality ← mkAppM ``congrArg #[predicate, intervalEquality]
   mkAppM ``Eq.mp #[transportedEquality, membership]
 
-private def encloseReified (x : Lean.Expr) (hx : Lean.Expr)
+def encloseReified (x : Lean.Expr) (hx : Lean.Expr)
     (inputExpr body : Lean.Expr)
     (taylorDepth : Nat) : TacticM (Except RegisteredEnclosureFailure EnclosedTerm) := do
   let function ← mkLambdaFVars #[x] body
@@ -342,11 +357,11 @@ private def encloseReified (x : Lean.Expr) (hx : Lean.Expr)
     verification := event.toUsage
   }
 
-private def sameRequest (left right : UnaryEnclosureRequest) : Bool :=
+def sameRequest (left right : UnaryEnclosureRequest) : Bool :=
   decide (left.input = right.input) && left.precision == right.precision &&
     left.taylorDepth == right.taylorDepth
 
-private unsafe def verifyCandidateOutput (rule : UnaryEnclosureRule)
+unsafe def verifyCandidateOutput (rule : UnaryEnclosureRule)
     (request : UnaryEnclosureRequest) (requestExpr : Lean.Expr)
     (argument : EnclosedTerm) (output : IntervalRat) :
     TacticM (Except RegisteredEnclosureFailure EnclosedTerm) := do
@@ -378,7 +393,7 @@ private unsafe def verifyCandidateOutput (rule : UnaryEnclosureRule)
     verification := argument.verification.combine event.toUsage
   }
 
-private unsafe def runCandidate (rule : UnaryEnclosureRule)
+unsafe def runCandidate (rule : UnaryEnclosureRule)
     (request : UnaryEnclosureRequest) (requestExpr : Lean.Expr)
     (argument : EnclosedTerm) :
     TacticM (Except RegisteredEnclosureFailure EnclosedTerm) := do
@@ -393,7 +408,7 @@ private unsafe def runCandidate (rule : UnaryEnclosureRule)
         return .error <| .inconclusive detail
   verifyCandidateOutput rule request requestExpr argument output
 
-private unsafe def encloseTerm (x : Lean.Expr) (hx : Lean.Expr)
+unsafe def encloseTerm (x : Lean.Expr) (hx : Lean.Expr)
     (inputExpr body : Lean.Expr)
     (precision : Int) (taylorDepth : Nat)
     (replay : Option RegisteredReplayCursor := none) :
@@ -526,12 +541,12 @@ private unsafe def encloseTerm (x : Lean.Expr) (hx : Lean.Expr)
   return .error <| lastFailure.getD <| .inconclusive
     s!"no registered enclosure rule for `{body.getAppFn}` produced a certificate"
 
-private def containsRegisteredFunction (env : Environment) (expression : Lean.Expr) : Bool :=
+def containsRegisteredFunction (env : Environment) (expression : Lean.Expr) : Bool :=
   (expression.find? fun subterm =>
     subterm.getAppFn.constName?.any fun name =>
       !(getUnaryEnclosureRules env name).isEmpty).isSome
 
-private def boundProposition (spec : BoundSpec) (interval : Lean.Expr) : MetaM Lean.Expr := do
+def boundProposition (spec : BoundSpec) (interval : Lean.Expr) : MetaM Lean.Expr := do
   withLocalDeclD spec.boundVars[0]!.userName (mkConst ``Real) fun x => do
     let membership ← mkAppM ``Membership.mem #[interval, x]
     withLocalDeclD `hmem membership fun hmem => do
@@ -544,7 +559,7 @@ private def boundProposition (spec : BoundSpec) (interval : Lean.Expr) : MetaM L
         | _ => throwError "registered enclosure subdivision expected an inequality"
       mkForallFVars #[x, hmem] conclusion
 
-private def preparedOnInterval (prepared : PreparedGoal) (spec : BoundSpec)
+def preparedOnInterval (prepared : PreparedGoal) (spec : BoundSpec)
     (interval : Lean.Expr) : TacticM PreparedGoal := do
   let domainSyntax : IntervalSyntax := {
     original := interval
@@ -563,7 +578,7 @@ private def preparedOnInterval (prepared : PreparedGoal) (spec : BoundSpec)
     functions := prepared.functions
   }
 
-private def finalComparisonProof (comparison : Comparison) (functionOnLeft : Bool)
+def finalComparisonProof (comparison : Comparison) (functionOnLeft : Bool)
     (bound : ℚ) (boundExpr : Lean.Expr) (enclosed : EnclosedTerm) :
     TacticM (Except RegisteredEnclosureFailure Lean.Expr) := do
   let endpoint := if functionOnLeft then enclosed.interval.hi else enclosed.interval.lo
@@ -628,7 +643,7 @@ private def finalComparisonProof (comparison : Comparison) (functionOnLeft : Boo
   return .ok proof
 
 /-- Try to prove a unary quantified bound through imported enclosure rules. -/
-private unsafe def registeredEnclosureBoundCoreTypedImpl (prepared : PreparedGoal)
+unsafe def registeredEnclosureBoundCoreTypedImpl (prepared : PreparedGoal)
     (precision : Int) (taylorDepth : Nat)
     (replay : Option RegisteredReplayCursor) :
     TacticM (Except RegisteredEnclosureFailure RegisteredEnclosureOutcome) := do
@@ -697,7 +712,7 @@ unsafe def registeredEnclosureBoundCoreTyped (prepared : PreparedGoal)
     TacticM (Except RegisteredEnclosureFailure RegisteredEnclosureOutcome) :=
   registeredEnclosureBoundCoreTypedImpl prepared precision taylorDepth none
 
-private unsafe def proveRegisteredLeaf (prepared : PreparedGoal)
+unsafe def proveRegisteredLeaf (prepared : PreparedGoal)
     (precision : Int) (taylorDepth : Nat)
     (entries : Option (Array RegisteredEnclosureCertificateEntry) := none) :
     TacticM (Except RegisteredEnclosureFailure
@@ -731,14 +746,14 @@ private unsafe def proveRegisteredLeaf (prepared : PreparedGoal)
     saved.restore
     throw exception
 
-private def addExhaustedStatistics (priorBoxes priorDeepest priorLeaves : Nat) :
+def addExhaustedStatistics (priorBoxes priorDeepest priorLeaves : Nat) :
     RegisteredEnclosureFailure → RegisteredEnclosureFailure
   | .exhausted maxDepth boxes deepest leaves enclosure detail =>
       .exhausted maxDepth (priorBoxes + boxes) (max priorDeepest deepest)
         (priorLeaves + leaves) enclosure detail
   | failure => failure
 
-private unsafe def proveRegisteredWithSubdiv
+unsafe def proveRegisteredWithSubdiv
     (prepared : PreparedGoal) (spec : BoundSpec)
     (intervalExpr : Lean.Expr) (interval : IntervalRat)
     (precision : Int) (taylorDepth configuredMaxDepth remainingDepth depthUsed : Nat)
@@ -822,7 +837,7 @@ private unsafe def proveRegisteredWithSubdiv
     certificateTree := .bisect interval left.certificateTree right.certificateTree
   }
 
-private unsafe def replayRegisteredTree
+unsafe def replayRegisteredTree
     (prepared : PreparedGoal) (spec : BoundSpec)
     (intervalExpr : Lean.Expr) (interval : IntervalRat)
     (precision : Int) (taylorDepth depthUsed : Nat)
@@ -1085,5 +1100,7 @@ unsafe def replayRegisteredEnclosureBoundMeta (proposition : Lean.Expr)
         return .error (.verificationFailure
           "registered enclosure programmatic replay proof contains metavariables")
       return .ok (outcome, proof)
+
+end
 
 end LeanCert.Tactic.Extension

@@ -3,11 +3,13 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT.Step
-import LeanCert.Cert.Interval
-import Mathlib.Data.Nat.Prime.Basic
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
-import Mathlib.Tactic
+module
+
+public import LeanCert.ANT.Step
+public import LeanCert.Cert.Interval
+public import Mathlib.Data.Nat.Prime.Basic
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
+public import Mathlib.Tactic
 
 /-!
 # Finite Euler-product and log-product certificates
@@ -15,6 +17,8 @@ import Mathlib.Tactic
 This module certifies finite products by rational factor envelopes and finite
 log-products by rational logarithm envelopes.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT
 

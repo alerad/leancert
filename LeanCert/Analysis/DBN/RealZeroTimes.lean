@@ -1,6 +1,8 @@
-import LeanCert.Analysis.DBN.RealZeros
-import Mathlib.Topology.Sequences
-import Mathlib.Topology.Order.Monotone
+module
+
+public import LeanCert.Analysis.DBN.RealZeros
+public import Mathlib.Topology.Sequences
+public import Mathlib.Topology.Order.Monotone
 
 /-!
 # The set of real-zero times
@@ -15,6 +17,9 @@ proved in this foundational module; they are discharged downstream in
 unconditional constant. Here we do not define a real-valued DBN
 constant by taking the infimum of a possibly unbounded set.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Set Filter
 open scoped Topology

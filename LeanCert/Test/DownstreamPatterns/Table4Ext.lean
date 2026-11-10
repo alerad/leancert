@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT
+module
+
+public import LeanCert.ANT
 
 /-!
 # PrimeNumberTheoremAnd extended Table 4 checker pattern
@@ -13,6 +15,8 @@ A reduced copy of the cell-checking flow in
 the dyadic asymptotic checker, including extraction of its Boolean result and
 application of the support-free checked-evaluator theorem.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.DownstreamPatterns.Table4Ext
 

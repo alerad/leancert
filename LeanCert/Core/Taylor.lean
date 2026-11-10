@@ -3,11 +3,13 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Analysis.Calculus.Taylor
-import Mathlib.Analysis.SpecialFunctions.ExpDeriv
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
-import Mathlib.Analysis.SpecialFunctions.Log.Deriv
-import LeanCert.Core.DerivativeIntervals
+module
+
+public import Mathlib.Analysis.Calculus.Taylor
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
+public import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+public import LeanCert.Core.DerivativeIntervals
 /-!
 # Generic Taylor Series Abstractions
 
@@ -34,6 +36,8 @@ This file provides the abstract theory. Specific Taylor expansions for
 `exp`, `sin`, `cos`, etc. are built using this machinery in conjunction
 with Mathlib's calculus lemmas.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 

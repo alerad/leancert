@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Meta.Numeral
+module
+
+public import Lean
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Meta.Numeral
 
 /-!
 # Rational Extraction Utilities
@@ -13,6 +15,8 @@ import LeanCert.Meta.Numeral
 Utilities for extracting rational numbers from Lean expressions representing
 real number literals or coercions.
 -/
+
+@[expose] public section
 
 open Lean Meta
 

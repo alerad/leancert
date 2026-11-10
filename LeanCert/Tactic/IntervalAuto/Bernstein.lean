@@ -3,9 +3,14 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto.Basic
-import LeanCert.Tactic.IntervalAuto.Bound
-import LeanCert.Validity.Bernstein
+module
+
+public import LeanCert.Tactic.IntervalAuto.Basic
+public import LeanCert.Tactic.IntervalAuto.Bound
+public import LeanCert.Validity.Bernstein
+public meta import LeanCert.Tactic.IntervalAuto.Basic
+public meta import LeanCert.Tactic.IntervalAuto.Bound
+public meta import LeanCert.Validity.Bernstein
 
 /-!
 # Bernstein polynomial bounds
@@ -21,6 +26,8 @@ The strategy is typed and transactional: every non-success restores the
 complete caller state, and a goal that is not a polynomial reports
 `notPolynomial` so the semantic router can skip it without spending budget.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic
 

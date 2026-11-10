@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
+module
+
+public import LeanCert.Engine.IntervalEval
 
 /-!
 # Core Bound Verification
@@ -25,6 +27,8 @@ numerical bounds using interval arithmetic.
 * `verify_strict_upper_bound` - Converts `checkStrictUpperBound = true` to semantic proof
 * `verify_strict_lower_bound` - Converts `checkStrictLowerBound = true` to semantic proof
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

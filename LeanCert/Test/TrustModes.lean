@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Trust-mode regression tests (`leancert.trust`)
@@ -20,6 +22,8 @@ behind `interval_decide`:
 Earlier kernel-only tactic paths rotted because no test exercised strict kernel
 verification. These pins are the guard against a repeat.
 -/
+
+@[expose] public section
 
 open Lean Meta Elab Tactic
 

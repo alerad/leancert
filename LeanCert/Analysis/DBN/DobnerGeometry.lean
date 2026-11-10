@@ -3,12 +3,17 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.XiIdentity
-import Mathlib.Analysis.SpecialFunctions.Complex.Log
-import Mathlib.Analysis.Normed.Group.Bounded
+module
+
+public import LeanCert.Analysis.DBN.XiIdentity
+public import Mathlib.Analysis.SpecialFunctions.Complex.Log
+public import Mathlib.Analysis.Normed.Group.Bounded
 
 /-! Geometry of the negative-time logarithmic coordinate change.
 This module does not assert the saddle-point approximation. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Filter Set
 open scoped Topology

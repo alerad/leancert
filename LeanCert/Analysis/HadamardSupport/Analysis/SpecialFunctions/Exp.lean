@@ -14,7 +14,7 @@ Small real exponential inequalities used to absorb polynomial and product factor
 finite-order growth bounds.
 -/
 
-@[expose] public section
+public section
 
 namespace Real
 

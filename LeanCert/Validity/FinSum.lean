@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.FinSumDyadic
-import LeanCert.Engine.WitnessSum
+module
+
+public import LeanCert.Engine.FinSumDyadic
+public import LeanCert.Engine.WitnessSum
 
 /-!
 # Finite-Sum Validity Exports
@@ -12,6 +14,8 @@ import LeanCert.Engine.WitnessSum
 Stable Validity-layer import path for finite-sum and witness-sum bridge theorems.
 The theorem definitions remain in the engine modules for compatibility.
 -/
+
+public section
 
 namespace LeanCert.Validity.FinSum
 

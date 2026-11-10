@@ -3,13 +3,17 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto
+module
+
+public import LeanCert.Tactic.IntervalAuto
 
 /-!
 # Tests for Automated Interval Bound Tactic
 
 This file tests the `certify_bound` tactic.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.TacticAuto
 

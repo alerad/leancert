@@ -3,7 +3,9 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Transformer
+module
+
+public import LeanCert.ML.Transformer
 
 /-!
 # Transformer Module Tests
@@ -14,6 +16,8 @@ This file tests the Transformer components:
 3. FFNBlock
 4. TransformerBlock
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Transformer.Test
 

@@ -3,9 +3,13 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalRat.Basic
+module
+
+public import LeanCert.Core.IntervalRat.Basic
 
 /-! # Environments shared by proof-carrying reification -/
+
+@[expose] public section
 
 namespace LeanCert.Tactic.Bridge
 

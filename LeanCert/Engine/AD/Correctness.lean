@@ -3,12 +3,14 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD.Eval
-import Mathlib.Analysis.Calculus.Deriv.Add
-import Mathlib.Analysis.Calculus.Deriv.Mul
-import Mathlib.Analysis.Calculus.Deriv.Comp
-import Mathlib.Analysis.Calculus.Deriv.Inv
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
+module
+
+public import LeanCert.Engine.AD.Eval
+public import Mathlib.Analysis.Calculus.Deriv.Add
+public import Mathlib.Analysis.Calculus.Deriv.Mul
+public import Mathlib.Analysis.Calculus.Deriv.Comp
+public import Mathlib.Analysis.Calculus.Deriv.Inv
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 
 /-!
 # Automatic Differentiation - Correctness Theorems
@@ -30,6 +32,8 @@ for supported expressions (ADSupported).
 All theorems in this file are FULLY PROVED with no sorry or axioms.
 The correctness relies on the chain rule for each supported operation.
 -/
+
+public section
 
 namespace LeanCert.Engine
 

@@ -1,7 +1,12 @@
-import LeanCert.Meta.ToExpr
-import LeanCert.Tactic.IntervalAuto
+module
+
+public import LeanCert.Meta.ToExpr
+public import LeanCert.Tactic.IntervalAuto
 
 -- Reflection smoke tests: these fail to compile if reification cannot parse the form.
+
+public section
+
 #leancert_reflect (fun x : Real => x + 1)
 #leancert_reflect (fun x : Real => x - 1)
 #leancert_reflect (fun x : Real => x / 2)

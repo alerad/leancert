@@ -3,9 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Core.Expr
-import LeanCert.Meta.Numeral
+module
+
+public import Lean
+public meta import Lean
+public import LeanCert.Core.Expr
+public meta import LeanCert.Meta.Numeral
 
 /-!
 # Metaprogram for Reifying Lean Expressions to LeanCert AST
@@ -28,6 +31,8 @@ expressions (e.g., `fun (x : ℝ) => x + 2`) into `LeanCert.Core.Expr` terms
 -- Output: Expr.add (Expr.mul (Expr.var 0) (Expr.var 0)) (Expr.const 1)
 ```
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Command Term
 

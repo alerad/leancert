@@ -1,11 +1,15 @@
+module
+
 /-
 Test file for Phase 3 features:
 1. Symbolic pre-pass with monotonicity
 2. Epsilon-argmax interface
 3. Range reduction for trig functions
 -/
-import LeanCert.Engine.Optimization.BoundVerify
-import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Engine.Optimization.BoundVerify
+public import LeanCert.Tactic.IntervalAuto
+
+public section
 
 open LeanCert.Core
 open LeanCert.Engine.Optimization

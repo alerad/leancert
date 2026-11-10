@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Types
-import LeanCert.Discovery.Find
-import LeanCert.Discovery.Commands
+module
+
+public import LeanCert.Validity.Types
+public import LeanCert.Discovery.Find
+public import LeanCert.Discovery.Commands
 
 /-!
 # LeanCert Discovery Mode

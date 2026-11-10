@@ -3,13 +3,24 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto.Basic
-import LeanCert.Tactic.NumericalRefinement
-import LeanCert.Tactic.Verification
-import LeanCert.Validity.Bounds
-import LeanCert.Validity.DyadicBounds
-import LeanCert.Engine.Eval.Core
-import LeanCert.Engine.Optimization.BoundVerify
+module
+
+public import LeanCert.Tactic.IntervalAuto.Basic
+public import LeanCert.Tactic.NumericalRefinement
+public import LeanCert.Tactic.Verification
+public import LeanCert.Validity.Bounds
+public import LeanCert.Validity.DyadicBounds
+public import LeanCert.Engine.Eval.Core
+public import LeanCert.Engine.Optimization.BoundVerify
+public meta import LeanCert.Tactic.IntervalAuto.Basic
+public meta import LeanCert.Tactic.NumericalRefinement
+public meta import LeanCert.Tactic.Verification
+public meta import LeanCert.Validity.Bounds
+public meta import LeanCert.Validity.DyadicBounds
+public meta import LeanCert.Engine.Eval.Core
+public meta import LeanCert.Engine.Optimization.BoundVerify
+public import LeanCert.Tactic.IntervalAuto.Diagnostic
+public meta import LeanCert.Tactic.IntervalAuto.Diagnostic
 
 /-!
 # Main Interval Bound Tactics
@@ -17,6 +28,8 @@ import LeanCert.Engine.Optimization.BoundVerify
 Core interval bound proving: `intervalBoundCore`, `certify_bound`, `certify_bound`.
 Also includes shadow diagnostics for error reporting.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic Term
 

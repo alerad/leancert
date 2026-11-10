@@ -1,9 +1,14 @@
-import Mathlib.Analysis.SpecificLimits.Basic
-import Mathlib.Analysis.Normed.Group.InfiniteSum
-import Mathlib.Tactic
+module
+
+public import Mathlib.Analysis.SpecificLimits.Basic
+public import Mathlib.Analysis.Normed.Group.InfiniteSum
+public import Mathlib.Tactic
 
 /-! Quantitative series tails in complete normed additive groups.
 The finite head is indexed by `range N`; the remainder starts at `N`. -/
+
+public section
+
 namespace LeanCert.Analysis.SeriesTail
 
 variable {E : Type*} [NormedAddCommGroup E] [CompleteSpace E]

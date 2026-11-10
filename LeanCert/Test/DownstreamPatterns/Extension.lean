@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.Extension
+module
+
+public import LeanCert.Tactic.Extension
 
 /-!
 # Downstream enclosure-extension pattern
@@ -11,6 +13,8 @@ import LeanCert.Tactic.Extension
 This module intentionally imports only the extension umbrella.  It models a downstream
 package registering a function without editing LeanCert's expression AST or router.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.DownstreamPatterns.Extension
 

@@ -3,10 +3,14 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.Engine.Algebra.Bezout
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.Engine.Algebra.Bezout
 
 /-! Benchmarks for exact executable Bézout derivative certificates. -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.AlgebraicBezout
 

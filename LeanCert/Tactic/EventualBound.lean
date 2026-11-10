@@ -3,8 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto.Extract
-import LeanCert.Validity.Eventual
+module
+
+public import LeanCert.Tactic.IntervalAuto.Extract
+public import LeanCert.Validity.Eventual
+public meta import LeanCert.Tactic.IntervalAuto.Extract
+public meta import LeanCert.Validity.Eventual
 
 /-!
 # Eventual-bound certification and cutoff discovery
@@ -13,6 +17,8 @@ The fixed-cutoff checker is trusted only through its Golden Theorem. Cutoff
 search is deterministic but untrusted: its sole output is a candidate fed back
 to `checkReciprocalPowerUpper` before proof construction.
 -/
+
+public section
 
 open Lean Elab Tactic
 
@@ -51,6 +57,8 @@ structure EventualBoundOutcome where
   verifier : Name := ``LeanCert.Validity.verify_reciprocal_power_upper
   search : Option EventualSearchStatistics := none
   deriving Inhabited, Repr
+
+public noncomputable meta section
 
 private inductive CutoffRequest where
   | fixed (cutoff : Nat)
@@ -304,5 +312,7 @@ elab_rules : tactic
       runEventualBound cutoff (← parseMaxChecks items) false
   | `(tactic| eventual_bound? $[using $cutoff]? $items:eventualBoundConfigItem*) => do
       runEventualBound cutoff (← parseMaxChecks items) true
+
+end
 
 end LeanCert.Tactic

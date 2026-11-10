@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
-import Mathlib.Topology.Order.IntermediateValue
+module
+
+public import LeanCert.Engine.IntervalEval
+public import Mathlib.Topology.Order.IntermediateValue
 
 /-!
 # Root Finding: Basic Definitions
@@ -23,6 +25,8 @@ This file provides the core definitions and basic correctness lemmas for root fi
 * `excludesZero_correct` - If interval excludes zero, no roots exist
 * `signChange_correct` - If sign change exists, a root exists (IVT)
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

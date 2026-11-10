@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
-import Mathlib.MeasureTheory.Integral.Bochner.Set
+module
+
+public import LeanCert.Engine.IntervalEval
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+public import Mathlib.MeasureTheory.Integral.Bochner.Set
 
 /-!
 # Verified Numerical Integration
@@ -32,6 +34,8 @@ We use uniform partitioning with interval evaluation:
 The `integrateInterval_correct_n1` theorem is fully proved for `ADSupported` expressions.
 This demonstrates the end-to-end verification pipeline.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

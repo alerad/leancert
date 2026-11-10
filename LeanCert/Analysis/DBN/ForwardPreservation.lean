@@ -1,6 +1,8 @@
-import LeanCert.Analysis.DBN.TimePolynomialApproximation
-import LeanCert.Analysis.DBN.TimeHeatLimit
-import LeanCert.Analysis.DBN.RealZeroTimes
+module
+
+public import LeanCert.Analysis.DBN.TimePolynomialApproximation
+public import LeanCert.Analysis.DBN.TimeHeatLimit
+public import LeanCert.Analysis.DBN.RealZeroTimes
 
 /-!
 # Forward strip contraction for the actual heat integral
@@ -10,6 +12,9 @@ both analytic hypotheses of the polynomial transfer theorem. In particular,
 the set of real-zero times is upward closed. Lower-boundedness of that set
 is a separate assertion and is not assumed by the contraction theorem.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Set Filter
 open scoped Topology

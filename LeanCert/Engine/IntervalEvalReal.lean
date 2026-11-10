@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Expr
-import LeanCert.Core.IntervalRealEndpoints
-import LeanCert.Engine.IntervalEval
+module
+
+public import LeanCert.Core.Expr
+public import LeanCert.Core.IntervalRealEndpoints
+public import LeanCert.Engine.IntervalEval
 
 /-!
 # Interval Evaluation with Real Endpoints
@@ -29,6 +31,8 @@ For numerical computation, users should still use `IntervalRat` and convert
 to `IntervalReal` when they need to reason about exp. This keeps computation
 efficient while allowing proofs about transcendental functions.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

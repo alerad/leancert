@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT.Asymp.Stieltjes
-import LeanCert.ANT.Asymp.Hyperbola
-import LeanCert.Validity.DyadicBounds
+module
+
+public import LeanCert.ANT.Asymp.Stieltjes
+public import LeanCert.ANT.Asymp.Hyperbola
+public import LeanCert.Validity.DyadicBounds
 
 /-!
 # Dyadic checker layer for asymptotic envelope transforms
@@ -19,6 +21,8 @@ below certifies goals of the form
 
 by checking `lhs - rhs ≤ 0` with the dyadic interval backend.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT.Asymp
 

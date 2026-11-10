@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
+module
+
+public import LeanCert.Tactic.IntervalAuto
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 /-!
 # Shared BKLNW a₂ Definitions
@@ -14,6 +16,8 @@ This module contains the lightweight definitions and floor facts shared by the
 public BKLNW a₂ interfaces and the reflective verified backend. It deliberately
 contains no placeholder theorem interfaces.
 -/
+
+@[expose] public section
 
 open Real Finset
 

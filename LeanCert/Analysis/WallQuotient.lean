@@ -3,18 +3,19 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Analysis.Calculus.Deriv.MeanValue
-import Mathlib.Analysis.Calculus.Deriv.Pow
-import Mathlib.Analysis.SpecialFunctions.ExpDeriv
-import Mathlib.Tactic.IntervalCases
+module
+
+public import Mathlib.Analysis.Calculus.Deriv.MeanValue
+public import Mathlib.Analysis.Calculus.Deriv.Pow
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+public import Mathlib.Tactic.IntervalCases
 
 /-!
 # Wall quotients: enclosures at removable singularities
 
 Interval evaluation degenerates at a point `w` where an expression has the
 form `num/den` with `num w = den w = 0`: the order-0 data is `0/0`, and a
-naive enclosure is vacuous. The information lives one jet order up. This
-module provides the order-1 enclosure: by the Cauchy mean value theorem,
+naive enclosure is vacuous. The information lives one jet order up. Thismodule provides the order-1 enclosure: by the Cauchy mean value theorem,
 on an interval to the right of the wall the quotient is trapped by any
 uniform bounds on the derivative ratio,
 
@@ -36,6 +37,8 @@ so this theorem converts a singular enclosure problem into a regular one.
   that evaluates jets at singular endpoints and the standard interval
   engine elsewhere.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Analysis.WallQuotient
 

@@ -29,7 +29,7 @@ function. Used in Hadamard divisor summability and finite-order factorization.
 logarithmic counting, Jensen's formula, finite order, Hadamard factorization
 -/
 
-@[expose] public section
+public section
 
 open Filter Function MeromorphicOn Metric Real Set
 

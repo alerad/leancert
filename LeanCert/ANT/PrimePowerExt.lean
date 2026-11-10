@@ -3,8 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
-import Mathlib.NumberTheory.ArithmeticFunction.Defs
+public import Mathlib.NumberTheory.ArithmeticFunction.Defs
 
 /-!
 # Prime-power extensionality helpers
@@ -14,6 +15,8 @@ are equal iff they agree on all prime powers.  This module gives LeanCert a
 small, stable ANT-facing wrapper with names intended for certificate/tactic
 workflows.
 -/
+
+public section
 
 namespace LeanCert.ANT.PrimePowerExt
 

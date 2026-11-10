@@ -3,13 +3,18 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.DobnerDirichlet
-import LeanCert.Analysis.DBN.DobnerGammaReciprocal
-import LeanCert.Analysis.ContourShift.Decay
-import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
+module
+
+public import LeanCert.Analysis.DBN.DobnerDirichlet
+public import LeanCert.Analysis.DBN.DobnerGammaReciprocal
+public import LeanCert.Analysis.ContourShift.Decay
+public import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 
 /-! Actual Gaussian-Gamma contour shifts in the pole-free right half-plane.
 These exact shifts do not assert the saddle-point approximation. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex MeasureTheory Set Filter
 open scoped Topology

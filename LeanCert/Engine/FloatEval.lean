@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Expr
+module
+
+public import LeanCert.Core.Expr
 
 /-!
 # Fast Float Evaluator
@@ -33,6 +35,8 @@ Functions not directly available in Lean's Float stdlib are approximated:
 - `erf(x)` via polynomial approximation
 -/
 
+@[expose] public section
+
 namespace LeanCert.Engine
 
 open LeanCert.Core
@@ -44,7 +48,7 @@ abbrev FloatEnv := Nat → Float
     Uses Horner's method for the approximation:
     erf(x) ≈ 2x/√π * (1 - x²/3 + x⁴/10 - x⁶/42 + ...)
     For |x| > 1, uses tanh-based approximation which saturates to ±1. -/
-private def floatErf (x : Float) : Float :=
+def floatErf (x : Float) : Float :=
   if x.abs ≤ 1.0 then
     -- Taylor series approximation for small x
     let x2 := x * x
@@ -57,12 +61,12 @@ private def floatErf (x : Float) : Float :=
     (e2y - 1.0) / (e2y + 1.0)
 
 /-- Convert an integer to a Float -/
-private def intToFloat (z : ℤ) : Float :=
+def intToFloat (z : ℤ) : Float :=
   if z ≥ 0 then z.toNat.toFloat
   else -((-z).toNat.toFloat)
 
 /-- Convert a rational to a Float (approximate) -/
-private def ratToFloat (q : ℚ) : Float :=
+def ratToFloat (q : ℚ) : Float :=
   intToFloat q.num / q.den.toFloat
 
 /--

@@ -3,14 +3,16 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.AD
-import LeanCert.Engine.Optimization.Global
-import LeanCert.Engine.RootFinding.Main
-import LeanCert.Engine.Integrate
-import LeanCert.Meta.ProveContinuous
-import LeanCert.Validity.Bounds.Basic
-import LeanCert.Validity.Integration
+module
+
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.AD
+public import LeanCert.Engine.Optimization.Global
+public import LeanCert.Engine.RootFinding.Main
+public import LeanCert.Engine.Integrate
+public import LeanCert.Meta.ProveContinuous
+public import LeanCert.Validity.Bounds.Basic
+public import LeanCert.Validity.Integration
 
 /-!
 # Certificate-Driven Verification (umbrella)
@@ -46,6 +48,8 @@ example : ∀ x ∈ I01, Expr.eval (fun _ => x) exprExp ≤ 3 :=
 These checkers and theorems extend the certificate pattern to multivariate
 global optimization over n-dimensional boxes.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity.GlobalOpt
 
@@ -1041,4 +1045,3 @@ theorem verify_has_root (e : Expr) (hsupp : ADSupported e)
       _ ≤ I.hi := by exact_mod_cast hJsub.2
 
 end LeanCert.Validity.RootFinding
-

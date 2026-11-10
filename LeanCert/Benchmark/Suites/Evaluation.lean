@@ -3,11 +3,13 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.API.Eval
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.IntervalEvalAffine
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.API.Eval
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.IntervalEvalAffine
 
 /-!
 # Interval evaluator benchmark suite
@@ -16,6 +18,8 @@ Representative arithmetic, transcendental, and dependency workloads.  Each
 has internal primitive cases and checked public-API cases, so backend kernel
 improvements can be distinguished from validation and dispatch overhead.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.Evaluation
 

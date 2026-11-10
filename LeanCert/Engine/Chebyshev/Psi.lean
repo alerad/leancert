@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalRat.Taylor
-import Mathlib.NumberTheory.ArithmeticFunction.VonMangoldt
-import Mathlib.NumberTheory.Chebyshev
+module
+
+public import LeanCert.Core.IntervalRat.Taylor
+public import Mathlib.NumberTheory.ArithmeticFunction.VonMangoldt
+public import Mathlib.NumberTheory.Chebyshev
 
 /-!
 # Certified Chebyshev psi(N) Upper Bounds
@@ -19,6 +21,8 @@ The core checker is generalized by a rational slope `slope`:
 
 Callers choose the rational slope explicitly; there is no slope-specific API.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Chebyshev.Psi
 

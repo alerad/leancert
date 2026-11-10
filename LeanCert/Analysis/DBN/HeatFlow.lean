@@ -1,10 +1,15 @@
-import LeanCert.Analysis.DBN.HeatKernel
-import LeanCert.Analysis.ComplexGrowth
-import LeanCert.Analysis.IntegralTail
-import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
+module
+
+public import LeanCert.Analysis.DBN.HeatKernel
+public import LeanCert.Analysis.ComplexGrowth
+public import LeanCert.Analysis.IntegralTail
+public import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
 
 /-! The actual heat-flow integral: measurability, absolute integrability, and
 effective Gaussian tails. These results do not assert the xi identity. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open MeasureTheory Set
 

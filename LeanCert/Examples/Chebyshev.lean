@@ -3,13 +3,16 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
-import LeanCert.Engine.Chebyshev.Psi
-import LeanCert.Engine.Chebyshev.Theta
+public import LeanCert.Engine.Chebyshev.Psi
+public import LeanCert.Engine.Chebyshev.Theta
 
 /-!
 # Chebyshev certificate examples
 -/
+
+public section
 
 open Chebyshev (psi theta)
 open LeanCert.Engine.Chebyshev.Psi

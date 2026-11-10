@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Tactic.LeanCert.Semantic.Parse.Comparison
+module
+
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Tactic.LeanCert.Semantic.Parse.Comparison
 
 /-! # Lightweight quantified interval-bound parsing
 
@@ -12,6 +14,8 @@ This is the shared parser for focused bound tactics and the full `leancert`
 router. Keeping it solver-free lets downstream users import a dedicated tactic
 without loading unrelated tactic families.
 -/
+
+@[expose] public section
 
 open Lean Meta
 

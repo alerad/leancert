@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.FloatEval
-import LeanCert.Engine.Optimization.Box
+module
+
+public import LeanCert.Engine.FloatEval
+public import LeanCert.Engine.Optimization.Box
 
 /-!
 # Heuristic Search for Global Optimization
@@ -31,6 +33,8 @@ The heuristic results are NOT verified. They are used only to guide the search:
 
 This "oracle-guided" approach can prune 90%+ of the search space on typical problems.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Search
 

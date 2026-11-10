@@ -3,8 +3,10 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Optimized.IntervalArray
-import LeanCert.ML.Network
+module
+
+public import LeanCert.ML.Optimized.IntervalArray
+public import LeanCert.ML.Network
 
 /-!
 # Quantized Neural Network Layers
@@ -44,6 +46,8 @@ This eliminates per-operation exponent handling.
 * `QuantizedLayer` - Layer with aligned integer representation
 * `forwardQuantized` - Optimized forward pass
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Optimized
 

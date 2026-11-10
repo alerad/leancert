@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto
+module
+
+public import LeanCert.Tactic.IntervalAuto
 
 /-!
 # Tests for `Real.eulerMascheroniConstant` support in `interval_decide`
@@ -14,6 +16,9 @@ combined with LeanCert's computable log intervals.
 -/
 
 -- The motivating example from the issue
+
+public section
+
 example : (0.5 : ℝ) ≤ Real.eulerMascheroniConstant := by interval_decide
 
 -- Tighter lower bound (impossible with Mathlib's 1/2 alone)

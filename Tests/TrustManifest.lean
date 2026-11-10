@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert
-import LeanCert.Examples.EulerMascheroniBounds
+module
+
+public import LeanCert
+public import LeanCert.Examples.EulerMascheroniBounds
 
 /-!
 # Trust manifest for exported declarations
@@ -28,6 +30,8 @@ When exporting a new headline result, add its pin here.
 The lifts from Boolean certificates to semantic propositions must never
 depend on compiler trust — every proof produced by any trust mode reuses
 them unchanged. -/
+
+public section
 
 #assert_trust kernel LeanCert.Validity.verify_upper_bound
 #assert_trust kernel LeanCert.Validity.verify_lower_bound

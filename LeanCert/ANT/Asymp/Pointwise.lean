@@ -3,8 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
-import LeanCert.ANT.Asymp.Env
+public import LeanCert.ANT.Asymp.Env
 
 /-!
 # Pointwise error envelopes
@@ -19,6 +20,8 @@ semantics, so later explicit-PNT transfer functors can consume either discrete
 summatory envelopes or genuine real-variable envelopes without duplicating the
 core absolute-error algebra.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT.Asymp
 

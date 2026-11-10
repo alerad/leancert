@@ -3,10 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Tactic.LeanCert.Semantic.Domain
-import LeanCert.Tactic.LeanCert.Semantic.Goal
+module
+
+public import Lean
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Tactic.LeanCert.Semantic.Domain
+public import LeanCert.Tactic.LeanCert.Semantic.Goal
 
 /-!
 # Structured Solver Evidence
@@ -14,6 +16,8 @@ import LeanCert.Tactic.LeanCert.Semantic.Goal
 Expected numerical and capability failures are values.  Exceptions are
 reserved for implementation defects.
 -/
+
+public section
 
 open Lean
 

@@ -3,10 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert
-import LeanCert.CertifiedBounds.Li2
-import LeanCert.Engine.Integrate
-import LeanCert.Validity.IntegrationDyadic
+module
+
+public import LeanCert
+public import LeanCert.CertifiedBounds.Li2
+public import LeanCert.Engine.Integrate
+public import LeanCert.Validity.IntegrationDyadic
 
 /-!
 # Verified Computation of li(2) - Heavy Numerical Verification
@@ -43,6 +45,8 @@ verified theorems proven here.
 This file proves `li2_bounds_verified`, `li2_lower_verified`, and
 `li2_upper_verified` with full verification.
 -/
+
+@[expose] public section
 
 open MeasureTheory LeanCert.Engine.TaylorModel
 open LeanCert.Core

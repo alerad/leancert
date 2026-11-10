@@ -3,11 +3,17 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Engine.WitnessSum
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.Tactic.BridgeNative
-import LeanCert.Tactic.FinsetParse
+module
+
+public import Lean
+public import LeanCert.Engine.WitnessSum
+public import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Tactic.BridgeNative
+public import LeanCert.Tactic.FinsetParse
+public meta import LeanCert.Engine.WitnessSum
+public meta import LeanCert.Tactic.IntervalAuto
+public meta import LeanCert.Tactic.BridgeNative
+public meta import LeanCert.Tactic.FinsetParse
 
 /-!
 # `finsum_witness`: Tactic for Witness-Based Finite Sum Bounds
@@ -47,6 +53,8 @@ Parse goal → extract a, b, body, target
   → verify_witness_sum_upper/lower (bridge theorem)
 ```
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic Term
 

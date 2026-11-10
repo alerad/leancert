@@ -1,5 +1,9 @@
-import LeanCert.Examples.HeatKernel
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Examples.HeatKernel
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 namespace LeanCert.Test.HeatKernel
 open Analysis.DBN MeasureTheory Set
