@@ -3,11 +3,15 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Parse-once semantic goal tests
 -/
+
+@[expose] public section
 
 open MeasureTheory
 open Lean Meta Elab Tactic
@@ -20,7 +24,7 @@ syntax (name := expectUnsupportedCarrier) "expect_unsupported_carrier" : tactic
 syntax (name := expectSanitizedCheckerFailure) "expect_sanitized_checker_failure" : tactic
 
 @[tactic expectCertifiedRefutation]
-unsafe def evalExpectCertifiedRefutation : Tactic := fun _ => do
+meta unsafe def evalExpectCertifiedRefutation : Tactic := fun _ => do
   let saved ← saveState
   try
     discard <| LeanCert.Tactic.runLeanCert {}
@@ -32,7 +36,7 @@ unsafe def evalExpectCertifiedRefutation : Tactic := fun _ => do
     unless detail.contains "Certified counterexample" do
       throwError "expected a certified-counterexample diagnostic, got:\n{detail}"
 
-private unsafe def expectLeanCertFailure
+meta unsafe def expectLeanCertFailure
     (required forbidden : Array String) : TacticM Unit := do
   let saved ← saveState
   try
@@ -50,16 +54,16 @@ private unsafe def expectLeanCertFailure
         throwError "internal diagnostic fragment {fragment} leaked:\n{detail}"
 
 @[tactic expectUnsupportedExpression]
-unsafe def evalExpectUnsupportedExpression : Tactic := fun _ =>
+meta unsafe def evalExpectUnsupportedExpression : Tactic := fun _ =>
   expectLeanCertFailure #["Unsupported expression", "Suggestions:"]
     #["Core.Expr", "Lean.Expr", "MVarId"]
 
 @[tactic expectUnsupportedCarrier]
-unsafe def evalExpectUnsupportedCarrier : Tactic := fun _ =>
+meta unsafe def evalExpectUnsupportedCarrier : Tactic := fun _ =>
   expectLeanCertFailure #["carrier type is not supported"] #["internal preparation failure"]
 
 @[tactic expectSanitizedCheckerFailure]
-unsafe def evalExpectSanitizedCheckerFailure : Tactic := fun _ =>
+meta unsafe def evalExpectSanitizedCheckerFailure : Tactic := fun _ =>
   expectLeanCertFailure
     #["nonvanishing on an interval", "no strategy proved it", "Run `leancert?`"]
     #["checkNoRoot", "native_decide"]

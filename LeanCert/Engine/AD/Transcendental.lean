@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD.Basic
-import Mathlib.Analysis.SpecialFunctions.Sqrt
+module
+
+public import LeanCert.Engine.AD.Basic
+public import Mathlib.Analysis.SpecialFunctions.Sqrt
 
 /-!
 # Automatic Differentiation - Transcendental Functions
@@ -31,6 +33,8 @@ implementing the chain rule for each.
 * `DualInterval.log?` - Logarithm (requires positive)
 * `DualInterval.sqrt?` - Square root with tight bounds (requires positive)
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

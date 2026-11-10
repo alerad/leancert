@@ -266,15 +266,22 @@ Every `native_decide` use inside the library mints a per-declaration axiom
 (the audit imports the full `LeanCert` root module) and fails if ANY axiom
 lives in the LeanCert namespace — including private-mangled names, which
 per-theorem pinning cannot see. `native_decide` in tactic *quotations* is
-unaffected: those axioms are minted in end-user proofs, not in the library. -/
+unaffected: those axioms are minted in end-user proofs, not in the library.
+
+`LeanCert.Examples.EulerMascheroniBounds` is skipped: it is native-trusted on purpose,
+and its axiom set is pinned exactly in the next section. Under the module system its
+`native_decide` auxiliaries are private-mangled with the module name, so the textual
+`LeanCert` match below would otherwise catch them. -/
 
 open Lean in
 run_meta do
   let env ← getEnv
+  let nativeTrustedModule := `LeanCert.Examples.EulerMascheroniBounds
   let mut offenders : Array Name := #[]
   for (n, info) in env.constants.toList do
     if let .axiomInfo _ := info then
-      if (n.toString.splitOn "LeanCert").length > 1 then
+      let declModule := env.getModuleIdxFor? n |>.bind (env.header.moduleNames[·]?)
+      if (n.toString.splitOn "LeanCert").length > 1 && declModule != some nativeTrustedModule then
         offenders := offenders.push n
   unless offenders.isEmpty do
     throwError "Axioms minted inside LeanCert (library-internal native_decide leak?):\n\

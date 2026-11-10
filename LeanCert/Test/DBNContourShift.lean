@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.DobnerContourShift
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.DobnerContourShift
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open LeanCert.Analysis LeanCert.Analysis.DBN Complex MeasureTheory
 

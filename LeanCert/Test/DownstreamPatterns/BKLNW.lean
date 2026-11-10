@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
-import LeanCert.CertifiedBounds.BKLNW
+module
+
+public import LeanCert.Tactic
+public import LeanCert.CertifiedBounds.BKLNW
 
 /-!
 # PrimeNumberTheoremAnd BKLNW certificate patterns
@@ -13,6 +15,8 @@ Adapted from `IEANTN/BKLNW/BKLNW_a2_bounds.lean`. This exercises the
 definition bridge, floor arithmetic, certificate application through `simpa`,
 and the `max` glue used by the downstream development.
 -/
+
+@[expose] public section
 
 open Real Finset
 

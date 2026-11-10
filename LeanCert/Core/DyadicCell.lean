@@ -3,15 +3,18 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalDyadic
+module
+
+public import LeanCert.Core.IntervalDyadic
 
 /-!
 # Finite dyadic addresses
 
 Finite Boolean paths are convenient for adaptive provenance. Indexed cells are
-convenient for fixed-depth arithmetic, serialization, and integration. This
-module provides both views and exact decoding into closed dyadic intervals.
+convenient for fixed-depth arithmetic, serialization, and integration. Thismodule provides both views and exact decoding into closed dyadic intervals.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 
@@ -264,7 +267,7 @@ theorem intervalAt_valueEq_decodeDirect (level : PreparedDyadicLevel)
     rw [level.step_eq]
 
 /-- Build adjacent cells with one endpoint addition per cell. -/
-private def materializeFrom (level : PreparedDyadicLevel) : Nat → Dyadic → List IntervalDyadic
+def materializeFrom (level : PreparedDyadicLevel) : Nat → Dyadic → List IntervalDyadic
   | 0, _ => []
   | count + 1, lo =>
       let hi := lo.add level.step

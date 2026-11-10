@@ -3,12 +3,16 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert
-import LeanCert.ANT
+module
+
+public import LeanCert
+public import LeanCert.ANT
 
 /-!
 Compile-time contract for the selected stable domain umbrellas.
 -/
+
+public section
 
 #check LeanCert.ANT.StepFn
 #check LeanCert.ANT.verify_stepSum_interval

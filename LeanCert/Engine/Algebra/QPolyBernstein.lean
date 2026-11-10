@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.QPoly
-import LeanCert.Engine.TaylorModel.Core
-import LeanCert.Engine.Integrate
+module
+
+public import LeanCert.Engine.Algebra.QPoly
+public import LeanCert.Engine.TaylorModel.Core
+public import LeanCert.Engine.Integrate
 
 /-!
 # Computable Bernstein certificates for rational polynomials
@@ -29,6 +31,8 @@ Unlike Horner interval evaluation, the Bernstein enclosure is exact at the
 endpoints and converges quadratically under bisection, so polynomial bounds
 that are tight near an endpoint need no subdivision at all.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.QPoly
 

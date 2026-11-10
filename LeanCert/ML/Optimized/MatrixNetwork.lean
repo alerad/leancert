@@ -3,9 +3,11 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Network
-import LeanCert.ML.Optimized.Matrix
-import LeanCert.ML.Optimized.QuantizedLayer
+module
+
+public import LeanCert.ML.Network
+public import LeanCert.ML.Optimized.Matrix
+public import LeanCert.ML.Optimized.QuantizedLayer
 
 /-!
 # Matrix-Based Network Operations
@@ -31,6 +33,8 @@ For Transformer verification, the key operations are:
 - Attention score computation (Q × K^T)
 - Softmax bounds (separate module)
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Optimized
 

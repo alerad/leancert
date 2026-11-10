@@ -1,2 +1,4 @@
-import LeanCert.Engine.Pisano.Defs
-import LeanCert.Engine.Pisano.Period
+module
+
+public import LeanCert.Engine.Pisano.Defs
+public import LeanCert.Engine.Pisano.Period

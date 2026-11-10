@@ -3,8 +3,10 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.IntervalVector
-import LeanCert.Engine.TaylorModel
+module
+
+public import LeanCert.ML.IntervalVector
+public import LeanCert.Engine.TaylorModel
 
 /-!
 # Verified Softmax and LogSumExp
@@ -22,6 +24,8 @@ We compute: y_i = 1 / (1 + Σ_{j≠i} exp(x_j - x_i))
 This explicitly models the dependency, ensuring the result is always in (0, 1)
 and providing much tighter bounds for the dominant token.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Softmax
 

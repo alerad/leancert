@@ -1,7 +1,12 @@
-import LeanCert.Analysis.DBN.HeatRegularity
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.HeatRegularity
+public import Mathlib.Util.AssertNoSorry
 
 /-! Reusable growth estimates and their application to the actual heat integral. -/
+
+public section
+
 namespace LeanCert.Examples.HeatKernel
 
 /-- Polynomial absorption, independent of any DBN definitions. -/

@@ -3,9 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
-import LeanCert.Engine.TaylorModel.Core
-import LeanCert.Engine.Integrate
+public import LeanCert.Engine.TaylorModel.Core
+public import LeanCert.Engine.Integrate
 
 /-!
 # Taylor Model Integration
@@ -22,6 +23,8 @@ The second bridge is the polynomial-exact enclosure shape used by certified
 quadrature: if the integral of the Taylor polynomial is known exactly, the
 only interval over-approximation comes from integrating the remainder interval.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

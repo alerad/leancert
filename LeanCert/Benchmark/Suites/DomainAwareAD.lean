@@ -3,37 +3,41 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.API.AD
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.API.AD
 
 /-! Benchmarks for checked reciprocal/logarithm automatic differentiation. -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.DomainAwareAD
 
 open LeanCert.Core
 open LeanCert.Engine
 
-private def positive : IntervalRat := ⟨1, 2, by norm_num⟩
-private def crossesZero : IntervalRat := ⟨-1, 1, by norm_num⟩
-private def nested : Expr := .log (.inv (.add (.var 0) (.const 1)))
-private def reciprocal : Expr := .inv (.var 0)
+def positive : IntervalRat := ⟨1, 2, by norm_num⟩
+def crossesZero : IntervalRat := ⟨-1, 1, by norm_num⟩
+def nested : Expr := .log (.inv (.add (.var 0) (.const 1)))
+def reciprocal : Expr := .inv (.var 0)
 
-private def deepNested : Nat → Expr
+def deepNested : Nat → Expr
   | 0 => .add (.var 0) (.const 2)
   | n + 1 => .add (.mul (deepNested n) (.const (1 / 3))) (.const (1 / 7))
 
-private def deepDomainAware : Expr := .log (.inv (deepNested 60))
+def deepDomainAware : Expr := .log (.inv (deepNested 60))
 
-private def chooseInterval (fallback : IntervalRat) : IO IntervalRat := do
+def chooseInterval (fallback : IntervalRat) : IO IntervalRat := do
   let stamp ← IO.monoNanosNow
   return if stamp = 0 then IntervalRat.singleton 1 else fallback
 
-private def uncheckedRun : IO Outcome := do
+def uncheckedRun : IO Outcome := do
   let I ← chooseInterval positive
   let result := LeanCert.Internal.AD.evalTotalCore nested (mkDualEnv (fun _ => I) 0) {}
   return { status := "success", interval := some result.der, backendUsed := some "rational" }
 
-private def checkedRun : IO Outcome := do
+def checkedRun : IO Outcome := do
   let I ← chooseInterval positive
   match derivIntervalChecked nested (fun _ => I) 0 {} with
   | .ok result =>
@@ -41,14 +45,14 @@ private def checkedRun : IO Outcome := do
   | .error err =>
       return { status := "error", error := some s!"{repr err}", backendUsed := some "rational" }
 
-private def rejectedRun : IO Outcome := do
+def rejectedRun : IO Outcome := do
   let I ← chooseInterval crossesZero
   match derivIntervalChecked reciprocal (fun _ => I) 0 {} with
   | .error _ => return { status := "domain_rejected", backendUsed := some "rational" }
   | .ok result =>
       return { status := "unexpected_success", interval := some result, backendUsed := some "rational" }
 
-private def dyadicCheckedRun : IO Outcome := do
+def dyadicCheckedRun : IO Outcome := do
   let I ← chooseInterval positive
   let rho : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I (-53)
   match derivIntervalDyadicChecked nested rho 0 {} with
@@ -58,7 +62,7 @@ private def dyadicCheckedRun : IO Outcome := do
   | .error err =>
       return { status := "error", error := some s!"{repr err}", backendUsed := some "dyadic" }
 
-private def deepRationalRun : IO Outcome := do
+def deepRationalRun : IO Outcome := do
   let I ← chooseInterval positive
   match derivIntervalChecked deepDomainAware (fun _ => I) 0 {} with
   | .ok result =>
@@ -66,7 +70,7 @@ private def deepRationalRun : IO Outcome := do
   | .error err =>
       return { status := "error", error := some s!"{repr err}", backendUsed := some "rational" }
 
-private def deepDyadicRun : IO Outcome := do
+def deepDyadicRun : IO Outcome := do
   let I ← chooseInterval positive
   let rho : IntervalDyadicEnv := fun _ => IntervalDyadic.ofIntervalRat I (-53)
   match derivIntervalDyadicChecked deepDomainAware rho 0 {} with
@@ -76,14 +80,14 @@ private def deepDyadicRun : IO Outcome := do
   | .error err =>
       return { status := "error", error := some s!"{repr err}", backendUsed := some "dyadic" }
 
-private def rootExpression (direct : Bool) (a : Expr) : Expr :=
+def rootExpression (direct : Bool) (a : Expr) : Expr :=
   if direct then .sqrt a else .exp (.mul (.const (1 / 2)) (.log a))
 
-private def normalizationArg : Expr := .add (.const 1) (.mul (.var 0) (.var 0))
-private def recurrenceArg : Expr := .inv (.add (.const 4) (.neg (.mul (.const 6) (.var 0))))
-private def recurrenceBox : IntervalRat := ⟨0, 1 / 1500000, by norm_num⟩
+def normalizationArg : Expr := .add (.const 1) (.mul (.var 0) (.var 0))
+def recurrenceArg : Expr := .inv (.add (.const 4) (.neg (.mul (.const 6) (.var 0))))
+def recurrenceBox : IntervalRat := ⟨0, 1 / 1500000, by norm_num⟩
 
-private def sqrtPublicRun (e : Expr) (box : IntervalRat) (backend : BackendChoice) : IO Outcome := do
+def sqrtPublicRun (e : Expr) (box : IntervalRat) (backend : BackendChoice) : IO Outcome := do
   let I ← chooseInterval box
   match evalWithDerivative e [I] 0 { backend := backend } with
   | .ok result =>
@@ -94,7 +98,7 @@ private def sqrtPublicRun (e : Expr) (box : IntervalRat) (backend : BackendChoic
   | .error err => return { status := "error", error := some s!"{repr err}" }
 
 /-- Matched public-API workloads, using the existing log/exp route as the baseline. -/
-private def sqrtCases : List Case :=
+def sqrtCases : List Case :=
   ([false, true].flatMap fun direct =>
     ([ ("rational", BackendChoice.rational), ("dyadic", BackendChoice.dyadic) ].flatMap
       fun (backendName, backend) =>

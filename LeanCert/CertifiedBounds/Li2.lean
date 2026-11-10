@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Examples.Li2Base
+module
+
+public import LeanCert.Examples.Li2Base
 
 /-!
 # Certified bounds for li(2)
@@ -17,6 +19,8 @@ a separate CI target and checks their statement identity.
 This is an intentional lightweight/heavy verification boundary, not a
 forwarding module.
 -/
+
+public section
 
 open MeasureTheory LeanCert.Engine.TaylorModel
 open scoped ENNReal

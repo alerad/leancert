@@ -3,12 +3,17 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.DobnerGeometry
-import LeanCert.Analysis.DBN.KernelRegularity
-import Mathlib.Analysis.SpecialFunctions.Gaussian.FourierTransform
-import Mathlib.MeasureTheory.Integral.Prod
+module
+
+public import LeanCert.Analysis.DBN.DobnerGeometry
+public import LeanCert.Analysis.DBN.KernelRegularity
+public import Mathlib.Analysis.SpecialFunctions.Gaussian.FourierTransform
+public import Mathlib.MeasureTheory.Integral.Prod
 
 /-! Exact Gaussian averaging of the actual heat integral at backward times. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex MeasureTheory Set
 

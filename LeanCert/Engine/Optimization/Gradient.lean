@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD
-import LeanCert.Engine.Optimize
-import LeanCert.Engine.Optimization.Box
+module
+
+public import LeanCert.Engine.AD
+public import LeanCert.Engine.Optimize
+public import LeanCert.Engine.Optimization.Box
 
 /-!
 # Gradient Interval Computation for Optimization
@@ -28,6 +30,8 @@ coordinate direction. The result is a list of intervals, one per variable.
 Monotonicity pruning: If ∂f/∂xᵢ > 0 on the entire box B, then f is minimized
 when xᵢ = B[i].lo. We can shrink the box in that dimension to a point.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Optimization
 

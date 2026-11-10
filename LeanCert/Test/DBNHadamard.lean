@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.Hadamard
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.Hadamard
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open LeanCert.Analysis.DBN Complex Complex.Hadamard
 

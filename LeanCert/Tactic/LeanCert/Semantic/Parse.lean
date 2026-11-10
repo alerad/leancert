@@ -3,12 +3,20 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
-import LeanCert.Meta.Numeral
-import LeanCert.Tactic.FinSumBound
-import LeanCert.Tactic.LeanCert.Semantic.Goal
-import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
-import LeanCert.Validity.Krawczyk
+module
+
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+public import LeanCert.Meta.Numeral
+public import LeanCert.Tactic.FinSumBound
+public import LeanCert.Tactic.LeanCert.Semantic.Goal
+public import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
+public import LeanCert.Validity.Krawczyk
+public meta import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+public meta import LeanCert.Meta.Numeral
+public meta import LeanCert.Tactic.FinSumBound
+public meta import LeanCert.Tactic.LeanCert.Semantic.Goal
+public meta import LeanCert.Tactic.LeanCert.Semantic.Parse.Bound
+public meta import LeanCert.Validity.Krawczyk
 
 /-!
 # Parse-Once Semantic Goal Parser
@@ -17,6 +25,8 @@ This is the only theorem-shape parser used by the `leancert` front door.
 Every successful parse retains the payload required by preparation and solver
 selection; there is deliberately no intent-only compatibility fallback.
 -/
+
+public noncomputable meta section
 
 open Lean Meta
 
@@ -27,7 +37,7 @@ structure ParseFailure where
   detail : String
   deriving Inhabited
 
-private def parseIntegralTerm? (e : Lean.Expr) :
+def parseIntegralTerm? (e : Lean.Expr) :
     Option (Lean.Expr × Lean.Expr × Lean.Expr) :=
   if e.getAppFn.constName? == some ``intervalIntegral && e.getAppNumArgs >= 4 then
     let args := e.getAppArgs
@@ -35,7 +45,7 @@ private def parseIntegralTerm? (e : Lean.Expr) :
   else
     none
 
-private def parseIntegral? (goal : Lean.Expr) : Option IntegralSpec := do
+def parseIntegral? (goal : Lean.Expr) : Option IntegralSpec := do
   let comparison ← parseRawComparison? goal
   if let some (integrand, lo, hi) := parseIntegralTerm? comparison.lhs then
     return {
@@ -61,7 +71,7 @@ private def parseIntegral? (goal : Lean.Expr) : Option IntegralSpec := do
     }
   none
 
-private def parseEventualUniversal? (original goal : Lean.Expr)
+def parseEventualUniversal? (original goal : Lean.Expr)
     (discoverCutoff : Bool) : Option EventualBoundSpec := do
   let .forallE _ indexType tailBody _ := goal | none
   guard (indexType.isConstOf (Name.mkSimple "Nat"))
@@ -72,7 +82,7 @@ private def parseEventualUniversal? (original goal : Lean.Expr)
   guard (comparison.comparison == .le)
   some { original, discoverCutoff }
 
-private def parseEventual? (goal : Lean.Expr) : Option EventualBoundSpec := do
+def parseEventual? (goal : Lean.Expr) : Option EventualBoundSpec := do
   if goal.isAppOfArity ``Exists 2 then
     let args := goal.getAppArgs
     guard (args[0]!.isConstOf (Name.mkSimple "Nat"))
@@ -81,7 +91,7 @@ private def parseEventual? (goal : Lean.Expr) : Option EventualBoundSpec := do
   else
     parseEventualUniversal? goal goal false
 
-private def parseFinBoxMem? (expression witness : Lean.Expr) :
+def parseFinBoxMem? (expression witness : Lean.Expr) :
     MetaM (Option (Lean.Expr × Lean.Expr)) := do
   unless expression.getAppFn.isConstOf ``LeanCert.Engine.FinBoxMem do return none
   let args := expression.getAppArgs
@@ -92,7 +102,7 @@ private def parseFinBoxMem? (expression witness : Lean.Expr) :
   unless ← isDefEq candidate witness do return none
   return some (dimension, box)
 
-private def parseSystemZero? (expression witness : Lean.Expr) :
+def parseSystemZero? (expression witness : Lean.Expr) :
     MetaM (Option (Lean.Expr × Lean.Expr)) := do
   unless expression.getAppFn.isConstOf ``LeanCert.Engine.SystemZero do return none
   let args := expression.getAppArgs
@@ -105,7 +115,7 @@ private def parseSystemZero? (expression witness : Lean.Expr) :
 
 /-- Recognize the stable Krawczyk Golden-Theorem target, accepting either
 order of the two conjuncts while retaining the source order for transport. -/
-private def parseSystemUniqueRoot? (goal : Lean.Expr) : MetaM (Option SystemRootSpec) := do
+def parseSystemUniqueRoot? (goal : Lean.Expr) : MetaM (Option SystemRootSpec) := do
   match_expr goal with
   | ExistsUnique _ body =>
       let .lam name type inner _ := body | return none
@@ -131,10 +141,10 @@ private def parseSystemUniqueRoot? (goal : Lean.Expr) : MetaM (Option SystemRoot
         parseOrder conjuncts[1]! conjuncts[0]! true
   | _ => return none
 
-private def isZero (expression : Lean.Expr) : MetaM Bool := do
+def isZero (expression : Lean.Expr) : MetaM Bool := do
   return (← LeanCert.Meta.Numeral.toRealRatNormalized? expression) == some 0
 
-private def rootFunction? (lhs rhs xVar : Lean.Expr) :
+def rootFunction? (lhs rhs xVar : Lean.Expr) :
     MetaM (Option (Lean.Expr × Bool)) := do
   let lhsUses := lhs.containsFVar xVar.fvarId!
   let rhsUses := rhs.containsFVar xVar.fvarId!
@@ -146,14 +156,14 @@ private def rootFunction? (lhs rhs xVar : Lean.Expr) :
   let difference ← mkAppM ``HSub.hSub #[lhs, rhs]
   return some (← mkLambdaFVars #[xVar] difference, false)
 
-private def parseRootPredicate? (predicate xVar : Lean.Expr) :
+def parseRootPredicate? (predicate xVar : Lean.Expr) :
     MetaM (Option (Lean.Expr × Bool)) := do
   let some comparison := parseRawComparison? predicate | return none
   if comparison.comparison != .eq && comparison.comparison != .ne then
     return none
   rootFunction? comparison.lhs comparison.rhs xVar
 
-private def parseDomainAndPredicate? (conjunction x : Lean.Expr) :
+def parseDomainAndPredicate? (conjunction x : Lean.Expr) :
     MetaM (Option (IntervalSyntax × Lean.Expr)) := do
   unless conjunction.isAppOfArity ``And 2 do return none
   let conjuncts := conjunction.getAppArgs
@@ -163,7 +173,7 @@ private def parseDomainAndPredicate? (conjunction x : Lean.Expr) :
     return some (domain, conjuncts[0]!)
   return none
 
-private def parseRootExists? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
+def parseRootExists? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
   match_expr goal with
   | Exists _ body =>
       let .lam name type inner _ := body | return none
@@ -182,7 +192,7 @@ private def parseRootExists? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
         | none => return none
   | _ => return none
 
-private def parseUniqueRoot? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
+def parseUniqueRoot? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
   match_expr goal with
   | ExistsUnique _ body =>
       let .lam name type inner _ := body | return none
@@ -201,7 +211,7 @@ private def parseUniqueRoot? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
         | none => return none
   | _ => return none
 
-private def parseNoRoot? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
+def parseNoRoot? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
   let some spec ← parseQuantifiedComparison? goal goal | return none
   if spec.comparison != .ne || spec.boundVars.size != 1 then return none
   let variableType := spec.boundVars[0]!.type
@@ -217,7 +227,7 @@ private def parseNoRoot? (goal : Lean.Expr) : MetaM (Option RootSpec) := do
       equationReversed
     }
 
-private def parseExtremum? (goal : Lean.Expr) : MetaM (Option ExtremumSpec) := do
+def parseExtremum? (goal : Lean.Expr) : MetaM (Option ExtremumSpec) := do
   match_expr goal with
   | Exists _ body =>
       let .lam name type inner _ := body | return none
@@ -262,7 +272,7 @@ private def parseExtremum? (goal : Lean.Expr) : MetaM (Option ExtremumSpec) := d
         | none => return none
   | _ => return none
 
-private def parseDiscovery? (goal : Lean.Expr) : MetaM (Option DiscoverySpec) := do
+def parseDiscovery? (goal : Lean.Expr) : MetaM (Option DiscoverySpec) := do
   match_expr goal with
   | Exists witnessType body =>
       let .lam witnessName _ inner _ := body | return none
@@ -284,11 +294,11 @@ private def parseDiscovery? (goal : Lean.Expr) : MetaM (Option DiscoverySpec) :=
         }
   | _ => return none
 
-private partial def containsFinsetSum (e : Lean.Expr) : Bool :=
+partial def containsFinsetSum (e : Lean.Expr) : Bool :=
   if e.getAppFn.isConstOf ``Finset.sum then true
   else e.getAppArgs.any containsFinsetSum
 
-private def parseFiniteSum? (goal : Lean.Expr) : Option FiniteSumSpec := do
+def parseFiniteSum? (goal : Lean.Expr) : Option FiniteSumSpec := do
   let comparison ← parseRawComparison? goal
   let lhsSum := containsFinsetSum comparison.lhs
   let rhsSum := containsFinsetSum comparison.rhs
@@ -302,7 +312,7 @@ private def parseFiniteSum? (goal : Lean.Expr) : Option FiniteSumSpec := do
       rhs := comparison.rhs
     }
 
-private def parseCertificateCheck? (goal : Lean.Expr) : Option Lean.Expr := do
+def parseCertificateCheck? (goal : Lean.Expr) : Option Lean.Expr := do
   let comparison ← parseRawComparison? goal
   guard (comparison.comparison == .eq)
   let checker ←
@@ -314,7 +324,7 @@ private def parseCertificateCheck? (goal : Lean.Expr) : Option Lean.Expr := do
   guard (name.getRoot == `LeanCert)
   some checker
 
-private def parsePoint? (goal : Lean.Expr) : Option PointSpec := do
+def parsePoint? (goal : Lean.Expr) : Option PointSpec := do
   if goal.isForall then none
   else
     let comparison ← parseRawComparison? goal
@@ -325,7 +335,7 @@ private def parsePoint? (goal : Lean.Expr) : Option PointSpec := do
       rhs := comparison.rhs
     }
 
-private partial def splitConjunction? (goal : Lean.Expr) :
+partial def splitConjunction? (goal : Lean.Expr) :
     Option (Lean.Expr × Lean.Expr) :=
   if goal.isAppOfArity ``And 2 then
     let args := goal.getAppArgs

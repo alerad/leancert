@@ -3,10 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Expr
-import Mathlib.Algebra.Polynomial.Derivative
-import Mathlib.Analysis.Calculus.Deriv.Polynomial
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+module
+
+public import LeanCert.Core.Expr
+public import Mathlib.Algebra.Polynomial.Derivative
+public import Mathlib.Analysis.Calculus.Deriv.Polynomial
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
 
 /-!
 # Executable exact rational polynomials
@@ -16,6 +18,8 @@ implementation is not a suitable native certificate payload. `QPoly` stores
 ascending coefficients in an `Array ℚ` and supplies a small exact executable
 kernel. The `toPoly` lemmas connect successful computations to Mathlib.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 
@@ -31,45 +35,45 @@ structure QPoly where
 
 namespace QPoly
 
-private def addCoeffs : List ℚ → List ℚ → List ℚ
+def addCoeffs : List ℚ → List ℚ → List ℚ
   | [], ys => ys
   | xs, [] => xs
   | x :: xs, y :: ys => (x + y) :: addCoeffs xs ys
 
-private def scaleCoeffs (c : ℚ) : List ℚ → List ℚ
+def scaleCoeffs (c : ℚ) : List ℚ → List ℚ
   | [] => []
   | x :: xs => (c * x) :: scaleCoeffs c xs
 
-private def mulCoeffs : List ℚ → List ℚ → List ℚ
+def mulCoeffs : List ℚ → List ℚ → List ℚ
   | [], _ => []
   | x :: xs, ys => addCoeffs (scaleCoeffs x ys) (0 :: mulCoeffs xs ys)
 
 /-- Remove trailing zero coefficients. -/
-private def trimCoeffs : List ℚ → List ℚ
+def trimCoeffs : List ℚ → List ℚ
   | [] => []
   | x :: xs =>
       match trimCoeffs xs with
       | [] => if x = 0 then [] else [x]
       | y :: ys => x :: y :: ys
 
-private def weightedDerivativeCoeffs (n : Nat) : List ℚ → List ℚ
+def weightedDerivativeCoeffs (n : Nat) : List ℚ → List ℚ
   | [] => []
   | x :: xs => ((n : ℚ) * x) :: weightedDerivativeCoeffs (n + 1) xs
 
 /-- Formal derivative on ascending coefficients. -/
-private def derivativeCoeffs : List ℚ → List ℚ
+def derivativeCoeffs : List ℚ → List ℚ
   | [] => []
   | _ :: xs => weightedDerivativeCoeffs 1 xs
 
-private def antiderivativeCoeffs (n : Nat) : List ℚ → List ℚ
+def antiderivativeCoeffs (n : Nat) : List ℚ → List ℚ
   | [] => []
   | x :: xs => (x / (n : ℚ)) :: antiderivativeCoeffs (n + 1) xs
 
-private def evalCoeffs (x : ℚ) : List ℚ → ℚ
+def evalCoeffs (x : ℚ) : List ℚ → ℚ
   | [] => 0
   | c :: cs => c + x * evalCoeffs x cs
 
-private noncomputable def listToPoly : List ℚ → Polynomial ℚ
+noncomputable def listToPoly : List ℚ → Polynomial ℚ
   | [] => 0
   | x :: xs => Polynomial.C x + Polynomial.X * listToPoly xs
 
@@ -220,7 +224,7 @@ theorem toPoly_trim (p : QPoly) : p.trim.toPoly = p.toPoly := by
 few hundred factors `1 - X^n` of total degree in the hundreds of thousands.
 `mulOneSubPow` computes `p · (1 - X^n)` as `p - X^n · p` in linear time. -/
 
-private def negCoeffs : List ℚ → List ℚ
+def negCoeffs : List ℚ → List ℚ
   | [] => []
   | x :: xs => (-x) :: negCoeffs xs
 
@@ -265,7 +269,7 @@ theorem toPoly_mulOneSubPow (p : QPoly) (n : Nat) :
 
 /-! ### Composition and coefficient sums -/
 
-private def composeCoeffs (q : QPoly) : List ℚ → QPoly
+def composeCoeffs (q : QPoly) : List ℚ → QPoly
   | [] => zero
   | c :: cs => (constant c).add (q.mul (composeCoeffs q cs))
 
@@ -310,7 +314,7 @@ theorem aeval_toPoly_eq_sum (p : QPoly) (x : ℝ) :
       ∑ j ∈ Finset.range p.coeffs.toList.length, (p.coeffs.toList.getD j 0 : ℝ) * x ^ j :=
   aeval_listToPoly_eq_sum p.coeffs.toList x
 
-private def listToExpr : List ℚ → Expr
+def listToExpr : List ℚ → Expr
   | [] => .const 0
   | x :: xs => .add (.const x) (.mul (.var 0) (listToExpr xs))
 

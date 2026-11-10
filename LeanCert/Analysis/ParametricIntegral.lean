@@ -1,8 +1,13 @@
-import Mathlib.Analysis.Calculus.ParametricIntegral
-import Mathlib.Tactic
+module
+
+public import Mathlib.Analysis.Calculus.ParametricIntegral
+public import Mathlib.Tactic
 
 /-! Parameter-dependent integral adapters for a continuous coefficient times
 a fixed integrable majorant. Local domination is derived, not assumed. -/
+
+public section
+
 namespace LeanCert.Analysis.ParametricIntegral
 open MeasureTheory Filter
 open scoped Topology

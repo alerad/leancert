@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.RootFinding.Newton
+module
+
+public import LeanCert.Engine.RootFinding.Newton
 
 /-!
 # Root Finding: MVT-based bounds for Newton contraction proofs
@@ -23,6 +25,8 @@ contraction implies root existence.
 * `newtonStepSimple_contraction_absurd_hi` - Contraction contradiction
 * `newtonStepSimple_contraction_absurd_lo` - Contraction contradiction
 -/
+
+public section
 
 namespace LeanCert.Engine
 

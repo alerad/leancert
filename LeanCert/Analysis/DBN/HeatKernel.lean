@@ -1,12 +1,17 @@
-import LeanCert.Analysis.PolynomialDecay
-import LeanCert.Analysis.GaussianTail
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Complex
-import Mathlib.MeasureTheory.Constructions.Polish.Basic
-import Mathlib.Analysis.Real.Pi.Bounds
-import Mathlib.Analysis.Normed.Module.FiniteDimension
+module
+
+public import LeanCert.Analysis.PolynomialDecay
+public import LeanCert.Analysis.GaussianTail
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Complex
+public import Mathlib.MeasureTheory.Constructions.Polish.Basic
+public import Mathlib.Analysis.Real.Pi.Bounds
+public import Mathlib.Analysis.Normed.Module.FiniteDimension
 
 /-! The de Bruijn–Newman kernel, with the n+1 indexing and normalization
 used by the downstream definition. No downstream analytic assertions are imported. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 
 noncomputable def kernelTerm (u : ℝ) (n : ℕ) : ℝ :=

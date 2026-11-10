@@ -1,4 +1,10 @@
-import LeanCert.Validity.IntegrationDyadic
+module
+
+public import LeanCert.Validity.IntegrationDyadic
+meta import LeanCert.Engine.IntervalEvalDyadic
+meta import LeanCert.Validity.IntegrationDyadic
+
+@[expose] public section
 
 open LeanCert.Core LeanCert.Engine
 open LeanCert.Validity.IntegrationDyadic

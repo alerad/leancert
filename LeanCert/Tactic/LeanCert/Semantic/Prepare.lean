@@ -3,12 +3,20 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Tactic.NormNum
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Meta.Numeral
-import LeanCert.Tactic.Extension.Registry
-import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
-import LeanCert.Tactic.LeanCert.Semantic.Goal
+module
+
+public import Mathlib.Tactic.NormNum
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Meta.Numeral
+public import LeanCert.Tactic.Extension.Registry
+public import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public import LeanCert.Tactic.LeanCert.Semantic.Goal
+public meta import Mathlib.Tactic.NormNum
+public meta import LeanCert.Core.IntervalRat.Basic
+public meta import LeanCert.Meta.Numeral
+public meta import LeanCert.Tactic.Extension.Registry
+public meta import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public meta import LeanCert.Tactic.LeanCert.Semantic.Goal
 
 /-!
 # Proof-Bearing Semantic Preparation
@@ -17,6 +25,8 @@ Preparation turns source interval syntax into solver-ready domains.  Numerical
 endpoint extraction is never accepted by itself: every normalized domain
 carries a kernel-checked membership theorem relating it to the source domain.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic
 

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEvalAffine
+module
+
+public import LeanCert.Engine.IntervalEvalAffine
 
 /-!
 # Affine environments for rational boxes
@@ -13,6 +15,8 @@ affine environment built by `toAffineEnv`.  It belongs to interval evaluation,
 not global optimization: every real point represented by the box has a valid
 noise assignment for the generated affine forms.
 -/
+
+public section
 
 namespace LeanCert.Engine
 

@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT.PrimeEuler
-import LeanCert.Engine.Chebyshev.Theta
+module
+
+public import LeanCert.ANT.PrimeEuler
+public import LeanCert.Engine.Chebyshev.Theta
 
 /-!
 # Certified finite Dirichlet-series truncations
@@ -17,6 +19,8 @@ from rational interval enclosures for the coefficients `a n` and weights `w n`.
 The multiplication envelope is sign-aware, so the API works for signed
 coefficients such as Möbius-like data as well as nonnegative prime weights.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT
 

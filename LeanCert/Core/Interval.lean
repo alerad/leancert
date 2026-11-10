@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
-import Mathlib.Topology.Order.Basic
+module
+
+public import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
+public import Mathlib.Topology.Order.Basic
 
 /-!
 # Abstract Interval Interface
@@ -23,6 +25,8 @@ that `IntervalReal` will implement computationally.
 We primarily use `Set.Icc a b` from Mathlib as our semantic interval type.
 This file collects lemmas and abstractions useful for verified numerics.
 -/
+
+public section
 
 namespace LeanCert.Core
 

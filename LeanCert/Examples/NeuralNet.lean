@@ -3,7 +3,11 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Network
+module
+
+public import LeanCert.ML.Network
+
+@[expose] public section
 
 set_option linter.unnecessarySeqFocus false
 
@@ -65,7 +69,7 @@ theorem layer2_wf : layer2.WellFormed := by
   constructor
   · intro row hrow
     simp only [layer2, Layer.inputDim] at *
-    fin_cases hrow <;> rfl
+    fin_cases hrow; rfl
   · rfl
 
 theorem exampleNet_wf : exampleNet.WellFormed := by

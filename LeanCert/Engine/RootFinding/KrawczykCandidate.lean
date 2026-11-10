@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.RootFinding.Krawczyk
+module
+
+public import LeanCert.Engine.RootFinding.Krawczyk
 
 /-!
 # Untrusted automatic Krawczyk candidates
@@ -20,6 +22,8 @@ and test the resulting certificate on the original box.  Rejected candidates
 may be refined by an interval-Newton midpoint step; the target box itself is
 never subdivided.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 
@@ -59,31 +63,31 @@ structure AutomaticKrawczykReport where
 def AutomaticKrawczykReport.succeeded (report : AutomaticKrawczykReport) : Bool :=
   report.failure.isNone
 
-private def arrayGetD [Inhabited α] (values : Array α) (index : Nat) : α :=
+def arrayGetD [Inhabited α] (values : Array α) (index : Nat) : α :=
   (values[index]?).getD default
 
-private def matrixArrayGet (rows : Array (Array ℚ)) (i j : Nat) : ℚ :=
+def matrixArrayGet (rows : Array (Array ℚ)) (i j : Nat) : ℚ :=
   ((rows[i]?).bind fun row => row[j]?).getD 0
 
-private def matrixArraySet (rows : Array (Array ℚ)) (i j : Nat) (value : ℚ) :
+def matrixArraySet (rows : Array (Array ℚ)) (i j : Nat) (value : ℚ) :
     Array (Array ℚ) :=
   match rows[i]? with
   | none => rows
   | some row => rows.set! i (row.set! j value)
 
-private def swapRows (rows : Array (Array ℚ)) (i j : Nat) : Array (Array ℚ) :=
+def swapRows (rows : Array (Array ℚ)) (i j : Nat) : Array (Array ℚ) :=
   if i == j then rows
   else
     let left := arrayGetD rows i
     let right := arrayGetD rows j
     (rows.set! i right).set! j left
 
-private def findPivot (rows : Array (Array ℚ)) (column start size : Nat) : Option Nat :=
+def findPivot (rows : Array (Array ℚ)) (column start size : Nat) : Option Nat :=
   (List.range (size - start)).findSome? fun offset =>
     let row := start + offset
     if matrixArrayGet rows row column != 0 then some row else none
 
-private def eliminateColumn (rows : Array (Array ℚ)) (column size : Nat) :
+def eliminateColumn (rows : Array (Array ℚ)) (column size : Nat) :
     Array (Array ℚ) :=
   (List.range size).foldl (fun current row =>
     if row == column then current
@@ -96,7 +100,7 @@ private def eliminateColumn (rows : Array (Array ℚ)) (column size : Nat) :
             (matrixArrayGet current row entry -
               factor * matrixArrayGet current column entry)) current) rows
 
-private partial def gaussJordanLoop (rows : Array (Array ℚ)) (column size : Nat) :
+partial def gaussJordanLoop (rows : Array (Array ℚ)) (column size : Nat) :
     Option (Array (Array ℚ)) :=
   if column < size then
     match findPivot rows column column size with
@@ -112,7 +116,7 @@ private partial def gaussJordanLoop (rows : Array (Array ℚ)) (column size : Na
   else
     some rows
 
-private def augmentedMatrix {n : Nat} (matrix : Matrix (Fin n) (Fin n) ℚ) :
+def augmentedMatrix {n : Nat} (matrix : Matrix (Fin n) (Fin n) ℚ) :
     Array (Array ℚ) :=
   Array.ofFn fun i : Fin n =>
     Array.ofFn fun j : Fin (2 * n) =>
@@ -120,7 +124,7 @@ private def augmentedMatrix {n : Nat} (matrix : Matrix (Fin n) (Fin n) ℚ) :
         matrix i ⟨j.val, h⟩
       else if j.val - n == i.val then 1 else 0
 
-private def arrayToMatrix {n : Nat} (rows : Array (Array ℚ)) :
+def arrayToMatrix {n : Nat} (rows : Array (Array ℚ)) :
     Matrix (Fin n) (Fin n) ℚ :=
   fun i j => matrixArrayGet rows i.val (n + j.val)
 
@@ -139,7 +143,7 @@ def KrawczykCert.ofLists (n : Nat) (center : List ℚ)
   center i := (center[i.val]?).getD 0
   preconditioner i j := ((preconditioner[i.val]?).bind fun row => row[j.val]?).getD 0
 
-private def roundRat (precisionBits : Nat) (value : ℚ) : ℚ :=
+def roundRat (precisionBits : Nat) (value : ℚ) : ℚ :=
   let bits := min precisionBits 60
   let scale : Nat := 2 ^ bits
   let magnitude := value.num.natAbs
@@ -147,37 +151,37 @@ private def roundRat (precisionBits : Nat) (value : ℚ) : ℚ :=
   let signed : Int := if value.num < 0 then -(rounded : Int) else (rounded : Int)
   (signed : ℚ) / scale
 
-private def roundMatrix {n : Nat} (precisionBits : Nat)
+def roundMatrix {n : Nat} (precisionBits : Nat)
     (matrix : Matrix (Fin n) (Fin n) ℚ) : Matrix (Fin n) (Fin n) ℚ :=
   fun i j => roundRat precisionBits (matrix i j)
 
-private def pointJacobianMidpoint {n : Nat} (F : Fin n → Expr)
+def pointJacobianMidpoint {n : Nat} (F : Fin n → Expr)
     (center : Fin n → ℚ) (cfg : EvalConfig) (precisionBits : Nat) :
     Matrix (Fin n) (Fin n) ℚ :=
   let pointBox : Fin n → IntervalRat := fun i => IntervalRat.singleton (center i)
   fun i j => roundRat precisionBits (intervalJacobian F pointBox cfg i j).midpoint
 
-private def rationalMatVec {n : Nat} (matrix : Matrix (Fin n) (Fin n) ℚ)
+def rationalMatVec {n : Nat} (matrix : Matrix (Fin n) (Fin n) ℚ)
     (vector : Fin n → ℚ) : Fin n → ℚ :=
   fun i => ∑ j, matrix i j * vector j
 
-private def refinedCenter {n : Nat} (F : Fin n → Expr) (center : Fin n → ℚ)
+def refinedCenter {n : Nat} (F : Fin n → Expr) (center : Fin n → ℚ)
     (preconditioner : Matrix (Fin n) (Fin n) ℚ) (cfg : EvalConfig)
     (precisionBits : Nat) : Fin n → ℚ :=
   let residual : Fin n → ℚ := fun i => (pointEvalIntervals F center cfg i).midpoint
   let correction := rationalMatVec preconditioner residual
   fun i => roundRat precisionBits (center i - correction i)
 
-private def matrixRows {n : Nat} (matrix : Matrix (Fin n) (Fin n) ℚ) :
+def matrixRows {n : Nat} (matrix : Matrix (Fin n) (Fin n) ℚ) :
     List (List ℚ) :=
   List.ofFn fun i => List.ofFn fun j => matrix i j
 
-private def contractionFor {n : Nat} (F : Fin n → Expr)
+def contractionFor {n : Nat} (F : Fin n → Expr)
     (X : Fin n → IntervalRat) (preconditioner : Matrix (Fin n) (Fin n) ℚ)
     (cfg : EvalConfig) : ℚ :=
   intervalMatrixBound (preconditionedJacobian preconditioner (intervalJacobian F X cfg))
 
-private def reportFailure {n : Nat} (failure : AutomaticKrawczykFailure)
+def reportFailure {n : Nat} (failure : AutomaticKrawczykFailure)
     (attempts refinements : Nat) (center : Fin n → ℚ)
     (preconditioner : Option (Matrix (Fin n) (Fin n) ℚ) := none)
     (contraction : ℚ := 0) : AutomaticKrawczykReport := {
@@ -190,7 +194,7 @@ private def reportFailure {n : Nat} (failure : AutomaticKrawczykFailure)
   failure := some failure
 }
 
-private partial def automaticKrawczykLoop {n : Nat} (F : Fin n → Expr)
+partial def automaticKrawczykLoop {n : Nat} (F : Fin n → Expr)
     (X : Fin n → IntervalRat) (cfg : EvalConfig) (maximum precisionBits attempt : Nat)
     (center : Fin n → ℚ) : AutomaticKrawczykReport :=
   let attemptNumber := attempt + 1

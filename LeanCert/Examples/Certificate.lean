@@ -3,7 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Bounds
+module
+
+public import LeanCert.Validity.Bounds
+meta import LeanCert.Validity.Bounds.Core
 
 /-!
 # Certificate-Driven Verification Examples
@@ -36,6 +39,8 @@ The last argument is discharged by `native_decide`.
 ### Demonstrating depth sensitivity
 - Same bound may require different depths for different interval widths
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.Certificate
 

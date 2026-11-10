@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.WitnessSum
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
+module
+
+public import LeanCert.Engine.WitnessSum
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
 
 /-!
 # Reflective Sum Evaluator for O(1) Proof Size
@@ -49,6 +51,8 @@ theorem a2_300_new : f (exp 300) ≤ bound := by
   native_decide
 ```
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

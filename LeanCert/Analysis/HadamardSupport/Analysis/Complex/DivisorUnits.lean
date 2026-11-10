@@ -16,7 +16,7 @@ This file provides local nonvanishing statements for the factors
 single divisor-support point.
 -/
 
-@[expose] public section
+public section
 
 open Set
 

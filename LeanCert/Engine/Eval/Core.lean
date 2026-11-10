@@ -3,17 +3,19 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Expr
-import LeanCert.Core.Support
-import LeanCert.Core.IntervalReal
-import LeanCert.Core.IntervalRealEndpoints
-import LeanCert.Core.IntervalRat.TrigReduced
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
-import Mathlib.Analysis.SpecialFunctions.Log.Deriv
-import Mathlib.Analysis.Complex.ExponentialBounds
-import Mathlib.Analysis.Real.Pi.Bounds
+module
+
+public import LeanCert.Core.Expr
+public import LeanCert.Core.Support
+public import LeanCert.Core.IntervalReal
+public import LeanCert.Core.IntervalRealEndpoints
+public import LeanCert.Core.IntervalRat.TrigReduced
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
+public import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+public import Mathlib.Analysis.Complex.ExponentialBounds
+public import Mathlib.Analysis.Real.Pi.Bounds
 
 /-!
 # Computable Interval Evaluation
@@ -38,6 +40,8 @@ configurable depth for precision control.
 For inv: computes bounds using `invInterval`, but correctness is not covered by
 `evalIntervalCore_correct`. Use `evalInterval?` for inv.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

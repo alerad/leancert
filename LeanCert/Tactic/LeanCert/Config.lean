@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean.Elab.Tactic.Config
-import LeanCert.Tactic.Verification
+module
+
+public import Lean.Elab.Tactic.Config
+public import LeanCert.Tactic.Verification
 
 /-!
 # LeanCert Router Configuration
@@ -12,6 +14,8 @@ import LeanCert.Tactic.Verification
 Configuration for the semantic `leancert` front door.  `budget` is a
 cumulative strategy-cost limit; it never changes Lean's heartbeat limit.
 -/
+
+public section
 
 namespace LeanCert.Tactic
 

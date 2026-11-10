@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.DyadicCell
+module
+
+public import LeanCert.Core.DyadicCell
 
 /-!
 # Checked addressed dyadic frontiers
@@ -15,6 +17,8 @@ canonical leaf list. Acceptance certifies that the decoded paths form a complete
 binary cover; correspondence between those paths and any external proof or
 evaluation records must be maintained by the producer of those records.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 
@@ -65,19 +69,19 @@ def maxDepth : List DyadicPath → Nat
   | [] => 0
   | path :: rest => max path.length (maxDepth rest)
 
-private def leftTails (leaves : List DyadicPath) : List DyadicPath :=
+def leftTails (leaves : List DyadicPath) : List DyadicPath :=
   leaves.filterMap fun
     | false :: rest => some rest
     | _ => none
 
-private def rightTails (leaves : List DyadicPath) : List DyadicPath :=
+def rightTails (leaves : List DyadicPath) : List DyadicPath :=
   leaves.filterMap fun
     | true :: rest => some rest
     | _ => none
 
 /-- Reconstruct a candidate tree. The final checker below separately verifies
 that no submitted leaf was lost, duplicated, reordered, or made redundant. -/
-private def reconstructFuel : Nat → List DyadicPath → Option DyadicSubdivisionTree
+def reconstructFuel : Nat → List DyadicPath → Option DyadicSubdivisionTree
   | 0, leaves => if leaves = [[]] then some .leaf else none
   | fuel + 1, leaves =>
       if leaves = [[]] then

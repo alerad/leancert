@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.API.Bounds
-import LeanCert.Tactic.NumericalRefinement
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.API.Bounds
+public import LeanCert.Tactic.NumericalRefinement
 
 /-!
 # Coordinated numerical-refinement benchmarks
@@ -15,23 +17,25 @@ a tight bound which requires the complete precision/Taylor schedule. They
 measure candidate checking only, not tactic elaboration or kernel proof replay.
 -/
 
+@[expose] public section
+
 namespace LeanCert.Benchmark.NumericalRefinement
 
 open LeanCert LeanCert.Core LeanCert.Tactic
 
-private def unit : IntervalRat := ⟨0, 1, by norm_num⟩
-private def exponential : Expr := .exp (.var 0)
-private def looseUpper : ℚ := 3
-private def tightUpper : ℚ :=
+def unit : IntervalRat := ⟨0, 1, by norm_num⟩
+def exponential : Expr := .exp (.var 0)
+def looseUpper : ℚ := 3
+def tightUpper : ℚ :=
   2718281828459045235360287472 / 1000000000000000000000000000
 
-private def checkedAt (bound : ℚ) (precision : Int) (taylorDepth : Nat) : Bool :=
+def checkedAt (bound : ℚ) (precision : Int) (taylorDepth : Nat) : Bool :=
   LeanCert.API.Bounds.checkUpperBound exponential unit bound {
     dyadicExponent := precision
     taylorDepth
   }
 
-private def runFixed (bound : ℚ) (precision : Int) (taylorDepth : Nat)
+def runFixed (bound : ℚ) (precision : Int) (taylorDepth : Nat)
     (expected : Bool) : IO Outcome := do
   let actual := checkedAt bound precision taylorDepth
   if actual = expected then
@@ -45,7 +49,7 @@ private def runFixed (bound : ℚ) (precision : Int) (taylorDepth : Nat)
     error := some s!"expected {expected}, got {actual}"
   }
 
-private def firstSuccessfulStage (bound : ℚ) :
+def firstSuccessfulStage (bound : ℚ) :
     List NumericalRefinementStage → Option NumericalRefinementStage
   | [] => none
   | stage :: rest =>
@@ -54,7 +58,7 @@ private def firstSuccessfulStage (bound : ℚ) :
       else
         firstSuccessfulStage bound rest
 
-private def runAdaptive (bound : ℚ) : IO Outcome := do
+def runAdaptive (bound : ℚ) : IO Outcome := do
   let policy := NumericalRefinementPolicy.adaptive 10 0
   match firstSuccessfulStage bound policy.stages with
   | none =>
@@ -69,7 +73,7 @@ private def runAdaptive (bound : ℚ) : IO Outcome := do
         backendUsed := some s!"dyadic-stage-{stage.index}"
       }
 
-private def refinementCase (name : String) (parameters : List (String × String))
+def refinementCase (name : String) (parameters : List (String × String))
     (expectedStatus : String := "success") (run : IO Outcome) : Case := {
   name := s!"numerical_refinement.{name}"
   family := "numerical_refinement"

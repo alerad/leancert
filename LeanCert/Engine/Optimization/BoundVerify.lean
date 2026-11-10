@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Optimization.Global
+module
+
+public import LeanCert.Engine.Optimization.Global
 
 /-!
 # Adaptive Bound Verification via Branch-and-Bound
@@ -44,6 +46,8 @@ example : verifyUpperBound1 (Expr.sin (Expr.var 0)) ⟨0, 11/10, by norm_num⟩ 
   native_decide
 ```
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Optimization
 

@@ -1,9 +1,14 @@
-import LeanCert.Analysis.DBN.HeatSymmetry
-import LeanCert.Analysis.DBN.StripIteration
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Series
+module
+
+public import LeanCert.Analysis.DBN.HeatSymmetry
+public import LeanCert.Analysis.DBN.StripIteration
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Series
 
 /-! Exact finite imaginary shifts of the actual heat integral. The limiting
 Gaussian multiplier and zero-preserving approximation are not assumed here. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex MeasureTheory Set Polynomial
 

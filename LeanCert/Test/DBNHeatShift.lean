@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.HeatShift
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.HeatShift
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 namespace LeanCert.Test.DBNHeatShift
 open Analysis.DBN Complex Polynomial

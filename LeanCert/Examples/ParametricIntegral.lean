@@ -1,10 +1,15 @@
-import LeanCert.Analysis.ParametricIntegral
-import LeanCert.Analysis.GaussianMoments
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.ParametricIntegral
+public import LeanCert.Analysis.GaussianMoments
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
+public import Mathlib.Util.AssertNoSorry
 
 /-! Differentiation of a non-DBN Gaussian sine transform using the shared
 continuous-majorant adapter. No closed form of the transform is used. -/
+
+public section
+
 namespace LeanCert.Examples.ParametricIntegral
 open MeasureTheory Set Filter
 

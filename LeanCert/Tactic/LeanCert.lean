@@ -3,18 +3,20 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.LeanCert.Semantic.Domain
-import LeanCert.Tactic.LeanCert.Semantic.Goal
-import LeanCert.Tactic.LeanCert.Semantic.Parse
-import LeanCert.Tactic.LeanCert.Semantic.Prepare
-import LeanCert.Tactic.LeanCert.Diagnostic.Evidence
-import LeanCert.Tactic.LeanCert.Solver.Protocol
-import LeanCert.Tactic.LeanCert.Normalize
-import LeanCert.Tactic.LeanCert.Config
-import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
-import LeanCert.Tactic.LeanCert.Diagnostic.Render
-import LeanCert.Tactic.LeanCert.Integral
-import LeanCert.Tactic.LeanCert.Router
+module
+
+public import LeanCert.Tactic.LeanCert.Semantic.Domain
+public import LeanCert.Tactic.LeanCert.Semantic.Goal
+public import LeanCert.Tactic.LeanCert.Semantic.Parse
+public import LeanCert.Tactic.LeanCert.Semantic.Prepare
+public import LeanCert.Tactic.LeanCert.Diagnostic.Evidence
+public import LeanCert.Tactic.LeanCert.Solver.Protocol
+public import LeanCert.Tactic.LeanCert.Normalize
+public import LeanCert.Tactic.LeanCert.Config
+public import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public import LeanCert.Tactic.LeanCert.Diagnostic.Render
+public import LeanCert.Tactic.LeanCert.Integral
+public import LeanCert.Tactic.LeanCert.Router
 
 /-!
 # LeanCert Semantic Tactic Infrastructure

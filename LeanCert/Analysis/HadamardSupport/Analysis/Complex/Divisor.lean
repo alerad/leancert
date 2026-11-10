@@ -3,7 +3,6 @@ Copyright (c) 2026 Matteo Cipollina. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Matteo Cipollina
 -/
-
 module
 
 public import LeanCert.Analysis.HadamardSupport.Analysis.Complex.DivisorQuotientRemovable
@@ -32,7 +31,7 @@ corresponding canonical product.
   sets, and its analytic order agrees with the expected multiplicity away from `0`.
 -/
 
-@[expose] public section
+public section
 
 namespace Complex.Hadamard
 

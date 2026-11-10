@@ -20,9 +20,7 @@ It provides a canonical `Finset` for this fiber and identifies its cardinality w
 multiplicity and (for holomorphic functions) with `analyticOrderNatAt`.
 -/
 
-@[expose] public section
-
-noncomputable section
+@[expose] public noncomputable section
 
 open Set
 open scoped Topology BigOperators

@@ -1,7 +1,11 @@
+module
+
 /-
   Test interval_unique_root fix
 -/
-import LeanCert.Tactic.Discovery
+public import LeanCert.Tactic.Discovery
+
+@[expose] public section
 
 open LeanCert.Core
 

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Executable failure showcase
@@ -12,9 +14,11 @@ These tests pin searchable public diagnostics without snapshotting incidental
 internal exception text.
 -/
 
+@[expose] public section
+
 open Lean Meta Elab Tactic
 
-private unsafe def expectFailureContaining (fragments : Array String) :
+meta unsafe def expectFailureContaining (fragments : Array String) :
     TacticM Unit := do
   let saved ← saveState
   try
@@ -36,11 +40,11 @@ syntax (name := expectCertifiedCounterexampleShowcase)
 syntax (name := expectAutoNativeShowcase) "expect_auto_native_showcase" : tactic
 
 @[tactic expectUnsupportedShowcase]
-unsafe def evalExpectUnsupportedShowcase : Tactic := fun _ =>
+meta unsafe def evalExpectUnsupportedShowcase : Tactic := fun _ =>
   expectFailureContaining #["Unsupported expression:", "Head symbol:", "Suggestions:"]
 
 @[tactic expectDomainObstructionShowcase]
-unsafe def evalExpectDomainObstructionShowcase : Tactic := fun _ =>
+meta unsafe def evalExpectDomainObstructionShowcase : Tactic := fun _ =>
   expectFailureContaining #[
     "Domain obstruction:",
     "checked evaluator rejected a partial operation",
@@ -48,14 +52,14 @@ unsafe def evalExpectDomainObstructionShowcase : Tactic := fun _ =>
   ]
 
 @[tactic expectResolutionAdviceShowcase]
-unsafe def evalExpectResolutionAdviceShowcase : Tactic := fun _ =>
+meta unsafe def evalExpectResolutionAdviceShowcase : Tactic := fun _ =>
   expectFailureContaining #[
     "Subdivision reached its configured depth",
     "Increase `(taylorDepth := ...)`, `(subdivisions := ...)`"
   ]
 
 @[tactic expectCertifiedCounterexampleShowcase]
-unsafe def evalExpectCertifiedCounterexampleShowcase : Tactic := fun _ => do
+meta unsafe def evalExpectCertifiedCounterexampleShowcase : Tactic := fun _ => do
   let saved ← saveState
   try
     evalTactic (← `(tactic| interval_refute))
@@ -68,7 +72,7 @@ unsafe def evalExpectCertifiedCounterexampleShowcase : Tactic := fun _ => do
       throwError "expected a certified counterexample, got:\n{message}"
 
 @[tactic expectAutoNativeShowcase]
-unsafe def evalExpectAutoNativeShowcase : Tactic := fun _ => do
+meta unsafe def evalExpectAutoNativeShowcase : Tactic := fun _ => do
   let report ← LeanCert.Tactic.withTrustMode (some .auto) do
     LeanCert.Tactic.runLeanCert { trust := some .auto } .explain
   unless report.execution.verificationUsage.nativeChecks > 0 do

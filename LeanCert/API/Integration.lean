@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Eval
-import LeanCert.Validity.Integration
-import LeanCert.Validity.IntegrationDyadic
+module
+
+public import LeanCert.API.Eval
+public import LeanCert.Validity.Integration
+public import LeanCert.Validity.IntegrationDyadic
 
 /-!
 # Public checked partition integration
@@ -14,6 +16,8 @@ This facade promotes the existing Rational and Dyadic checked integrators to
 one typed public boundary. Automatic selection intentionally remains Rational
 until comparative benchmarks justify a broader policy.
 -/
+
+@[expose] public section
 
 namespace LeanCert
 
@@ -35,7 +39,7 @@ structure IntegralOutcome where
   backend : ConcreteBackend
   deriving Repr, DecidableEq
 
-private def rationalIntegrationConfig (requested : BackendChoice)
+def rationalIntegrationConfig (requested : BackendChoice)
     (options : IntegrationOptions) : EvalResult Unit :=
   if options.taylorDepth = 10 then
     if requested != .rational || options.dyadicPrecision = -53 then
@@ -47,13 +51,13 @@ private def rationalIntegrationConfig (requested : BackendChoice)
     .error (.invalidConfiguration
       "Rational partition integration currently uses fixed Taylor depth 10")
 
-private def dyadicIntegrationConfig (options : IntegrationOptions) : EvalResult DyadicConfig :=
+def dyadicIntegrationConfig (options : IntegrationOptions) : EvalResult DyadicConfig :=
   if options.dyadicPrecision ≤ 0 then
     .ok { precision := options.dyadicPrecision, taylorDepth := options.taylorDepth }
   else
     .error (.invalidConfiguration "Dyadic integration precision must be nonpositive")
 
-private theorem dyadicIntegrationConfig_precision {options : IntegrationOptions}
+theorem dyadicIntegrationConfig_precision {options : IntegrationOptions}
     {cfg : DyadicConfig} (hcfg : dyadicIntegrationConfig options = .ok cfg) :
     cfg.precision ≤ 0 := by
   unfold dyadicIntegrationConfig at hcfg
@@ -63,14 +67,14 @@ private theorem dyadicIntegrationConfig_precision {options : IntegrationOptions}
     exact hprec
   · contradiction
 
-private def diagnoseRationalPartitionFailure (e : Expr) : List IntervalRat → EvalError
+def diagnoseRationalPartitionFailure (e : Expr) : List IntervalRat → EvalError
   | [] => .unsupportedFeature "Rational partition integration rejected its certificate"
   | cell :: rest =>
       match evalIntervalChecked e (fun _ => cell) with
       | .error err => .nestedFailure "integration partition cell" err
       | .ok _ => diagnoseRationalPartitionFailure e rest
 
-private def diagnoseDyadicPartitionFailure (e : Expr) (cfg : DyadicConfig) :
+def diagnoseDyadicPartitionFailure (e : Expr) (cfg : DyadicConfig) :
     List IntervalRat → EvalError
   | [] => .unsupportedFeature "Dyadic partition integration rejected its certificate"
   | cell :: rest =>
@@ -79,7 +83,7 @@ private def diagnoseDyadicPartitionFailure (e : Expr) (cfg : DyadicConfig) :
       | .error err => .nestedFailure "integration partition cell" err
       | .ok _ => diagnoseDyadicPartitionFailure e cfg rest
 
-private def integrateUniformRational (e : Expr) (interval : IntervalRat)
+def integrateUniformRational (e : Expr) (interval : IntervalRat)
     (partitionCount : Nat) (hpos : 0 < partitionCount) (requested : BackendChoice)
     (options : IntegrationOptions) :
     EvalResult IntegralOutcome :=
@@ -97,7 +101,7 @@ private def integrateUniformRational (e : Expr) (interval : IntervalRat)
           .error (diagnoseRationalPartitionFailure e
             (uniformPartition interval partitionCount hpos))
 
-private def integrateUniformDyadic (e : Expr) (interval : IntervalRat)
+def integrateUniformDyadic (e : Expr) (interval : IntervalRat)
     (partitionCount : Nat) (hpos : 0 < partitionCount) (options : IntegrationOptions) :
     EvalResult IntegralOutcome :=
   match dyadicIntegrationConfig options with
@@ -116,7 +120,7 @@ private def integrateUniformDyadic (e : Expr) (interval : IntervalRat)
         .error (diagnoseDyadicPartitionFailure e cfg
           (uniformPartition interval partitionCount hpos))
 
-private theorem integrateUniformRational_correct {e : Expr} {interval : IntervalRat}
+theorem integrateUniformRational_correct {e : Expr} {interval : IntervalRat}
     {partitionCount : Nat} {requested : BackendChoice} {options : IntegrationOptions}
     {outcome : IntegralOutcome} (hpos : 0 < partitionCount)
     (hsuccess : integrateUniformRational e interval partitionCount hpos requested options =

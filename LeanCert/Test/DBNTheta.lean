@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.ThetaIntegral
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.ThetaIntegral
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 namespace LeanCert.Test.DBNTheta
 open Analysis.DBN

@@ -2,7 +2,9 @@
 Copyright (c) 2025 LeanCert contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import LeanCert.Engine.Pisano.Defs
+module
+
+public import LeanCert.Engine.Pisano.Defs
 
 /-! # Pisano Period Computation
 
@@ -19,13 +21,15 @@ For Fibonacci (P=1, Q=-1), this is the classical Pisano period `π(m)`.
 - `checkPisanoPeriod_implies`: bridge theorem from checker to divisibility
 -/
 
+@[expose] public section
+
 namespace LeanCert.Engine.Pisano
 
 /-! ### Period finder -/
 
 /-- Search for the Pisano period starting from step `n`, checking up to `limit`.
 Returns the period if found, or `0` if not found within the limit. -/
-private def findPeriodAux (P Q : Int) (m : Nat) : Nat → Nat → Int × Int → Nat
+def findPeriodAux (P Q : Int) (m : Nat) : Nat → Nat → Int × Int → Nat
   | 0, _, _ => 0  -- ran out of fuel
   | fuel + 1, n, (u, u') =>
     let u_next := (P * u' - Q * u) % m
@@ -64,7 +68,7 @@ def checkPisanoPeriod (P Q : Int) (m : Nat) (k : Nat) : Bool :=
 /-! ### Pisano fixed points -/
 
 /-- Factorize `n` into its prime factors (simple trial division). -/
-private def primeFactors (n : Nat) : List Nat :=
+def primeFactors (n : Nat) : List Nat :=
   go n 2 [] (n + 1)
 where
   go : Nat → Nat → List Nat → Nat → List Nat
@@ -79,7 +83,7 @@ where
       go n (p + 1) acc fuel
 
 /-- Compute `lcm` of a list of natural numbers. -/
-private def listLcm : List Nat → Nat
+def listLcm : List Nat → Nat
   | [] => 1
   | x :: xs => Nat.lcm x (listLcm xs)
 

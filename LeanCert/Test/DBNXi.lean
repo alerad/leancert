@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.XiIdentity
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.XiIdentity
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 namespace LeanCert.Test.DBNXi
 open Analysis.DBN Complex

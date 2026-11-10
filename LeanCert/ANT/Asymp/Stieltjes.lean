@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT.Asymp.Env
-import Mathlib.Algebra.BigOperators.Module
+module
+
+public import LeanCert.ANT.Asymp.Env
+public import Mathlib.Algebra.BigOperators.Module
 
 /-!
 # Stieltjes-Abel envelope kernel
@@ -13,6 +15,8 @@ This file contains the exact finite summation-by-parts kernel used by the
 Stieltjes side of CAEE.  The analytic checker layer should target the semantic
 certificate wrapper at the bottom of the file.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT.Asymp
 

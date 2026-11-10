@@ -1,4 +1,6 @@
-import LeanCert.Analysis.DBN.BadTime
+module
+
+public import LeanCert.Analysis.DBN.BadTime
 
 /-!
 # The de Bruijn–Newman threshold
@@ -7,6 +9,9 @@ The actual real-zero time set is nonempty, closed, upward closed, and bounded
 below. Its infimum is therefore an attained finite threshold, at most one half.
 This is a qualitative classical certificate, not a sharper numerical bound.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Set
 

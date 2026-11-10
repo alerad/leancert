@@ -3,9 +3,11 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Data.Rat.Cast.Order
-import Mathlib.Algebra.Order.Field.Basic
-import Mathlib.Basic.Real.Basic
+module
+
+public import Mathlib.Data.Rat.Cast.Order
+public import Mathlib.Algebra.Order.Field.Basic
+public import Mathlib.Basic.Real.Basic
 
 /-!
 # Dyadic Rationals (n * 2^e)
@@ -33,6 +35,8 @@ For interval arithmetic, we use directed rounding:
 
 This ensures mathematical soundness even when truncating precision.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 
@@ -223,7 +227,7 @@ def shiftUp (d : Dyadic) (newExp : Int) : Dyadic :=
 /-! ### Normalization (Mantissa Control) -/
 
 /-- Get the bit length of a natural number -/
-private def natBitLength (n : Nat) : Nat :=
+def natBitLength (n : Nat) : Nat :=
   if n = 0 then 0 else Nat.log2 n + 1
 
 /-- Get the bit length of the absolute value of an integer -/

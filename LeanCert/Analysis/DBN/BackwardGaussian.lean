@@ -1,6 +1,8 @@
-import LeanCert.Analysis.DBN.KernelRegularity
-import LeanCert.Analysis.DBN.HeatSymmetry
-import Mathlib.MeasureTheory.Integral.DominatedConvergence
+module
+
+public import LeanCert.Analysis.DBN.KernelRegularity
+public import LeanCert.Analysis.DBN.HeatSymmetry
+public import Mathlib.MeasureTheory.Integral.DominatedConvergence
 
 /-!
 # Recovering the kernel from backward heat times
@@ -8,6 +10,9 @@ import Mathlib.MeasureTheory.Integral.DominatedConvergence
 A change of variables and dominated convergence give a Gaussian approximate
 identity. This concerns the actual integral, with no assumptions on its zeros.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open MeasureTheory Set Filter Complex
 open scoped Topology

@@ -26,7 +26,6 @@ canonical products.
 
 @[expose] public section
 
-
 open Set
 
 namespace Complex.Hadamard

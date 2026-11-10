@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.Engine.RootFinding.KrawczykCandidate
-import LeanCert.Examples.Krawczyk
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.Engine.RootFinding.KrawczykCandidate
+public import LeanCert.Examples.Krawczyk
 
 /-!
 # Nonlinear-system certification benchmarks
@@ -15,24 +17,26 @@ matrix/norm phase.  The checked case measures the complete Boolean certificate
 path used by the golden theorem.
 -/
 
+@[expose] public section
+
 namespace LeanCert.Benchmark.Krawczyk
 
 open LeanCert.Engine
 open LeanCert.Examples.Krawczyk
 
-private def input : InputMetrics := {
+def input : InputMetrics := {
   astNodes := 13
   astDepth := 4
   variableCount := 2
 }
 
-private def expInput : InputMetrics := {
+def expInput : InputMetrics := {
   astNodes := 4
   astDepth := 3
   variableCount := 1
 }
 
-private def jacobianRun : IO Outcome := do
+def jacobianRun : IO Outcome := do
   let stamp ← IO.monoNanosNow
   let selectedBox : Fin 2 → LeanCert.Core.IntervalRat :=
     if stamp = 0 then fun _ => LeanCert.Core.IntervalRat.singleton 0 else box
@@ -42,7 +46,7 @@ private def jacobianRun : IO Outcome := do
     return { status := "error", error := some "impossible zero denominator" }
   return { status := "success", backendUsed := some "rational" }
 
-private def matrixNormRun : IO Outcome := do
+def matrixNormRun : IO Outcome := do
   let stamp ← IO.monoNanosNow
   let selectedBox : Fin 2 → LeanCert.Core.IntervalRat :=
     if stamp = 0 then fun _ => LeanCert.Core.IntervalRat.singleton 0 else box
@@ -52,7 +56,7 @@ private def matrixNormRun : IO Outcome := do
     return { status := "success", backendUsed := some "rational" }
   return { status := "failed_contraction", backendUsed := some "rational" }
 
-private def checkedRun : IO Outcome := do
+def checkedRun : IO Outcome := do
   let stamp ← IO.monoNanosNow
   let selectedBox : Fin 2 → LeanCert.Core.IntervalRat :=
     if stamp = 0 then fun _ => LeanCert.Core.IntervalRat.singleton 0 else box
@@ -60,7 +64,7 @@ private def checkedRun : IO Outcome := do
     return { status := "success", backendUsed := some "rational" }
   return { status := "certificate_rejected", backendUsed := some "rational" }
 
-private def expCheckedRun : IO Outcome := do
+def expCheckedRun : IO Outcome := do
   let stamp ← IO.monoNanosNow
   let selectedBox : Fin 1 → LeanCert.Core.IntervalRat :=
     if stamp = 0 then fun _ => LeanCert.Core.IntervalRat.singleton 0 else expBox
@@ -68,25 +72,25 @@ private def expCheckedRun : IO Outcome := do
     return { status := "success", backendUsed := some "rational" }
   return { status := "certificate_rejected", backendUsed := some "rational" }
 
-private def automaticCandidateRun : IO Outcome := do
+def automaticCandidateRun : IO Outcome := do
   let report := generateAutomaticKrawczyk system box
   if report.succeeded then
     return { status := "success", backendUsed := some "rational" }
   return { status := "candidate_search_failed", backendUsed := some "rational" }
 
-private def shiftedExpSystem : Fin 1 → LeanCert.Core.Expr :=
+def shiftedExpSystem : Fin 1 → LeanCert.Core.Expr :=
   ![.add (.exp (.var 0)) (.const (-1 / 8))]
 
-private def shiftedExpBox : Fin 1 → LeanCert.Core.IntervalRat :=
+def shiftedExpBox : Fin 1 → LeanCert.Core.IntervalRat :=
   ![⟨-57 / 20, -33 / 20, by norm_num⟩]
 
-private def refinementCandidateRun : IO Outcome := do
+def refinementCandidateRun : IO Outcome := do
   let report := generateAutomaticKrawczyk shiftedExpSystem shiftedExpBox
   if report.succeeded && report.refinements == 1 then
     return { status := "success", backendUsed := some "rational" }
   return { status := "candidate_refinement_failed", backendUsed := some "rational" }
 
-private def baseParameters : List (String × String) := [
+def baseParameters : List (String × String) := [
   ("system", "coupled_quadratic_2x2"),
   ("box", "[9/10,11/10]^2"),
   ("preconditioner", "exact_center_jacobian_inverse")

@@ -3,9 +3,11 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Expr
-import LeanCert.Engine.Affine.Transcendental
-import LeanCert.Engine.IntervalEval
+module
+
+public import LeanCert.Core.Expr
+public import LeanCert.Engine.Affine.Transcendental
+public import LeanCert.Engine.IntervalEval
 
 /-!
 # Affine Arithmetic Expression Evaluator
@@ -36,6 +38,8 @@ multiple paths.
 Some transcendental functions (sin, cos, atan) fall back to interval
 arithmetic because affine approximations aren't yet implemented.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

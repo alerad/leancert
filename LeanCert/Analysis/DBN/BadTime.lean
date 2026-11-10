@@ -1,7 +1,9 @@
-import LeanCert.Analysis.DBN.BackwardGaussian
-import LeanCert.Analysis.DBN.FourPoint
-import LeanCert.Analysis.DBN.KernelObstruction
-import LeanCert.Analysis.DBN.ForwardPreservation
+module
+
+public import LeanCert.Analysis.DBN.BackwardGaussian
+public import LeanCert.Analysis.DBN.FourPoint
+public import LeanCert.Analysis.DBN.KernelObstruction
+public import LeanCert.Analysis.DBN.ForwardPreservation
 
 /-!
 # Existence of a bad time
@@ -10,6 +12,9 @@ If all negative square times had only real zeros, the four-point inequality
 for their divisor products would survive Gaussian rescaling and passage to
 the kernel. The actual kernel strictly violates that inequality.
 -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Set Filter MeasureTheory
 open scoped Topology

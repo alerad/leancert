@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
-import Mathlib.Analysis.SpecialFunctions.Log.Deriv
-import Mathlib.Analysis.Convex.SpecificFunctions.Basic
-import Mathlib.Analysis.Complex.ExponentialBounds
+module
+
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
+public import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+public import Mathlib.Analysis.Convex.SpecificFunctions.Basic
+public import Mathlib.Analysis.Complex.ExponentialBounds
 
 /-!
 # Logarithm Bounds
@@ -26,6 +28,8 @@ numerical analysis and the Prime Number Theorem formalization.
 * Prime Number Theorem formalization (PNT+)
 * Blueprint: Sublemmas 9.1.2-9.1.5
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 

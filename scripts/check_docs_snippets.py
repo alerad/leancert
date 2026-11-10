@@ -34,7 +34,7 @@ FENCE = re.compile(
 ERROR_LINE = re.compile(
     r"^[^:\n]+:(\d+):\d+: (?:error|error\([^)]*\)):", re.MULTILINE
 )
-IMPORT_LINE = re.compile(r"^import\s+([\w.]+)", re.MULTILINE)
+IMPORT_LINE = re.compile(r"^(?:public\s+)?(?:meta\s+)?import\s+(?:all\s+)?([\w.]+)", re.MULTILINE)
 
 
 @dataclasses.dataclass(frozen=True)

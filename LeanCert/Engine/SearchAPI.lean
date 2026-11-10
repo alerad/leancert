@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Bounds
-import LeanCert.Engine.RootFinding.Main
-import LeanCert.Engine.Optimization.Global
-import LeanCert.Meta.ProveContinuous
+module
+
+public import LeanCert.Validity.Bounds
+public import LeanCert.Engine.RootFinding.Main
+public import LeanCert.Engine.Optimization.Global
+public import LeanCert.Meta.ProveContinuous
 
 /-!
 # Search + Certify APIs
@@ -32,6 +34,8 @@ These APIs are designed to be:
 Each API wraps existing algorithms (bisection, Newton, branch-and-bound, etc.)
 and bundles the result with the appropriate correctness proof.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.SearchAPI
 

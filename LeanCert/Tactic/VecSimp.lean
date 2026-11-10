@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.VecUtil
-import Mathlib.Tactic.NormNum
+module
+
+public meta import LeanCert.Tactic.VecUtil
+public import Mathlib.Tactic.NormNum
 
 /-!
 # vec_simp: Vector simplification
@@ -21,6 +23,8 @@ Uses `VecUtil.vecConsFinMk` which handles both via `Fin.val` reduction.
 
 Shared utilities in `LeanCert.Tactic.VecUtil`. Debug: `set_option trace.VecUtil.debug true`
 -/
+
+public meta section
 
 /-- Simplify vector indexing: `![a,b,c] ⟨1, proof⟩` → `b`, `![a,b,c] 2` → `c`.
     See `vec_simp!` for dite/abs support. -/

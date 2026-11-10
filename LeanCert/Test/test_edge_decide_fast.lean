@@ -1,5 +1,9 @@
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.Tactic.IntervalAuto
+module
+
+public import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Tactic.IntervalAuto
+
+public section
 
 theorem edge_decide_exp : Real.exp (1:ℝ) ≤ (3 : ℚ) := by
   interval_decide 15

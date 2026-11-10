@@ -9,7 +9,7 @@ This file records a disk bound from a boundary bound on the sphere, in the form 
 growth estimates for holomorphic functions.
 -/
 
-@[expose] public section
+public section
 
 namespace Complex
 

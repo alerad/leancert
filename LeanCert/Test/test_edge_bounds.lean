@@ -1,4 +1,8 @@
-import LeanCert.Tactic.IntervalAuto
+module
+
+public import LeanCert.Tactic.IntervalAuto
+
+public section
 
 open LeanCert.Core
 

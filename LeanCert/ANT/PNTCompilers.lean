@@ -3,8 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
-import LeanCert.ANT.Asymp.Pointwise
+public import LeanCert.ANT.Asymp.Pointwise
 
 /-!
 # Explicit-PNT compiler theorem schemas
@@ -19,6 +20,8 @@ The actual functions `ψ`, `θ`, `π`, and `Li` are intentionally parameters.
 LeanCert supplies the reusable inequality algebra; project files supply the
 semantic definitions and decomposition identities.
 -/
+
+public section
 
 namespace LeanCert.ANT.PNTCompilers
 

@@ -3,11 +3,16 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.ZeroLimit
+module
+
+public import LeanCert.Analysis.DBN.ZeroLimit
 
 /-! A local zero-transfer theorem allowing approximants which are only
 holomorphic on compact sets eventually (for example, logarithmic coordinates
 translated into the upper half-plane). -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Complex.Hadamard Set Metric Filter
 open scoped Topology

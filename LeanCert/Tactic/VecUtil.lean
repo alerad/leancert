@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Data.Fin.VecNotation
-import Mathlib.Tactic.FailIfNoProgress
-import Mathlib.Algebra.Order.Group.Abs
-import Mathlib.Tactic.NormNum
+module
+
+public import Mathlib.Data.Fin.VecNotation
+public import Mathlib.Tactic.FailIfNoProgress
+public import Mathlib.Algebra.Order.Group.Abs
+public import Mathlib.Tactic.NormNum
 
 /-!
 # VecUtil: Shared vector/matrix simplification utilities
@@ -28,6 +30,8 @@ Helpers for `Matrix.vecCons` expressions, used by `VecSimp` and `FinSumExpand`.
 * `set_option trace.VecUtil.debug true` - enable debug tracing
 * `set_option VecUtil.fuel 256` - max recursion depth for element extraction (default: 128)
 -/
+
+public meta section
 
 namespace VecUtil
 

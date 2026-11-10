@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.DobnerGammaRatio
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.DobnerGammaRatio
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open Complex LeanCert.Analysis LeanCert.Analysis.DBN
 

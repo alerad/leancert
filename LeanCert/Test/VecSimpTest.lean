@@ -3,15 +3,17 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.VecSimp
-import LeanCert.Tactic.FinSumExpand
-import Mathlib.Basic.Real.Basic
-import Mathlib.Data.Fin.Basic
-import Mathlib.Data.Fintype.Basic
-import Mathlib.Data.Matrix.Basic
-import Mathlib.Tactic.Ring
-import Mathlib.Tactic.FinCases
-import Mathlib.Tactic.NormNum
+module
+
+public import LeanCert.Tactic.VecSimp
+public import LeanCert.Tactic.FinSumExpand
+public import Mathlib.Basic.Real.Basic
+public import Mathlib.Data.Fin.Basic
+public import Mathlib.Data.Fintype.Basic
+public import Mathlib.Data.Matrix.Basic
+public import Mathlib.Tactic.Ring
+public import Mathlib.Tactic.FinCases
+public import Mathlib.Tactic.NormNum
 
 /-!
 # Tests for vec_simp and vec_simp! tactics
@@ -19,6 +21,8 @@ import Mathlib.Tactic.NormNum
 * `vec_simp` - Reduces vector indexing (Fin.mk and numeric literal indices)
 * `vec_simp!` - + dite conditions, abs, norm_num
 -/
+
+@[expose] public section
 
 namespace VecSimp.Test
 

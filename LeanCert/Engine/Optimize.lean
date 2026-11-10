@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD
-import Mathlib.Analysis.Calculus.MeanValue
+module
+
+public import LeanCert.Engine.AD
+public import Mathlib.Analysis.Calculus.MeanValue
 
 /-!
 # Global Optimization via Branch-and-Bound
@@ -31,6 +33,8 @@ Branch-and-bound with the following pruning rules:
 3. **Subdivision**: Split interval and recurse
 
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 
@@ -59,40 +63,29 @@ noncomputable def derivStrictlyNegative (e : Expr) (I : IntervalRat) (varIdx : N
   let dI := derivInterval e (fun _ => I) varIdx
   dI.hi < 0
 
-/-- Simple branch-and-bound minimization.
+namespace minimizeInterval
 
-Returns an interval [lo, hi] such that:
-- lo ≤ min_{x ∈ I} f(x)
-- hi ≥ min_{x ∈ I} f(x)
--/
-noncomputable def minimizeInterval (e : Expr) (I : IntervalRat) (varIdx : Nat)
-    (maxDepth : ℕ) : OptResult :=
-  go I maxDepth
-where
-  go (J : IntervalRat) (depth : ℕ) : OptResult :=
-    if depth = 0 then
-      -- Base case: just use interval evaluation
+/-- Recursive branch-and-bound step, with the fuel first for structural recursion. -/
+noncomputable def go (e : Expr) (varIdx : Nat) (maxDepth : ℕ) :
+    ℕ → IntervalRat → OptResult
+  | 0, J =>
       { valueBound := LeanCert.Internal.Rational.evalUnchecked1 e J
         argBound := some J
         depth := maxDepth }
-    else
-      -- Check monotonicity
+  | depth + 1, J =>
       if derivStrictlyPositive e J varIdx then
-        -- f is increasing, minimum is at left endpoint
         { valueBound := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton J.lo)
           argBound := some (IntervalRat.singleton J.lo)
-          depth := maxDepth - depth }
+          depth := maxDepth - (depth + 1) }
       else if derivStrictlyNegative e J varIdx then
-        -- f is decreasing, minimum is at right endpoint
         { valueBound := LeanCert.Internal.Rational.evalUnchecked1 e (IntervalRat.singleton J.hi)
           argBound := some (IntervalRat.singleton J.hi)
-          depth := maxDepth - depth }
+          depth := maxDepth - (depth + 1) }
       else
-        -- Bisect and take the better bound
-        let (J₁, J₂) := J.bisect
-        let r₁ := go J₁ (depth - 1)
-        let r₂ := go J₂ (depth - 1)
-        -- Take the interval with smaller lower bound
+        let J₁ := J.bisect.1
+        let J₂ := J.bisect.2
+        let r₁ := go e varIdx maxDepth depth J₁
+        let r₂ := go e varIdx maxDepth depth J₂
         if h : r₁.valueBound.lo ≤ r₂.valueBound.lo then
           { valueBound :=
               { lo := r₁.valueBound.lo
@@ -115,6 +108,18 @@ where
                   · exact r₂.valueBound.le }
             argBound := r₂.argBound
             depth := max r₁.depth r₂.depth }
+
+end minimizeInterval
+
+/-- Simple branch-and-bound minimization.
+
+Returns an interval [lo, hi] such that:
+- lo ≤ min_{x ∈ I} f(x)
+- hi ≥ min_{x ∈ I} f(x)
+-/
+noncomputable def minimizeInterval (e : Expr) (I : IntervalRat) (varIdx : Nat)
+    (maxDepth : ℕ) : OptResult :=
+  minimizeInterval.go e varIdx maxDepth maxDepth I
 
 /-- Base case correctness: interval evaluation gives a valid lower bound.
     This theorem is FULLY PROVED - no sorry, no axioms. -/
@@ -267,21 +272,18 @@ theorem decreasing_endpoint_bound (e : Expr) (hsupp : ADSupported e) (hvar0 : Us
     FULLY PROVED for varIdx = 0 and UsesOnlyVar0 expressions. -/
 theorem minimizeInterval_go_correct (e : Expr) (hsupp : ADSupported e) (hvar0 : UsesOnlyVar0 e)
     (maxDepth : ℕ) (depth : ℕ) (J : IntervalRat) :
-    ∀ x ∈ J, (minimizeInterval.go e 0 maxDepth J depth).valueBound.lo
+    ∀ x ∈ J, (minimizeInterval.go e 0 maxDepth depth J).valueBound.lo
              ≤ Expr.eval (fun _ => x) e := by
   induction depth generalizing J with
   | zero =>
     -- Base case: depth = 0, just use interval evaluation
     intro x hx
-    simp only [minimizeInterval.go, ↓reduceIte]
+    simp only [minimizeInterval.go]
     exact minimizeInterval_base_correct e hsupp J x hx
   | succ n ih =>
     intro x hx
-    -- Unfold the go definition for succ case
-    -- Note: n + 1 ≠ 0, so we skip the first branch
-    have hdepth : n + 1 ≠ 0 := Nat.succ_ne_zero n
     rw [minimizeInterval.go]
-    simp only [hdepth, ↓reduceIte, Nat.add_sub_cancel]
+    dsimp
     -- Now we branch on the derivative conditions
     split_ifs with hpos hneg hle
     · -- Derivative strictly positive: increasing function
@@ -301,10 +303,10 @@ theorem minimizeInterval_go_correct (e : Expr) (hsupp : ADSupported e) (hvar0 : 
       | inl h1 => exact ih J.bisect.1 x h1
       | inr h2 =>
         have h := ih J.bisect.2 x h2
-        have hle_cast : ((minimizeInterval.go e 0 maxDepth (J.bisect.fst) n).valueBound.lo : ℝ)
-            ≤ (minimizeInterval.go e 0 maxDepth (J.bisect.snd) n).valueBound.lo := by exact_mod_cast hle
-        calc ((minimizeInterval.go e 0 maxDepth (J.bisect.fst) n).valueBound.lo : ℝ)
-            ≤ (minimizeInterval.go e 0 maxDepth (J.bisect.snd) n).valueBound.lo := hle_cast
+        have hle_cast : ((minimizeInterval.go e 0 maxDepth n (J.bisect.fst)).valueBound.lo : ℝ)
+            ≤ (minimizeInterval.go e 0 maxDepth n (J.bisect.snd)).valueBound.lo := by exact_mod_cast hle
+        calc ((minimizeInterval.go e 0 maxDepth n (J.bisect.fst)).valueBound.lo : ℝ)
+            ≤ (minimizeInterval.go e 0 maxDepth n (J.bisect.snd)).valueBound.lo := hle_cast
           _ ≤ Expr.eval (fun _ => x) e := h
     · -- Bisection case, ¬hle (r₁.lo > r₂.lo)
       have hcases := IntervalRat.mem_bisect_or hx
@@ -312,10 +314,10 @@ theorem minimizeInterval_go_correct (e : Expr) (hsupp : ADSupported e) (hvar0 : 
       | inl h1 =>
         have h := ih J.bisect.1 x h1
         have hlt := not_le.mp hle
-        have hlt_cast : ((minimizeInterval.go e 0 maxDepth (J.bisect.snd) n).valueBound.lo : ℝ)
-            ≤ (minimizeInterval.go e 0 maxDepth (J.bisect.fst) n).valueBound.lo := by exact_mod_cast (le_of_lt hlt)
-        calc ((minimizeInterval.go e 0 maxDepth (J.bisect.snd) n).valueBound.lo : ℝ)
-            ≤ (minimizeInterval.go e 0 maxDepth (J.bisect.fst) n).valueBound.lo := hlt_cast
+        have hlt_cast : ((minimizeInterval.go e 0 maxDepth n (J.bisect.snd)).valueBound.lo : ℝ)
+            ≤ (minimizeInterval.go e 0 maxDepth n (J.bisect.fst)).valueBound.lo := by exact_mod_cast (le_of_lt hlt)
+        calc ((minimizeInterval.go e 0 maxDepth n (J.bisect.snd)).valueBound.lo : ℝ)
+            ≤ (minimizeInterval.go e 0 maxDepth n (J.bisect.fst)).valueBound.lo := hlt_cast
           _ ≤ Expr.eval (fun _ => x) e := h
       | inr h2 => exact ih J.bisect.2 x h2
 
@@ -525,43 +527,32 @@ noncomputable def derivStrictlyNegative_idx (e : Expr) (ρ : IntervalEnv) (idx :
 def updateIntervalEnv (ρ : IntervalEnv) (idx : Nat) (J : IntervalRat) : IntervalEnv :=
   fun i => if i = idx then J else ρ i
 
-/-- N-variable branch-and-bound minimization along coordinate `idx`.
-
-Returns an interval [lo, hi] such that for any ρ_real with ρ_real i ∈ ρ i:
-- lo ≤ min_{t ∈ ρ idx} evalAlong e ρ_real idx t
-- hi ≥ min_{t ∈ ρ idx} evalAlong e ρ_real idx t
--/
-noncomputable def minimizeIntervalIdx (e : Expr) (ρ : IntervalEnv) (idx : Nat)
-    (maxDepth : ℕ) : OptResult :=
-  go (ρ idx) maxDepth
-where
-  go (J : IntervalRat) (depth : ℕ) : OptResult :=
-    let ρ' := updateIntervalEnv ρ idx J
-    if depth = 0 then
-      -- Base case: just use interval evaluation
-      { valueBound := LeanCert.Internal.Rational.evalUnchecked e ρ'
+/-- Recursive n-variable branch-and-bound step. -/
+noncomputable def minimizeIntervalIdxGo
+    (e : Expr) (ρ : IntervalEnv) (idx : Nat) (maxDepth : ℕ) :
+    ℕ → IntervalRat → OptResult
+  | 0, J =>
+      { valueBound := LeanCert.Internal.Rational.evalUnchecked e
+          (updateIntervalEnv ρ idx J)
         argBound := some J
         depth := maxDepth }
-    else
-      -- Check monotonicity along idx
+  | depth + 1, J =>
+      let ρ' := updateIntervalEnv ρ idx J
       if derivStrictlyPositive_idx e ρ' idx then
-        -- f is increasing along idx, minimum is at left endpoint
         let ρ_lo := updateIntervalEnv ρ idx (IntervalRat.singleton J.lo)
         { valueBound := LeanCert.Internal.Rational.evalUnchecked e ρ_lo
           argBound := some (IntervalRat.singleton J.lo)
-          depth := maxDepth - depth }
+          depth := maxDepth - (depth + 1) }
       else if derivStrictlyNegative_idx e ρ' idx then
-        -- f is decreasing along idx, minimum is at right endpoint
         let ρ_hi := updateIntervalEnv ρ idx (IntervalRat.singleton J.hi)
         { valueBound := LeanCert.Internal.Rational.evalUnchecked e ρ_hi
           argBound := some (IntervalRat.singleton J.hi)
-          depth := maxDepth - depth }
+          depth := maxDepth - (depth + 1) }
       else
-        -- Bisect and take the better bound
-        let (J₁, J₂) := J.bisect
-        let r₁ := go J₁ (depth - 1)
-        let r₂ := go J₂ (depth - 1)
-        -- Take the interval with smaller lower bound
+        let J₁ := J.bisect.1
+        let J₂ := J.bisect.2
+        let r₁ := minimizeIntervalIdxGo e ρ idx maxDepth depth J₁
+        let r₂ := minimizeIntervalIdxGo e ρ idx maxDepth depth J₂
         if h : r₁.valueBound.lo ≤ r₂.valueBound.lo then
           { valueBound :=
               { lo := r₁.valueBound.lo
@@ -585,6 +576,16 @@ where
             argBound := r₂.argBound
             depth := max r₁.depth r₂.depth }
 
+/-- N-variable branch-and-bound minimization along coordinate `idx`.
+
+Returns an interval [lo, hi] such that for any ρ_real with ρ_real i ∈ ρ i:
+- lo ≤ min_{t ∈ ρ idx} evalAlong e ρ_real idx t
+- hi ≥ min_{t ∈ ρ idx} evalAlong e ρ_real idx t
+-/
+noncomputable def minimizeIntervalIdx (e : Expr) (ρ : IntervalEnv) (idx : Nat)
+    (maxDepth : ℕ) : OptResult :=
+  minimizeIntervalIdxGo e ρ idx maxDepth maxDepth (ρ idx)
+
 /-! ### N-variable minimization correctness -/
 
 /-- Base case correctness for n-variable optimization.
@@ -604,13 +605,12 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ADSupported e)
     (hJ_sub : ∀ t, t ∈ J → t ∈ ρ_int idx) :
     ∀ ρ_real : Nat → ℝ, (∀ i, ρ_real i ∈ ρ_int i) →
       ∀ t ∈ J,
-        (minimizeIntervalIdx.go e ρ_int idx maxDepth J depth).valueBound.lo
+        (minimizeIntervalIdxGo e ρ_int idx maxDepth depth J).valueBound.lo
           ≤ Expr.eval (Expr.updateVar ρ_real idx t) e := by
   induction depth generalizing J with
   | zero =>
     intro ρ_real hρ t ht
-    rw [minimizeIntervalIdx.go]
-    simp only [↓reduceIte]
+    rw [minimizeIntervalIdxGo]
     -- Base case: interval evaluation bounds all points
     have hρ' : ∀ i, (Expr.updateVar ρ_real idx t) i ∈ (updateIntervalEnv ρ_int idx J) i := by
       intro i
@@ -623,9 +623,8 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ADSupported e)
     exact heval.1
   | succ n ih =>
     intro ρ_real hρ t ht
-    have hdepth : n + 1 ≠ 0 := Nat.succ_ne_zero n
-    rw [minimizeIntervalIdx.go]
-    simp only [hdepth, ↓reduceIte, Nat.add_sub_cancel]
+    rw [minimizeIntervalIdxGo]
+    dsimp
     -- Note: ρ' in the go function is updateIntervalEnv ρ_int idx J
     split_ifs with hpos hneg hle
     · -- Derivative strictly positive: increasing function
@@ -765,10 +764,10 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ADSupported e)
         have hsub2 : ∀ s, s ∈ J.bisect.2 → s ∈ ρ_int idx := fun s hs =>
           hJ_sub s (IntervalRat.mem_of_mem_bisect_right hs)
         have h := ih J.bisect.2 hsub2 ρ_real hρ t h2
-        have hle_cast : ((minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.fst) n).valueBound.lo : ℝ)
-            ≤ (minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.snd) n).valueBound.lo := by exact_mod_cast hle
-        calc ((minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.fst) n).valueBound.lo : ℝ)
-            ≤ (minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.snd) n).valueBound.lo := hle_cast
+        have hle_cast : ((minimizeIntervalIdxGo e ρ_int idx maxDepth n (J.bisect.fst)).valueBound.lo : ℝ)
+            ≤ (minimizeIntervalIdxGo e ρ_int idx maxDepth n (J.bisect.snd)).valueBound.lo := by exact_mod_cast hle
+        calc ((minimizeIntervalIdxGo e ρ_int idx maxDepth n (J.bisect.fst)).valueBound.lo : ℝ)
+            ≤ (minimizeIntervalIdxGo e ρ_int idx maxDepth n (J.bisect.snd)).valueBound.lo := hle_cast
           _ ≤ Expr.eval (Expr.updateVar ρ_real idx t) e := h
     · -- Bisection case, ¬hle (r₁.lo > r₂.lo)
       have hcases := IntervalRat.mem_bisect_or ht
@@ -778,11 +777,11 @@ theorem minimizeIntervalIdx_go_correct (e : Expr) (hsupp : ADSupported e)
           hJ_sub s (IntervalRat.mem_of_mem_bisect_left hs)
         have h := ih J.bisect.1 hsub1 ρ_real hρ t h1
         have hlt := not_le.mp hle
-        have hlt_cast : ((minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.snd) n).valueBound.lo : ℝ)
-            ≤ (minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.fst) n).valueBound.lo := by
+        have hlt_cast : ((minimizeIntervalIdxGo e ρ_int idx maxDepth n (J.bisect.snd)).valueBound.lo : ℝ)
+            ≤ (minimizeIntervalIdxGo e ρ_int idx maxDepth n (J.bisect.fst)).valueBound.lo := by
           exact_mod_cast (le_of_lt hlt)
-        calc ((minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.snd) n).valueBound.lo : ℝ)
-            ≤ (minimizeIntervalIdx.go e ρ_int idx maxDepth (J.bisect.fst) n).valueBound.lo := hlt_cast
+        calc ((minimizeIntervalIdxGo e ρ_int idx maxDepth n (J.bisect.snd)).valueBound.lo : ℝ)
+            ≤ (minimizeIntervalIdxGo e ρ_int idx maxDepth n (J.bisect.fst)).valueBound.lo := hlt_cast
           _ ≤ Expr.eval (Expr.updateVar ρ_real idx t) e := h
       | inr h2 =>
         have hsub2 : ∀ s, s ∈ J.bisect.2 → s ∈ ρ_int idx := fun s hs =>

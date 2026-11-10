@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Types
-import LeanCert.Validity.Bounds
-import LeanCert.Engine.Integrate
-import LeanCert.Engine.RootFinding.Bisection
+module
+
+public import LeanCert.Validity.Types
+public import LeanCert.Validity.Bounds
+public import LeanCert.Engine.Integrate
+public import LeanCert.Engine.RootFinding.Bisection
 
 /-!
 # Discovery Mode: Finder Functions
@@ -34,6 +36,8 @@ The finders work in two stages:
 
 The proof is assembled by `native_decide` evaluating the boolean certificate checker.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Discovery
 

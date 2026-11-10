@@ -35,7 +35,7 @@ Also includes the real floor midpoint lemma used to match Weierstrass genus `⌊
 logarithm, exponential growth, finite order, Hadamard factorization
 -/
 
-@[expose] public section
+public section
 
 namespace Real
 

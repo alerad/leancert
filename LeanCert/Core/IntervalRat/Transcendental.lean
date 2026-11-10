@@ -3,11 +3,13 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Core.Expr
-import Mathlib.Algebra.Order.Floor.Defs
-import Mathlib.Algebra.Order.Floor.Ring
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
+module
+
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Core.Expr
+public import Mathlib.Algebra.Order.Floor.Defs
+public import Mathlib.Algebra.Order.Floor.Ring
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
 
 /-!
 # Rational Endpoint Intervals - Transcendental Functions
@@ -35,6 +37,8 @@ using floor/ceiling to obtain rational endpoints.
 All definitions in this file are noncomputable as they use `Real.exp`, `Real.log`,
 etc. For computable versions, see `IntervalRat.Taylor`.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 
@@ -212,7 +216,7 @@ def sqrtRatUpper (q : ℚ) : ℚ :=
     else ((s + 1) : ℚ) / den
 
 /-- Scaling exponent for precise sqrt bounds (2^scaleBits = scaling factor for denominator) -/
-private def sqrtScaleBits : Nat := 20  -- gives about 6 decimal digits precision
+def sqrtScaleBits : Nat := 20  -- gives about 6 decimal digits precision
 
 /-- Rational lower bound for sqrt with high precision.
     For q ≥ 0, we scale by 4^k, compute integer sqrt, and scale back by 2^k.

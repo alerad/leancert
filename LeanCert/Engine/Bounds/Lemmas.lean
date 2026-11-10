@@ -3,15 +3,16 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Eval.Extended
+module
+
+public import LeanCert.Engine.Eval.Extended
 
 /-!
 # Semantic Lemmas for Interval Bounds
 
 This file provides semantic lemmas for deriving real bounds from certified
 interval enclosures. Tactics consume these lemmas, but the definitions belong
-to the engine layer so checked programmatic APIs do not depend on tactic
-modules.
+to the engine layer so checked programmatic APIs do not depend on tacticmodules.
 
 ## Main theorems
 
@@ -37,6 +38,8 @@ These lemmas are intended to be used by tactics like `certify_bound` and
 The core lemmas use the computable evaluator and can work with `native_decide`.
 The extended lemmas use the noncomputable evaluator with floor/ceil bounds.
 -/
+
+public section
 
 namespace LeanCert.Engine
 

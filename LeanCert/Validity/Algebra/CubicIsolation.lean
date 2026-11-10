@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.CubicRadius
-import LeanCert.Validity.Bounds
+module
+
+public import LeanCert.Engine.Algebra.CubicRadius
+public import LeanCert.Validity.Bounds
 
 /-!
 # Complete isolation certificates for exact rational cubics
@@ -13,6 +15,8 @@ This Validity-layer module composes the algebraic three-root count with three
 computable interval-Newton certificates.  The Engine algebra modules remain
 independent of Golden-Theorem imports.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity.Algebra
 

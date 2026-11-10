@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean.Data.Json
-import LeanCert.Core.Expr
-import LeanCert.Core.IntervalRat.Basic
+module
+
+public import Lean.Data.Json
+public import LeanCert.Core.Expr
+public import LeanCert.Core.IntervalRat.Basic
 
 /-!
 # Benchmark result schema
@@ -14,6 +16,8 @@ Small, dependency-free data structures for LeanCert benchmark samples.  Exact
 rational endpoints are retained as strings; compact structural and bit-size
 metrics make the JSONL output useful without reparsing them.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark
 
@@ -60,19 +64,19 @@ structure Sample where
   sample : Nat
   deriving Repr
 
-private def natBitLength (n : Nat) : Nat :=
+def natBitLength (n : Nat) : Nat :=
   if n = 0 then 0 else Nat.log2 n + 1
 
-private def intBitLength (n : Int) : Nat :=
+def intBitLength (n : Int) : Nat :=
   natBitLength n.natAbs
 
-private def ratJson (q : ℚ) : Json := Json.mkObj [
+def ratJson (q : ℚ) : Json := Json.mkObj [
   ("exact", toJson s!"{q}"),
   ("numerator_bits", toJson (intBitLength q.num)),
   ("denominator_bits", toJson (natBitLength q.den))
 ]
 
-private def intervalJson (I : IntervalRat) : Json :=
+def intervalJson (I : IntervalRat) : Json :=
   let width := I.hi - I.lo
   Json.mkObj [
     ("lo", ratJson I.lo),
@@ -80,7 +84,7 @@ private def intervalJson (I : IntervalRat) : Json :=
     ("width", ratJson width)
   ]
 
-private def optionJson (f : α → Json) : Option α → Json
+def optionJson (f : α → Json) : Option α → Json
   | none => Json.null
   | some value => f value
 

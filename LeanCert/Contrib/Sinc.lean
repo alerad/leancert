@@ -5,15 +5,17 @@ Authors: LeanCert Contributors
 
 Potential Mathlib contribution: Differentiability of sinc and dslope theorems.
 -/
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
-import Mathlib.Analysis.Calculus.Deriv.Slope
-import Mathlib.Analysis.Calculus.ContDiff.Defs
-import Mathlib.Analysis.Calculus.MeanValue
-import Mathlib.Analysis.Calculus.ParametricIntegral
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
-import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
-import Mathlib.Analysis.Analytic.Order
+module
+
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
+public import Mathlib.Analysis.Calculus.Deriv.Slope
+public import Mathlib.Analysis.Calculus.ContDiff.Defs
+public import Mathlib.Analysis.Calculus.MeanValue
+public import Mathlib.Analysis.Calculus.ParametricIntegral
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+public import Mathlib.Analysis.SpecialFunctions.Integrals.Basic
+public import Mathlib.Analysis.Analytic.Order
 
 /-!
 # Differentiability of sinc and dslope
@@ -38,6 +40,8 @@ The derivative of sinc at 0 can be computed using Taylor expansion:
 - `sinc x = 1 - x²/6 + x⁴/120 - ...`
 - `sinc'(0) = 0`
 -/
+
+public section
 
 open Filter Topology
 open scoped Topology

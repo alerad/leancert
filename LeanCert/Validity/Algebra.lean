@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.Bezout
-import LeanCert.Validity.Algebra.CubicIsolation
+module
+
+public import LeanCert.Engine.Algebra.Bezout
+public import LeanCert.Validity.Algebra.CubicIsolation
 
 /-!
 # Golden theorems for algebraic root certificates
@@ -15,6 +17,8 @@ derivative, and simplicity of every real root. They also expose uniform
 real-root counts for parametric cubic families whose leading coefficient and
 discriminant signs are certified by interval arithmetic.
 -/
+
+public section
 
 namespace LeanCert.Validity.Algebra
 

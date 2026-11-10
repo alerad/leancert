@@ -21,7 +21,7 @@ genus-one logarithmic-derivative identity for the divisor-indexed canonical prod
 It also provides finiteness lemmas for subsets of the divisor index type cut out by a norm bound.
 -/
 
-@[expose] public section
+public section
 
 open Filter Function Complex Finset Topology
 open scoped Topology BigOperators

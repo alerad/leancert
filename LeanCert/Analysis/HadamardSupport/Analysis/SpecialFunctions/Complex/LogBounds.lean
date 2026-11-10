@@ -15,7 +15,7 @@ This file develops the finite truncation and tail estimates for the logarithm se
 factors and canonical products.
 -/
 
-public section
+@[expose] public section
 
 open scoped BigOperators
 

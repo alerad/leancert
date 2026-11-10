@@ -3,13 +3,15 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Analysis.SpecialFunctions.ExpDeriv
-import Mathlib.Analysis.SpecialFunctions.Log.Deriv
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Arctan
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.ArctanDeriv
-import Mathlib.Analysis.SpecialFunctions.Arsinh
-import Mathlib.Analysis.Calculus.MeanValue
+module
+
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+public import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Arctan
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.ArctanDeriv
+public import Mathlib.Analysis.SpecialFunctions.Arsinh
+public import Mathlib.Analysis.Calculus.MeanValue
 
 /-!
 # Derivative Interval Library
@@ -53,6 +55,8 @@ which feeds into:
 These lemmas are independent of any specific algorithm; they're just facts about functions.
 They're designed to be composable with the chain rule for AD correctness proofs.
 -/
+
+public section
 
 namespace LeanCert.Core.DerivativeIntervals
 

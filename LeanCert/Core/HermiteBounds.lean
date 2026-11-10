@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.RingTheory.Polynomial.Hermite.Gaussian
-import Mathlib.Analysis.SpecialFunctions.ExpDeriv
-import Mathlib.Analysis.Calculus.IteratedDeriv.Defs
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+module
+
+public import Mathlib.RingTheory.Polynomial.Hermite.Gaussian
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+public import Mathlib.Analysis.Calculus.IteratedDeriv.Defs
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
 
 /-!
 # Hermite Polynomial Bounds for Gaussian Derivatives
@@ -31,7 +33,7 @@ H_n(y) * exp(-y²/2) is bounded for all y, and this gives us derivative bounds.
 * Mathlib's `Polynomial.deriv_gaussian_eq_hermite_mul_gaussian` for exp(-x²/2)
 -/
 
-noncomputable section
+@[expose] public noncomputable section
 
 open Polynomial Real MeasureTheory
 

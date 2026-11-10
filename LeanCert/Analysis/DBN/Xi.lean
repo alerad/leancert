@@ -1,4 +1,6 @@
-import Mathlib.NumberTheory.LSeries.Dirichlet
+module
+
+public import Mathlib.NumberTheory.LSeries.Dirichlet
 
 /-!
 # Pole-safe xi and its initial zero strip
@@ -12,6 +14,8 @@ importing that project or its analytic placeholders.
 This file does not depend on the heat-flow integral `H 0`.
 The exact identification is proved separately in `XiIdentity.lean`.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Analysis.DBN
 open Complex

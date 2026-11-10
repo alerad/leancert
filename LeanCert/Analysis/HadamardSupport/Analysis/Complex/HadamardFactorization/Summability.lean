@@ -47,9 +47,7 @@ product.
   product theorem
 -/
 
-@[expose] public section
-
-noncomputable section
+@[expose] public noncomputable section
 
 open Filter Topology Set Complex
 open scoped BigOperators Topology

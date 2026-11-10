@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Integration
+module
+
+public import LeanCert.Validity.Integration
 
 /-!
 # Certificate-Based Integration (Proof by Reflection)
@@ -39,6 +41,8 @@ Why this is faster:
 * `mkPartitionEntry` - Build a certificate entry from a successful interval evaluation
 * `buildCertificate` - Build an integration certificate using adaptive partitioning
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity.CertificateIntegration
 
@@ -764,10 +768,10 @@ def mkPartitionEntry (e : Expr) (domain : IntervalRat) : Option PartitionEntry :
     }
 
 /-- Helper: midpoint is between lo and hi -/
-private theorem midpoint_le_hi (lo hi : ℚ) (h : lo ≤ hi) : (lo + hi) / 2 ≤ hi := by
+theorem midpoint_le_hi (lo hi : ℚ) (h : lo ≤ hi) : (lo + hi) / 2 ≤ hi := by
   linarith
 
-private theorem lo_le_midpoint (lo hi : ℚ) (h : lo ≤ hi) : lo ≤ (lo + hi) / 2 := by
+theorem lo_le_midpoint (lo hi : ℚ) (h : lo ≤ hi) : lo ≤ (lo + hi) / 2 := by
   linarith
 
 /-- Recursively build certificate from adaptive search -/

@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Eval.Core
-import LeanCert.Engine.Eval.Result
+module
+
+public import LeanCert.Engine.Eval.Core
+public import LeanCert.Engine.Eval.Result
 
 /-!
 # Extended (Noncomputable) Interval Evaluation
@@ -31,6 +33,8 @@ The partial evaluator `evalInterval?` returns `none` when:
 
 When it returns `some I`, correctness is guaranteed.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

@@ -1,4 +1,8 @@
-import LeanCert.Tactic.Discovery
+module
+
+public import LeanCert.Tactic.Discovery
+
+public section
 
 theorem edge_minimize_mv_and :
     ∃ m : ℚ,

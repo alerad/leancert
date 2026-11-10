@@ -3,11 +3,13 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.API.Eval
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.IntervalEvalAffine
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.API.Eval
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.IntervalEvalAffine
 
 /-!
 # Interval evaluator benchmark suite
@@ -16,6 +18,8 @@ Representative arithmetic, transcendental, and dependency workloads.  Each
 has internal primitive cases and checked public-API cases, so backend kernel
 improvements can be distinguished from validation and dispatch overhead.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.Evaluation
 
@@ -61,21 +65,21 @@ def unitBox : List IntervalRat := [⟨-1, 1, by norm_num⟩]
 
 def narrowBox : List IntervalRat := [⟨-1 / 16, 1 / 16, by norm_num⟩]
 
-private def exprNodes : Expr → Nat
+def exprNodes : Expr → Nat
   | .const _ | .var _ | .namedConst _ => 1
   | .add a b | .mul a b => 1 + exprNodes a + exprNodes b
   | .neg e | .inv e | .exp e | .sin e | .cos e | .log e | .atan e |
     .arsinh e | .atanh e | .sinc e | .erf e | .sinh e | .cosh e | .tanh e |
     .sqrt e => 1 + exprNodes e
 
-private def exprDepth : Expr → Nat
+def exprDepth : Expr → Nat
   | .const _ | .var _ | .namedConst _ => 1
   | .add a b | .mul a b => 1 + max (exprDepth a) (exprDepth b)
   | .neg e | .inv e | .exp e | .sin e | .cos e | .log e | .atan e |
     .arsinh e | .atanh e | .sinc e | .erf e | .sinh e | .cosh e | .tanh e |
     .sqrt e => 1 + exprDepth e
 
-private def variableArity : Expr → Nat
+def variableArity : Expr → Nat
   | .const _ | .namedConst _ => 0
   | .var i => i + 1
   | .add a b | .mul a b => max (variableArity a) (variableArity b)
@@ -83,23 +87,23 @@ private def variableArity : Expr → Nat
     .arsinh e | .atanh e | .sinc e | .erf e | .sinh e | .cosh e | .tanh e |
     .sqrt e => variableArity e
 
-private def inputMetrics (e : Expr) : InputMetrics := {
+def inputMetrics (e : Expr) : InputMetrics := {
   astNodes := exprNodes e
   astDepth := exprDepth e
   variableCount := variableArity e
 }
 
-private def success (backend : String) (interval : IntervalRat) : Outcome := {
+def success (backend : String) (interval : IntervalRat) : Outcome := {
   status := "success"
   interval := some interval
   backendUsed := some backend
 }
 
-private def internalRational (e : Expr) (box : List IntervalRat) : IO Outcome := do
+def internalRational (e : Expr) (box : List IntervalRat) : IO Outcome := do
   let result := LeanCert.Internal.Rational.evalTotalCore e (intervalEnvOfList box) {}
   return success "rational" result
 
-private def internalDyadic (e : Expr) (box : List IntervalRat) : IO Outcome := do
+def internalDyadic (e : Expr) (box : List IntervalRat) : IO Outcome := do
   let precision := -53
   let env := toDyadicEnv (intervalEnvOfList box) precision
   let result := LeanCert.Internal.Dyadic.evalUnchecked e env {
@@ -107,12 +111,12 @@ private def internalDyadic (e : Expr) (box : List IntervalRat) : IO Outcome := d
   }
   return success "dyadic" result.toIntervalRat
 
-private def internalAffine (e : Expr) (box : List IntervalRat) : IO Outcome := do
+def internalAffine (e : Expr) (box : List IntervalRat) : IO Outcome := do
   let result := LeanCert.Internal.Affine.evalUnchecked e
     (LeanCert.Engine.toAffineEnv box) {}
   return success "affine" result.toInterval
 
-private def checked (backend : BackendChoice) (expected : ConcreteBackend)
+def checked (backend : BackendChoice) (expected : ConcreteBackend)
     (e : Expr) (box : List IntervalRat) : IO Outcome := do
   match LeanCert.evalInterval e box { backend } with
   | .error error =>
@@ -128,12 +132,12 @@ private def checked (backend : BackendChoice) (expected : ConcreteBackend)
           error := some s!"expected {repr expected}, got {repr result.backend}"
         }
 
-private def backendName : ConcreteBackend → String
+def backendName : ConcreteBackend → String
   | .rational => "rational"
   | .dyadic => "dyadic"
   | .affine => "affine"
 
-private def internalParameters : ConcreteBackend → List (String × String)
+def internalParameters : ConcreteBackend → List (String × String)
   | .rational => [
       ("implementation", "total_core"),
       ("taylor_depth", "10")
@@ -149,14 +153,14 @@ private def internalParameters : ConcreteBackend → List (String × String)
       ("max_noise_symbols", "0")
     ]
 
-private def checkedParameters : List (String × String) := [
+def checkedParameters : List (String × String) := [
   ("implementation", "public_checked_api"),
   ("dyadic_exponent", "-53"),
   ("taylor_depth", "10"),
   ("max_noise_symbols", "0")
 ]
 
-private structure Workload where
+structure Workload where
   name : String
   family : String
   tier : String := "micro"
@@ -165,7 +169,7 @@ private structure Workload where
   innerIterations : Nat
   parameters : List (String × String)
 
-private def internalCase (workload : Workload) (backend : ConcreteBackend)
+def internalCase (workload : Workload) (backend : ConcreteBackend)
     (isSmoke : Bool) (suiteNames : List String) : Case := {
   name := s!"eval.{workload.name}.internal.{backendName backend}"
   family := workload.family
@@ -182,7 +186,7 @@ private def internalCase (workload : Workload) (backend : ConcreteBackend)
     | .affine => internalAffine workload.expr workload.box
 }
 
-private def checkedCase (workload : Workload) (requested : String)
+def checkedCase (workload : Workload) (requested : String)
     (backend : BackendChoice) (expected : ConcreteBackend) (isSmoke : Bool)
     (suiteNames : List String) : Case := {
   name := s!"eval.{workload.name}.checked.{requested}"
@@ -197,7 +201,7 @@ private def checkedCase (workload : Workload) (requested : String)
   run := checked backend expected workload.expr workload.box
 }
 
-private def workloadCases (workload : Workload) (suiteNames : List String)
+def workloadCases (workload : Workload) (suiteNames : List String)
     (includeSmoke : Bool) : List Case := [
   internalCase workload .rational includeSmoke suiteNames,
   internalCase workload .dyadic includeSmoke suiteNames,
@@ -211,7 +215,7 @@ private def workloadCases (workload : Workload) (suiteNames : List String)
     (includeSmoke && workload.name = "x_minus_x") suiteNames
 ]
 
-private def baselineWorkloads : List Workload := [
+def baselineWorkloads : List Workload := [
   {
     name := "polynomial_10"
     family := "arithmetic"
@@ -250,7 +254,7 @@ private def baselineWorkloads : List Workload := [
   }
 ]
 
-private def heavyWorkloads : List Workload := [
+def heavyWorkloads : List Workload := [
   {
     name := "polynomial_75"
     family := "arithmetic"
@@ -305,7 +309,7 @@ private def heavyWorkloads : List Workload := [
 /-! Scaling points use only the public checked Auto path. Running every
 backend at these sizes would mostly measure deliberately unsuitable choices
 and make the suite unnecessarily expensive. -/
-private def scalingWorkloads : List Workload := [
+def scalingWorkloads : List Workload := [
   {
     name := "polynomial_150"
     family := "arithmetic_scaling"
@@ -365,7 +369,7 @@ private def scalingWorkloads : List Workload := [
   }
 ]
 
-private def scalingCase (workload : Workload) : Case :=
+def scalingCase (workload : Workload) : Case :=
   checkedCase workload "auto" .auto
     (selectAutomaticIntervalBackend workload.expr).toConcrete false ["scaling", "full", "all"]
 

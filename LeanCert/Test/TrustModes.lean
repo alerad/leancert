@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Trust-mode regression tests (`leancert.trust`)
@@ -21,6 +23,8 @@ Earlier kernel-only tactic paths rotted because no test exercised strict kernel
 verification. These pins are the guard against a repeat.
 -/
 
+@[expose] public section
+
 open Lean Meta Elab Tactic
 
 -- Historical native axioms must remain classified even after Lean removes their declarations.
@@ -29,7 +33,7 @@ open Lean Meta Elab Tactic
 #guard LeanCert.Tactic.classifyAxiom `Lean.trustCompiler == .nativeCompiler
 #guard LeanCert.Tactic.classifyAxiom `unexpectedAxiom == .custom
 
-private def closeAndExpectVerificationEvent
+private meta def closeAndExpectVerificationEvent
     (cfg : LeanCert.Tactic.VerificationConfig)
     (requested : LeanCert.Tactic.VerificationMode)
     (used : LeanCert.Tactic.VerificationUsed)
@@ -65,7 +69,7 @@ example : true = true := by close_expect_kernel_event
 example : true = true := by close_expect_auto_kernel_event
 example : 0 < 1 := by close_expect_kernel_event
 
-private def expectTypedRejection
+private meta def expectTypedRejection
     (cfg : LeanCert.Tactic.VerificationConfig) : TacticM Unit := do
   let callerGoals ← getGoals
   let envSizeBefore := (← getEnv).constants.toList.length

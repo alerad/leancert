@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Eval
-import LeanCert.Validity.Dyadic
+module
+
+public import LeanCert.API.Eval
+public import LeanCert.Validity.Dyadic
 
 /-!
 # Public checked bound certificates
@@ -21,6 +23,8 @@ verification route. Domain and precision validity are included in those
 certificates, so their Golden Theorems require no separate support or domain
 premise.
 -/
+
+@[expose] public section
 
 namespace LeanCert.API.Bounds
 

@@ -9,7 +9,7 @@ This file gives a closed-ball variant of Borel-Carathéodory for functions norma
 origin.  The form is convenient for growth estimates in finite-order complex analysis.
 -/
 
-@[expose] public section
+public section
 
 open Metric
 

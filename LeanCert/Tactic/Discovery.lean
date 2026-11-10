@@ -3,17 +3,29 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Discovery.Find
-import LeanCert.Tactic.Verification
-import LeanCert.Meta.ToExpr
-import LeanCert.Meta.ProveSupported
-import LeanCert.Meta.ProveContinuous
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.Engine.Optimization.Global
-import LeanCert.Engine.Optimization.Guided
-import LeanCert.Engine.Optimization.Gradient
-import LeanCert.Validity.Bounds
+module
+
+public import Lean
+public import LeanCert.Discovery.Find
+public import LeanCert.Tactic.Verification
+public import LeanCert.Meta.ToExpr
+public import LeanCert.Meta.ProveSupported
+public import LeanCert.Meta.ProveContinuous
+public import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Engine.Optimization.Global
+public import LeanCert.Engine.Optimization.Guided
+public import LeanCert.Engine.Optimization.Gradient
+public import LeanCert.Validity.Bounds
+public meta import LeanCert.Discovery.Find
+public meta import LeanCert.Tactic.Verification
+public meta import LeanCert.Meta.ToExpr
+public meta import LeanCert.Meta.ProveSupported
+public meta import LeanCert.Meta.ProveContinuous
+public meta import LeanCert.Tactic.IntervalAuto
+public meta import LeanCert.Engine.Optimization.Global
+public meta import LeanCert.Engine.Optimization.Guided
+public meta import LeanCert.Engine.Optimization.Gradient
+public meta import LeanCert.Validity.Bounds
 
 /-!
 # Discovery Mode: Tactics
@@ -46,6 +58,8 @@ The tactics:
 4. Instantiate the existential `∃ m` with the found value.
 5. Call `opt_bound` to prove the resulting universal bound.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic Term
 open LeanCert.Core

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Semantic Router Tests
@@ -11,6 +13,8 @@ import LeanCert.Tactic
 Natural mathematical statements are proved through the public `leancert`
 front door, importing only the stable tactic umbrella.
 -/
+
+@[expose] public section
 
 open LeanCert
 open MeasureTheory
@@ -26,7 +30,7 @@ private def checkerInterval : LeanCert.Core.IntervalRat := ⟨0, 1, by norm_num�
 private def checkerInterval35 : LeanCert.Core.IntervalRat := ⟨3, 5, by norm_num⟩
 private def checkerIntervalNeg11 : LeanCert.Core.IntervalRat := ⟨-1, 1, by norm_num⟩
 
-private def adapterTestPlan : SolverPlan := {
+private meta def adapterTestPlan : SolverPlan := {
   intent := .pointInequality
   solver := `typedAdapterTest
   strategyId := .pointEnclosure
@@ -36,7 +40,7 @@ private def adapterTestPlan : SolverPlan := {
   verificationRequested := .kernel
 }
 
-private def expectTypedAdapterFailure : TacticM Unit := do
+private meta def expectTypedAdapterFailure : TacticM Unit := do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let semantic ← goal.withContext do
@@ -62,7 +66,7 @@ private def expectTypedAdapterFailure : TacticM Unit := do
 elab "expect_typed_adapter_failure" : tactic =>
   expectTypedAdapterFailure
 
-private def expectExactRouteExceptionTerminal : TacticM Unit := do
+private meta def expectExactRouteExceptionTerminal : TacticM Unit := do
   let goal ← getMainGoal
   let proposition ← goal.getType
   let plan : SolverPlan := {
@@ -102,7 +106,7 @@ elab "expect_terminal_outcome_stops" : tactic => do
 syntax (name := expectRootTypedReport)
   "expect_root_typed_report" ident : tactic
 
-private structure RootReportProbe where
+structure RootReportProbe where
   checker : Name
   verifier : Name
   verification : LeanCert.Tactic.VerificationUsage
@@ -110,7 +114,7 @@ private structure RootReportProbe where
   expectedVerifier : Name
 
 @[tactic expectRootTypedReport]
-unsafe def elabExpectRootTypedReport : Tactic := fun stx => do
+meta unsafe def elabExpectRootTypedReport : Tactic := fun stx => do
   let family := stx[1].getId
   let probe : RootReportProbe ←
     if family == `existence then
@@ -154,7 +158,7 @@ syntax (name := expectRootRejectionRollback)
   "expect_root_rejection_rollback" ident : tactic
 
 @[tactic expectRootRejectionRollback]
-unsafe def elabExpectRootRejectionRollback : Tactic := fun stx => do
+meta unsafe def elabExpectRootRejectionRollback : Tactic := fun stx => do
   let family := stx[1].getId
   let originalGoals ← getGoals
   let originalType ← (← getMainGoal).getType
@@ -187,7 +191,7 @@ syntax (name := expectRootUnsupportedRollback)
   "expect_root_unsupported_rollback" : tactic
 
 @[tactic expectRootUnsupportedRollback]
-unsafe def elabExpectRootUnsupportedRollback : Tactic := fun _ => do
+meta unsafe def elabExpectRootUnsupportedRollback : Tactic := fun _ => do
   let originalGoals ← getGoals
   let checkRestored (family : String) : TacticM Unit := do
     unless (← getGoals) == originalGoals do
@@ -209,7 +213,7 @@ syntax (name := expectRootRouterReport)
   "expect_root_router_report" ident : tactic
 
 @[tactic expectRootRouterReport]
-unsafe def elabExpectRootRouterReport : Tactic := fun stx => do
+meta unsafe def elabExpectRootRouterReport : Tactic := fun stx => do
   let family := stx[1].getId
   let result ← runLeanCert {} .compact
   let (expectedChecker, expectedVerifier) :=
@@ -281,7 +285,7 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, x + 2 ≠ 0 := by
 syntax (name := expectRationalPointReport) "expect_rational_point_report" : tactic
 
 @[tactic expectRationalPointReport]
-unsafe def elabExpectRationalPointReport : Tactic := fun _ => do
+meta unsafe def elabExpectRationalPointReport : Tactic := fun _ => do
   let result ← runLeanCert {} .compact
   unless result.execution.backend == some .rationalInterval do
     throwError "point difference route did not report Rational execution"
@@ -298,7 +302,7 @@ unsafe def elabExpectRationalPointReport : Tactic := fun _ => do
 syntax (name := expectOptimizationReport) "expect_optimization_report" : tactic
 
 @[tactic expectOptimizationReport]
-unsafe def elabExpectOptimizationReport : Tactic := fun _ => do
+meta unsafe def elabExpectOptimizationReport : Tactic := fun _ => do
   let outcome ←
     match ← Auto.optBoundCoreTyped 64 false 10 with
     | .ok outcome => pure outcome
@@ -314,7 +318,7 @@ unsafe def elabExpectOptimizationReport : Tactic := fun _ => do
 syntax (name := expectDiscoveryReport) "expect_discovery_report" : tactic
 
 @[tactic expectDiscoveryReport]
-unsafe def elabExpectDiscoveryReport : Tactic := fun _ => do
+meta unsafe def elabExpectDiscoveryReport : Tactic := fun _ => do
   let result ← runLeanCert {} .compact
   let some statistics := result.execution.optimization
     | throwError "discovery route returned no structured statistics"
@@ -330,7 +334,7 @@ syntax (name := expectMvDiscoveryReport)
   "expect_mv_discovery_report" ident : tactic
 
 @[tactic expectMvDiscoveryReport]
-unsafe def elabExpectMvDiscoveryReport : Tactic := fun stx => do
+meta unsafe def elabExpectMvDiscoveryReport : Tactic := fun stx => do
   let result ← runLeanCert {} .compact
   let some statistics := result.execution.optimization
     | throwError "multivariate discovery returned no optimization statistics"
@@ -356,7 +360,7 @@ syntax (name := expectLooseDiscoverySuccess)
   "expect_loose_discovery_success" : tactic
 
 @[tactic expectLooseDiscoverySuccess]
-unsafe def elabExpectLooseDiscoverySuccess : Tactic := fun _ => do
+meta unsafe def elabExpectLooseDiscoverySuccess : Tactic := fun _ => do
   match ← Discovery.intervalMinimizeCoreTyped 10 with
   | .ok outcome =>
       unless outcome.termination == .iterationLimit do
@@ -369,7 +373,7 @@ syntax (name := expectAttainedReport)
   "expect_attained_report" ident : tactic
 
 @[tactic expectAttainedReport]
-unsafe def elabExpectAttainedReport : Tactic := fun stx => do
+meta unsafe def elabExpectAttainedReport : Tactic := fun stx => do
   let direction := stx[1].getId
   let outcome ←
     if direction == `minimum then
@@ -408,7 +412,7 @@ syntax (name := expectCompactExtremumRoute)
   "expect_compact_extremum_route" : tactic
 
 @[tactic expectCompactExtremumRoute]
-unsafe def elabExpectCompactExtremumRoute : Tactic := fun _ => do
+meta unsafe def elabExpectCompactExtremumRoute : Tactic := fun _ => do
   let result ← runLeanCert {} .compact
   unless result.plan.strategy.contains "compact extreme-value theorem" do
     throwError "front-door extremum routing changed unexpectedly: \
@@ -420,7 +424,7 @@ syntax (name := expectAttainedRejectionRollback)
   "expect_attained_rejection_rollback" ident : tactic
 
 @[tactic expectAttainedRejectionRollback]
-unsafe def elabExpectAttainedRejectionRollback : Tactic := fun stx => do
+meta unsafe def elabExpectAttainedRejectionRollback : Tactic := fun stx => do
   let callerGoals ← getGoals
   let direction := stx[1].getId
   let probeType ←
@@ -462,7 +466,7 @@ syntax (name := expectTypedOptimizationRollback)
   "expect_typed_optimization_rollback" : tactic
 
 @[tactic expectTypedOptimizationRollback]
-unsafe def elabExpectTypedOptimizationRollback : Tactic := fun _ => do
+meta unsafe def elabExpectTypedOptimizationRollback : Tactic := fun _ => do
   let goal ← getMainGoal
   let before ← goal.getType
   match ← Auto.optBoundCoreTyped 8 false 10 with
@@ -479,7 +483,7 @@ syntax (name := expectTypedMultivariateRollback)
   "expect_typed_multivariate_rollback" : tactic
 
 @[tactic expectTypedMultivariateRollback]
-unsafe def elabExpectTypedMultivariateRollback : Tactic := fun _ => do
+meta unsafe def elabExpectTypedMultivariateRollback : Tactic := fun _ => do
   let goal ← getMainGoal
   let before ← goal.getType
   match ← Auto.multivariateBoundCoreTyped 8 (1 / 1000) false 10 with
@@ -496,7 +500,7 @@ syntax (name := expectTypedSubdivisionReport)
   "expect_typed_subdivision_report" : tactic
 
 @[tactic expectTypedSubdivisionReport]
-unsafe def elabExpectTypedSubdivisionReport : Tactic := fun _ => do
+meta unsafe def elabExpectTypedSubdivisionReport : Tactic := fun _ => do
   match ← Auto.intervalBoundSubdivCoreTyped (some 10) 8 with
   | .ok outcome =>
       unless outcome.comparison == .upper do
@@ -524,7 +528,7 @@ syntax (name := expectTypedSubdivisionExhaustion)
   "expect_typed_subdivision_exhaustion" : tactic
 
 @[tactic expectTypedSubdivisionExhaustion]
-unsafe def elabExpectTypedSubdivisionExhaustion : Tactic := fun _ => do
+meta unsafe def elabExpectTypedSubdivisionExhaustion : Tactic := fun _ => do
   let goal ← getMainGoal
   let before ← goal.getType
   let environmentBefore := (← getEnv).constants.toList.length
@@ -550,7 +554,7 @@ syntax (name := expectTypedSubdivisionPartialRollback)
   "expect_typed_subdivision_partial_rollback" : tactic
 
 @[tactic expectTypedSubdivisionPartialRollback]
-unsafe def elabExpectTypedSubdivisionPartialRollback : Tactic := fun _ => do
+meta unsafe def elabExpectTypedSubdivisionPartialRollback : Tactic := fun _ => do
   let goal ← getMainGoal
   let before ← goal.getType
   let environmentBefore := (← getEnv).constants.toList.length
@@ -576,7 +580,7 @@ syntax (name := expectTypedSubdivisionUnsupported)
   "expect_typed_subdivision_unsupported" : tactic
 
 @[tactic expectTypedSubdivisionUnsupported]
-unsafe def elabExpectTypedSubdivisionUnsupported : Tactic := fun _ => do
+meta unsafe def elabExpectTypedSubdivisionUnsupported : Tactic := fun _ => do
   let goal ← getMainGoal
   let before ← goal.getType
   match ← Auto.intervalBoundSubdivCoreTyped (some 10) 2 with
@@ -594,7 +598,7 @@ syntax (name := expectTypedSubdivisionDomain)
   "expect_typed_subdivision_domain" : tactic
 
 @[tactic expectTypedSubdivisionDomain]
-unsafe def elabExpectTypedSubdivisionDomain : Tactic := fun _ => do
+meta unsafe def elabExpectTypedSubdivisionDomain : Tactic := fun _ => do
   let goal ← getMainGoal
   let before ← goal.getType
   match ← Auto.intervalBoundSubdivCoreTyped (some 10) 2 with
@@ -690,7 +694,7 @@ syntax (name := expectTypedOptimizationRejection)
   "expect_typed_optimization_rejection" : tactic
 
 @[tactic expectTypedOptimizationRejection]
-unsafe def elabExpectTypedOptimizationRejection : Tactic := fun _ => do
+meta unsafe def elabExpectTypedOptimizationRejection : Tactic := fun _ => do
   let callerGoals ← getGoals
   let falseType ← Term.elabTerm
     (← `(∀ ρ, LeanCert.Engine.Optimization.Box.envMem ρ
@@ -722,7 +726,7 @@ syntax (name := expectTypedMultivariateRejection)
   "expect_typed_multivariate_rejection" : tactic
 
 @[tactic expectTypedMultivariateRejection]
-unsafe def elabExpectTypedMultivariateRejection : Tactic := fun _ => do
+meta unsafe def elabExpectTypedMultivariateRejection : Tactic := fun _ => do
   let callerGoals ← getGoals
   let falseType ← Term.elabTerm
     (← `(∀ x ∈ Set.Icc (0 : ℝ) 1, ∀ y ∈ Set.Icc (0 : ℝ) 1,
@@ -749,7 +753,7 @@ syntax (name := expectDiscoveryDomainObstruction)
   "expect_discovery_domain_obstruction" : tactic
 
 @[tactic expectDiscoveryDomainObstruction]
-unsafe def elabExpectDiscoveryDomainObstruction : Tactic := fun _ => do
+meta unsafe def elabExpectDiscoveryDomainObstruction : Tactic := fun _ => do
   let callerGoals ← getGoals
   let obstructedType ← Term.elabTerm
     (← `(∃ m : ℚ, ∀ x ∈ Set.Icc (-1 : ℝ) 1, Real.log x ≥ m)) none
@@ -774,7 +778,7 @@ example : True := by
 syntax (name := expectKernelBoundReport) "expect_kernel_bound_report" : tactic
 
 @[tactic expectKernelBoundReport]
-unsafe def elabExpectKernelBoundReport : Tactic := fun _ => do
+meta unsafe def elabExpectKernelBoundReport : Tactic := fun _ => do
   withTrustMode (some .kernel) do
     let result ← Auto.intervalBoundRationalCoreTyped 10
     let .ok outcome := result
@@ -787,7 +791,7 @@ unsafe def elabExpectKernelBoundReport : Tactic := fun _ => do
           some ``LeanCert.Validity.verify_upper_bound_Icc_core do
       throwError "Rational bound checker/Golden-Theorem identity was not retained"
 
-private def expectRationalBoundIdentity (checker verifier : Name) :
+private meta def expectRationalBoundIdentity (checker verifier : Name) :
     TacticM Unit := do
   match ← Auto.intervalBoundRationalCoreTyped 10 with
   | .ok outcome =>
@@ -1061,7 +1065,7 @@ syntax (name := expectTypedFinSumRollback)
   "expect_typed_finsum_rollback" : tactic
 
 @[tactic expectTypedFinSumRollback]
-unsafe def elabExpectTypedFinSumRollback : Tactic := fun _ => do
+meta unsafe def elabExpectTypedFinSumRollback : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let environmentBefore := (← getEnv).constants.toList.length
@@ -1087,7 +1091,7 @@ syntax (name := expectFinSumRouterReport)
   "expect_finsum_router_report" : tactic
 
 @[tactic expectFinSumRouterReport]
-unsafe def elabExpectFinSumRouterReport : Tactic := fun _ => do
+meta unsafe def elabExpectFinSumRouterReport : Tactic := fun _ => do
   let result ← runLeanCert {} .compact
   let some statistics := result.execution.finiteSum
     | throwError "front-door finite-sum route returned no structured statistics"
@@ -1106,7 +1110,7 @@ syntax (name := expectIntegralPartitionReport)
   "expect_integral_partition_report" : tactic
 
 @[tactic expectIntegralPartitionReport]
-unsafe def elabExpectIntegralPartitionReport : Tactic := fun _ => do
+meta unsafe def elabExpectIntegralPartitionReport : Tactic := fun _ => do
   let result ← runLeanCert {} .compact
   let some statistics := result.execution.integralPartitions
     | throwError "partition integral returned no structured search statistics"
@@ -1126,7 +1130,7 @@ syntax (name := expectIntegralConjunctionRollback)
   "expect_integral_conjunction_rollback" : tactic
 
 @[tactic expectIntegralConjunctionRollback]
-unsafe def elabExpectIntegralConjunctionRollback : Tactic := fun _ => do
+meta unsafe def elabExpectIntegralConjunctionRollback : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let environmentBefore := (← getEnv).constants.toList.length
@@ -1150,7 +1154,7 @@ syntax (name := expectTypedFinRewriteReport)
   "expect_typed_fin_rewrite_report" : tactic
 
 @[tactic expectTypedFinRewriteReport]
-unsafe def elabExpectTypedFinRewriteReport : Tactic := fun _ => do
+meta unsafe def elabExpectTypedFinRewriteReport : Tactic := fun _ => do
   match ← finSumBoundCoreTyped (-53) 10 with
   | .ok outcome =>
       unless outcome.rewrittenFin && outcome.path == .reifiedExplicit &&
@@ -1163,7 +1167,7 @@ syntax (name := expectTypedFinSumDomainRollback)
   "expect_typed_finsum_domain_rollback" : tactic
 
 @[tactic expectTypedFinSumDomainRollback]
-unsafe def elabExpectTypedFinSumDomainRollback : Tactic := fun _ => do
+meta unsafe def elabExpectTypedFinSumDomainRollback : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   match ← finSumBoundCoreTyped (-53) 10 with
@@ -1180,7 +1184,7 @@ syntax (name := expectTypedFinSumUnsupported)
   "expect_typed_finsum_unsupported" : tactic
 
 @[tactic expectTypedFinSumUnsupported]
-unsafe def elabExpectTypedFinSumUnsupported : Tactic := fun _ => do
+meta unsafe def elabExpectTypedFinSumUnsupported : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   match ← finSumBoundCoreTyped (-53) 10 with
@@ -1197,7 +1201,7 @@ syntax (name := expectTypedFinSumWitnessUnsupported)
   "expect_typed_finsum_witness_unsupported" : tactic
 
 @[tactic expectTypedFinSumWitnessUnsupported]
-unsafe def elabExpectTypedFinSumWitnessUnsupported : Tactic := fun _ => do
+meta unsafe def elabExpectTypedFinSumWitnessUnsupported : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let badEvaluator ← `(term| (0 : Nat))
@@ -1234,7 +1238,7 @@ syntax (name := expectIntegralExhaustionRollback)
   "expect_integral_exhaustion_rollback" : tactic
 
 @[tactic expectIntegralExhaustionRollback]
-unsafe def elabExpectIntegralExhaustionRollback : Tactic := fun _ => do
+meta unsafe def elabExpectIntegralExhaustionRollback : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let messagesBefore := (← Core.getMessageLog).toList.length
@@ -1256,7 +1260,7 @@ syntax (name := expectTypedIntegralUnsupported)
   "expect_typed_integral_unsupported" : tactic
 
 @[tactic expectTypedIntegralUnsupported]
-unsafe def elabExpectTypedIntegralUnsupported : Tactic := fun _ => do
+meta unsafe def elabExpectTypedIntegralUnsupported : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   match ← integralSearchCoreTyped 16 64 with
@@ -1273,7 +1277,7 @@ syntax (name := expectTypedIntegralDomainObstruction)
   "expect_typed_integral_domain_obstruction" : tactic
 
 @[tactic expectTypedIntegralDomainObstruction]
-unsafe def elabExpectTypedIntegralDomainObstruction : Tactic := fun _ => do
+meta unsafe def elabExpectTypedIntegralDomainObstruction : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   match ← integralSearchCoreTyped 16 64 with
@@ -1290,7 +1294,7 @@ syntax (name := expectReversedIntegralReport)
   "expect_reversed_integral_report" : tactic
 
 @[tactic expectReversedIntegralReport]
-unsafe def elabExpectReversedIntegralReport : Tactic := fun _ => do
+meta unsafe def elabExpectReversedIntegralReport : Tactic := fun _ => do
   match ← integralSearchCoreTyped 16 512 with
   | .ok #[outcome] =>
       let some enclosure := outcome.enclosure

@@ -14,7 +14,7 @@ Small estimates for `Real.log⁺` and for converting logarithmic growth bounds i
 bounds.
 -/
 
-@[expose] public section
+public section
 
 namespace Real
 

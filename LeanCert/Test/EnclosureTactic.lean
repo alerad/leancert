@@ -3,10 +3,15 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Test.DownstreamPatterns.Extension
-import LeanCert.Tactic.Enclosure
+module
+
+public import LeanCert.Test.DownstreamPatterns.Extension
+public import LeanCert.Tactic.Enclosure
+meta import LeanCert.Test.DownstreamPatterns.Extension
 
 /-! # Focused registered-enclosure tactic regressions -/
+
+public section
 
 namespace LeanCert.Test.EnclosureTactic
 
@@ -37,6 +42,8 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 1, shifted x ≤ 2 := by
   enclosure_bound? (trust := native)
 
 /- Failure is transactional: the fallback sees the original untouched goal. -/
+-- The first branch fails on purpose; the unused tactic linter flags failed `first` branches.
+set_option linter.unusedTactic false in
 example : ∀ x ∈ Set.Icc (0 : ℝ) 2, narrowIdentity x ≤ 2 := by
   first
   | enclosure_bound (subdivisions := 0) (trust := kernel)

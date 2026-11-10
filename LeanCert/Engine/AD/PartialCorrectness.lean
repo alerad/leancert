@@ -3,13 +3,15 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD.Correctness
-import LeanCert.Contrib.Sinc
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.ArctanDeriv
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.DerivHyp
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
-import Mathlib.Analysis.SpecialFunctions.Arsinh
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+module
+
+public import LeanCert.Engine.AD.Correctness
+public import LeanCert.Contrib.Sinc
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.ArctanDeriv
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.DerivHyp
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Sinc
+public import Mathlib.Analysis.SpecialFunctions.Arsinh
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
 
 /-!
 # Automatic Differentiation - Partial Correctness Theorems
@@ -31,6 +33,8 @@ All theorems are FULLY PROVED with no sorry or axioms.
 The key insight is that when evalDual? returns `some`, the domain
 constraints (nonzero for inv, positive for log) are satisfied.
 -/
+
+public section
 
 namespace LeanCert.Engine
 

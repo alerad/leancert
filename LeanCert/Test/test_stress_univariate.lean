@@ -1,4 +1,8 @@
-import LeanCert
+module
+
+public import LeanCert
+
+public section
 
 open Set
 

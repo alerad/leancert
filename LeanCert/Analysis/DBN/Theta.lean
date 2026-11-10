@@ -1,6 +1,8 @@
-import LeanCert.Analysis.DBN.HeatKernel
-import Mathlib.NumberTheory.LSeries.HurwitzZetaEven
-import Mathlib.Analysis.Complex.RealDeriv
+module
+
+public import LeanCert.Analysis.DBN.HeatKernel
+public import Mathlib.NumberTheory.LSeries.HurwitzZetaEven
+public import Mathlib.Analysis.Complex.RealDeriv
 
 /-!
 # The theta primitive for the DBN integral
@@ -9,6 +11,8 @@ This connects the positive-index exponential series to Mathlib's theta kernel.
 The symmetrized lift is even, which fixes the nonzero endpoint derivative
 of the primitive. No xi integral identity or zero-strip theorem is assumed.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Analysis.DBN
 open HurwitzZeta
