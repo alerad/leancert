@@ -652,7 +652,13 @@ def nameEndsWithStr (n : Lean.Name) (suffix : String) : Bool :=
     - isStrict: true for < or >, false for ≤ or ≥
     - isReversed: true for ≥ or > (need to flip the comparison) -/
 def parsePointIneq (goal : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr × Bool × Bool)) := do
-  let goal ← whnf goal
+  -- Under the module system `whnf` gets stuck on unexposed instances like `Real.instLT`.
+  let goal' := (← instantiateMVars goal).cleanupAnnotations
+  if let some res := parsePointIneqApp goal' then
+    return some res
+  return parsePointIneqApp (← whnf goal')
+where
+  parsePointIneqApp (goal : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Bool × Bool) := Id.run do
   let fn := goal.getAppFn
   let args := goal.getAppArgs
 

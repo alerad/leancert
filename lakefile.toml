@@ -167,6 +167,7 @@ roots = [
   "LeanCert.Test.NaturalSyntaxRepairs",
   "LeanCert.Test.NumericalRefinement",
   "LeanCert.Test.Numeral",
+  "LeanCert.Test.ParsePointIneq",
   "LeanCert.Test.Pisano",
   "LeanCert.Test.PublicEvalAPI",
   "LeanCert.Test.PublicAPI.Eval",
