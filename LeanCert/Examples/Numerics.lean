@@ -3,11 +3,13 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Integrate
-import LeanCert.Engine.Optimize
-import LeanCert.Engine.RootFinding.Main
-import LeanCert.Engine.IntervalEvalRefined
-import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
+module
+
+public import LeanCert.Engine.Integrate
+public import LeanCert.Engine.Optimize
+public import LeanCert.Engine.RootFinding.Main
+public import LeanCert.Engine.IntervalEvalRefined
+public import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 
 /-!
 # Numerics Examples
@@ -21,6 +23,8 @@ The `integrateInterval_correct_n1` theorem is **FULLY PROVED** for the
 supported expression subset {const, var, add, mul, neg, sin, cos}.
 This demonstrates end-to-end verified numerical integration.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.Numerics
 

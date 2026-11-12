@@ -14,7 +14,7 @@ Uniform convergence on a set is preserved under multiplication by a function tha
 on that set.  This is a basic estimate for locally uniform products.
 -/
 
-@[expose] public section
+public section
 
 namespace Complex
 

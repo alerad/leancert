@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Backend
-import LeanCert.API.Optimization
+module
+
+public import LeanCert.API.Backend
+public import LeanCert.API.Optimization
 
 /-!
 # Public evaluation API smoke tests
@@ -13,6 +15,8 @@ This file intentionally imports only the stable checked API modules. It guards
 the authoritative checked façade, backend selection, structured failures, and
 the backend-independent Golden Theorems without relying on `import LeanCert`.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.PublicEvalAPI
 

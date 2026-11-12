@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.Engine.RootFinding.KrawczykCandidate
-import LeanCert.Examples.Krawczyk
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.Engine.RootFinding.KrawczykCandidate
+public import LeanCert.Examples.Krawczyk
 
 /-!
 # Nonlinear-system certification benchmarks
@@ -14,6 +16,8 @@ The internal cases isolate interval-Jacobian construction and the rational
 matrix/norm phase.  The checked case measures the complete Boolean certificate
 path used by the golden theorem.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.Krawczyk
 

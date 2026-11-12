@@ -3,18 +3,23 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.IntervalEvalRefined
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.IntervalEvalAffine
-import LeanCert.Engine.Affine.Basic
-import LeanCert.Engine.Affine.Environment
-import LeanCert.Engine.Optimization.Box
-import LeanCert.Engine.Optimization.Gradient
+module
+
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.IntervalEvalRefined
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.IntervalEvalAffine
+public import LeanCert.Engine.Affine.Basic
+public import LeanCert.Engine.Affine.Environment
+public import LeanCert.Engine.Optimization.Box
+public import LeanCert.Engine.Optimization.Gradient
 
 -- Suppress linter warnings for redundant tactics in all_goals first blocks
 -- These proofs use first to handle multiple cases robustly, but some branches
 -- may be redundant depending on which goals split_ifs generates
+
+@[expose] public section
+
 set_option linter.unusedTactic false
 set_option linter.unreachableTactic false
 

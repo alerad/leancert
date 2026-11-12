@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.AD
+module
+
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.AD
 
 /-!
 # Basic Examples
@@ -17,6 +19,8 @@ const, var, add, mul, neg, sin, cos
 The correctness theorems (evalInterval_correct, evalDual_val_correct) are
 FULLY PROVED with no sorry, no axioms for this subset.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.Basic
 

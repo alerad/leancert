@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Schema
+module
+
+public import LeanCert.Benchmark.Schema
 
 /-!
 # Benchmark harness
@@ -13,6 +15,8 @@ supports warmups, repeated raw samples, human summaries, JSONL output, suite
 selection, and case-name filtering. Algorithm counters and proof-pipeline
 profiling can be layered on later without changing the sample schema.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark
 

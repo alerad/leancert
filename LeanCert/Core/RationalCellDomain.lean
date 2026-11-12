@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.CertifiedCellDomain
-import LeanCert.Core.IntervalRat.Basic
+module
+
+public import LeanCert.Core.CertifiedCellDomain
+public import LeanCert.Core.IntervalRat.Basic
 
 /-!
 # Certified rational interval subdivision
@@ -13,6 +15,8 @@ The ordinary rational backend shares the same closed-cell geometry interface as
 the dyadic backend. Numerical representation is deliberately absent from the
 generic coverage proofs.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 

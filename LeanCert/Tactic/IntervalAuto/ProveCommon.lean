@@ -3,21 +3,33 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Core.Expr
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Meta.Numeral
-import LeanCert.Meta.ProveSupported
-import LeanCert.Tactic.IntervalAuto.Types
-import LeanCert.Tactic.IntervalAuto.Extract
-import LeanCert.Tactic.Verification
-import LeanCert.Tactic.LeanCert.Normalize
+module
+
+public import Lean
+public import LeanCert.Core.Expr
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Meta.Numeral
+public import LeanCert.Meta.ProveSupported
+public import LeanCert.Meta.ToExpr
+public import LeanCert.Tactic.IntervalAuto.Types
+public import LeanCert.Tactic.IntervalAuto.Extract
+public import LeanCert.Tactic.Verification
+public import LeanCert.Tactic.LeanCert.Normalize
+public meta import LeanCert.Meta.Numeral
+public meta import LeanCert.Meta.ProveSupported
+public meta import LeanCert.Meta.ToExpr
+public meta import LeanCert.Tactic.IntervalAuto.Types
+public meta import LeanCert.Tactic.IntervalAuto.Extract
+public meta import LeanCert.Tactic.Verification
+public meta import LeanCert.Tactic.LeanCert.Normalize
 
 /-!
 # Common Proving Utilities
 
 Shared utilities for proving bounds across all interval tactics.
 -/
+
+@[expose] public noncomputable meta section
 
 open Lean Meta Elab Tactic
 
@@ -59,7 +71,7 @@ def tryCloseGoal : TacticM Bool := do
   tryCloseWith tacs
 
 /-- Parse a ≤ b expression. -/
-private def parseLe? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+def parseLe? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   let fn := e.getAppFn
   let args := e.getAppArgs
   guard (fn.isConstOf ``LE.le)
@@ -67,7 +79,7 @@ private def parseLe? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   some (args[args.size - 2]!, args[args.size - 1]!)
 
 /-- Parse a < b expression. -/
-private def parseLt? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+def parseLt? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   let fn := e.getAppFn
   let args := e.getAppArgs
   guard (fn.isConstOf ``LT.lt)
@@ -75,7 +87,7 @@ private def parseLt? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   some (args[args.size - 2]!, args[args.size - 1]!)
 
 /-- Parse x ^ y (either through `HPow.hPow` or `Real.rpow`). -/
-private def parsePow? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+def parsePow? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   let fn := e.getAppFn
   let args := e.getAppArgs
   if fn.isConstOf ``HPow.hPow || fn.isConstOf ``Pow.pow then
@@ -87,7 +99,7 @@ private def parsePow? (e : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   none
 
 /-- Parse `Real.log x`. -/
-private def parseLogArg? (e : Lean.Expr) : Option Lean.Expr := do
+def parseLogArg? (e : Lean.Expr) : Option Lean.Expr := do
   let fn := e.getAppFn
   let args := e.getAppArgs
   guard (fn.isConstOf ``Real.log)
@@ -95,7 +107,7 @@ private def parseLogArg? (e : Lean.Expr) : Option Lean.Expr := do
   return args[args.size - 1]!
 
 /-- Parse `Set.Icc lo hi` as a set expression. -/
-private def parseIccSet? (s : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
+def parseIccSet? (s : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   let fn := s.getAppFn
   let args := s.getAppArgs
   guard (fn.isConstOf ``Set.Icc)
@@ -103,7 +115,7 @@ private def parseIccSet? (s : Lean.Expr) : Option (Lean.Expr × Lean.Expr) := do
   some (args[args.size - 2]!, args[args.size - 1]!)
 
 /-- Parse an Icc proposition in either `x ∈ Set.Icc lo hi` or `Set.Icc lo hi x` form. -/
-private def parseIccProp? (p : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Lean.Expr) := do
+def parseIccProp? (p : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Lean.Expr) := do
   -- Membership form: Membership.mem x (Set.Icc lo hi)
   let fn := p.getAppFn
   let args := p.getAppArgs
@@ -123,7 +135,7 @@ private def parseIccProp? (p : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Le
   none
 
 /-- Try to solve a fresh goal by running a tactic; returns a proof term on success. -/
-private def solveByTactic? (goalTy : Lean.Expr) (tac : TSyntax `tactic) : TacticM (Option Lean.Expr) := do
+def solveByTactic? (goalTy : Lean.Expr) (tac : TSyntax `tactic) : TacticM (Option Lean.Expr) := do
   let saved ← saveState
   let g ← mkFreshExprMVar goalTy
   setGoals [g.mvarId!]
@@ -140,19 +152,19 @@ private def solveByTactic? (goalTy : Lean.Expr) (tac : TSyntax `tactic) : Tactic
     return none
 
 /-- Build `0 < e` type for reals. -/
-private def mkZeroLt (e : Lean.Expr) : MetaM Lean.Expr := do
+def mkZeroLt (e : Lean.Expr) : MetaM Lean.Expr := do
   let ty ← inferType e
   let zero ← mkAppOptM ``Rat.cast #[some ty, none, some (toExpr (0 : Rat))]
   mkAppM ``LT.lt #[zero, e]
 
 /-- Build `1 < e` type for reals. -/
-private def mkOneLt (e : Lean.Expr) : MetaM Lean.Expr := do
+def mkOneLt (e : Lean.Expr) : MetaM Lean.Expr := do
   let ty ← inferType e
   let one ← mkAppOptM ``Rat.cast #[some ty, none, some (toExpr (1 : Rat))]
   mkAppM ``LT.lt #[one, e]
 
 /-- Collect lower-bound proofs `lo ≤ target` with extracted rational `lo`. -/
-private def collectLowerBounds (target : Lean.Expr) : TacticM (Array (ℚ × Lean.Expr × Lean.Expr)) := do
+def collectLowerBounds (target : Lean.Expr) : TacticM (Array (ℚ × Lean.Expr × Lean.Expr)) := do
   let mut out : Array (ℚ × Lean.Expr × Lean.Expr) := #[]
   for ldecl in (← getLCtx) do
     if ldecl.isImplementationDetail || ldecl.isAuxDecl then
@@ -211,7 +223,7 @@ private def collectLowerBounds (target : Lean.Expr) : TacticM (Array (ℚ × Lea
   return out
 
 /-- Try to prove `0 < target` from collected lower bounds. -/
-private def provePositiveFromBounds? (target : Lean.Expr) : TacticM (Option Lean.Expr) := do
+def provePositiveFromBounds? (target : Lean.Expr) : TacticM (Option Lean.Expr) := do
   let lbs ← collectLowerBounds target
   for (q, lo, hLoLeTarget) in lbs do
     if q > 0 then
@@ -222,7 +234,7 @@ private def provePositiveFromBounds? (target : Lean.Expr) : TacticM (Option Lean
   return none
 
 /-- Try to prove `0 < target` from an `Set.Icc` hypothesis in the local context. -/
-private def provePositiveFromIccAssumption? (target : Lean.Expr) : TacticM (Option Lean.Expr) := do
+def provePositiveFromIccAssumption? (target : Lean.Expr) : TacticM (Option Lean.Expr) := do
   solveByTactic? (← mkZeroLt target) (← `(tactic|
     first
     | exact lt_of_lt_of_le (by norm_num) ((Set.mem_Icc.mp (by assumption)).1)
@@ -230,7 +242,7 @@ private def provePositiveFromIccAssumption? (target : Lean.Expr) : TacticM (Opti
     | positivity))
 
 /-- Try to prove `0 < log arg` from bounds on `arg`. -/
-private def proveLogPositiveFromBounds? (arg : Lean.Expr) : TacticM (Option Lean.Expr) := do
+def proveLogPositiveFromBounds? (arg : Lean.Expr) : TacticM (Option Lean.Expr) := do
   let lbs ← collectLowerBounds arg
   for (q, lo, hLoLeArg) in lbs do
     if q > 1 then
@@ -242,7 +254,7 @@ private def proveLogPositiveFromBounds? (arg : Lean.Expr) : TacticM (Option Lean
   return none
 
 /-- Try to prove `0 < log arg` from an `Set.Icc` hypothesis on `arg`. -/
-private def proveLogPositiveFromIccAssumption? (arg : Lean.Expr) : TacticM (Option Lean.Expr) := do
+def proveLogPositiveFromIccAssumption? (arg : Lean.Expr) : TacticM (Option Lean.Expr) := do
   solveByTactic? (← mkZeroLt (← mkAppM ``Real.log #[arg])) (← `(tactic|
     exact Real.log_pos (lt_of_lt_of_le (by norm_num) ((Set.mem_Icc.mp (by assumption)).1))))
 

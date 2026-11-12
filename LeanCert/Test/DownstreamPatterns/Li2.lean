@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.CertifiedBounds.Li2
+module
+
+public import LeanCert.CertifiedBounds.Li2
 
 /-!
 # PrimeNumberTheoremAnd lightweight li(2) pattern
@@ -11,6 +13,8 @@ import LeanCert.CertifiedBounds.Li2
 Adapted from `IEANTN/Li2Bounds.lean`. This tests the lightweight interface and
 its definitional bridge without importing or rebuilding `Li2Verified`.
 -/
+
+@[expose] public section
 
 open Real MeasureTheory
 open scoped Interval

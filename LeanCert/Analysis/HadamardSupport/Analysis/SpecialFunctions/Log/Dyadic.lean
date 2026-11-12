@@ -15,9 +15,7 @@ This file records elementary estimates for dyadic radii selected by `⌊logb 2 x
 The estimates are used to decompose growth bounds into summable geometric shells.
 -/
 
-@[expose] public section
-
-noncomputable section
+public noncomputable section
 
 open scoped BigOperators
 open Filter

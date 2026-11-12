@@ -3,8 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
-import Mathlib.Data.Rat.Defs
+public import Mathlib.Data.Rat.Defs
 
 /-!
 # Certified cell domains
@@ -16,6 +17,8 @@ separate capabilities.
 Unlike an interface with a distinguished `root`, every cell here may be used as
 the root of a refinement. This is necessary for recursive and nested searches.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 

@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.DyadicFrontier
-import LeanCert.Core.DyadicCellDomain
-import LeanCert.Core.RationalCellDomain
+module
+
+public import LeanCert.Core.DyadicFrontier
+public import LeanCert.Core.DyadicCellDomain
+public import LeanCert.Core.RationalCellDomain
 
 /-!
 # Dyadic midpoint and subdivision regression tests
@@ -14,6 +16,8 @@ These tests pin the semantic value of exact dyadic midpoints. In particular,
 they catch implementations that shift an odd mantissa right and silently round
 instead of decreasing the represented power-of-two exponent.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.DyadicSubdivision
 

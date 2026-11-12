@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.Bezout
-import LeanCert.Engine.Algebra.CubicCount
-import LeanCert.Engine.AD.Correctness
+module
+
+public import LeanCert.Engine.Algebra.Bezout
+public import LeanCert.Engine.Algebra.CubicCount
+public import LeanCert.Engine.AD.Correctness
 
 /-!
 # Exact rational cubics and isolation data
@@ -14,6 +16,8 @@ This module contains the executable algebraic representation and the generic
 set-theoretic machinery used by complete cubic isolation.  It deliberately
 does not import LeanCert's Validity layer.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

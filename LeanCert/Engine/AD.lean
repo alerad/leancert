@@ -3,14 +3,16 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD.Basic
-import LeanCert.Engine.AD.Transcendental
-import LeanCert.Engine.AD.Eval
-import LeanCert.Engine.AD.Correctness
-import LeanCert.Engine.AD.PartialCorrectness
-import LeanCert.Engine.AD.Computable
-import LeanCert.Engine.AD.DomainChecked
-import LeanCert.Engine.AD.Dyadic
+module
+
+public import LeanCert.Engine.AD.Basic
+public import LeanCert.Engine.AD.Transcendental
+public import LeanCert.Engine.AD.Eval
+public import LeanCert.Engine.AD.Correctness
+public import LeanCert.Engine.AD.PartialCorrectness
+public import LeanCert.Engine.AD.Computable
+public import LeanCert.Engine.AD.DomainChecked
+public import LeanCert.Engine.AD.Dyadic
 
 /-!
 # Automatic Differentiation via Intervals

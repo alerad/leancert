@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.ForwardPreservation
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.ForwardPreservation
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open LeanCert.Analysis.DBN Complex Set Filter
 open scoped Topology

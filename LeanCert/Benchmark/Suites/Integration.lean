@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.API.Integration
-import LeanCert.Validity.IntegrationDyadic
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.API.Integration
+public import LeanCert.Validity.IntegrationDyadic
 
 /-!
 # Checked integration benchmark suite
@@ -15,6 +17,8 @@ verified li(2) example. These cases measure expression evaluation across a
 partition plus per-cell domain validation; they do not measure elaboration or
 kernel checking of the surrounding theorem.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.Integration
 

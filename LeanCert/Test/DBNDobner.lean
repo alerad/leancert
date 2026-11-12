@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.DobnerReduction
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.DobnerReduction
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open LeanCert.Analysis LeanCert.Analysis.DBN Complex Filter Set Metric
 open scoped Topology

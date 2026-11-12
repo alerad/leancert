@@ -1,8 +1,13 @@
-import LeanCert.Analysis.DBN.Hadamard
-import Mathlib.Algebra.Polynomial.Degree.SmallDegree
-import Mathlib.Tactic
+module
+
+public import LeanCert.Analysis.DBN.Hadamard
+public import Mathlib.Algebra.Polynomial.Degree.SmallDegree
+public import Mathlib.Tactic
 
 /-! Removing the exponential prefactor from the actual H_t factorization at every real time. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Complex.Hadamard Polynomial
 

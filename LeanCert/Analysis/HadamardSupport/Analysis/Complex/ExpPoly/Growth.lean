@@ -3,7 +3,6 @@ Copyright (c) 2026 Matteo Cipollina. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Matteo Cipollina
 -/
-
 module
 
 public import LeanCert.Analysis.HadamardSupport.Analysis.Complex.ExpPoly
@@ -25,9 +24,7 @@ satisfies a growth bound with exponent `ρ`, then `P.natDegree ≤ ⌊ρ⌋`.
 
 -/
 
-@[expose] public section
-
-noncomputable section
+public noncomputable section
 
 namespace Complex
 namespace Hadamard

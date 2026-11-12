@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Semantic Router Tests
@@ -11,6 +13,8 @@ import LeanCert.Tactic
 Natural mathematical statements are proved through the public `leancert`
 front door, importing only the stable tactic umbrella.
 -/
+
+@[expose] public section
 
 open LeanCert
 open MeasureTheory

@@ -3,11 +3,13 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Expr
-import LeanCert.Core.IntervalReal
-import LeanCert.Core.IntervalDyadic
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.IntervalEvalDyadic
+module
+
+public import LeanCert.Core.Expr
+public import LeanCert.Core.IntervalReal
+public import LeanCert.Core.IntervalDyadic
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.IntervalEvalDyadic
 
 /-!
 # Performance Benchmark: Dyadic vs Rational Backend
@@ -34,6 +36,8 @@ The dyadic backend should be 10-100x faster for deep expressions due to:
 
 Run with: `lake exe leancert-bench` or evaluate in Lean REPL.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark
 

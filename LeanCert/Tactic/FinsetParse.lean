@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Meta.Numeral
+module
+
+public import Lean
+public import LeanCert.Meta.Numeral
 
 /-!
 # Finset Parsing Utilities
@@ -13,6 +15,8 @@ Shared meta-level parsers for finite-sum tactics. This module intentionally stay
 lightweight: it parses elaborated `Finset` expressions into lists of natural
 indices, but does not import the finite-sum engines.
 -/
+
+@[expose] public section
 
 open Lean Meta
 

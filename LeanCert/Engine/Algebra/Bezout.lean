@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.QPoly
-import Mathlib.FieldTheory.Separable
+module
+
+public import LeanCert.Engine.Algebra.QPoly
+public import Mathlib.FieldTheory.Separable
 
 /-!
 # Executable Bézout certificates for polynomial simplicity
@@ -17,6 +19,8 @@ Mathlib polynomials and proves separability.
 Keeping an arbitrary nonzero scalar lets certificate generators clear
 denominators and emit compact integer-valued coefficients.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

@@ -2,8 +2,10 @@
 Copyright (c) 2025 LeanCert contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import Mathlib.Data.Nat.Fib.Basic
-import Mathlib.Data.ZMod.Basic
+module
+
+public import Mathlib.Data.Nat.Fib.Basic
+public import Mathlib.Data.ZMod.Basic
 
 /-! # Lucas Sequences — Computable Definitions
 
@@ -17,6 +19,8 @@ Special cases:
 - Lucas numbers: `V_n(1, -1) = L_n`
 
 All definitions are computable over `ℤ` for use with `native_decide`. -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Pisano
 

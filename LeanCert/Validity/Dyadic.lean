@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.DyadicBounds
+module
+
+public import LeanCert.Validity.DyadicBounds
 
 /-!
 # Dyadic Validity Exports
@@ -11,6 +13,8 @@ import LeanCert.Validity.DyadicBounds
 Short Validity-layer import path for dyadic interval bound checkers and bridge
 theorems. Definitions remain in `Validity.DyadicBounds`.
 -/
+
+public section
 
 namespace LeanCert.Validity.Dyadic
 

@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD.Computable
-import Mathlib.Topology.Order.Monotone
+module
+
+public import LeanCert.Engine.AD.Computable
+public import Mathlib.Topology.Order.Monotone
 
 /-!
 # Golden Theorems for Monotonicity Verification
@@ -41,6 +43,8 @@ example : StrictMonoOn (fun x => Real.exp x) (Set.Icc 0 1) :=
     ⟨0, 1, by norm_num⟩ {} (by native_decide)
 ```
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

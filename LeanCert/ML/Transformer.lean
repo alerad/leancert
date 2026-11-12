@@ -3,10 +3,12 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Network
-import LeanCert.ML.IntervalVector
-import LeanCert.Engine.IntervalEval
-import LeanCert.Core.IntervalRat.Taylor
+module
+
+public import LeanCert.ML.Network
+public import LeanCert.ML.IntervalVector
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Core.IntervalRat.Taylor
 
 /-!
 # Transformer Components
@@ -40,6 +42,8 @@ The current implementation is *sound* but may produce loose bounds.
 * Hendrycks & Gimpel, "Gaussian Error Linear Units (GELUs)", 2016
 * Ba et al., "Layer Normalization", 2016
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Transformer
 
@@ -75,8 +79,8 @@ noncomputable def layerNormReal (x : List ℝ) (gamma beta : List ℚ) (epsilon 
 /-- Constants for GELU approximation as rationals -/
 -- √(2/π) ≈ 0.7978845608028654
 -- We use a lower bound so that the interval [c1_lo, c1_lo + 2e-6] contains √(2/π)
-private def gelu_c1_lo : ℚ := 797884 / 1000000  -- Lower bound for √(2/π)
-private def gelu_c2 : ℚ := 44715 / 1000000   -- 0.044715
+def gelu_c1_lo : ℚ := 797884 / 1000000  -- Lower bound for √(2/π)
+def gelu_c2 : ℚ := 44715 / 1000000   -- 0.044715
 
 /--
 Verified GELU Interval using IntervalRat arithmetic.

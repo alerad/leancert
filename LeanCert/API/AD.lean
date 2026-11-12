@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Eval
-import LeanCert.Engine.AD.Dyadic
-import LeanCert.Engine.Optimization.Gradient
+module
+
+public import LeanCert.API.Eval
+public import LeanCert.Engine.AD.Dyadic
+public import LeanCert.Engine.Optimization.Gradient
 
 /-!
 # Public checked automatic differentiation
@@ -15,6 +17,8 @@ gradients. Rational and Dyadic computations return the same public result
 shape, retain the requested and selected backend, and share one soundness
 contract. Affine AD is deliberately reported as unsupported.
 -/
+
+@[expose] public section
 
 namespace LeanCert
 
@@ -53,7 +57,7 @@ def selectAutomaticADBackend (e : Expr) : ConcreteBackend :=
   else
     .rational
 
-private def rationalADConfig (requested : BackendChoice) (options : ADOptions) :
+def rationalADConfig (requested : BackendChoice) (options : ADOptions) :
     EvalResult EvalConfig :=
   if requested != .rational || options.dyadicPrecision = -53 then
     .ok { taylorDepth := options.taylorDepth }
@@ -61,13 +65,13 @@ private def rationalADConfig (requested : BackendChoice) (options : ADOptions) :
     .error (.invalidConfiguration
       "dyadicPrecision is only meaningful for the Dyadic AD backend")
 
-private def dyadicADConfig (options : ADOptions) : EvalResult DyadicConfig :=
+def dyadicADConfig (options : ADOptions) : EvalResult DyadicConfig :=
   if options.dyadicPrecision ≤ 0 then
     .ok { precision := options.dyadicPrecision, taylorDepth := options.taylorDepth }
   else
     .error (.invalidConfiguration "Dyadic AD precision must be nonpositive")
 
-private theorem dyadicADConfig_precision {options : ADOptions} {cfg : DyadicConfig}
+theorem dyadicADConfig_precision {options : ADOptions} {cfg : DyadicConfig}
     (hcfg : dyadicADConfig options = .ok cfg) : cfg.precision ≤ 0 := by
   unfold dyadicADConfig at hcfg
   split at hcfg
@@ -76,7 +80,7 @@ private theorem dyadicADConfig_precision {options : ADOptions} {cfg : DyadicConf
     exact hprec
   · contradiction
 
-private def evalWithDerivativeRational (e : Expr) (box : List IntervalRat) (idx : Nat)
+def evalWithDerivativeRational (e : Expr) (box : List IntervalRat) (idx : Nat)
     (requested : BackendChoice) (options : ADOptions) : EvalResult DerivativeOutcome :=
   match rationalADConfig requested options with
   | .error err => .error err
@@ -90,7 +94,7 @@ private def evalWithDerivativeRational (e : Expr) (box : List IntervalRat) (idx 
           backend := .rational
         }
 
-private def evalWithDerivativeDyadic (e : Expr) (box : List IntervalRat) (idx : Nat)
+def evalWithDerivativeDyadic (e : Expr) (box : List IntervalRat) (idx : Nat)
     (requested : BackendChoice) (options : ADOptions) : EvalResult DerivativeOutcome :=
   match dyadicADConfig options with
   | .error err => .error err
@@ -122,7 +126,7 @@ def evalWithDerivative (e : Expr) (box : List IntervalRat) (idx : Nat)
 often required by downstream monotonicity and Newton workflows. -/
 def evalDerivative := evalWithDerivative
 
-private theorem evalWithDerivativeRational_correct {e : Expr} {box : List IntervalRat}
+theorem evalWithDerivativeRational_correct {e : Expr} {box : List IntervalRat}
     {idx : Nat} {requested : BackendChoice} {options : ADOptions}
     {outcome : DerivativeOutcome}
     (hsuccess : evalWithDerivativeRational e box idx requested options = .ok outcome)
@@ -153,7 +157,7 @@ private theorem evalWithDerivativeRational_correct {e : Expr} {box : List Interv
       · exact evalWithDerivChecked_der_correct e rho (intervalEnvOfList box) idx cfg
           result x hx henv hdual
 
-private theorem evalWithDerivativeDyadic_correct {e : Expr} {box : List IntervalRat}
+theorem evalWithDerivativeDyadic_correct {e : Expr} {box : List IntervalRat}
     {idx : Nat} {requested : BackendChoice} {options : ADOptions}
     {outcome : DerivativeOutcome}
     (hsuccess : evalWithDerivativeDyadic e box idx requested options = .ok outcome)
@@ -221,7 +225,7 @@ theorem evalWithDerivative_correct {e : Expr} {box : List IntervalRat} {idx : Na
     exact evalWithDerivativeDyadic_correct hsuccess hrho hx
   | affine => simp [hchoice] at hsuccess
 
-private def evalGradientRational (e : Expr) (box : List IntervalRat)
+def evalGradientRational (e : Expr) (box : List IntervalRat)
     (requested : BackendChoice) (options : ADOptions) : EvalResult GradientOutcome :=
   match rationalADConfig requested options with
   | .error err => .error err
@@ -230,7 +234,7 @@ private def evalGradientRational (e : Expr) (box : List IntervalRat)
       | .error err => .error err
       | .ok gradient => .ok { gradient, requested, backend := .rational }
 
-private def evalGradientDyadic (e : Expr) (box : List IntervalRat)
+def evalGradientDyadic (e : Expr) (box : List IntervalRat)
     (requested : BackendChoice) (options : ADOptions) : EvalResult GradientOutcome :=
   match dyadicADConfig options with
   | .error err => .error err
@@ -256,7 +260,7 @@ def evalGradient (e : Expr) (box : List IntervalRat)
   | .dyadic => evalGradientDyadic e box .dyadic options
   | .affine => .error (.unsupportedBackend "checked automatic differentiation with Affine")
 
-private theorem evalGradientRational_correct {e : Expr} {box : List IntervalRat}
+theorem evalGradientRational_correct {e : Expr} {box : List IntervalRat}
     {requested : BackendChoice} {options : ADOptions} {outcome : GradientOutcome}
     (hsuccess : evalGradientRational e box requested options = .ok outcome)
     {rho : Nat → ℝ} (hrho : BoxEnvMem rho box) :
@@ -279,7 +283,7 @@ private theorem evalGradientRational_correct {e : Expr} {box : List IntervalRat}
         exact hrho.eq_zero i hi
       · exact hgradient
 
-private theorem evalGradientDyadic_correct {e : Expr} {box : List IntervalRat}
+theorem evalGradientDyadic_correct {e : Expr} {box : List IntervalRat}
     {requested : BackendChoice} {options : ADOptions} {outcome : GradientOutcome}
     (hsuccess : evalGradientDyadic e box requested options = .ok outcome)
     {rho : Nat → ℝ} (hrho : BoxEnvMem rho box) :

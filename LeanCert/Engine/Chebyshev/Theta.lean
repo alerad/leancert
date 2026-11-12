@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalRat.Taylor
-import Mathlib.NumberTheory.Chebyshev
+module
+
+public import LeanCert.Core.IntervalRat.Taylor
+public import Mathlib.NumberTheory.Chebyshev
 
 /-!
 # Certified Chebyshev theta(N) Bounds
@@ -28,6 +30,8 @@ summands are `log p` (only primes) instead of `vonMangoldt n` (prime powers).
 For the absolute-error checker we need *both* an upper and a lower bound on theta;
 the lower bound uses `logPrimeLB` (the `.lo` endpoint of the interval enclosure).
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Chebyshev.Theta
 

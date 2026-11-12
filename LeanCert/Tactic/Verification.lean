@@ -3,9 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import Lean.Meta.Native
-import Lean.Meta.Tactic.AuxLemma
+module
+
+public import Lean
+public meta import Lean
+public meta import Lean.Meta.Native
+public meta import Lean.Meta.Tactic.AuxLemma
 
 /-!
 # Centralized certificate verification (trust choke point)
@@ -45,6 +48,8 @@ certificate can exceed the budget wall-clock. Calibrated cost gates therefore
 route predictably large finite sums, integrations, and optimization
 certificates directly to native verification.
 -/
+
+public meta section
 
 open Lean Meta Elab Tactic
 
@@ -91,7 +96,15 @@ register_option leancert.trust.autoMaxOptIterations : Nat := {
     v4.32.2 calibration matrix measures comparable routes through 50 iterations)"
 }
 
+end
+
+public section
+
 namespace LeanCert.Tactic
+
+public meta section
+
+open Lean Meta Elab Tactic
 
 initialize registerTraceClass `leancert.verification
 
@@ -100,6 +113,8 @@ file with hundreds of certificate checks does not produce hundreds of
 messages. Per-invocation detail is always available under
 `trace[leancert.verification]`. -/
 initialize autoFallbackReported : IO.Ref Bool ← IO.mkRef false
+
+end
 
 /-- How a certificate goal is allowed to be verified. -/
 inductive VerificationMode where
@@ -244,12 +259,27 @@ structure VerificationConfig where
   kernelHeartbeats : Nat := 400000
   deriving Repr, Inhabited
 
+public noncomputable meta section
+
+open Lean Meta Elab Tactic
+
+private def parseVerificationModeForMeta? : String → Option VerificationMode
+  | "native" => some .native
+  | "kernel" => some .kernel
+  | "auto" => some .auto
+  | _ => none
+
+private def verificationModeAsStringForMeta : VerificationMode → String
+  | .native => "native"
+  | .kernel => "kernel"
+  | .auto => "auto"
+
 /-- Read the verification configuration from the current options
 (`leancert.trust`, `leancert.trust.kernelHeartbeats`). -/
 def VerificationConfig.current : CoreM VerificationConfig := do
   let opts ← getOptions
   let raw := leancert.trust.get opts
-  let some mode := VerificationMode.ofString? raw
+  let some mode := parseVerificationModeForMeta? raw
     | throwError "invalid value '{raw}' for option 'leancert.trust'; \
         expected \"native\", \"kernel\", or \"auto\""
   return { mode, kernelHeartbeats := leancert.trust.kernelHeartbeats.get opts }
@@ -581,7 +611,7 @@ def elabTrustItem? : Option (TSyntax ``leancertTrustItem) →
     match stx with
     | `(leancertTrustItem| (trust := $m:leancertTrustMode)) => do
       let raw := m.raw.reprint.getD ""
-      let some mode := VerificationMode.ofString? raw
+      let some mode := parseVerificationModeForMeta? raw
         | throwErrorAt m "invalid trust mode '{raw}'; expected kernel, native, or auto"
       return some mode
     | _ => throwUnsupportedSyntax
@@ -590,7 +620,8 @@ def elabTrustItem? : Option (TSyntax ``leancertTrustItem) →
 def withTrustMode (mode? : Option VerificationMode) (act : TacticM α) : TacticM α :=
   match mode? with
   | none => act
-  | some m => withOptions (fun o => o.set `leancert.trust m.asString) act
+  | some m => withOptions (fun o => o.set `leancert.trust
+      (verificationModeAsStringForMeta m)) act
 
 /-! ## `#assert_trust`: CI trust manifests
 
@@ -663,5 +694,7 @@ elab "#assert_trust " cls:ident thm:ident : command => do
     | other =>
       throwErrorAt cls "#assert_trust: unknown trust class '{other}'; \
         expected 'kernel' or 'native'"
+
+end
 
 end LeanCert.Tactic

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Eval
+module
+
+public import LeanCert.API.Eval
 
 /-!
 # Checked backend-native evaluation
@@ -12,6 +14,8 @@ These APIs are for clients that need a backend's native result type. They keep
 the same checked failure behavior and box semantics as `LeanCert.evalInterval`.
 Ordinary clients should prefer the backend-independent public façade.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Backend
 

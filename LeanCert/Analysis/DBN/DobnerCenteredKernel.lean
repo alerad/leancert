@@ -3,7 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.DobnerLinearBounds
+module
+
+public import LeanCert.Analysis.DBN.DobnerLinearBounds
+
+@[expose] public section
 
 namespace LeanCert.Analysis.DBN
 open Complex Filter Set MeasureTheory
@@ -66,7 +70,7 @@ theorem centeredKernel_norm_eq {a : ℝ} (ha : 0 < a) (s : ℂ) (L v : ℝ) :
     pow_two, saddleDisplacement_re, saddleDisplacement_im, neg_im, ofReal_re,
     ofReal_im, mul_zero, sub_zero]
   field_simp
-  ring
+  ring_nf
 
 theorem centeredGaussian_re {a : ℝ} (ha : 0 < a) (s : ℂ) (L v : ℝ) :
     (-s*(L : ℂ)+(saddleDisplacement a s L v)^2/(4*(a : ℂ))-

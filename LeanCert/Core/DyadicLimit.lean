@@ -3,10 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.DyadicCell
-import Mathlib.Analysis.SpecificLimits.Basic
-import Mathlib.Topology.Compactness.Compact
-import Mathlib.Topology.MetricSpace.Pseudo.Real
+module
+
+public import LeanCert.Core.DyadicCell
+public import Mathlib.Analysis.SpecificLimits.Basic
+public import Mathlib.Topology.Compactness.Compact
+public import Mathlib.Topology.MetricSpace.Pseudo.Real
 
 /-!
 # Infinite dyadic paths
@@ -15,6 +17,8 @@ An infinite Boolean history determines a nested sequence of exact closed
 dyadic cells. Their widths tend to zero, so their intersection contains exactly
 one real point. This is the limit semantics behind finite dyadic addresses.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 

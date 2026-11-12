@@ -3,10 +3,16 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.LeanCert.Semantic.Parse
-import LeanCert.Tactic.Verification
-import LeanCert.Engine.RootFinding.KrawczykCandidate
-import LeanCert.Validity.Krawczyk
+module
+
+public import LeanCert.Tactic.LeanCert.Semantic.Parse
+public import LeanCert.Tactic.Verification
+public import LeanCert.Engine.RootFinding.KrawczykCandidate
+public import LeanCert.Validity.Krawczyk
+public meta import LeanCert.Tactic.LeanCert.Semantic.Parse
+public meta import LeanCert.Tactic.Verification
+public meta import LeanCert.Engine.RootFinding.KrawczykCandidate
+public meta import LeanCert.Validity.Krawczyk
 
 /-!
 # Manual and automatic Krawczyk certificate tactics
@@ -17,6 +23,8 @@ untrusted midpoint-Jacobian/interval-Newton search and submits the selected
 candidate to the identical `krawczykCheck` and `verify_unique_system_root`
 boundary.
 -/
+
+@[expose] public section
 
 open Lean Meta Elab Tactic
 
@@ -104,7 +112,9 @@ private theorem swapSystemRootConjunction {n : Nat} (F : Fin n → LeanCert.Core
   intro y hy
   exact hunique y hy.symm
 
-private def elaborateCertificate (stx : TSyntax `term) (dimension : Lean.Expr) :
+public noncomputable meta section
+
+def elaborateCertificate (stx : TSyntax `term) (dimension : Lean.Expr) :
     TacticM (Except (String × String) Lean.Expr) := do
   let expectedType := mkApp (mkConst ``LeanCert.Engine.KrawczykCert) dimension
   let inferred ←
@@ -125,14 +135,14 @@ private def elaborateCertificate (stx : TSyntax `term) (dimension : Lean.Expr) :
         return .error (toString (← ppExpr expectedType),
           ← exception.toMessageData.toString)
 
-private unsafe def evaluateInspection (spec : SystemRootSpec)
+unsafe def evaluateInspection (spec : SystemRootSpec)
     (certificate cfg : Lean.Expr) :
     TacticM KrawczykInspection := do
   let expression ← mkAppM ``inspectKrawczyk #[spec.system, spec.box, certificate, cfg]
   trace[LeanCert.solver] "Krawczyk inspection expression: {← ppExpr expression}"
   evalExpr KrawczykInspection (mkConst ``KrawczykInspection) expression
 
-private def parseSystemRootTarget (target : Lean.Expr) :
+def parseSystemRootTarget (target : Lean.Expr) :
     TacticM (Except SystemUniqueRootFailure SystemRootSpec) := do
   match ← withMainContext do Semantic.parseGoal target with
   | .ok (.systemRoot spec) => return .ok spec
@@ -140,7 +150,7 @@ private def parseSystemRootTarget (target : Lean.Expr) :
       "expected `∃! x : Fin n → ℝ, FinBoxMem x X ∧ SystemZero F x`")
   | .error failure => return .error (.unsupportedGoal failure.detail)
 
-private unsafe def verifySystemUniqueRootCandidate
+unsafe def verifySystemUniqueRootCandidate
     (saved : Lean.Elab.Tactic.SavedState) (goal : MVarId) (target : Lean.Expr)
     (spec : SystemRootSpec) (certificate cfg : Lean.Expr)
     (search : Option AutomaticKrawczykReport := none) :
@@ -253,7 +263,7 @@ unsafe def systemUniqueRootAutomaticCoreTyped (maxIterations : Nat := 8)
     saved.restore
     return .error (.internalFailure (← exception.toMessageData.toString))
 
-private def checkStageMessage : KrawczykCheckStage → String
+def checkStageMessage : KrawczykCheckStage → String
   | .accepted => "the checker rejected the certificate without a classified component failure"
   | .unsupportedAD =>
       "the system contains an expression outside the differentiable checked-AD fragment"
@@ -263,7 +273,7 @@ private def checkStageMessage : KrawczykCheckStage → String
   | .imageNotStrictlyInside =>
       "the checked Newton image is not strictly inside the target box"
 
-private def generationFailureMessage : AutomaticKrawczykFailure → String
+def generationFailureMessage : AutomaticKrawczykFailure → String
   | .invalidDimension => "automatic Krawczyk generation requires a positive dimension"
   | .dimensionLimit actual limit =>
       s!"system dimension {actual} exceeds the automatic limit {limit}; provide an explicit certificate"
@@ -278,7 +288,7 @@ private def generationFailureMessage : AutomaticKrawczykFailure → String
   | .exhausted attempts =>
       s!"candidate search exhausted its configured budget after {attempts} attempt(s)"
 
-private def failureMessage : SystemUniqueRootFailure → String
+def systemRootFailureMessage : SystemUniqueRootFailure → String
   | .unsupportedGoal detail =>
       s!"system_unique_root does not recognize this goal.\n{detail}"
   | .dimensionMismatch expected actual =>
@@ -298,20 +308,20 @@ private def failureMessage : SystemUniqueRootFailure → String
   | .internalFailure detail =>
       s!"Krawczyk certification encountered an internal error:\n{detail}"
 
-private def verificationLabel (event : VerificationEvent) : String :=
+def verificationLabel (event : VerificationEvent) : String :=
   match event.used with
   | .kernel => "kernel"
   | .native => "native"
 
-private def requestedVerificationLabel : VerificationMode → String
+def requestedVerificationLabel : VerificationMode → String
   | .kernel => "kernel"
   | .native => "native"
   | .auto => "auto"
 
-private unsafe def runSystemUniqueRoot (certificate : TSyntax `term) (taylorDepth : Nat)
+unsafe def runSystemUniqueRoot (certificate : TSyntax `term) (taylorDepth : Nat)
     (explain : Bool) : TacticM Unit := do
   match ← systemUniqueRootCoreTyped certificate taylorDepth with
-  | .error failure => throwError (failureMessage failure)
+  | .error failure => throwError (systemRootFailureMessage failure)
   | .ok outcome =>
       if explain then
         logInfo m!"LeanCert recognized: nonlinear system uniqueness
@@ -333,10 +343,10 @@ Suggested proof:
   by
     system_unique_root using {certificate.raw.reprint.getD "cert"}"
 
-private unsafe def runSystemUniqueRootAutomatic (maxIterations maxDimension taylorDepth : Nat)
+unsafe def runSystemUniqueRootAutomatic (maxIterations maxDimension taylorDepth : Nat)
     (explain : Bool) : TacticM Unit := do
   match ← systemUniqueRootAutomaticCoreTyped maxIterations maxDimension taylorDepth with
-  | .error failure => throwError (failureMessage failure)
+  | .error failure => throwError (systemRootFailureMessage failure)
   | .ok outcome =>
       if explain then
         let search := outcome.search.getD { dimension := outcome.inspection.dimension }
@@ -381,13 +391,13 @@ syntax (name := systemUniqueRootAutoTac) "system_unique_root"
 syntax (name := systemUniqueRootAutoQuestionTac) "system_unique_root?"
   systemUniqueRootConfigItem* : tactic
 
-private structure SystemUniqueRootConfig where
+structure SystemUniqueRootConfig where
   taylorDepth : Nat := 10
   maxIterations : Nat := 8
   maxDimension : Nat := 4
   trust : Option VerificationMode := none
 
-private def parseSystemUniqueRootConfig (items : Array Syntax) :
+def parseSystemUniqueRootConfig (items : Array Syntax) :
     TacticM SystemUniqueRootConfig := do
   let mut cfg : SystemUniqueRootConfig := {}
   for item in items do
@@ -443,5 +453,7 @@ unsafe def elabSystemUniqueRootAutoQuestion : Tactic := fun stx => do
       withTrustMode cfg.trust do
         runSystemUniqueRootAutomatic cfg.maxIterations cfg.maxDimension cfg.taylorDepth true
   | _ => throwUnsupportedSyntax
+
+end
 
 end LeanCert.Tactic

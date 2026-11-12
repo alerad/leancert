@@ -3,13 +3,15 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Algebra.CubicDiscriminant
-import Mathlib.Algebra.QuadraticDiscriminant
-import Mathlib.Analysis.Polynomial.Basic
-import Mathlib.Analysis.Real.Sqrt
-import Mathlib.Data.Set.Card
-import Mathlib.Topology.Algebra.Polynomial
-import Mathlib.Topology.Order.IntermediateValue
+module
+
+public import Mathlib.Algebra.CubicDiscriminant
+public import Mathlib.Algebra.QuadraticDiscriminant
+public import Mathlib.Analysis.Polynomial.Basic
+public import Mathlib.Analysis.Real.Sqrt
+public import Mathlib.Data.Set.Card
+public import Mathlib.Topology.Algebra.Polynomial
+public import Mathlib.Topology.Order.IntermediateValue
 
 /-!
 # Real-root counts from low-degree discriminants
@@ -19,6 +21,8 @@ certificates.  Cubics are reduced at one real root to a quadratic by synthetic
 division.  The identity `Δ(P) = Δ(Q) * P'(r)^2` then transfers the sign of the
 cubic discriminant to the quadratic discriminant.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Algebra
 

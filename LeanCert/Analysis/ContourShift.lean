@@ -3,8 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
-import Mathlib.Analysis.Complex.CauchyIntegral
+public import Mathlib.Analysis.Complex.CauchyIntegral
 
 /-!
 # Contour-shift certificates
@@ -20,6 +21,8 @@ The boundary convention is:
 Here `right` and `left` are real-parameter vertical integrals, so multiplying by
 `I` converts them to complex contour integrals with the standard orientation.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Analysis.ContourShift
 

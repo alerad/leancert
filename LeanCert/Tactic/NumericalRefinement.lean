@@ -3,6 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
 /-!
 # Coordinated numerical refinement
@@ -14,6 +15,8 @@ error: Dyadic rounding, Taylor approximation, and spatial subdivision.
 The schedule never proves a theorem. A selected stage must still close the
 ordinary Boolean checker and apply its existing Golden Theorem.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Tactic
 

@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalReal
-import LeanCert.Core.Expr
-import LeanCert.Engine.IntervalEval
+module
+
+public import LeanCert.Core.IntervalReal
+public import LeanCert.Core.Expr
+public import LeanCert.Engine.IntervalEval
 
 /-!
 # Extended Interval Arithmetic
@@ -40,6 +42,8 @@ The `largeBound` parameter represents "infinity" for practical computation.
 Using `10^30` is sufficient for most numerical applications while keeping
 arithmetic tractable.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 
@@ -205,7 +209,7 @@ theorem defaultLargeBound_pos : 0 < defaultLargeBound := by
   norm_num
 
 /-- Helper to construct an interval, using min/max to ensure validity -/
-private def mkSafeInterval (a b : ℚ) : IntervalRat :=
+def mkSafeInterval (a b : ℚ) : IntervalRat :=
   { lo := min a b, hi := max a b, le := @min_le_max ℚ _ a b }
 
 private theorem mem_mkSafeInterval_of_le_le {x : ℝ} {a b : ℚ}

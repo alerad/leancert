@@ -3,18 +3,20 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.CertifiedBounds.Chebyshev
-import LeanCert.Engine.TaylorModel
-import LeanCert.CertifiedBounds.Li2
-import LeanCert.CertifiedBounds.BKLNW
-import LeanCert.ANT.PNTCompilers
-import LeanCert.ANT.Asymp.Pointwise
-import LeanCert.ANT.Asymp.Inequality
-import LeanCert.API.Eval
-import LeanCert.API.Backend
-import LeanCert.API.Optimization
-import LeanCert.API.Bounds
+module
+
+public import LeanCert.Tactic.IntervalAuto
+public import LeanCert.CertifiedBounds.Chebyshev
+public import LeanCert.Engine.TaylorModel
+public import LeanCert.CertifiedBounds.Li2
+public import LeanCert.CertifiedBounds.BKLNW
+public import LeanCert.ANT.PNTCompilers
+public import LeanCert.ANT.Asymp.Pointwise
+public import LeanCert.ANT.Asymp.Inequality
+public import LeanCert.API.Eval
+public import LeanCert.API.Backend
+public import LeanCert.API.Optimization
+public import LeanCert.API.Bounds
 
 /-!
 # Downstream interface guard
@@ -32,6 +34,9 @@ This inventory cannot see unqualified declarations brought into scope with
 -/
 
 -- Stable checked programmatic API
+
+public section
+
 #check @LeanCert.evalInterval
 #check @LeanCert.evalInterval_correct
 #check @LeanCert.evalInterval1

@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.IntervalVector
-import LeanCert.Engine.Eval.Core
+module
+
+public import LeanCert.ML.IntervalVector
+public import LeanCert.Engine.Eval.Core
 
 /-!
 # Exact erf-GELU Feed-Forward Blocks
@@ -18,6 +20,8 @@ This module provides a computable interval forward pass for the architecture
 primitive. It intentionally lives beside the transformer tanh-GELU
 approximation instead of replacing it.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML
 

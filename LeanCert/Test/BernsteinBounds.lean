@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Bernstein polynomial bound tests
@@ -12,6 +14,8 @@ Univariate polynomial interval bounds through the public `leancert` front door
 and the dedicated `bernstein_bound` tactic, plus the engine-level certificate on
 a degree-134 polynomial.
 -/
+
+@[expose] public section
 
 open Set
 open LeanCert.Core LeanCert.Engine

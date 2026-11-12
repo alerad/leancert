@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
+module
+
+public import LeanCert.Engine.IntervalEval
 
 /-!
 # Checked Bounds for Partial Operations
@@ -32,6 +34,8 @@ which handles domain validation.
 * `verify_strict_upper_bound_Icc_checked` - Bridge to Set.Icc strict upper bounds
 * `verify_strict_lower_bound_Icc_checked` - Bridge to Set.Icc strict lower bounds
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

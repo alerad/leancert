@@ -19,7 +19,7 @@ multiplicity and poles cannot occur.
 * `Differentiable.divisor_nonneg` : the divisor of an entire function is non-negative
 -/
 
-@[expose] public section
+public section
 
 open Set
 

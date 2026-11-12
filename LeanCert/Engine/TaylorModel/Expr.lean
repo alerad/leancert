@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel.Functions
+module
+
+public import LeanCert.Engine.TaylorModel.Functions
 
 /-!
 # Taylor Model Composition and Expression Integration
@@ -25,6 +27,8 @@ construction for expression trees.
 * `fromExpr_correct` - Expression evaluation lies in Taylor model bound when `fromExpr?` succeeds
 * `mem_expIntervalRefined` - FTIA for refined exp interval
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

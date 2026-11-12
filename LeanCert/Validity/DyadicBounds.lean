@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEvalDyadic
+module
+
+public import LeanCert.Engine.IntervalEvalDyadic
 
 /-!
 # Certificate-Driven Verification with Dyadic Arithmetic
@@ -50,6 +52,8 @@ This provides an alternative verification path to the rational-based `Validity/B
 The Dyadic path is faster but the rational path may be preferred for reproducibility
 across different platforms.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

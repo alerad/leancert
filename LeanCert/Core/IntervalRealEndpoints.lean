@@ -3,13 +3,15 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalReal
-import Mathlib.Analysis.SpecialFunctions.ExpDeriv
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
-import Mathlib.Analysis.SpecialFunctions.Arsinh
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
-import Mathlib.Analysis.Real.Pi.Bounds
-import Mathlib.Analysis.Calculus.MeanValue
+module
+
+public import LeanCert.Core.IntervalReal
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+public import Mathlib.Analysis.SpecialFunctions.Arsinh
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
+public import Mathlib.Analysis.Real.Pi.Bounds
+public import Mathlib.Analysis.Calculus.MeanValue
 
 /-!
 # Intervals with Real Endpoints
@@ -40,6 +42,8 @@ Typical workflow:
 2. Convert to `IntervalReal` when proving facts about transcendental functions
 3. Use mathlib's analysis lemmas directly on real intervals
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 
@@ -111,8 +115,8 @@ theorem mem_neg {x : ℝ} {I : IntervalReal} (hx : x ∈ I) : -x ∈ neg I := by
 
 /-! ### Interval multiplication -/
 
-private def min4 (a b c d : ℝ) : ℝ := min (min a b) (min c d)
-private def max4 (a b c d : ℝ) : ℝ := max (max a b) (max c d)
+def min4 (a b c d : ℝ) : ℝ := min (min a b) (min c d)
+def max4 (a b c d : ℝ) : ℝ := max (max a b) (max c d)
 
 /-- Multiply two intervals -/
 def mul (I J : IntervalReal) : IntervalReal where

@@ -1,8 +1,13 @@
-import LeanCert.Analysis.DBN.PolynomialApproximation
-import LeanCert.Analysis.DBN.PolynomialHeatTransfer
-import LeanCert.Analysis.DBN.HeatShift
+module
+
+public import LeanCert.Analysis.DBN.PolynomialApproximation
+public import LeanCert.Analysis.DBN.PolynomialHeatTransfer
+public import LeanCert.Analysis.DBN.HeatShift
 
 /-! Transfer finite polynomial strip contraction to the actual entire H₀. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex MeasureTheory Set Filter Polynomial
 open scoped Topology

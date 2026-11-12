@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Meta.ToExpr
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.AD
+module
+
+public import Lean
+public meta import LeanCert.Meta.ToExpr
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.AD
 
 /-!
 # Automatic Support Proof Generation
@@ -35,31 +37,33 @@ Unlike Phase 1 where we matched on Lean's math operations (HAdd.hAdd, etc.),
 here we match on our own AST constructors (LeanCert.Core.Expr.add, etc.).
 -/
 
+@[expose] public meta section
+
 open Lean Meta Elab Command Term
 
 namespace LeanCert.Meta
 
 /-! ## Shared AST Proof Helpers -/
 
-private structure UnarySupportCtor where
+structure UnarySupportCtor where
   exprCtor : Name
   proofCtor : Name
 
-private structure BinarySupportCtor where
+structure BinarySupportCtor where
   exprCtor : Name
   proofCtor : Name
 
-private def lookupUnarySupportCtor (fn : Lean.Expr) (table : List UnarySupportCtor) :
+def lookupUnarySupportCtor (fn : Lean.Expr) (table : List UnarySupportCtor) :
     Option Name :=
   table.findSome? fun entry =>
     if fn.isConstOf entry.exprCtor then some entry.proofCtor else none
 
-private def lookupBinarySupportCtor (fn : Lean.Expr) (table : List BinarySupportCtor) :
+def lookupBinarySupportCtor (fn : Lean.Expr) (table : List BinarySupportCtor) :
     Option Name :=
   table.findSome? fun entry =>
     if fn.isConstOf entry.exprCtor then some entry.proofCtor else none
 
-private def tryUnarySupportProof
+def tryUnarySupportProof
     (rec : Lean.Expr → MetaM Lean.Expr)
     (fn : Lean.Expr) (args : Array Lean.Expr) (table : List UnarySupportCtor) :
     MetaM (Option Lean.Expr) := do
@@ -70,7 +74,7 @@ private def tryUnarySupportProof
   let h ← rec e
   return some (← mkAppM proofCtor #[h])
 
-private def tryBinarySupportProof
+def tryBinarySupportProof
     (rec : Lean.Expr → MetaM Lean.Expr)
     (fn : Lean.Expr) (args : Array Lean.Expr) (table : List BinarySupportCtor) :
     MetaM (Option Lean.Expr) := do

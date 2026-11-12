@@ -2,8 +2,10 @@
 Copyright (c) 2025 LeanCert contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 -/
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
-import Mathlib.NumberTheory.Real.GoldenRatio
+module
+
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+public import Mathlib.NumberTheory.Real.GoldenRatio
 
 /-!
 # Pentagon Lucas Sequence
@@ -33,7 +35,7 @@ The sequence bridges the golden ratio φ and pentagon trigonometry through
 the exact identity cos(π/5) = φ/2, equivalently sin(π/10) = φ⁻¹/2 = -ψ/2.
 -/
 
-noncomputable section
+@[expose] public noncomputable section
 
 open Real
 

@@ -3,10 +3,14 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Tactic.IntervalAuto.Types
-import LeanCert.Tactic.IntervalAuto.Extract
-import LeanCert.Meta.ToExpr
+module
+
+public import Lean
+public import LeanCert.Tactic.IntervalAuto.Types
+public import LeanCert.Tactic.IntervalAuto.Extract
+public meta import LeanCert.Meta.ToExpr
+public meta import LeanCert.Tactic.IntervalAuto.Types
+public meta import LeanCert.Tactic.IntervalAuto.Extract
 
 /-!
 # Goal Parsing for Interval Tactics
@@ -18,6 +22,8 @@ which theorem to apply. Handles:
 - Root finding goals
 - Point inequalities
 -/
+
+@[expose] public noncomputable meta section
 
 open Lean Meta
 
@@ -322,7 +328,7 @@ where
 /-! ## Multivariate Goal Parsing -/
 
 /-- Try to extract interval info from a Set.Icc membership type -/
-private def extractIntervalFromSetIcc (memTy : Lean.Expr) (x : Lean.Expr) : MetaM (Option VarIntervalInfo) := do
+def extractIntervalFromSetIcc (memTy : Lean.Expr) (x : Lean.Expr) : MetaM (Option VarIntervalInfo) := do
   -- memTy should be x ∈ Set.Icc lo hi
   match_expr memTy with
   | Membership.mem _ _ _ interval xExpr =>
@@ -360,7 +366,7 @@ private def extractIntervalFromSetIcc (memTy : Lean.Expr) (x : Lean.Expr) : Meta
   | _ => return none
 
 /-- Try to extract interval info from an IntervalRat membership type -/
-private def extractIntervalFromIntervalRat (memTy : Lean.Expr) (x : Lean.Expr) : MetaM (Option VarIntervalInfo) := do
+def extractIntervalFromIntervalRat (memTy : Lean.Expr) (x : Lean.Expr) : MetaM (Option VarIntervalInfo) := do
   match_expr memTy with
   | Membership.mem _ _ _ interval xExpr =>
     if ← isDefEq xExpr x then
@@ -636,7 +642,7 @@ partial def parseMultivariateBoundGoal (goal : Lean.Expr) : MetaM (Option Multiv
 /-! ## Point Inequality Parsing -/
 
 /-- Check if a Lean Name ends with a given suffix string -/
-private def nameEndsWithStr (n : Lean.Name) (suffix : String) : Bool :=
+def nameEndsWithStr (n : Lean.Name) (suffix : String) : Bool :=
   match n with
   | .str _ s => s == suffix
   | _ => false
@@ -646,7 +652,13 @@ private def nameEndsWithStr (n : Lean.Name) (suffix : String) : Bool :=
     - isStrict: true for < or >, false for ≤ or ≥
     - isReversed: true for ≥ or > (need to flip the comparison) -/
 def parsePointIneq (goal : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr × Bool × Bool)) := do
-  let goal ← whnf goal
+  -- Under the module system `whnf` gets stuck on unexposed instances like `Real.instLT`.
+  let goal' := (← instantiateMVars goal).cleanupAnnotations
+  if let some res := parsePointIneqApp goal' then
+    return some res
+  return parsePointIneqApp (← whnf goal')
+where
+  parsePointIneqApp (goal : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Bool × Bool) := Id.run do
   let fn := goal.getAppFn
   let args := goal.getAppArgs
 

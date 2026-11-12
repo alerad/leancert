@@ -1,5 +1,9 @@
-import LeanCert.Tactic.Refute
-import LeanCert.Tactic.IntervalAuto
+module
+
+public import LeanCert.Tactic.Refute
+public import LeanCert.Tactic.IntervalAuto
+
+@[expose] public section
 
 open LeanCert.Core
 

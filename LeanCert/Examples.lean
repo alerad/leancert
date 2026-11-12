@@ -1,21 +1,23 @@
-import LeanCert.Examples.Basic
-import LeanCert.Examples.Calculus
-import LeanCert.Examples.Numerics
-import LeanCert.Examples.Tactics
-import LeanCert.Examples.Certificate
-import LeanCert.Examples.GlobalOptimization
-import LeanCert.Examples.EdgeCases
-import LeanCert.Examples.NeuralNet
-import LeanCert.Examples.Showcase
-import LeanCert.Examples.Chebyshev
-import LeanCert.Examples.ANT.Basic
-import LeanCert.Examples.ML.Distillation
-import LeanCert.Examples.ML.SineApprox
-import LeanCert.Examples.ML.SineNetWeights
-import LeanCert.Examples.BernsteinTest
-import LeanCert.Examples.Li2CertificateTest
-import LeanCert.Examples.EulerMascheroniBounds
-import LeanCert.Examples.PNT_PsiBounds
+module
+
+public import LeanCert.Examples.Basic
+public import LeanCert.Examples.Calculus
+public import LeanCert.Examples.Numerics
+public import LeanCert.Examples.Tactics
+public import LeanCert.Examples.Certificate
+public import LeanCert.Examples.GlobalOptimization
+public import LeanCert.Examples.EdgeCases
+public import LeanCert.Examples.NeuralNet
+public import LeanCert.Examples.Showcase
+public import LeanCert.Examples.Chebyshev
+public import LeanCert.Examples.ANT.Basic
+public import LeanCert.Examples.ML.Distillation
+public import LeanCert.Examples.ML.SineApprox
+public import LeanCert.Examples.ML.SineNetWeights
+public import LeanCert.Examples.BernsteinTest
+public import LeanCert.Examples.Li2CertificateTest
+public import LeanCert.Examples.EulerMascheroniBounds
+public import LeanCert.Examples.PNT_PsiBounds
 
 /-!
 # Supported examples aggregate

@@ -3,8 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Meta.ProveContinuous
-import LeanCert.Tactic.LeanCert.Normalize
+module
+
+public import LeanCert.Meta.ProveContinuous
+public import LeanCert.Tactic.LeanCert.Normalize
+public meta import LeanCert.Meta.ProveContinuous
+public meta import LeanCert.Tactic.LeanCert.Normalize
 
 /-!
 # Proof-Carrying Reification
@@ -13,6 +17,8 @@ The reifier's syntax result is not itself a semantic bridge.  This module
 packages the reflected AST with a kernel-checked equality between its evaluator
 and the original function.  Solver capabilities are derived separately.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic
 

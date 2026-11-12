@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel.Trig
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Core.IntervalRat.Taylor
-import LeanCert.Core.TrigReduction
+module
+
+public import LeanCert.Engine.TaylorModel.Trig
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Core.IntervalRat.Taylor
+public import LeanCert.Core.TrigReduction
 
 /-!
 # Taylor Models with Range Reduction for Trigonometric Functions
@@ -35,6 +37,8 @@ faster since |x - 2πk| ≤ π ≈ 3.14.
 * `reduceToMainPeriod` - Shift interval to be near 0
 * `sinIntervalReduced`, `cosIntervalReduced` - Interval evaluation with range reduction
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.TaylorModel
 

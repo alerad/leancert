@@ -3,6 +3,7 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
 /-!
 # LeanCert Mathlib Pin
@@ -10,6 +11,8 @@ Authors: LeanCert Contributors
 This generated compatibility value is synchronized with the resolved Mathlib
 revision by `scripts/mathlib_stable_update.py`.
 -/
+
+@[expose] public section
 
 /-- LeanCert's expected resolved Mathlib commit, matching `lakefile.toml`. -/
 def expectedMathlibCommit : String := "56a005855ea17e0b0958f73ec801ae140b0a1679"

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Analysis.SpecificLimits.Basic
+module
+
+public import Mathlib.Analysis.SpecificLimits.Basic
 
 /-!
 # Numerically qualified relative completeness
@@ -13,6 +15,8 @@ bounds. A complete refinement schedule must also drive outward-rounding and
 analytic approximation errors to zero. This module records that requirement
 and proves the resulting positive-margin completeness theorem.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

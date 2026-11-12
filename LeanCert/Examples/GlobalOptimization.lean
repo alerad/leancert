@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Optimization.Global
+module
+
+public import LeanCert.Engine.Optimization.Global
 
 /-!
 # Global Optimization Examples
@@ -24,6 +26,8 @@ on multivariate expressions over n-dimensional boxes.
 - Rosenbrock function: (1 - x)² + 100(y - x²)² over [-2, 2]²
 - Beale function on a box
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.GlobalOptimization
 

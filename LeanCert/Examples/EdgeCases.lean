@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.Interval
-import LeanCert.Discovery
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.Optimization.Global
+module
+
+public import LeanCert.Tactic.Interval
+public import LeanCert.Discovery
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.Optimization.Global
 
 /-!
 # Edge Case Stress Tests
@@ -15,6 +17,8 @@ This file tests boundary conditions, singularities, and "tricky" mathematical
 scenarios to ensure the library behaves safely (soundly) even when exact
 answers are impossible.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.EdgeCases
 

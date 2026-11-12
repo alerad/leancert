@@ -1,7 +1,12 @@
-import LeanCert.Analysis.DBN.StripShift
+module
+
+public import LeanCert.Analysis.DBN.StripShift
 
 /-! Finite iteration of imaginary-shift contraction. No assertion about limits
 or approximation of the heat integral is made here. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Polynomial ComplexConjugate
 

@@ -19,9 +19,7 @@ by `divisorZeroIndex₀`, and deduces a local factorization at a point `z₀` on
 the full fiber over `z₀`.
 -/
 
-@[expose] public section
-
-noncomputable section
+public noncomputable section
 
 open Complex Filter Function Finset Topology
 open scoped Topology BigOperators

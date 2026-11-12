@@ -1,4 +1,6 @@
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-
 Copyright (c) 2024 LeanCert Contributors. All rights reserved.
@@ -13,6 +15,8 @@ This is a fast, explicit regression target for the four flagship README
 theorems. `scripts/check_docs_snippets.py` separately extracts and compiles
 every Lean fence from the README itself, preventing the copies from drifting.
 -/
+
+public section
 
 example : Real.log 2 < 7 / 10 := by
   leancert

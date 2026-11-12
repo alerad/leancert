@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.RootFinding.MVTBounds
-import LeanCert.Engine.RootFinding.Bisection
-import Mathlib.Topology.Order.IntermediateValue
+module
+
+public import LeanCert.Engine.RootFinding.MVTBounds
+public import LeanCert.Engine.RootFinding.Bisection
+public import Mathlib.Topology.Order.IntermediateValue
 
 /-!
 # Root Finding: Newton Contraction Existence Theorem
@@ -23,6 +25,8 @@ root existence, along with the uniqueness theorem.
 
 All theorems in this file are **fully proved** with no `sorry` statements.
 -/
+
+public section
 
 namespace LeanCert.Engine
 

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT.Asymp.Env
+module
+
+public import LeanCert.ANT.Asymp.Env
 
 /-!
 # Dirichlet hyperbola envelope kernel
@@ -13,6 +15,8 @@ hyperbola method.  It works at the level of pairs `(i, j)` with `i * j ≤ N`;
 arithmetic convolution presentations can later be connected to this semantic
 kernel through divisor-pair equivalences.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT.Asymp
 

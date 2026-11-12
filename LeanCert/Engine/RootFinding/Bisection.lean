@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.RootFinding.Basic
+module
+
+public import LeanCert.Engine.RootFinding.Basic
 
 /-!
 # Root Finding: Bisection Algorithm
@@ -23,6 +25,8 @@ This file implements the bisection method for root isolation.
 
 All bisection theorems are FULLY PROVED with no `sorry`.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

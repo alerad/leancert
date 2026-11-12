@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Optimization.Gradient
+module
+
+public import LeanCert.Engine.Optimization.Gradient
 
 /-!
 # Domain-aware automatic differentiation regressions
@@ -13,6 +15,8 @@ interval arguments certify the analytic domain conditions.  These tests cover
 successful computation, structured rejection, nesting, multivariable use, and
 the public soundness theorem.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.DomainAwareAD
 

@@ -1,4 +1,6 @@
-import LeanCert.Validity.AffineCover
+module
+
+public import LeanCert.Validity.AffineCover
 
 /-!
 Regression test for the affine cover certificate.
@@ -9,6 +11,8 @@ anti-correlation that defeats the plain interval backend even under
 subdivision.  The affine cover closes it: one `native_decide` over a
 width-0.1 partition.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.AffineCover
 

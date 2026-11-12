@@ -3,11 +3,19 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Discovery.Find
-import LeanCert.Meta.ToExpr
-import LeanCert.Meta.Numeral
-import LeanCert.Meta.ProveSupported
+module
+
+public import Lean
+public import LeanCert.Discovery.Find
+public import LeanCert.Meta.ToExpr
+public import LeanCert.Meta.Numeral
+public import LeanCert.Meta.ProveSupported
+public meta import LeanCert.Discovery.Find
+public meta import LeanCert.Meta.ToExpr
+public meta import LeanCert.Meta.Numeral
+public meta import LeanCert.Meta.ProveSupported
+public import LeanCert.Engine.Optimization.Global
+public meta import LeanCert.Engine.Optimization.Global
 
 /-!
 # Discovery Mode: Elaboration Commands
@@ -40,6 +48,8 @@ The commands work by:
 3. Running the optimization algorithm
 4. Pretty-printing the result
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Command Term
 

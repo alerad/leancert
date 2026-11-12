@@ -1,4 +1,8 @@
-import LeanCert.Examples.Krawczyk
+module
+
+public import LeanCert.Examples.Krawczyk
+
+@[expose] public section
 
 namespace LeanCert.Test.Krawczyk
 

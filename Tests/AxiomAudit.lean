@@ -1,5 +1,7 @@
-import Mathlib.Util.AssertNoSorry
-import LeanCert
+module
+
+public import Mathlib.Util.AssertNoSorry
+public import LeanCert
 -- Library modules not reachable from the root `LeanCert` module are imported
 -- explicitly so the whole-library axiom sweep below actually covers them.
 -- `LeanCert.Test.*` and `LeanCert.Examples.*` are deliberately excluded:
@@ -9,16 +11,16 @@ import LeanCert
 -- `EulerMascheroniBounds` is also imported: it is sorry-free (native_decide
 -- inline), so the sweep verifies it stays that way, and its axiom set is
 -- pinned explicitly below.
-import LeanCert.Engine.Eval
-import LeanCert.Engine.Pisano
-import LeanCert.Engine.PentagonLucas
-import LeanCert.Engine.TaylorModel.Log1p
-import LeanCert.Engine.TaylorModel.TrigReduced
-import LeanCert.Core.HermiteBounds
-import LeanCert.Core.LogBounds
-import LeanCert.CertifiedBounds.Li2
-import LeanCert.Examples.EulerMascheroniBounds
-import LeanCert.Bridge
+public import LeanCert.Engine.Eval
+public import LeanCert.Engine.Pisano
+public import LeanCert.Engine.PentagonLucas
+public import LeanCert.Engine.TaylorModel.Log1p
+public import LeanCert.Engine.TaylorModel.TrigReduced
+public import LeanCert.Core.HermiteBounds
+public import LeanCert.Core.LogBounds
+public import LeanCert.CertifiedBounds.Li2
+public import LeanCert.Examples.EulerMascheroniBounds
+public import LeanCert.Bridge
 
 /-!
 Axiom/sorry guardrail for the certified interval evaluation path.
@@ -37,6 +39,8 @@ Two layers of protection:
 certificate checks; the invariant enforced here is that the *library theorems
 themselves* do not depend on it.
 -/
+
+public section
 
 assert_no_sorry LeanCert.Engine.evalIntervalCore_correct
 assert_no_sorry LeanCert.Engine.evalIntervalCore1_correct

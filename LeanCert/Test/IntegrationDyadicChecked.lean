@@ -1,4 +1,8 @@
-import LeanCert.Validity.IntegrationDyadic
+module
+
+public import LeanCert.Validity.IntegrationDyadic
+
+@[expose] public section
 
 open LeanCert.Core LeanCert.Engine
 open LeanCert.Validity.IntegrationDyadic

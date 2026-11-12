@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
-import LeanCert.Tactic.Verification
-import LeanCert.Engine.IntervalEvalReal
+module
+
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Tactic.Verification
+public import LeanCert.Engine.IntervalEvalReal
 
 /-!
 # Interval Arithmetic Tactics
@@ -32,6 +34,8 @@ noncomputable evaluation due to `Real.exp`. These cannot use `native_decide`.
 
 The tactics use the core evaluator to enable `native_decide`.
 -/
+
+public section
 
 namespace LeanCert.Tactic
 

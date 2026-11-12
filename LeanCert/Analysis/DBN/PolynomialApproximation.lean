@@ -1,8 +1,13 @@
-import LeanCert.Analysis.DBN.CanonicalProduct
-import LeanCert.Analysis.DBN.XiIdentity
-import Mathlib.Analysis.Calculus.Deriv.Star
+module
+
+public import LeanCert.Analysis.DBN.CanonicalProduct
+public import LeanCert.Analysis.DBN.XiIdentity
+public import Mathlib.Analysis.Calculus.Deriv.Star
 
 /-! Symmetric, multiplicity-preserving polynomial cutoffs of the actual H₀ divisor. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Complex.Hadamard Polynomial Filter Set
 open scoped Topology ComplexConjugate

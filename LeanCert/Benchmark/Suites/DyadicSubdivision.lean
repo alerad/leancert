@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.Core.DyadicFrontier
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.Core.DyadicFrontier
 
 /-!
 # Exact dyadic subdivision benchmarks
@@ -13,6 +15,8 @@ These cases establish the construction baseline for complete closed-cell
 bisection trees. Future addressed-cell and direct-decoding implementations can
 be compared against the same depths and semantic total-width check.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.DyadicSubdivision
 

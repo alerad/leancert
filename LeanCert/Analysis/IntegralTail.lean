@@ -1,9 +1,14 @@
-import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
-import Mathlib.Tactic
+module
+
+public import Mathlib.Analysis.SpecialFunctions.ImproperIntegrals
+public import Mathlib.Tactic
 
 /-! Exponential and Gaussian majorants for right improper integral tails.
 Measurability and integrability are explicit; a totalized integral value alone
 is never treated as evidence of convergence. -/
+
+public section
+
 namespace LeanCert.Analysis.IntegralTail
 
 open MeasureTheory Set

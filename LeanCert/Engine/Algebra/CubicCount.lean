@@ -3,10 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.Discriminant
-import LeanCert.Engine.Eval.Extended
-import LeanCert.Engine.Optimization.Box
-import LeanCert.Engine.RootFinding.Basic
+module
+
+public import LeanCert.Engine.Algebra.Discriminant
+public import LeanCert.Engine.Eval.Extended
+public import LeanCert.Engine.Optimization.Box
+public import LeanCert.Engine.RootFinding.Basic
 
 /-!
 # Executable root-count certificates for parametric cubics
@@ -17,6 +19,8 @@ never vanishes and that the discriminant has a fixed strict sign throughout a
 parameter box.  When direct interval evaluation is inconclusive, the recursive
 checker bisects the widest parameter interval and checks both children.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

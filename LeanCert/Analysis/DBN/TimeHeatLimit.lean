@@ -1,6 +1,11 @@
-import LeanCert.Analysis.DBN.HeatLimit
+module
+
+public import LeanCert.Analysis.DBN.HeatLimit
 
 /-! Finite imaginary shifts converge locally uniformly to forward heat evolution. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex MeasureTheory Set Filter
 open scoped Topology

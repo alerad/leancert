@@ -1,7 +1,12 @@
-import LeanCert.Analysis.DBN.TimePolynomialApproximation
-import LeanCert.Analysis.DBN.RealZeroTimes
+module
+
+public import LeanCert.Analysis.DBN.TimePolynomialApproximation
+public import LeanCert.Analysis.DBN.RealZeroTimes
 
 /-! A four-point inequality forced by real-only zeros. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Polynomial Set Filter
 open scoped Topology
@@ -76,7 +81,7 @@ theorem H_four_point_normSq (t : ℝ) (ht : t ∈ realZeroTimes) (y : ℝ) :
     rw [polynomial_normSq t ht n (2*y), polynomial_normSq t ht n (3*y),
       polynomial_normSq t ht n y]
     simp only [s, Multiset.map_map, Function.comp_def, mul_pow] at h' ⊢
-    convert h' using 1 <;> first | rfl | ring_nf
+    convert h' using 1 <;> ring_nf
   have hc (w : ℂ) := Complex.continuous_normSq.continuousAt.tendsto.comp
     ((TimeApproximation.HZeroPolynomial_convergence t).tendstoLocallyUniformlyOn.tendsto_at (mem_univ w))
   exact le_of_tendsto_of_tendsto

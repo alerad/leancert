@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Algebra
+module
+
+public import LeanCert.Validity.Algebra
 
 /-!
 # Exact algebraic certificate regressions
@@ -15,6 +17,8 @@ For `P = x^3 - 2`, the integer-coefficient identity
 certifies that every root is simple. The negative cases model corrupted CAS
 output by changing a cofactor or the claimed scalar.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.AlgebraicBezout
 

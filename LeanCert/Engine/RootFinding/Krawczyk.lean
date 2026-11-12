@@ -1,8 +1,12 @@
-import LeanCert.Engine.Optimization.Gradient
-import Mathlib.Analysis.Matrix.Normed
-import Mathlib.Analysis.Calculus.Deriv.Pi
-import Mathlib.Topology.MetricSpace.Contracting
-import LeanCert.Core.IntervalRat.Basic
+module
+
+public import LeanCert.Engine.Optimization.Gradient
+public import Mathlib.Analysis.Matrix.Normed
+public import Mathlib.Analysis.Calculus.Deriv.Pi
+public import Mathlib.Topology.MetricSpace.Contracting
+public import LeanCert.Core.IntervalRat.Basic
+
+@[expose] public section
 
 namespace LeanCert.Engine
 open LeanCert.Core

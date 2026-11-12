@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.AffineBounds
+module
+
+public import LeanCert.Validity.AffineBounds
 
 /-!
 # Affine cover certificates for interval lower bounds
@@ -20,6 +22,8 @@ single boolean cover checker plus a golden theorem, in the same checker +
 soundness style as the rest of LeanCert.  The intended consumer is a comparison
 `∀ x ∈ [a,b], f x ≤ g x`, reduced to `0 ≤ (g - f) x` and covered.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

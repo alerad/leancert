@@ -1,7 +1,12 @@
-import LeanCert.Analysis.DBN.HeatFlow
-import Mathlib.Analysis.Normed.Group.FunctionSeries
+module
+
+public import LeanCert.Analysis.DBN.HeatFlow
+public import Mathlib.Analysis.Normed.Group.FunctionSeries
 
 /-! Continuity of the actual kernel and integrability of its even extension. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Set Filter MeasureTheory
 open scoped Topology

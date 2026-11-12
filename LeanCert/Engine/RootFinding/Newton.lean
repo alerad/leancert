@@ -3,11 +3,13 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.AD
-import LeanCert.Engine.TaylorModel
-import LeanCert.Engine.Optimize  -- For derivInterval_correct_single, evalFunc1
-import LeanCert.Engine.RootFinding.Basic
-import Mathlib.Analysis.Calculus.MeanValue
+module
+
+public import LeanCert.Engine.AD
+public import LeanCert.Engine.TaylorModel
+public import LeanCert.Engine.Optimize  -- For derivInterval_correct_single, evalFunc1
+public import LeanCert.Engine.RootFinding.Basic
+public import Mathlib.Analysis.Calculus.MeanValue
 
 /-!
 # Root Finding: Newton Method
@@ -30,6 +32,8 @@ This file implements the interval Newton method for root finding.
 
 All Newton theorems for root preservation are FULLY PROVED with no `sorry`.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

@@ -3,7 +3,9 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Network
+module
+
+public import LeanCert.ML.Network
 
 /-!
 # Trained Sine Approximator Network
@@ -14,6 +16,8 @@ This file contains the weights for a neural network trained to approximate sin(x
 - Training domain: x ∈ [0, π]
 - Weights exported as exact rational numbers
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.ML.SineApprox
 

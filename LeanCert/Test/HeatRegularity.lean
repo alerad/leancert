@@ -1,6 +1,10 @@
-import LeanCert.Analysis.DBN.HeatRegularity
-import LeanCert.Examples.ParametricIntegral
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.HeatRegularity
+public import LeanCert.Examples.ParametricIntegral
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 namespace LeanCert.Test.HeatRegularity
 open Analysis.DBN MeasureTheory Set

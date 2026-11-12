@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Validity.Bounds.Smart
-import LeanCert.Engine.Integrate
+module
+
+public import LeanCert.Validity.Bounds.Smart
+public import LeanCert.Engine.Integrate
 
 /-!
 # Set.Icc Bridge Theorems and Subdivision
@@ -32,6 +34,8 @@ as well as subdivision theorems for combining bounds from interval partitions.
 * `verify_upper_bound_general_split` - Combine from arbitrary split points
 * `verify_lower_bound_general_split` - Combine from arbitrary split points
 -/
+
+public section
 
 namespace LeanCert.Validity
 

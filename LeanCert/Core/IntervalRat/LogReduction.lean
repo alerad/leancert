@@ -3,12 +3,14 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Data.Rat.Defs
-import Mathlib.Data.Nat.Log
-import Mathlib.Basic.Real.Basic
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
-import LeanCert.Core.Expr  -- for Real.atanh
+module
+
+public import Mathlib.Data.Rat.Defs
+public import Mathlib.Data.Nat.Log
+public import Mathlib.Basic.Real.Basic
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import LeanCert.Core.Expr  -- for Real.atanh
 
 /-!
 # Verified Argument Reduction for Logarithm
@@ -33,6 +35,8 @@ This reduction allows us to use the rapidly converging atanh-based series:
   log(m) = 2 * atanh((m-1)/(m+1))
 For m ∈ [1/2, 2], we have (m-1)/(m+1) ∈ [-1/3, 1/3], where atanh converges very fast.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core.LogReduction
 

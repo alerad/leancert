@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.FinSumBound
+module
+
+public import LeanCert.Tactic.FinSumBound
 
 /-!
 # Tests for `finsum_bound`
@@ -12,6 +14,8 @@ Verifies that the `finsum_bound` tactic can prove bounds on finite sums
 with O(1) proof size via `native_decide`. Covers auto-reify mode, witness mode
 (`using`), auto-hmem witness mode (`auto`), Fin n sums, and various Finset types.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.FinSumBound
 

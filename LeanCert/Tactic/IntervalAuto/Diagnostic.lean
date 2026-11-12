@@ -3,15 +3,19 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Tactic.IntervalAuto.Types
-import LeanCert.Tactic.IntervalAuto.Parse
+module
+
+public import Lean
+public import LeanCert.Tactic.IntervalAuto.Types
+public import LeanCert.Tactic.IntervalAuto.Parse
 
 /-!
 # Diagnostic Utilities for Interval Tactics
 
 Error reporting, shadow diagnostics, and helpful error messages for interval tactics.
 -/
+
+@[expose] public section
 
 open Lean Meta
 

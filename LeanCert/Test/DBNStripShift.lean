@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.StripShift
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.StripShift
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 namespace LeanCert.Test.DBNStripShift
 open Analysis.DBN Complex Polynomial

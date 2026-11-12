@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-!
 # Natural integral tests
@@ -12,6 +14,8 @@ Ordinary interval-integral statements are solved through the public semantic
 front door.  Polynomial goals use exact rational certificates; transcendental
 inequalities use checked partition search.
 -/
+
+@[expose] public section
 
 open MeasureTheory
 

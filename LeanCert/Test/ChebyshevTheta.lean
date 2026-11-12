@@ -1,4 +1,8 @@
-import LeanCert.Engine.Chebyshev.Theta
+module
+
+public import LeanCert.Engine.Chebyshev.Theta
+
+public section
 
 open LeanCert.Engine.Chebyshev.Theta
 

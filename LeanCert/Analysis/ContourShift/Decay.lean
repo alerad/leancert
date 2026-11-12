@@ -3,10 +3,15 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.ContourShift
-import Mathlib.MeasureTheory.Integral.IntegralEqImproper
+module
+
+public import LeanCert.Analysis.ContourShift
+public import Mathlib.MeasureTheory.Integral.IntegralEqImproper
 
 /-! Holomorphic constructors and a bridge to actual integrable vertical lines. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.ContourShift
 open Complex MeasureTheory Filter Set
 open scoped Topology

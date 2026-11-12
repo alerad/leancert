@@ -1,5 +1,7 @@
-import LeanCert.Analysis.DBN.ZeroLimit
-import LeanCert.Analysis.DBN.HeatShift
+module
+
+public import LeanCert.Analysis.DBN.ZeroLimit
+public import LeanCert.Analysis.DBN.HeatShift
 
 /-!
 # Polynomial approximation and heat-limit zero control
@@ -12,6 +14,9 @@ uniform limit. Nontriviality of both limits is explicit and indispensable.
 A caller must still construct the approximation and identify its heat limit.
 These are proof obligations, not fields asserting the desired zero theorem.
 -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Set Filter Polynomial
 open scoped Topology

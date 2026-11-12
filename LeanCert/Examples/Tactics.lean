@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.Interval
-import Mathlib.Analysis.Complex.ExponentialBounds
+module
+
+public import LeanCert.Tactic.Interval
+public import Mathlib.Analysis.Complex.ExponentialBounds
 
 /-!
 # Tactic Examples
@@ -30,6 +32,8 @@ We have two evaluation strategies:
    `LeanCert.Internal.Rational.evalUnchecked1` which requires noncomputable evaluation due to
    Real.exp floor/ceil bounds. These proofs use FTIA directly.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Examples.Tactics
 

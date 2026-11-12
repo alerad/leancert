@@ -1,4 +1,8 @@
-import LeanCert.Engine.Chebyshev.Psi
+module
+
+public import LeanCert.Engine.Chebyshev.Psi
+
+public section
 
 open LeanCert.Engine.Chebyshev.Psi
 

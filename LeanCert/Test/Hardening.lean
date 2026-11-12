@@ -3,22 +3,26 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.Meta.ProveSupported
-import LeanCert.Engine.AD.Eval
-import LeanCert.Engine.IntervalEvalReal
-import LeanCert.Engine.IntervalEvalAffine
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.Eval.Extended
-import LeanCert.Engine.Optimization.Global
-import LeanCert.Engine.Search.CounterExample
-import LeanCert.Validity.AffineBounds
+module
+
+public import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Meta.ProveSupported
+public import LeanCert.Engine.AD.Eval
+public import LeanCert.Engine.IntervalEvalReal
+public import LeanCert.Engine.IntervalEvalAffine
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.Eval.Extended
+public import LeanCert.Engine.Optimization.Global
+public import LeanCert.Engine.Search.CounterExample
+public import LeanCert.Validity.AffineBounds
 
 /-!
 # Hardening Regression Tests
 
 Small tests for trust-boundary and support-predicate hardening.
 -/
+
+@[expose] public section
 
 open LeanCert.Core
 open LeanCert.Engine

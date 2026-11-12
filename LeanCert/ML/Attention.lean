@@ -3,9 +3,11 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Softmax
-import LeanCert.ML.Transformer
-import LeanCert.ML.Optimized.MatrixNetwork
+module
+
+public import LeanCert.ML.Softmax
+public import LeanCert.ML.Transformer
+public import LeanCert.ML.Optimized.MatrixNetwork
 
 /-!
 # Verified Self-Attention Mechanism
@@ -43,6 +45,8 @@ Input X: [seq_len, d_model]
 
 The composition of these verified operations maintains soundness.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Attention
 

@@ -3,154 +3,157 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
 -- Core modules
-import LeanCert.Core.Expr
-import LeanCert.Core.Interval
-import LeanCert.Core.IntervalReal
-import LeanCert.Core.IntervalRealEndpoints
-import LeanCert.Core.Taylor
-import LeanCert.Core.DerivativeIntervals
-import LeanCert.Cert.Interval
-import LeanCert.Analysis.ContourShift
-import LeanCert.Analysis.WallQuotient
-import LeanCert.Analysis.DBN
-import LeanCert.Engine.DirichletGaussian
-import LeanCert.Analysis.DBN.DobnerReduction
-import LeanCert.Analysis.DBN.DobnerDirichlet
-import LeanCert.Analysis.DBN.DobnerGammaReciprocal
-import LeanCert.Analysis.DBN.DobnerContourShift
-import LeanCert.Analysis.DBN.DobnerGammaRatio
-import LeanCert.Analysis.DBN.DobnerLimit
+public import LeanCert.Core.Expr
+public import LeanCert.Core.Interval
+public import LeanCert.Core.IntervalReal
+public import LeanCert.Core.IntervalRealEndpoints
+public import LeanCert.Core.Taylor
+public import LeanCert.Core.DerivativeIntervals
+public import LeanCert.Cert.Interval
+public import LeanCert.Analysis.ContourShift
+public import LeanCert.Analysis.WallQuotient
+public import LeanCert.Analysis.DBN
+public import LeanCert.Engine.DirichletGaussian
+public import LeanCert.Analysis.DBN.DobnerReduction
+public import LeanCert.Analysis.DBN.DobnerDirichlet
+public import LeanCert.Analysis.DBN.DobnerGammaReciprocal
+public import LeanCert.Analysis.DBN.DobnerContourShift
+public import LeanCert.Analysis.DBN.DobnerGammaRatio
+public import LeanCert.Analysis.DBN.DobnerLimit
 -- v1.1: Dyadic arithmetic (high-performance alternative to Rat)
-import LeanCert.Core.Dyadic
-import LeanCert.Core.IntervalDyadic
-import LeanCert.Core.CertifiedCellDomain
-import LeanCert.Core.RationalCellDomain
-import LeanCert.Core.DyadicCellDomain
-import LeanCert.Core.DyadicCell
-import LeanCert.Core.DyadicFrontier
-import LeanCert.Core.DyadicLimit
+public import LeanCert.Core.Dyadic
+public import LeanCert.Core.IntervalDyadic
+public import LeanCert.Core.CertifiedCellDomain
+public import LeanCert.Core.RationalCellDomain
+public import LeanCert.Core.DyadicCellDomain
+public import LeanCert.Core.DyadicCell
+public import LeanCert.Core.DyadicFrontier
+public import LeanCert.Core.DyadicLimit
 
 -- Numerics modules
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.Eval.Backend
-import LeanCert.API.Eval
-import LeanCert.API.Backend
-import LeanCert.API.AD
-import LeanCert.API.Integration
-import LeanCert.API.Capabilities
-import LeanCert.API.Optimization
-import LeanCert.API.Bounds
-import LeanCert.Engine.IntervalEvalReal
-import LeanCert.Engine.AD
-import LeanCert.Engine.Integrate
-import LeanCert.Engine.Optimize
-import LeanCert.Engine.RootFinding.Main
-import LeanCert.Engine.Algebra.QPolyIntegral
-import LeanCert.Engine.Algebra.QPolyBernstein
-import LeanCert.Engine.TaylorModel
-import LeanCert.Engine.IntervalEvalRefined
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.Eval.Backend
+public import LeanCert.API.Eval
+public import LeanCert.API.Backend
+public import LeanCert.API.AD
+public import LeanCert.API.Integration
+public import LeanCert.API.Capabilities
+public import LeanCert.API.Optimization
+public import LeanCert.API.Bounds
+public import LeanCert.Engine.IntervalEvalReal
+public import LeanCert.Engine.AD
+public import LeanCert.Engine.Integrate
+public import LeanCert.Engine.Optimize
+public import LeanCert.Engine.RootFinding.Main
+public import LeanCert.Engine.Algebra.QPolyIntegral
+public import LeanCert.Engine.Algebra.QPolyBernstein
+public import LeanCert.Engine.TaylorModel
+public import LeanCert.Engine.IntervalEvalRefined
 
 -- Validity layer: Golden Theorems lifting boolean certificate checks to
 -- semantic propositions. This is the user-facing certificate API. The
 -- umbrella covers all backends: rational, dyadic, affine, monotonicity,
 -- root finding, global optimization, and certified integration.
-import LeanCert.Validity
+public import LeanCert.Validity
 -- v1.1: Dyadic evaluator (prevents denominator explosion)
-import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.IntervalEvalDyadic
 -- v1.1: Computable polynomial Taylor models (high-order integration)
-import LeanCert.Engine.CompPoly
+public import LeanCert.Engine.CompPoly
 -- v1.2: Reflective sum evaluator (O(1) proof size for finite sums)
-import LeanCert.Engine.ReflectiveSum
+public import LeanCert.Engine.ReflectiveSum
 -- v1.3: General finite sum evaluator (O(1) proof size for any Core.Expr body)
-import LeanCert.Engine.FinSumDyadic
+public import LeanCert.Engine.FinSumDyadic
 -- v1.3: Witness-based finite sum evaluator (user-provided per-term evaluator)
-import LeanCert.Engine.WitnessSum
+public import LeanCert.Engine.WitnessSum
 -- v1.4: Generic finite table certificates (row-wise native_decide loops)
-import LeanCert.Engine.Table
-import LeanCert.Engine.Chebyshev.Psi
-import LeanCert.Engine.Chebyshev.Theta
+public import LeanCert.Engine.Table
+public import LeanCert.Engine.Chebyshev.Psi
+public import LeanCert.Engine.Chebyshev.Theta
 
 -- Global Optimization
-import LeanCert.Engine.Optimization.Box
-import LeanCert.Engine.Optimization.BoxAddress
-import LeanCert.Engine.Optimization.Gradient
-import LeanCert.Engine.Optimization.Global
-import LeanCert.Engine.Optimization.Backend
-import LeanCert.Engine.Optimization.Guided
+public import LeanCert.Engine.Optimization.Box
+public import LeanCert.Engine.Optimization.BoxAddress
+public import LeanCert.Engine.Optimization.Gradient
+public import LeanCert.Engine.Optimization.Global
+public import LeanCert.Engine.Optimization.Backend
+public import LeanCert.Engine.Optimization.Guided
 
 -- Affine Arithmetic
-import LeanCert.Engine.Affine.Basic
-import LeanCert.Engine.Affine.Nonlinear
-import LeanCert.Engine.Affine.Transcendental
-import LeanCert.Engine.Affine.Vector
+public import LeanCert.Engine.Affine.Basic
+public import LeanCert.Engine.Affine.Nonlinear
+public import LeanCert.Engine.Affine.Transcendental
+public import LeanCert.Engine.Affine.Vector
 
 -- Extended Numerics
-import LeanCert.Engine.Extended
+public import LeanCert.Engine.Extended
 
 -- Search + Certify APIs
-import LeanCert.Engine.SearchAPI
+public import LeanCert.Engine.SearchAPI
 
 -- Analytic number theory certificate machinery
-import LeanCert.ANT
+public import LeanCert.ANT
 
 -- Meta (metaprogramming utilities)
-import LeanCert.Meta.ProveContinuous
-import LeanCert.Meta.ProveSupported
-import LeanCert.Meta.ToExpr
+public import LeanCert.Meta.ProveContinuous
+public import LeanCert.Meta.ProveSupported
+public import LeanCert.Meta.ToExpr
 
 -- Tactics
 -- Keep the documented stable tactic umbrella in the default `LeanCert` build.
 -- Importing its individual implementation modules here is not equivalent:
 -- downstream `import LeanCert.Tactic` requires `LeanCert/Tactic.olean` itself.
-import LeanCert.Tactic
-import LeanCert.Tactic.Interval
-import LeanCert.Tactic.Discovery
+public import LeanCert.Tactic
+public import LeanCert.Tactic.Interval
+public import LeanCert.Tactic.Discovery
 -- Counter-example hunting
-import LeanCert.Tactic.Refute
+public import LeanCert.Tactic.Refute
 -- Additional tactics
-import LeanCert.Tactic.Bound
+public import LeanCert.Tactic.Bound
 -- Vector simplification with explicit Fin constructors
-import LeanCert.Tactic.VecSimp
+public import LeanCert.Tactic.VecSimp
 -- Finset sum expansion (intervals, explicit sets, and Fin sums)
-import LeanCert.Tactic.FinSumExpand
+public import LeanCert.Tactic.FinSumExpand
 -- O(1) proof-size finite sum bounds via native_decide
-import LeanCert.Tactic.FinSumBound
+public import LeanCert.Tactic.FinSumBound
 -- Witness-based finite sum bounds (user-provided evaluator + correctness proof)
-import LeanCert.Tactic.FinSumWitness
+public import LeanCert.Tactic.FinSumWitness
 
 -- Discovery Mode
-import LeanCert.Discovery
+public import LeanCert.Discovery
 
 -- Machine Learning
-import LeanCert.ML.Network
-import LeanCert.ML.IntervalVector
-import LeanCert.ML.Distillation
-import LeanCert.ML.Symbolic.ReLU
-import LeanCert.ML.Symbolic.Sigmoid
-import LeanCert.ML.Transformer
-import LeanCert.ML.ErfGELU
-import LeanCert.ML.Softmax
-import LeanCert.ML.Attention
-import LeanCert.ML.LayerNormAffine
-import LeanCert.ML.Optimized
-import LeanCert.ML.Optimized.IntervalArray
-import LeanCert.ML.Optimized.Matrix
-import LeanCert.ML.Optimized.QuantizedLayer
-import LeanCert.ML.Optimized.MatrixNetwork
+public import LeanCert.ML.Network
+public import LeanCert.ML.IntervalVector
+public import LeanCert.ML.Distillation
+public import LeanCert.ML.Symbolic.ReLU
+public import LeanCert.ML.Symbolic.Sigmoid
+public import LeanCert.ML.Transformer
+public import LeanCert.ML.ErfGELU
+public import LeanCert.ML.Softmax
+public import LeanCert.ML.Attention
+public import LeanCert.ML.LayerNormAffine
+public import LeanCert.ML.Optimized
+public import LeanCert.ML.Optimized.IntervalArray
+public import LeanCert.ML.Optimized.Matrix
+public import LeanCert.ML.Optimized.QuantizedLayer
+public import LeanCert.ML.Optimized.MatrixNetwork
 
 -- Examples are separate from the default library build.
 -- Build supported examples explicitly with `lake build Examples`.
 
 -- Contrib (community contributions)
-import LeanCert.Contrib.Sinc
+public import LeanCert.Contrib.Sinc
 
 /-! ## Public API
 
 The `LeanCert` namespace re-exports the most commonly used definitions
 so users can write `open LeanCert` and have immediate access to the core API.
 -/
+
+@[expose] public section
 
 namespace LeanCert
 

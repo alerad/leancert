@@ -3,13 +3,17 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Meta.ToExpr
-import LeanCert.Meta.ProveSupported
-import LeanCert.Core.Expr
-import Mathlib.Topology.ContinuousOn
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
-import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+module
+
+public import Lean
+public import LeanCert.Meta.ToExpr
+public import LeanCert.Meta.ProveSupported
+public meta import LeanCert.Meta.ToExpr
+public meta import LeanCert.Meta.ProveSupported
+public import LeanCert.Core.Expr
+public import Mathlib.Topology.ContinuousOn
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 
 /-!
 # Automatic Continuity Proof Generation
@@ -40,6 +44,8 @@ Operations in `ExprContinuousCore`:
 - Sin, Cos, Exp, Sqrt, Sinh, Cosh, Tanh, Erf, named constants:
   continuous everywhere
 -/
+
+@[expose] public section
 
 open Lean Meta Elab Term Command
 open LeanCert.Core
@@ -362,6 +368,16 @@ theorem exprContinuousDomainValid_log_var_interval
     simp only [LeanCert.Core.Expr.eval]
     exact lt_of_lt_of_le (by exact_mod_cast hlo) hx.1
 
+end LeanCert.Meta
+end
+
+@[expose] public noncomputable meta section
+
+namespace LeanCert.Meta
+
+open Lean Meta Elab Term Command
+open LeanCert.Core
+
 /-! ## Metaprogramming: Continuity Proof Generation
 
 Generate proof terms of `ContinuousOn (fun x => Expr.eval (fun _ => x) e) (Set.Icc lo hi)`
@@ -575,3 +591,4 @@ elab "#check_continuous " t:term " on " lo:term ", " hi:term : command => do
   logInfo m!"Continuity proof type: {contType}"
 
 end LeanCert.Meta
+end

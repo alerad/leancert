@@ -3,17 +3,26 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto.Basic
-import LeanCert.Tactic.Verification
-import LeanCert.Tactic.IntervalAuto.Bound
-import LeanCert.Validity.Bounds
-import LeanCert.Engine.Optimization.BoundVerify
+module
+
+public import LeanCert.Tactic.IntervalAuto.Basic
+public import LeanCert.Tactic.Verification
+public import LeanCert.Tactic.IntervalAuto.Bound
+public import LeanCert.Validity.Bounds
+public import LeanCert.Engine.Optimization.BoundVerify
+public meta import LeanCert.Tactic.IntervalAuto.Basic
+public meta import LeanCert.Tactic.Verification
+public meta import LeanCert.Tactic.IntervalAuto.Bound
+public meta import LeanCert.Validity.Bounds
+public meta import LeanCert.Engine.Optimization.BoundVerify
 
 /-!
 # Adaptive Branch-and-Bound Tactic
 
 The `interval_bound_adaptive` tactic uses branch-and-bound global optimization.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic Term
 
