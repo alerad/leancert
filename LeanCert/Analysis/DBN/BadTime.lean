@@ -49,7 +49,7 @@ private theorem gaussianAverage_four_point_sq {c : ℝ} (hc : 0 < c)
   norm_num at hA0 hA1 hA2 hA3
   rw [hA0, hA2, hA3, hA1]
   push_cast at hscaled
-  convert hscaled using 1 <;> first | rfl | ring
+  convert hscaled using 1 <;> ring
 
 /-- Not every negative square time can have real-only zeros. -/
 theorem exists_bad_negative_square :
@@ -70,7 +70,7 @@ theorem exists_bad_negative_square :
   have hcancel :
       (Real.sqrt Real.pi)^32 * ((Phi 0)^20 * (Phi 2)^12) ≤
       (Real.sqrt Real.pi)^32 * ((Phi 3)^2 * (Phi 1)^30) := by
-    convert hineq using 1 <;> first | rfl | ring
+    convert hineq using 1 <;> ring
   have hbare := (mul_le_mul_iff_of_pos_left (pow_pos hroot 32)).mp hcancel
   have hstrict : ((Phi 3)*(Phi 1)^15)^2 < ((Phi 0)^10*(Phi 2)^6)^2 :=
     pow_lt_pow_left₀ Phi_four_point_obstruction

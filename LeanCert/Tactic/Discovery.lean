@@ -211,6 +211,9 @@ private def tryConvertSetIcc (interval : Lean.Expr) : MetaM (Option Lean.Expr) :
   let parseBounds (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
     if let some bounds ← parseSetIccBounds e then
       return some bounds
+    -- `whnf` stops at `{x | p x}` rather than reducing it to the lambda `p`.
+    if e.isAppOfArity ``setOf 2 then
+      return ← parseSetIccLambda e.appArg!
     parseSetIccLambda e
 
   let mkIntervalRatFromBounds (loExpr hiExpr : Lean.Expr) : MetaM (Option Lean.Expr) := do
@@ -227,6 +230,13 @@ private def tryConvertSetIcc (interval : Lean.Expr) : MetaM (Option Lean.Expr) :
   if let some (loExpr, hiExpr) ← parseBounds interval then
     if let some intervalRat ← mkIntervalRatFromBounds loExpr hiExpr then
       return some intervalRat
+  -- Unfold reducible abbreviations such as `abbrev I : Set ℝ := Set.Icc 0 1` first, since
+  -- full `whnf` also unfolds `Set.Icc` itself.
+  let intervalWhnfR ← whnfR interval
+  if intervalWhnfR != interval then
+    if let some (loExpr, hiExpr) ← parseBounds intervalWhnfR then
+      if let some intervalRat ← mkIntervalRatFromBounds loExpr hiExpr then
+        return some intervalRat
   let intervalWhnf ← withTransparency TransparencyMode.all <| whnf interval
   if intervalWhnf == interval then
     return none

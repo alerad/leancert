@@ -38,8 +38,8 @@ private theorem gaussian_cos_integrable (z : ℂ) (c : ℝ) :
     simp only [Complex.cos]
     push_cast
     rw [← mul_div_assoc, mul_add, ← Complex.exp_add, ← Complex.exp_add]
-    congr 2 <;> congr 1 <;> ring
-  simp only [he]
+    ring_nf
+  rw [funext he]
   exact ((gaussian_exp_integrable _ _).add (gaussian_exp_integrable _ _)).div_const 2
 
 private theorem gaussian_cos_integral (z : ℂ) (c : ℝ) :
@@ -51,8 +51,8 @@ private theorem gaussian_cos_integral (z : ℂ) (c : ℝ) :
     simp only [Complex.cos]
     push_cast
     rw [← mul_div_assoc, mul_add, ← Complex.exp_add, ← Complex.exp_add]
-    congr 2 <;> congr 1 <;> ring
-  simp only [he, integral_div]
+    ring_nf
+  rw [funext he, integral_div]
   rw [integral_add (gaussian_exp_integrable _ _) (gaussian_exp_integrable _ _),
     gaussian_exp_integral, gaussian_exp_integral]
   have h1 : ((c : ℂ)*I)^2/4 = -(c : ℂ)^2/4 := by rw [mul_pow, I_sq]; ring
@@ -142,12 +142,12 @@ private theorem gaussianShift_cos_eq (q z : ℂ) (c x : ℝ) :
   unfold gaussianShift Complex.cos
   push_cast
   rw [← mul_div_assoc, mul_add, ← Complex.exp_add, ← Complex.exp_add]
-  congr 2 <;> congr 1 <;> ring
+  ring_nf
 
 theorem gaussianShift_cos_integral (q z : ℂ) (c : ℝ) :
     (∫ x : ℝ, gaussianShift q x * Complex.cos (z+(c*x : ℝ))) =
       (Real.sqrt Real.pi * Real.exp (-c^2/4) : ℝ) * Complex.cos (z+(c : ℂ)*q) := by
-  simp only [gaussianShift_cos_eq, integral_div]
+  rw [funext (gaussianShift_cos_eq q z c), integral_div]
   rw [integral_add (gaussian_exp_integrable _ _) (gaussian_exp_integrable _ _),
     gaussian_exp_integral, gaussian_exp_integral]
   have h1 : -q^2+z*I+(2*q+(c : ℂ)*I)^2/4 = -(c : ℂ)^2/4+(z+(c : ℂ)*q)*I := by

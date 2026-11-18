@@ -66,6 +66,7 @@ private def closeBridgeWithVerificationTypedImpl
           original.restore
           return .error <| .verificationFailure (failure.message tacticName)
     goal.assign proof
+    pruneSolvedGoals
     return .ok event
   else
     let suffMVar ← mkFreshExprMVar (some proofTy) (kind := .syntheticOpaque)
