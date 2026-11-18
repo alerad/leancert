@@ -42,11 +42,14 @@ macro "finsum_expand" : tactic =>
                    Finset.Ioc_ofNat_ofNat, Finset.Ioo_ofNat_ofNat,
                    Finset.Iic_ofNat, Finset.Iio_ofNat]
     -- Step 2: Repeatedly peel off elements until singleton or empty
-    -- Note: ∑ k ∈ ∅, f k = 0 definitionally, so rfl handles empty sums
+    -- `with_reducible` keeps `rfl` from unfolding real arithmetic at every iteration, which
+    -- exhausts the recursion limit on long sums since `repeat` nests.
     repeat (first
-      | rfl
+      | with_reducible rfl
       | simp only [Finset.sum_singleton]
       | (rw [Finset.sum_insert (by leancert_verify_cert)]; try simp only [add_assoc]))
+    -- Note: ∑ k ∈ ∅, f k = 0 definitionally, so rfl handles empty sums
+    try rfl
   ))
 
 /-- `finsum_expand` + computed bounds (`Nat.reduceAdd/Mul/Sub`), non-literal Fin

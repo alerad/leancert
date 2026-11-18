@@ -293,6 +293,9 @@ where
     let parseBounds (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
       if let some bounds ← parseSetIccBounds e then
         return some bounds
+      -- `whnf` stops at `{x | p x}` rather than reducing it to the lambda `p`.
+      if e.isAppOfArity ``setOf 2 then
+        return ← parseSetIccLambda e.appArg!
       parseSetIccLambda e
 
     let mkIntervalFromBounds (loExpr hiExpr : Lean.Expr) : MetaM (Option IntervalInfo) := do
@@ -312,6 +315,13 @@ where
     if let some (loExpr, hiExpr) ← parseBounds interval then
       if let some info ← mkIntervalFromBounds loExpr hiExpr then
         return some info
+    -- Unfold reducible abbreviations such as `abbrev I : Set ℝ := Set.Icc 0 1` first, since
+    -- full `whnf` also unfolds `Set.Icc` itself.
+    let intervalWhnfR ← whnfR interval
+    if intervalWhnfR != interval then
+      if let some (loExpr, hiExpr) ← parseBounds intervalWhnfR then
+        if let some info ← mkIntervalFromBounds loExpr hiExpr then
+          return some info
     let intervalWhnf ← withTransparency TransparencyMode.all <| whnf interval
     if intervalWhnf == interval then
       return none
@@ -646,7 +656,13 @@ private def nameEndsWithStr (n : Lean.Name) (suffix : String) : Bool :=
     - isStrict: true for < or >, false for ≤ or ≥
     - isReversed: true for ≥ or > (need to flip the comparison) -/
 def parsePointIneq (goal : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr × Bool × Bool)) := do
-  let goal ← whnf goal
+  -- Under the module system `whnf` gets stuck on unexposed instances like `Real.instLT`.
+  let goal' := (← instantiateMVars goal).cleanupAnnotations
+  if let some res := parsePointIneqApp goal' then
+    return some res
+  return parsePointIneqApp (← whnf goal')
+where
+  parsePointIneqApp (goal : Lean.Expr) : Option (Lean.Expr × Lean.Expr × Bool × Bool) := Id.run do
   let fn := goal.getAppFn
   let args := goal.getAppArgs
 

@@ -139,15 +139,14 @@ theorem hasDerivAt_thetaBoundary (z : ℂ) (u : ℝ) :
       (8 * heatIntegrand 0 z u + (1+z^2)*thetaCosIntegrand z u) u := by
   have hf := (hasDerivAt_thetaPrimitive u).ofReal_comp
   have hf' := (hasDerivAt_deriv_thetaPrimitive u).ofReal_comp
-  have hz := (Complex.ofRealCLM.hasDerivAt (x := u)).const_mul z
-  have hc := (Complex.hasDerivAt_cos (z*(u : ℂ))).comp u hz
-  have hs := (Complex.hasDerivAt_sin (z*(u : ℂ))).comp u hz
+  have hz := (hasDerivAt_id' (u : ℂ)).const_mul z
+  have hc := hz.ccos.comp_ofReal
+  have hs := hz.csin.comp_ofReal
   have h := (hf'.mul hc).add ((hf.const_mul z).mul hs)
   rw [← deriv_thetaPrimitive] at h
   convert! h using 1
   simp only [heatIntegrand, thetaCosIntegrand, zero_mul, Real.exp_zero, one_mul,
-    Complex.ofReal_add, Complex.ofReal_mul, Complex.ofReal_ofNat, Function.comp_apply,
-    Complex.ofRealCLM_apply, Complex.ofReal_one, mul_one]
+    Complex.ofReal_add, Complex.ofReal_mul, Complex.ofReal_ofNat, mul_one]
   ring
 
 /-- Exact identity for the actual H_0 integral, with its nonzero endpoint term. -/

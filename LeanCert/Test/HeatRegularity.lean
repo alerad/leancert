@@ -7,7 +7,7 @@ open Analysis.DBN MeasureTheory Set
 
 -- Joint continuity can be composed with paths varying time and space together.
 example : Continuous (fun r : ℝ => H r ((r : ℂ)+Complex.I)) :=
-  continuous_H.comp (by fun_prop : Continuous (fun r : ℝ => (r, (r : ℂ)+Complex.I)))
+  continuous_H.comp (f := fun r : ℝ => (r, (r : ℂ)+Complex.I)) (by fun_prop)
 example (t : ℝ) : Differentiable ℂ (H t) := H_entire t
 example (m : ℕ) (t : ℝ) (z : ℂ) :
     HasDerivAt (moment m t) (moment (m+1) t z) z := hasDerivAt_moment_z m t z

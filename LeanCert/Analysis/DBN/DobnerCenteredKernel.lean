@@ -59,7 +59,7 @@ theorem centeredKernel_norm_eq {a : ℝ} (ha : 0 < a) (s : ℂ) (L v : ℝ) :
   rw [centeredKernel_factorization ha]
   simp only [norm_mul, norm_div, norm_inv, Complex.norm_exp, mul_assoc, ← Real.exp_add]
   rw [div_eq_mul_inv, mul_assoc]
-  congr 2
+  refine congrArg (_ * ·) (congrArg (_ * ·) (congrArg Real.exp ?_))
   have he : (4 : ℂ)*(a : ℂ) = ((4*a : ℝ) : ℂ) := by push_cast; rfl
   rw [he]
   simp only [sub_re, add_re, neg_re, mul_re, div_ofNat_re, div_ofReal_re,

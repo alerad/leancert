@@ -243,7 +243,7 @@ theorem exists_zero {a : ℝ} (ha : 0 < a) : ∃ s : ℂ, series a s = 0 := by
       rw [hP, Complex.norm_exp, Real.log_exp, hQ]
     simpa only [Function.comp_def, norm_one, Real.log_one, he] using h
   have hzero : Q = 0 := Polynomial.leadingCoeff_eq_zero.mp
-    ((Polynomial.tendsto_nhds_iff Q).mp hlim).1
+    (Polynomial.tendsto_nhds_iff.mp hlim).1
   have hr : (P.eval (0 : ℂ)).re = 0 := by
     simpa [hzero] using (hQ 0).symm
   have hnorm : ‖series a 0‖ = 1 := by rw [hP, Complex.norm_exp, hr, Real.exp_zero]

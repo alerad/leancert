@@ -34,7 +34,7 @@ theorem momentIntegrand_two (t : ℝ) (z : ℂ) (u : ℝ) :
 
 theorem hasDerivAt_heatIntegrand_t (t u : ℝ) (z : ℂ) :
     HasDerivAt (fun s : ℝ => heatIntegrand s z u) (-momentIntegrand 2 t z u) t := by
-  have hd := (((Real.hasDerivAt_exp (t*u^2)).comp t ((hasDerivAt_id t).mul_const (u^2))).mul_const
+  have hd := (((hasDerivAt_id' t).mul_const (u^2)).exp.mul_const
     (Phi u)).ofReal_comp.mul_const (Complex.cos (z*(u : ℂ)))
   convert! hd using 1
   rw [momentIntegrand_two]

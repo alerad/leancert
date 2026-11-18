@@ -209,14 +209,17 @@ def closeBoundTransport (goal : MVarId) (proof : Lean.Expr)
       setGoals [sideGoal]
       let tryClose (tactic : TacticM Unit) : TacticM Bool := do
         let attempt ← saveState
-        try
-          tactic
-          if (← getGoals).isEmpty then return true
-          attempt.restore
-          return false
-        catch _ =>
-          attempt.restore
-          return false
+        -- Also catch runtime exceptions: `rfl` on e.g. `x ^ 100 = x * (x * ⋯)` unfolds `npow`
+        -- on `ℝ` and exceeds the recursion limit, which should just count as a failed attempt.
+        tryCatchRuntimeEx
+          (do
+            tactic
+            if (← getGoals).isEmpty then return true
+            attempt.restore
+            return false)
+          fun _ => do
+            attempt.restore
+            return false
       if ← tryClose (evalTactic (← `(tactic|
           norm_num; simp only [Rat.divInt_eq_div]; try push_cast; try ring))) then
         continue

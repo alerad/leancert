@@ -76,9 +76,8 @@ theorem continuous_moment (m : ℕ) : Continuous (fun p : ℝ × ℂ => moment m
 
 theorem hasDerivAt_momentIntegrand_z (m : ℕ) (t u : ℝ) (z : ℂ) :
     HasDerivAt (fun w => momentIntegrand m t w u) (momentIntegrand (m+1) t z u) z := by
-  have hd := ((Complex.hasDerivAt_cos (z*(u : ℂ)+(m : ℂ)*(Real.pi : ℂ)/2)).comp z
-    (((hasDerivAt_id z).mul_const (u : ℂ)).add_const ((m : ℂ)*(Real.pi : ℂ)/2))).const_mul
-      ((u : ℂ)^m * ((Real.exp (t*u^2)*Phi u : ℝ) : ℂ))
+  have hd := ((((hasDerivAt_id' z).mul_const (u : ℂ)).add_const
+    ((m : ℂ)*(Real.pi : ℂ)/2)).ccos).const_mul ((u : ℂ)^m * ((Real.exp (t*u^2)*Phi u : ℝ) : ℂ))
   convert! hd using 1
   unfold momentIntegrand
   push_cast

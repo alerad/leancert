@@ -506,10 +506,22 @@ where
       else
         mkExprInv posPart
 
+  /-- Whether `e` is headed by an arithmetic operation or cast that is never a `max`/`min`
+      encoding. The `isDefEq` checks in `toMaxArgs?`/`toMinArgs?` can unfold such terms all the
+      way to Cauchy sequences on `ℝ`, exceeding the recursion limit on numerals like `↑144 + 1`. -/
+  isArithHead (e : Lean.Expr) : Bool :=
+    match e.getAppFn.constName? with
+    | some n =>
+      n ∈ [``HAdd.hAdd, ``HSub.hSub, ``HMul.hMul, ``HDiv.hDiv, ``HPow.hPow, ``Neg.neg,
+        ``Inv.inv, ``OfNat.ofNat, ``OfScientific.ofScientific, ``Nat.cast, ``NatCast.natCast,
+        ``Int.cast, ``IntCast.intCast, ``Rat.cast, ``RatCast.ratCast]
+    | none => false
+
   /-- Try to decompose `e` as `max a b` using definitional equality.
       This is robust against internal projection names changing across
       Mathlib versions. -/
   toMaxArgs? (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    if isArithHead e then return none
     let args := e.getAppArgs
     if args.size < 2 then return none
     let a := args[args.size - 2]!
@@ -523,6 +535,7 @@ where
 
   /-- Try to decompose `e` as `min a b` using definitional equality. -/
   toMinArgs? (e : Lean.Expr) : MetaM (Option (Lean.Expr × Lean.Expr)) := do
+    if isArithHead e then return none
     let args := e.getAppArgs
     if args.size < 2 then return none
     let a := args[args.size - 2]!
