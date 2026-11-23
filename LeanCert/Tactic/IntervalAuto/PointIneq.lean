@@ -226,6 +226,7 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
         evalTactic (← `(tactic| have h0 := $proofStx))
         evalTactic (← `(tactic| (
           simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
+                     LeanCert.Core.MathConst.toReal,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
@@ -244,6 +245,7 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
         evalTactic (← `(tactic| (
           have h0 := $proofStx;
           simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
+                     LeanCert.Core.MathConst.toReal,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
@@ -252,7 +254,7 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
                      ← LeanCert.Core.Expr.sqrt_mul_self_eq_abs,
                      Rat.cast_ofNat, Rat.cast_intCast, Rat.cast_natCast,
                      Rat.divInt_eq_div] at h0;
-          convert! h0 using 1 <;> norm_num
+          convert h0 using 1 <;> norm_num
         )))
         return true
       catch e2 =>
@@ -268,6 +270,7 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
         evalTactic (← `(tactic| (
           have h0 := $proofStx;
           simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
+                     LeanCert.Core.MathConst.toReal,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,
@@ -289,6 +292,7 @@ def proveClosedExpressionBoundTyped (goal : MVarId) (goalType : Lean.Expr)
           refine ?_;
           have h0 := $proofStx;
           simp only [LeanCert.Core.Expr.eval, LeanCert.Core.Expr.eval_namedConst,
+                     LeanCert.Core.MathConst.toReal,
                      LeanCert.Core.Expr.eval_const, LeanCert.Core.Expr.eval_sqrt,
                      LeanCert.Core.Expr.eval_add, LeanCert.Core.Expr.eval_sub,
                      LeanCert.Core.Expr.eval_mul, LeanCert.Core.Expr.eval_neg,

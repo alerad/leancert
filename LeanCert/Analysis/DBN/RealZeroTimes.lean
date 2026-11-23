@@ -22,7 +22,6 @@ open scoped Topology
 /-- Times at which every complex zero of the actual heat integral is real. -/
 def realZeroTimes : Set ℝ := {t | ∀ z : ℂ, H t z = 0 → z.im = 0}
 
-set_option maxHeartbeats 800000 in
 /-- Joint continuity upgrades convergence in time to locally uniform convergence
 in the complex spatial argument. This applies to arbitrary index filters. -/
 theorem H_time_tendstoLocallyUniformly {ι : Type*} {l : Filter ι}
@@ -35,7 +34,7 @@ theorem H_time_tendstoLocallyUniformly {ι : Type*} {l : Filter ι}
     (hτ.comp (tendsto_fst (g := 𝓝 z))).prodMk_nhds tendsto_snd
   have hj : Tendsto (fun p : ι × ℂ => H (τ p.1) p.2)
       (l ×ˢ 𝓝 z) (𝓝 (H t z)) :=
-    (continuous_H.tendsto (t, z)).comp hp
+    (continuous_H.tendsto (t, z)).comp (f := fun p : ι × ℂ => (τ p.1, p.2)) hp
   exact (((H_entire t).continuous.tendsto z |>.comp tendsto_snd).prodMk_nhds hj).mono_right (nhds_le_uniformity _)
 
 /-- A convergent family of real-zero times cannot acquire a nonreal zero. -/

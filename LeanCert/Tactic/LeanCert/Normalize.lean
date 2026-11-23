@@ -34,40 +34,44 @@ remaining normalization is a fixed, auditable collection of evaluation and
 ordinary arithmetic identities. -/
 def closeReificationBridge (report : LeanCert.Meta.ReifyReport) : TacticM Unit := do
   unfoldReifiedDefinitions report.unfolded
+  -- Try `rfl` first, but treat runtime exceptions as failure too: on e.g. `x ^ 100` it unfolds
+  -- `npow` on `ℝ` and exceeds the recursion limit, which `first | rfl | ...` would not catch.
+  let saved ← saveState
+  let closedByRfl ← tryCatchRuntimeEx (do evalTactic (← `(tactic| rfl)); pure true)
+    fun _ => do saved.restore; pure false
+  if closedByRfl then return
   evalTactic (← `(tactic|
-    first
-    | rfl
-    | (simp only [
-        LeanCert.Core.Expr.eval_add,
-        LeanCert.Core.Expr.eval_mul,
-        LeanCert.Core.Expr.eval_neg,
-        LeanCert.Core.Expr.eval_inv,
-        LeanCert.Core.Expr.eval_const,
-        LeanCert.Core.Expr.eval_var,
-        LeanCert.Core.Expr.eval_sin,
-        LeanCert.Core.Expr.eval_cos,
-        LeanCert.Core.Expr.eval_exp,
-        LeanCert.Core.Expr.eval_log,
-        LeanCert.Core.Expr.eval_atan,
-        LeanCert.Core.Expr.eval_arsinh,
-        LeanCert.Core.Expr.eval_atanh,
-        LeanCert.Core.Expr.eval_sinc,
-        LeanCert.Core.Expr.eval_erf,
-        LeanCert.Core.Expr.eval_sinh,
-        LeanCert.Core.Expr.eval_cosh,
-        LeanCert.Core.Expr.eval_tanh,
-        LeanCert.Core.Expr.eval_sqrt,
-        LeanCert.Core.Expr.eval_namedConst,
-        LeanCert.Tactic.Bridge.realEnvironment,
-        LeanCert.Core.Expr.eval_sub,
-        LeanCert.Core.Expr.eval_div,
-        LeanCert.Core.Expr.eval_pow,
-        Rat.divInt_eq_div,
-        List.getD, Option.getD,
-        sq, pow_two, pow_succ, pow_zero, pow_one,
-        sub_eq_add_neg, div_eq_mul_inv,
-        one_mul, mul_one];
-       try push_cast;
-       try ring)))
+    simp only [
+      LeanCert.Core.Expr.eval_add,
+      LeanCert.Core.Expr.eval_mul,
+      LeanCert.Core.Expr.eval_neg,
+      LeanCert.Core.Expr.eval_inv,
+      LeanCert.Core.Expr.eval_const,
+      LeanCert.Core.Expr.eval_var,
+      LeanCert.Core.Expr.eval_sin,
+      LeanCert.Core.Expr.eval_cos,
+      LeanCert.Core.Expr.eval_exp,
+      LeanCert.Core.Expr.eval_log,
+      LeanCert.Core.Expr.eval_atan,
+      LeanCert.Core.Expr.eval_arsinh,
+      LeanCert.Core.Expr.eval_atanh,
+      LeanCert.Core.Expr.eval_sinc,
+      LeanCert.Core.Expr.eval_erf,
+      LeanCert.Core.Expr.eval_sinh,
+      LeanCert.Core.Expr.eval_cosh,
+      LeanCert.Core.Expr.eval_tanh,
+      LeanCert.Core.Expr.eval_sqrt,
+      LeanCert.Core.Expr.eval_namedConst,
+      LeanCert.Tactic.Bridge.realEnvironment,
+      LeanCert.Core.Expr.eval_sub,
+      LeanCert.Core.Expr.eval_div,
+      LeanCert.Core.Expr.eval_pow,
+      Rat.divInt_eq_div,
+      List.getD, Option.getD,
+      sq, pow_two, pow_succ, pow_zero, pow_one,
+      sub_eq_add_neg, div_eq_mul_inv,
+      one_mul, mul_one]))
+  evalTactic (← `(tactic| try push_cast))
+  evalTactic (← `(tactic| try ring))
 
 end LeanCert.Tactic
