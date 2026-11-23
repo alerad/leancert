@@ -34,11 +34,11 @@ one row and that its engine claim agrees with the executable dispatcher.
 | interval evaluation | Rational | supported | supported | supported | supported | arbitrary checked Expr | fixed Taylor depth 10 | IntervalRat | yes | — |
 | interval evaluation | Dyadic | supported | supported | supported | supported | arbitrary checked Expr | Taylor depth, precision | IntervalDyadic → IntervalRat | yes | — |
 | interval evaluation | Affine | supported | supported | unavailable | supported | arbitrary checked Expr | Taylor depth, maximum noise symbols | AffineForm → IntervalRat | yes | some transcendental nodes conservatively concretize to intervals |
-| checked derivative | Rational | supported | supported | not planned | supported | domain-aware AD (including inv/log) | Taylor depth | DerivativeOutcome | yes | — |
-| checked derivative | Dyadic | supported | supported | not planned | supported | domain-aware AD (including inv/log) | Taylor depth, precision | DerivativeOutcome | yes | — |
+| checked derivative | Rational | supported | supported | not planned | supported | domain-aware AD (including inv/log/sqrt) | Taylor depth | DerivativeOutcome | yes | — |
+| checked derivative | Dyadic | supported | supported | not planned | supported | domain-aware AD (including inv/log/sqrt) | Taylor depth, precision | DerivativeOutcome | yes | — |
 | checked derivative | Affine | not planned | not planned | not planned | not planned | none | — | none | no | — |
-| checked gradient | Rational | supported | supported | not planned | supported | domain-aware AD (including inv/log) | Taylor depth | GradientOutcome | yes | — |
-| checked gradient | Dyadic | supported | supported | not planned | supported | domain-aware AD (including inv/log) | Taylor depth, precision | GradientOutcome | yes | — |
+| checked gradient | Rational | supported | supported | not planned | supported | domain-aware AD (including inv/log/sqrt) | Taylor depth | GradientOutcome | yes | — |
+| checked gradient | Dyadic | supported | supported | not planned | supported | domain-aware AD (including inv/log/sqrt) | Taylor depth, precision | GradientOutcome | yes | — |
 | checked gradient | Affine | not planned | not planned | not planned | not planned | none | — | none | no | — |
 | global optimization | Rational | supported | supported | unavailable | unavailable | arbitrary checked Expr | fixed Taylor depth 10 | GlobalResult | yes | — |
 | global optimization | Dyadic | supported | supported | supported | supported | arbitrary checked Expr | Taylor depth, precision | GlobalResult | yes | — |
@@ -151,9 +151,17 @@ when the requested resolution is too coarse. Preserving it when possible helps
 callers such as LayerNorm avoid loose reciprocal fallbacks. It does not recover
 correlations lost earlier in interval evaluation.
 
-These are value enclosures. Checked square-root automatic differentiation remains
-unsupported; improving value precision does not change derivative capabilities
-or the checked evaluators' domain and configuration policies.
+Checked Rational and Dyadic derivatives and gradients support square roots when
+both the input lower endpoint and the computed root lower endpoint are strictly
+positive. Touching or crossing zero returns `sqrtNonpositive`; a positive input
+whose root rounds down to zero returns `sqrtLowerBoundZero`. A failed interval
+check means that this box and precision did not certify the derivative domain.
+It is not a proof that every represented value is outside that domain.
+
+Rational AD uses the default 20 square-root scaling bits; Dyadic AD uses its
+existing exponent precision. The log/exp rewrite is an alternative on positive
+inputs, with different enclosure widths and evaluation costs. Root-uniqueness
+certificates retain their separate `ADSupported` contract.
 
 ## Options
 

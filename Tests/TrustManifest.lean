@@ -165,3 +165,12 @@ depending on native trust, the pins below fail and should be tightened to
 #assert_trust kernel LeanCert.Core.IntervalDyadic.mem_sqrt'
 #assert_trust kernel LeanCert.Core.IntervalDyadic.mem_sqrt
 #assert_trust kernel LeanCert.ML.Transformer.mem_layerNorm_forwardInterval
+
+/-! ## Checked square-root derivatives through the public API -/
+
+#assert_trust kernel LeanCert.Engine.evalWithDerivChecked_der_correct
+#assert_trust kernel LeanCert.Engine.evalWithDerivChecked_differentiableAt
+#assert_trust kernel LeanCert.Engine.evalWithDerivDyadicChecked_der_correct
+#assert_trust kernel LeanCert.Engine.evalWithDerivDyadicChecked_differentiableAt
+#assert_trust kernel LeanCert.evalWithDerivative_correct
+#assert_trust kernel LeanCert.evalGradient_correct

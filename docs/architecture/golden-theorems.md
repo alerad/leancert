@@ -268,7 +268,7 @@ The mathematical foundation is the Mean Value Theorem: if f' has consistent sign
 ### Domain-aware automatic differentiation
 
 `ADSupported` remains the fast, domain-free fragment.  For expressions that
-contain reciprocal or logarithm nodes, use the computable checked API instead:
+contain reciprocal, logarithm or positive-domain square-root nodes, use the computable checked API instead:
 
 ```text
 derivIntervalChecked  : Expr → IntervalEnv → Nat → EvalConfig →
@@ -287,7 +287,8 @@ gradientIntervalDyadicCheckedOfRat : Expr → IntervalEnv → Nat → DyadicConf
 The checker recursively validates syntax and the actual input box.  It accepts
 `inv e` only when the computed enclosure of `e` excludes zero, and `log e`
 only when that enclosure is strictly positive.  Failure is structured data
-(`reciprocalContainsZero`, `logNonpositive`, or a nested/unsupported failure),
+(`reciprocalContainsZero`, `logNonpositive`, `sqrtNonpositive`,
+`sqrtLowerBoundZero`, or a nested/unsupported failure),
 not a finite fallback interval.
 
 The derivative API's Golden Theorem does not require a separate syntactic

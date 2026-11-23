@@ -83,6 +83,14 @@ def log (a : DualIntervalDyadic) (cfg : DyadicConfig := {}) : DualIntervalDyadic
   ⟨logIntervalDyadic a.val cfg,
    IntervalDyadic.mulRounded (invIntervalDyadic a.val cfg) a.der cfg.precision⟩
 
+/-- Square-root derivative using the rounded value and a checked reciprocal. -/
+def sqrt (a : DualIntervalDyadic) (cfg : DyadicConfig := {}) : DualIntervalDyadic :=
+  let value := sqrtIntervalDyadic a.val cfg
+  let half := IntervalDyadic.ofIntervalRat (IntervalRat.singleton (1 / 2)) cfg.precision
+  ⟨value, IntervalDyadic.mulRounded a.der
+    (IntervalDyadic.mulRounded half (invIntervalDyadic value cfg) cfg.precision)
+    cfg.precision⟩
+
 end DualIntervalDyadic
 end LeanCert.Engine
 
@@ -105,6 +113,7 @@ def evalTotal (e : Expr) (rho : DualDyadicEnv) (cfg : DyadicConfig := {}) :
   | .sin a => DualIntervalDyadic.sin (evalTotal a rho cfg) cfg
   | .cos a => DualIntervalDyadic.cos (evalTotal a rho cfg) cfg
   | .log a => DualIntervalDyadic.log (evalTotal a rho cfg) cfg
+  | .sqrt a => DualIntervalDyadic.sqrt (evalTotal a rho cfg) cfg
   | _ => default
 
 end LeanCert.Internal.AD.Dyadic
@@ -132,20 +141,77 @@ def mkDualDyadicEnv (rho : IntervalDyadicEnv) (idx : Nat) : DualDyadicEnv :=
 def checkDyadicADFragment : Expr → Bool
   | .const _ | .var _ => true
   | .add a b | .mul a b => checkDyadicADFragment a && checkDyadicADFragment b
-  | .neg a | .inv a | .exp a | .sin a | .cos a | .log a => checkDyadicADFragment a
+  | .neg a | .inv a | .exp a | .sin a | .cos a | .log a | .sqrt a => checkDyadicADFragment a
   | _ => false
+
+/-- AD domain conditions strengthen total square-root value semantics. -/
+private def evalADDomainValidDyadic (e : Expr) (ρ : IntervalDyadicEnv)
+    (cfg : DyadicConfig) : Prop :=
+  match e with
+  | .const _ | .var _ => True
+  | .add a b | .mul a b => evalADDomainValidDyadic a ρ cfg ∧ evalADDomainValidDyadic b ρ cfg
+  | .neg a | .exp a | .sin a | .cos a => evalADDomainValidDyadic a ρ cfg
+  | .inv a => evalADDomainValidDyadic a ρ cfg ∧
+      ((LeanCert.Internal.Dyadic.evalUnchecked a ρ cfg).toIntervalRat.lo > 0 ∨
+       (LeanCert.Internal.Dyadic.evalUnchecked a ρ cfg).toIntervalRat.hi < 0)
+  | .log a => evalADDomainValidDyadic a ρ cfg ∧
+      0 < (LeanCert.Internal.Dyadic.evalUnchecked a ρ cfg).toIntervalRat.lo
+  | .sqrt a => evalADDomainValidDyadic a ρ cfg ∧
+      0 < (LeanCert.Internal.Dyadic.evalUnchecked a ρ cfg).toIntervalRat.lo ∧
+      0 < (sqrtIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked a ρ cfg) cfg).toIntervalRat.lo
+  | _ => False
+
+/-- Additional AD-only checks; ordinary value domains retain the cached checker. -/
+private def checkSqrtDerivativeDomains (e : Expr) (ρ : IntervalDyadicEnv)
+    (cfg : DyadicConfig) : Bool :=
+  match e with
+  | .add a b | .mul a b => checkSqrtDerivativeDomains a ρ cfg && checkSqrtDerivativeDomains b ρ cfg
+  | .neg a | .inv a | .exp a | .sin a | .cos a | .log a => checkSqrtDerivativeDomains a ρ cfg
+  | .sqrt a => checkSqrtDerivativeDomains a ρ cfg && decide
+      (0 < (LeanCert.Internal.Dyadic.evalUnchecked a ρ cfg).toIntervalRat.lo ∧
+       0 < (sqrtIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked a ρ cfg) cfg).toIntervalRat.lo)
+  | _ => true
+
+private theorem checkedADDomain_correct (e : Expr) (ρ : IntervalDyadicEnv)
+    (cfg : DyadicConfig) (hsupp : checkDyadicADFragment e = true)
+    (hdom : evalDomainValidDyadic e ρ cfg)
+    (hsqrt : checkSqrtDerivativeDomains e ρ cfg = true) :
+    evalADDomainValidDyadic e ρ cfg := by
+  induction e <;> simp_all [checkDyadicADFragment, checkSqrtDerivativeDomains,
+    evalADDomainValidDyadic, evalDomainValidDyadic, Bool.and_eq_true, decide_eq_true_eq]
+
+private theorem adDomain_implies_valueDomain (e : Expr) (ρ : IntervalDyadicEnv)
+    (cfg : DyadicConfig) :
+    evalADDomainValidDyadic e ρ cfg → evalDomainValidDyadic e ρ cfg := by
+  induction e <;> simp_all [evalADDomainValidDyadic, evalDomainValidDyadic]
 
 /-- Box-dependent domain check for the Dyadic AD kernel. -/
 def checkDyadicADDomain (e : Expr) (rho : DualDyadicEnv) (cfg : DyadicConfig := {}) : Bool :=
-  checkDyadicADFragment e && (LeanCert.Internal.Dyadic.evalCached e rho.values cfg).2
+  checkDyadicADFragment e &&
+    ((LeanCert.Internal.Dyadic.evalCached e rho.values cfg).2 &&
+      checkSqrtDerivativeDomains e rho.values cfg)
 
 /-- Explain the first failed support or domain check. -/
 def diagnoseDyadicADFailure (e : Expr) (rho : DualDyadicEnv)
     (cfg : DyadicConfig := {}) : EvalError :=
-  if !checkDyadicADFragment e then
-    .unsupportedFeature "Dyadic automatic differentiation"
-  else
-    diagnoseEvalIntervalDyadicFailure e rho.values cfg
+  match e with
+  | .add a b | .mul a b =>
+      if checkDyadicADDomain a rho cfg then
+        .nestedFailure "right operand" (diagnoseDyadicADFailure b rho cfg)
+      else .nestedFailure "left operand" (diagnoseDyadicADFailure a rho cfg)
+  | .neg a | .exp a | .sin a | .cos a =>
+      .nestedFailure "unary operand" (diagnoseDyadicADFailure a rho cfg)
+  | .sqrt a =>
+      if checkDyadicADDomain a rho cfg then
+        let I := LeanCert.Internal.Dyadic.evalUnchecked a rho.values cfg
+        if 0 < I.toIntervalRat.lo then .sqrtLowerBoundZero (sqrtIntervalDyadic I cfg).toIntervalRat
+        else .sqrtNonpositive I.toIntervalRat
+      else .nestedFailure "square-root operand" (diagnoseDyadicADFailure a rho cfg)
+  | .inv a | .log a =>
+      if checkDyadicADDomain a rho cfg then
+        diagnoseEvalIntervalDyadicFailure e rho.values cfg
+      else .nestedFailure "partial-operation operand" (diagnoseDyadicADFailure a rho cfg)
+  | _ => .unsupportedFeature "Dyadic automatic differentiation"
 
 /-- Checked Dyadic dual evaluation. -/
 def evalDualDyadicChecked (e : Expr) (rho : DualDyadicEnv) (cfg : DyadicConfig := {}) :
@@ -201,19 +267,20 @@ theorem evalTotalDyadic_val_of_fragment (e : Expr) (rho : DualDyadicEnv)
       simp [LeanCert.Internal.AD.Dyadic.evalTotal, LeanCert.Internal.Dyadic.evalUnchecked,
         DualIntervalDyadic.add, DualIntervalDyadic.mul, IntervalDyadic.addRounded,
         IntervalDyadic.mulRounded, iha hsupp.1, ihb hsupp.2]
-  | neg a ih | inv a ih | exp a ih | sin a ih | cos a ih | log a ih =>
+  | neg a ih | inv a ih | exp a ih | sin a ih | cos a ih | log a ih | sqrt a ih =>
       simp only [checkDyadicADFragment] at hsupp
       simp [LeanCert.Internal.AD.Dyadic.evalTotal, LeanCert.Internal.Dyadic.evalUnchecked,
         DualIntervalDyadic.neg, DualIntervalDyadic.inv, DualIntervalDyadic.exp,
-        DualIntervalDyadic.sin, DualIntervalDyadic.cos, DualIntervalDyadic.log, ih hsupp]
-  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | sqrt | namedConst =>
+        DualIntervalDyadic.sin, DualIntervalDyadic.cos, DualIntervalDyadic.log,
+        DualIntervalDyadic.sqrt, ih hsupp]
+  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | namedConst =>
       simp [checkDyadicADFragment] at hsupp
 
 private theorem evalDualDyadicChecked_facts {e : Expr} {rho : DualDyadicEnv}
     {cfg : DyadicConfig} {D : DualIntervalDyadic}
     (hok : evalDualDyadicChecked e rho cfg = .ok D) :
     cfg.precision ≤ 0 ∧ checkDyadicADFragment e = true ∧
-      evalDomainValidDyadic e rho.values cfg ∧
+      evalADDomainValidDyadic e rho.values cfg ∧
       D = LeanCert.Internal.AD.Dyadic.evalTotal e rho cfg := by
   simp only [evalDualDyadicChecked] at hok
   split at hok
@@ -221,13 +288,15 @@ private theorem evalDualDyadicChecked_facts {e : Expr} {rho : DualDyadicEnv}
     split at hok
     · rename_i hcheck
       have hparts : checkDyadicADFragment e = true ∧
-          (LeanCert.Internal.Dyadic.evalCached e rho.values cfg).2 = true := by
+          (LeanCert.Internal.Dyadic.evalCached e rho.values cfg).2 = true ∧
+          checkSqrtDerivativeDomains e rho.values cfg = true := by
         simpa only [checkDyadicADDomain, Bool.and_eq_true] using hcheck
       have hdomainCheck : checkDomainValidDyadic e rho.values cfg = true := by
         rw [← evalIntervalDyadicCached_snd e rho.values cfg]
-        exact hparts.2
+        exact hparts.2.1
       exact ⟨hprec, hparts.1,
-        checkDomainValidDyadic_correct e rho.values cfg hdomainCheck,
+        checkedADDomain_correct e rho.values cfg hparts.1
+          (checkDomainValidDyadic_correct e rho.values cfg hdomainCheck) hparts.2.2,
         (Except.ok.inj hok).symm⟩
     · contradiction
   · contradiction
@@ -235,11 +304,11 @@ private theorem evalDualDyadicChecked_facts {e : Expr} {rho : DualDyadicEnv}
 private theorem evalTotalDyadic_val_correct_of_facts (e : Expr)
     (rhoReal : Nat → ℝ) (rho : DualDyadicEnv) (cfg : DyadicConfig)
     (hprec : cfg.precision ≤ 0) (hsupp : checkDyadicADFragment e = true)
-    (hdom : evalDomainValidDyadic e rho.values cfg)
+    (hdom : evalADDomainValidDyadic e rho.values cfg)
     (hrho : ∀ i, rhoReal i ∈ (rho i).val) :
     Expr.eval rhoReal e ∈ (LeanCert.Internal.AD.Dyadic.evalTotal e rho cfg).val := by
   rw [evalTotalDyadic_val_of_fragment e rho cfg hsupp]
-  exact evalIntervalDyadic_correct_of_domain e rhoReal rho.values hrho cfg hprec hdom
+  exact evalIntervalDyadic_correct_of_domain e rhoReal rho.values hrho cfg hprec (adDomain_implies_valueDomain _ _ _ hdom)
 
 /-- Golden theorem for successful checked Dyadic dual evaluation. -/
 theorem evalDualDyadicChecked_val_correct (e : Expr)
@@ -264,7 +333,7 @@ private theorem evalAlong_differentiableAt_of_dyadic_facts (e : Expr)
     (rhoReal : Nat → ℝ) (rho : IntervalDyadicEnv) (idx : Nat) (cfg : DyadicConfig)
     (x : ℝ) (hx : x ∈ rho idx) (hrho : ∀ i, rhoReal i ∈ rho i)
     (hprec : cfg.precision ≤ 0) (hsupp : checkDyadicADFragment e = true)
-    (hdom : evalDomainValidDyadic e rho cfg) :
+    (hdom : evalADDomainValidDyadic e rho cfg) :
     DifferentiableAt ℝ (Expr.evalAlong e rhoReal idx) x := by
   have hmem := updateVar_mem_mkDualDyadicEnv_val rhoReal rho idx x hx hrho
   have hmemValue : envMemDyadic (Expr.updateVar rhoReal idx x) rho := by
@@ -283,23 +352,23 @@ private theorem evalAlong_differentiableAt_of_dyadic_facts (e : Expr)
           differentiableAt_const (c := rhoReal i)
   | add a b iha ihb =>
       simp only [checkDyadicADFragment, Bool.and_eq_true] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       simpa only [Expr.evalAlong_add_pi] using
         (iha hsupp.1 hdom.1).add (ihb hsupp.2 hdom.2)
   | mul a b iha ihb =>
       simp only [checkDyadicADFragment, Bool.and_eq_true] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       simpa only [Expr.evalAlong_mul_pi] using
         (iha hsupp.1 hdom.1).mul (ihb hsupp.2 hdom.2)
   | neg a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       simpa only [Expr.evalAlong_neg_pi] using (ih hsupp hdom).neg
   | inv a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hval := evalIntervalDyadic_correct_of_domain a
-        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec hdom.1
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec (adDomain_implies_valueDomain _ _ _ hdom.1)
       have hne : Expr.evalAlong a rhoReal idx x ≠ 0 := by
         rw [Expr.evalAlong_eq]
         intro hz
@@ -312,27 +381,37 @@ private theorem evalAlong_differentiableAt_of_dyadic_facts (e : Expr)
       exact DifferentiableAt.inv (ih hsupp hdom.1) hne
   | exp a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       exact Real.differentiableAt_exp.comp x (ih hsupp hdom)
   | sin a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       exact Real.differentiableAt_sin.comp x (ih hsupp hdom)
   | cos a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       exact Real.differentiableAt_cos.comp x (ih hsupp hdom)
   | log a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hval := evalIntervalDyadic_correct_of_domain a
-        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec hdom.1
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec (adDomain_implies_valueDomain _ _ _ hdom.1)
       have hpos : 0 < Expr.evalAlong a rhoReal idx x := by
         rw [Expr.evalAlong_eq]
         exact lt_of_lt_of_le (by exact_mod_cast hdom.2)
           (IntervalDyadic.mem_toIntervalRat.mp hval).1
       exact (Real.differentiableAt_log (ne_of_gt hpos)).comp x (ih hsupp hdom.1)
-  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | sqrt | namedConst =>
+  | sqrt a ih =>
+      simp only [checkDyadicADFragment] at hsupp
+      simp only [evalADDomainValidDyadic] at hdom
+      have hval := evalIntervalDyadic_correct_of_domain a
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec
+        (adDomain_implies_valueDomain _ _ _ hdom.1)
+      have hpos : 0 < Expr.evalAlong a rhoReal idx x :=
+        lt_of_lt_of_le (by exact_mod_cast hdom.2.1)
+          (IntervalDyadic.mem_toIntervalRat.mp hval).1
+      exact (ih hsupp hdom.1).sqrt (ne_of_gt hpos)
+  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | namedConst =>
       simp [checkDyadicADFragment] at hsupp
 
 /-- Successful checked Dyadic indexed AD proves differentiability throughout
@@ -352,7 +431,7 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
     (rhoReal : Nat → ℝ) (rho : IntervalDyadicEnv) (idx : Nat) (cfg : DyadicConfig)
     (x : ℝ) (hx : x ∈ rho idx) (hrho : ∀ i, rhoReal i ∈ rho i)
     (hprec : cfg.precision ≤ 0) (hsupp : checkDyadicADFragment e = true)
-    (hdom : evalDomainValidDyadic e rho cfg) :
+    (hdom : evalADDomainValidDyadic e rho cfg) :
     deriv (Expr.evalAlong e rhoReal idx) x ∈
       (LeanCert.Internal.AD.Dyadic.evalTotal e (mkDualDyadicEnv rho idx) cfg).der := by
   have hmemValue : envMemDyadic (Expr.updateVar rhoReal idx x) rho := by
@@ -381,7 +460,7 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
           Core.Dyadic.zero, Core.Dyadic.toRat]
   | add a b iha ihb =>
       simp only [checkDyadicADFragment, Bool.and_eq_true] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hda := evalAlong_differentiableAt_of_dyadic_facts a rhoReal rho idx cfg x hx hrho
         hprec hsupp.1 hdom.1
       have hdb := evalAlong_differentiableAt_of_dyadic_facts b rhoReal rho idx cfg x hx hrho
@@ -393,7 +472,7 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
         (IntervalDyadic.mem_add (iha hsupp.1 hdom.1) (ihb hsupp.2 hdom.2)) cfg.precision
   | mul a b iha ihb =>
       simp only [checkDyadicADFragment, Bool.and_eq_true] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hda := evalAlong_differentiableAt_of_dyadic_facts a rhoReal rho idx cfg x hx hrho
         hprec hsupp.1 hdom.1
       have hdb := evalAlong_differentiableAt_of_dyadic_facts b rhoReal rho idx cfg x hx hrho
@@ -415,7 +494,7 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
       exact IntervalDyadic.roundOut_contains (IntervalDyadic.mem_add hleft hright) cfg.precision
   | neg a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hd := evalAlong_differentiableAt_of_dyadic_facts a rhoReal rho idx cfg x hx hrho
         hprec hsupp hdom
       simp only [Expr.evalAlong_neg_pi, deriv.neg, LeanCert.Internal.AD.Dyadic.evalTotal,
@@ -423,9 +502,9 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
       exact IntervalDyadic.mem_neg (ih hsupp hdom)
   | inv a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hval := evalIntervalDyadic_correct_of_domain a
-        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec hdom.1
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec (adDomain_implies_valueDomain _ _ _ hdom.1)
       have hval' : Expr.evalAlong a rhoReal idx x ∈
           LeanCert.Internal.Dyadic.evalUnchecked a rho cfg := by
         simpa only [Expr.evalAlong_eq] using hval
@@ -460,11 +539,11 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
       simpa [IntervalDyadic.mulRounded, pow_two, mul_assoc, mul_comm, mul_left_comm] using hneg
   | exp a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hd := evalAlong_differentiableAt_of_dyadic_facts a rhoReal rho idx cfg x hx hrho
         hprec hsupp hdom
       have hval := evalIntervalDyadic_correct_of_domain a
-        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec hdom
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec (adDomain_implies_valueDomain _ _ _ hdom)
       have hexpRat := IntervalRat.mem_expComputable
         (IntervalDyadic.mem_toIntervalRat.mp hval) cfg.taylorDepth
       have hexp : Real.exp (Expr.evalAlong a rhoReal idx x) ∈
@@ -479,11 +558,11 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
         (IntervalDyadic.mem_mul hexp (ih hsupp hdom)) cfg.precision
   | sin a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hd := evalAlong_differentiableAt_of_dyadic_facts a rhoReal rho idx cfg x hx hrho
         hprec hsupp hdom
       have hval := evalIntervalDyadic_correct_of_domain a
-        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec hdom
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec (adDomain_implies_valueDomain _ _ _ hdom)
       have hcosRat := IntervalRat.mem_cosComputable
         (IntervalDyadic.mem_toIntervalRat.mp hval) cfg.taylorDepth
       have hcos : Real.cos (Expr.evalAlong a rhoReal idx x) ∈
@@ -498,11 +577,11 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
         (IntervalDyadic.mem_mul hcos (ih hsupp hdom)) cfg.precision
   | cos a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hd := evalAlong_differentiableAt_of_dyadic_facts a rhoReal rho idx cfg x hx hrho
         hprec hsupp hdom
       have hval := evalIntervalDyadic_correct_of_domain a
-        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec hdom
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec (adDomain_implies_valueDomain _ _ _ hdom)
       have hsinRat := IntervalRat.mem_sinComputable
         (IntervalDyadic.mem_toIntervalRat.mp hval) cfg.taylorDepth
       have hsin : Real.sin (Expr.evalAlong a rhoReal idx x) ∈
@@ -517,9 +596,9 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
         (IntervalDyadic.mem_mul (IntervalDyadic.mem_neg hsin) (ih hsupp hdom)) cfg.precision
   | log a ih =>
       simp only [checkDyadicADFragment] at hsupp
-      simp only [evalDomainValidDyadic] at hdom
+      simp only [evalADDomainValidDyadic] at hdom
       have hval := evalIntervalDyadic_correct_of_domain a
-        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec hdom.1
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec (adDomain_implies_valueDomain _ _ _ hdom.1)
       have hval' : Expr.evalAlong a rhoReal idx x ∈
           LeanCert.Internal.Dyadic.evalUnchecked a rho cfg := by
         simpa only [Expr.evalAlong_eq] using hval
@@ -545,7 +624,41 @@ private theorem evalTotalDyadic_der_correct_of_facts (e : Expr)
         IntervalDyadic.mem_ofIntervalRat hinvRat cfg.precision hprec
       exact IntervalDyadic.roundOut_contains
         (IntervalDyadic.mem_mul hinv (ih hsupp hdom.1)) cfg.precision
-  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | sqrt | namedConst =>
+  | sqrt a ih =>
+      simp only [checkDyadicADFragment] at hsupp
+      simp only [evalADDomainValidDyadic] at hdom
+      have hval := evalIntervalDyadic_correct_of_domain a
+        (Expr.updateVar rhoReal idx x) rho hmemValue cfg hprec
+        (adDomain_implies_valueDomain _ _ _ hdom.1)
+      have hval' : Expr.evalAlong a rhoReal idx x ∈
+          LeanCert.Internal.Dyadic.evalUnchecked a rho cfg := hval
+      have hpos : 0 < Expr.evalAlong a rhoReal idx x :=
+        lt_of_lt_of_le (by exact_mod_cast hdom.2.1)
+          (IntervalDyadic.mem_toIntervalRat.mp hval').1
+      have hd := evalAlong_differentiableAt_of_dyadic_facts a rhoReal rho idx cfg x hx hrho
+        hprec hsupp hdom.1
+      have hderiv := hd.hasDerivAt.sqrt (ne_of_gt hpos)
+      change deriv (fun t => Real.sqrt (Expr.evalAlong a rhoReal idx t)) x ∈ _
+      rw [hderiv.deriv]
+      have hs : Real.sqrt (Expr.evalAlong a rhoReal idx x) ∈
+          sqrtIntervalDyadic (LeanCert.Internal.Dyadic.evalUnchecked a rho cfg) cfg :=
+        IntervalDyadic.mem_sqrt' hval' cfg.precision
+      have hinvRat := mem_invInterval_nonzero
+        (IntervalDyadic.mem_toIntervalRat.mp hs) (Or.inl hdom.2.2)
+      have hinv := IntervalDyadic.mem_ofIntervalRat hinvRat cfg.precision hprec
+      have hhalfRat : (1 / 2 : ℝ) ∈ IntervalRat.singleton (1 / 2) := by
+        simpa using IntervalRat.mem_singleton (1 / 2)
+      have hhalf := IntervalDyadic.mem_ofIntervalRat hhalfRat cfg.precision hprec
+      simp only [LeanCert.Internal.AD.Dyadic.evalTotal, DualIntervalDyadic.sqrt,
+        IntervalDyadic.mulRounded]
+      rw [evalTotalDyadic_val_of_fragment a (mkDualDyadicEnv rho idx) cfg hsupp]
+      simp only [mkDualDyadicEnv_values]
+      have hproduct := IntervalDyadic.roundOut_contains
+        (IntervalDyadic.mem_mul (ih hsupp hdom.1)
+          (IntervalDyadic.roundOut_contains (IntervalDyadic.mem_mul hhalf hinv) cfg.precision))
+        cfg.precision
+      convert hproduct using 1 <;> first | rfl | ring
+  | atan | arsinh | atanh | sinc | erf | sinh | cosh | tanh | namedConst =>
       simp [checkDyadicADFragment] at hsupp
 
 /-- Golden theorem: successful checked Dyadic indexed AD encloses the true

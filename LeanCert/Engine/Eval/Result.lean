@@ -22,6 +22,8 @@ open LeanCert.Core
 inductive EvalError where
   | reciprocalContainsZero (interval : IntervalRat)
   | logNonpositive (interval : IntervalRat)
+  | sqrtNonpositive (interval : IntervalRat)
+  | sqrtLowerBoundZero (interval : IntervalRat)
   | atanhOutsideUnitBall (interval : IntervalRat)
   | unsupportedBackend (operation : String)
   | unsupportedFeature (feature : String)
