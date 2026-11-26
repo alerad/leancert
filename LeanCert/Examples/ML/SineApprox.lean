@@ -3,7 +3,14 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors (auto-generated)
 -/
-import LeanCert.ML.Network
+module
+
+public import LeanCert.ML.Network
+meta import LeanCert.Core.Dyadic
+meta import LeanCert.Core.IntervalDyadic
+meta import LeanCert.ML.Network
+
+@[expose] public section
 
 set_option linter.unnecessarySeqFocus false
 
@@ -100,7 +107,7 @@ theorem sineNetLayer2_wf : sineNetLayer2.WellFormed := by
   constructor
   · intro row hrow
     simp only [sineNetLayer2, sineNetLayer2Weights, Layer.inputDim] at *
-    fin_cases hrow <;> rfl
+    fin_cases hrow; rfl
   · rfl
 
 theorem sineNet_wf : sineNet.WellFormed := by

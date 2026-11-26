@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Optimization.Global
-import LeanCert.Engine.Search.Heuristic
+module
+
+public import LeanCert.Engine.Optimization.Global
+public import LeanCert.Engine.Search.Heuristic
 
 /-!
 # Float-Guided Global Optimization
@@ -43,6 +45,8 @@ checked loop's lower-bound proof remains independent of Float guidance.
 The float results are NEVER trusted directly. They only guide where to look.
 All bounds returned are rigorously computed using interval arithmetic.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Optimization
 
@@ -87,9 +91,9 @@ def floatToRat (f : Float) : ℚ :=
     (rounded : ℚ) / 1000000
 
 /-- Helper: small positive width for interval creation -/
-private def smallWidth : ℚ := 1/1000000
+def smallWidth : ℚ := 1/1000000
 
-private theorem smallWidth_pos : 0 < smallWidth := by norm_num [smallWidth]
+theorem smallWidth_pos : 0 < smallWidth := by norm_num [smallWidth]
 
 /-- Convert a float environment to a rational point interval environment.
     Each float coordinate becomes a small interval around the rational approximation.

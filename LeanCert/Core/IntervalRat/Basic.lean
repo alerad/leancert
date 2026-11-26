@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Interval
-import Mathlib.Data.Rat.Cast.Order
-import Mathlib.Algebra.Order.Field.Basic
+module
+
+public import LeanCert.Core.Interval
+public import Mathlib.Data.Rat.Cast.Order
+public import Mathlib.Algebra.Order.Field.Basic
 
 /-!
 # Rational Endpoint Intervals - Core Definitions
@@ -32,6 +34,8 @@ suitable for computation. We prove the Fundamental Theorem of Interval Arithmeti
 All operations maintain the invariant `lo ≤ hi`. Domain restrictions for partial
 operations (like `inv`) are encoded via separate types or explicit hypotheses.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 
@@ -192,7 +196,7 @@ def mul (I J : IntervalRat) : IntervalRat where
     Reduces from 4 multiplications + 12 comparisons to 2 multiplications
     in the common case (both intervals positive or both negative).
     Falls back to the full 4-way product for mixed-sign intervals. -/
-private def mulFast (I J : IntervalRat) : IntervalRat :=
+def mulFast (I J : IntervalRat) : IntervalRat :=
   if hIlo : I.lo ≥ 0 then
     if hJlo : J.lo ≥ 0 then
       ⟨I.lo * J.lo, I.hi * J.hi, by nlinarith [I.le, J.le]⟩

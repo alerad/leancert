@@ -3,10 +3,15 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
-import LeanCert.Test.DownstreamPatterns.Extension
+module
+
+public import LeanCert.Tactic
+public import LeanCert.Test.DownstreamPatterns.Extension
+meta import LeanCert.Test.DownstreamPatterns.Extension
 
 /-! # End-to-end execution of downstream enclosure rules -/
+
+public section
 
 namespace LeanCert.Test.ExtensionExecution
 
@@ -155,6 +160,8 @@ example : ∀ x ∈ Set.Icc (0 : ℝ) 2, narrowIdentity x ≤ 2 := by
 
 /- Exhausted speculative subdivision restores the caller's complete tactic
 state before another proof is attempted. -/
+-- The first branch fails on purpose; the unused tactic linter flags failed `first` branches.
+set_option linter.unusedTactic false in
 example : ∀ x ∈ Set.Icc (0 : ℝ) 2, narrowIdentity x ≤ 2 := by
   first
   | leancert (budget := 1) (subdivisions := 0)

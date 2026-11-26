@@ -3,8 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Bounds
-import LeanCert.Tactic
+module
+
+public import LeanCert.API.Bounds
+public import LeanCert.Tactic
+meta import LeanCert.API.Bounds
 
 /-!
 # Evaluation-backend and verification-route independence
@@ -12,6 +15,8 @@ import LeanCert.Tactic
 Both theorems use the same public Dyadic-backed Boolean checker. Only the
 tactic-side verification route changes.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.PublicAPI.TrustAxes
 

@@ -3,7 +3,9 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalDyadic
+module
+
+public import LeanCert.Core.IntervalDyadic
 
 /-!
 # Interval Vector Arithmetic
@@ -28,6 +30,8 @@ enabling verified linear algebra computations.
 * `mem_addBias` - Soundness of bias addition
 * `mem_add_component` - Soundness of vector addition
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

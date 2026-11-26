@@ -1,7 +1,12 @@
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Complex
-import Mathlib.Tactic
+module
+
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Complex
+public import Mathlib.Tactic
 
 /-! Elementary complex trigonometric majorants for integral certification. -/
+
+public section
+
 namespace LeanCert.Analysis
 
 theorem norm_cos_le_exp_abs_im (z : ℂ) : ‖Complex.cos z‖ ≤ Real.exp |z.im| := by

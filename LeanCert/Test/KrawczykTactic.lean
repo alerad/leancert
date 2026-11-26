@@ -3,10 +3,15 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Examples.Krawczyk
-import LeanCert.Tactic
+module
+
+public import LeanCert.Examples.Krawczyk
+public import LeanCert.Tactic
+meta import LeanCert.Examples.Krawczyk
 
 /-! Generalized I1/I2 regressions for manual and automatic Krawczyk front ends. -/
+
+@[expose] public section
 
 namespace LeanCert.Test.KrawczykTactic
 
@@ -197,6 +202,8 @@ example : ∃! p, FinBoxMem p identityBox ∧ SystemZero identitySystem p := by
   system_unique_root using certificate
 
 /- Rejected verification restores the original goal and all assignments. -/
+-- The first branch fails on purpose; the unused tactic linter flags failed `first` branches.
+set_option linter.unusedTactic false in
 example : ∃! p, FinBoxMem p box ∧ SystemZero system p := by
   first
   | system_unique_root using singularCert
@@ -237,6 +244,8 @@ example : ∃! p, FinBoxMem p box ∧ SystemZero system p := by
   system_unique_root (maxIterations := 0)
 
 /- Automatic failure is transactional too. -/
+-- The first branch fails on purpose; the unused tactic linter flags failed `first` branches.
+set_option linter.unusedTactic false in
 example : ∃! p, FinBoxMem p box ∧ SystemZero system p := by
   first
   | system_unique_root (maxIterations := 0)

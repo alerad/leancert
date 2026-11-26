@@ -1,4 +1,6 @@
-import LeanCert.Analysis.DBN.HeatKernel
+module
+
+public import LeanCert.Analysis.DBN.HeatKernel
 
 /-!
 # A four-point obstruction in the DBN kernel
@@ -8,6 +10,9 @@ and quartics. This strict inequality is incompatible with the corresponding
 four-point inequality for Gaussian-regularized real-root products.
 All estimates here concern the actual defining series.
 -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 
 /-- A deliberately coarse lower bound from the first positive summand. -/

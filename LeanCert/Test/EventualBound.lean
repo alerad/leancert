@@ -3,9 +3,13 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic
+module
+
+public import LeanCert.Tactic
 
 /-! Regression tests for fixed and discovered-cutoff eventual bounds. -/
+
+@[expose] public section
 
 #guard LeanCert.Validity.checkReciprocalPowerUpper 1 (1 / 100) 2 10
 #guard !LeanCert.Validity.checkReciprocalPowerUpper 1 (1 / 100) 2 9
@@ -21,13 +25,13 @@ import LeanCert.Tactic
   | .error _ => true
   | .ok _ => false
 
-private def discoveredCutoffIsSound (q bound : ℚ) (k maxChecks : Nat) : Bool :=
+private meta def discoveredCutoffIsSound (q bound : ℚ) (k maxChecks : Nat) : Bool :=
   match LeanCert.Tactic.discoverReciprocalPowerCutoff q bound k maxChecks with
   | .error _ => false
   | .ok result =>
       LeanCert.Validity.checkReciprocalPowerUpper q bound k result.cutoff
 
-private def completedDiscoveryIsMinimal (q bound : ℚ) (k maxChecks : Nat) : Bool :=
+private meta def completedDiscoveryIsMinimal (q bound : ℚ) (k maxChecks : Nat) : Bool :=
   match LeanCert.Tactic.discoverReciprocalPowerCutoff q bound k maxChecks with
   | .error _ => false
   | .ok result =>

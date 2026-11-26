@@ -3,8 +3,10 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Optimized.IntervalArray
-import LeanCert.ML.Optimized.QuantizedLayer
+module
+
+public import LeanCert.ML.Optimized.IntervalArray
+public import LeanCert.ML.Optimized.QuantizedLayer
 
 /-!
 # Optimized Neural Network Verification
@@ -32,7 +34,7 @@ interval propagation, designed to scale to real-world networks.
 ## Usage
 
 ```lean
-import LeanCert.ML.Optimized
+public import LeanCert.ML.Optimized
 
 open LeanCert.ML.Optimized
 

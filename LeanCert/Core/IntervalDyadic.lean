@@ -3,10 +3,12 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Dyadic
-import LeanCert.Core.IntervalReal
-import LeanCert.Core.IntervalRat.Transcendental
-import Mathlib.Data.Rat.Cast.Order
+module
+
+public import LeanCert.Core.Dyadic
+public import LeanCert.Core.IntervalReal
+public import LeanCert.Core.IntervalRat.Transcendental
+public import Mathlib.Data.Rat.Cast.Order
 
 /-!
 # Dyadic Intervals
@@ -39,6 +41,8 @@ a denominator of 3^10 = 59049. Each operation requires GCD computation.
 In v1.1, with `precision = -10`, the denominator stays fixed at 2^10 = 1024.
 The result is slightly less tight but computed significantly faster.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 
@@ -305,7 +309,7 @@ def mul (I J : IntervalDyadic) : IntervalDyadic :=
     Reduces from 4 multiplications + 12 comparisons to 2 multiplications
     in the common case (both intervals positive or both negative).
     Falls back to the full 4-way product for mixed-sign intervals. -/
-private def mulFast (I J : IntervalDyadic) : IntervalDyadic :=
+def mulFast (I J : IntervalDyadic) : IntervalDyadic :=
   if hI : Dyadic.le 0 I.lo then
     if hJ : Dyadic.le 0 J.lo then
       ⟨I.lo.mul J.lo, I.hi.mul J.hi, by
@@ -696,7 +700,7 @@ theorem mem_sqrt' {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (prec : Int) :
       (min prec 0) (min_le_right _ _)) prec
 
 /-- Nonnegative-input specialization, preserving the existing caller contract. -/
-theorem mem_sqrt {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (hx_nn : 0 ≤ x) (prec : Int) :
+theorem mem_sqrt {x : ℝ} {I : IntervalDyadic} (hx : x ∈ I) (_hx_nn : 0 ≤ x) (prec : Int) :
     Real.sqrt x ∈ sqrt I prec :=
   mem_sqrt' hx prec
 

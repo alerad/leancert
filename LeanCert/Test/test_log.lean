@@ -1,7 +1,11 @@
+module
+
 /-
 Test file for log support in LeanCert.
 -/
-import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Tactic.IntervalAuto
+
+public section
 
 namespace TestLog
 

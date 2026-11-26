@@ -3,10 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Data.Rat.Cast.Order
-import Mathlib.Algebra.BigOperators.Intervals
-import Mathlib.Tactic
-import LeanCert.Cert.Interval
+module
+
+public import Mathlib.Data.Rat.Cast.Order
+public import Mathlib.Algebra.BigOperators.Intervals
+public import Mathlib.Tactic
+public import LeanCert.Cert.Interval
 
 /-!
 # Finite step-sum certificates
@@ -15,6 +17,8 @@ This module provides the small reusable layer needed by arithmetic step
 functions: a semantic real-valued sequence together with computable rational
 lower and upper envelopes.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT
 

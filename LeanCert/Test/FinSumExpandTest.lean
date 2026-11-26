@@ -3,9 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.FinSumExpand
-import Mathlib.Basic.Real.Basic
-import Mathlib.Tactic.Ring
+module
+
+public import LeanCert.Tactic.FinSumExpand
+public import Mathlib.Basic.Real.Basic
+public import Mathlib.Tactic.Ring
 
 /-!
 # Tests for finsum_expand tactics
@@ -15,6 +17,8 @@ import Mathlib.Tactic.Ring
 
 Supports intervals, explicit sets, and Fin sums.
 -/
+
+@[expose] public section
 
 namespace FinSumExpand.Test
 

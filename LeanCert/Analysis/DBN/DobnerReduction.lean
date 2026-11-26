@@ -3,10 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DBN.DobnerGeometry
-import LeanCert.Analysis.DBN.ZeroTransfer
-import LeanCert.Analysis.DBN.Threshold
-import LeanCert.Analysis.DirichletGaussian.Recurrence
+module
+
+public import LeanCert.Analysis.DBN.DobnerGeometry
+public import LeanCert.Analysis.DBN.ZeroTransfer
+public import LeanCert.Analysis.DBN.Threshold
+public import LeanCert.Analysis.DirichletGaussian.Recurrence
 
 /-!
 # Conditional final step of the Dobner route
@@ -14,6 +16,9 @@ import LeanCert.Analysis.DirichletGaussian.Recurrence
 The approximation hypotheses below are NOT yet established for the actual
 heat integral. They remain explicit arguments, not axioms or instances.
 -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Filter Set Metric
 open scoped Topology

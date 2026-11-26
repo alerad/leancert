@@ -3,15 +3,18 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.CertifiedBounds.BKLNWVerified
+module
+
+public import LeanCert.CertifiedBounds.BKLNWVerified
 
 /-!
 # Certified BKLNW bounds
 
 Stable public interface for the BKLNW `a₂` certificate family. The declarations
-here directly expose the checked base lemmas and reflective certificates; example
-modules are not part of the public API.
+here directly expose the checked base lemmas and reflective certificates; examplemodules are not part of the public API.
 -/
+
+public section
 
 namespace LeanCert.CertifiedBounds.BKLNW
 

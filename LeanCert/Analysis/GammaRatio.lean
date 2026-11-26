@@ -3,12 +3,17 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Analysis.SpecialFunctions.Gamma.Beta
-import Mathlib.Analysis.SpecialFunctions.Complex.LogBounds
-import Mathlib.Analysis.SpecialFunctions.Complex.LogDeriv
-import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
+module
+
+public import Mathlib.Analysis.SpecialFunctions.Gamma.Beta
+public import Mathlib.Analysis.SpecialFunctions.Complex.LogBounds
+public import Mathlib.Analysis.SpecialFunctions.Complex.LogDeriv
+public import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 
 /-! Relative Gamma estimates from finite Euler approximants. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.GammaRatio
 open Complex Finset Filter Set
 open scoped Topology

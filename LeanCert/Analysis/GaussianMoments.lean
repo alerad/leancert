@@ -1,7 +1,12 @@
-import LeanCert.Analysis.PolynomialDecay
-import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
+module
+
+public import LeanCert.Analysis.PolynomialDecay
+public import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
 
 /-! Integrable polynomial-weighted Gaussian majorants on the positive half-line. -/
+
+public section
+
 namespace LeanCert.Analysis
 open MeasureTheory Set
 

@@ -1,8 +1,13 @@
-import LeanCert.Analysis.DBN.CanonicalProduct
-import LeanCert.Analysis.DBN.XiIdentity
-import Mathlib.Analysis.Calculus.Deriv.Star
+module
+
+public import LeanCert.Analysis.DBN.CanonicalProduct
+public import LeanCert.Analysis.DBN.XiIdentity
+public import Mathlib.Analysis.Calculus.Deriv.Star
 
 /-! Symmetric polynomial cutoffs of the heat integral at arbitrary real time. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN.TimeApproximation
 variable (t : ℝ)
 open Complex Complex.Hadamard Polynomial Filter Set

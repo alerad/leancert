@@ -23,9 +23,7 @@ factorization:
 The results are stated in a form convenient for divisor-indexed zero enumerations.
 -/
 
-@[expose] public section
-
-noncomputable section
+public noncomputable section
 
 namespace Complex.Hadamard
 

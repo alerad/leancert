@@ -1,7 +1,12 @@
-import LeanCert.Analysis.DBN.Theta
-import Mathlib.Analysis.Calculus.SmoothSeries
+module
+
+public import LeanCert.Analysis.DBN.Theta
+public import Mathlib.Analysis.Calculus.SmoothSeries
 
 /-! Twice differentiating the actual theta series, with local summable bounds. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Set
 

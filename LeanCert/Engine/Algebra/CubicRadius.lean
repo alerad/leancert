@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.QCubic
+module
+
+public import LeanCert.Engine.Algebra.QCubic
 
 /-!
 # Executable radius and separation bounds for exact rational cubics
@@ -12,6 +14,8 @@ This module turns the discriminant separation theorem into an executable
 mesh-width certificate.  A rational Cauchy bound supplies a common radius for
 all roots; the checker then verifies the remaining exact rational inequality.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

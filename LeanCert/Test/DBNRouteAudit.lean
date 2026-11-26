@@ -1,11 +1,16 @@
-import LeanCert.Analysis.DBN.HeatShift
-import LeanCert.Analysis.DBN.HeatGrowth
-import Mathlib.Analysis.Complex.AbsMax
-import Mathlib.Util.AssertNoSorry
-import Mathlib.Analysis.SpecialFunctions.Complex.LogBounds
+module
+
+public import LeanCert.Analysis.DBN.HeatShift
+public import LeanCert.Analysis.DBN.HeatGrowth
+public import Mathlib.Analysis.Complex.AbsMax
+public import Mathlib.Util.AssertNoSorry
+public import Mathlib.Analysis.SpecialFunctions.Complex.LogBounds
 
 /-! Checked interfaces for the DBN route audit. These are small complete lemmas,
 not assumptions standing in for polynomial approximation or Hurwitz. -/
+
+public section
+
 namespace LeanCert.Test.DBNRouteAudit
 open Complex Set Metric Analysis.DBN
 

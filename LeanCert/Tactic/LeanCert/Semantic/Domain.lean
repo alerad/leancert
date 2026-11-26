@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
+module
+
+public import Lean
 
 /-!
 # Semantic Domains
@@ -12,6 +14,8 @@ Domain syntax and proof-bearing prepared domains used by the semantic
 `leancert` pipeline.  In particular, an empty closed interval is a semantic
 fact rather than an invalid `IntervalRat`.
 -/
+
+@[expose] public section
 
 open Lean
 

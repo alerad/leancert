@@ -3,8 +3,12 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.LeanCert.Diagnostic.Evidence
-import LeanCert.Tactic.LeanCert.Solver.Protocol
+module
+
+public import LeanCert.Tactic.LeanCert.Diagnostic.Evidence
+public import LeanCert.Tactic.LeanCert.Solver.Protocol
+public meta import LeanCert.Tactic.LeanCert.Diagnostic.Evidence
+public meta import LeanCert.Tactic.LeanCert.Solver.Protocol
 
 /-!
 # User-Facing Diagnostic Rendering
@@ -13,6 +17,8 @@ All public output is rendered here.  Solver internals may retain kernel
 expressions in debug traces, but ordinary failures and `leancert?` reports use
 mathematical language.
 -/
+
+public noncomputable meta section
 
 namespace LeanCert.Tactic.Diagnostic
 

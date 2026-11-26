@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Optimization.Global
+module
+
+public import LeanCert.Engine.Optimization.Global
 
 /-!
 # Counter-Example Search
@@ -35,6 +37,8 @@ let result := findViolation (Expr.mul (Expr.var 0) (Expr.var 0)) [⟨-2, 2, by n
 -- Returns a checked concrete witness near x = -2 or x = 2.
 ```
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Search
 

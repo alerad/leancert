@@ -1,4 +1,10 @@
-import LeanCert.Examples.Krawczyk
+module
+
+public import LeanCert.Examples.Krawczyk
+meta import LeanCert.Engine.RootFinding.Krawczyk
+meta import LeanCert.Examples.Krawczyk
+
+@[expose] public section
 
 namespace LeanCert.Test.Krawczyk
 

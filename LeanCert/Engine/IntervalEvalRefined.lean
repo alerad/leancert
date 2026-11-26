@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.TaylorModel
-import LeanCert.Engine.AD
+module
+
+public import LeanCert.Engine.TaylorModel
+public import LeanCert.Engine.AD
 
 /-!
 # Refined Interval Evaluation using Taylor Models
@@ -29,6 +31,8 @@ than the monotonicity-based `expInterval`.
 The correctness proofs follow directly from the Taylor model correctness
 theorems (`mem_expIntervalRefined`, etc.).
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

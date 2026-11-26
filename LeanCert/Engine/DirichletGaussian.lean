@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Analysis.DirichletGaussian
-import LeanCert.Core.IntervalRat.Taylor
+module
+
+public import LeanCert.Analysis.DirichletGaussian
+public import LeanCert.Core.IntervalRat.Taylor
 
 /-!
 # Gaussian Dirichlet tail certificates
@@ -12,6 +14,9 @@ import LeanCert.Core.IntervalRat.Taylor
 The checker uses rational arithmetic and a certified lower bound on log(N+1).
 It certifies the omitted tail, not the finite complex head or the DBN heat integral.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Engine.DirichletGaussian
 open LeanCert.Core
 open LeanCert.Analysis.DirichletGaussian

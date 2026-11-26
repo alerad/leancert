@@ -3,8 +3,13 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Bridge
-import LeanCert.Tactic.BridgeNative
+module
+
+public import LeanCert.Bridge
+public import LeanCert.Tactic.BridgeNative
+meta import LeanCert.Bridge
+meta import LeanCert.Engine.Eval.Backend
+meta import LeanCert.Tactic.BridgeNative
 
 /-!
 # Lean-Side Unit Tests for Bridge (Tests 32-33)
@@ -12,6 +17,8 @@ import LeanCert.Tactic.BridgeNative
 Goal: Unit test the JSON deserializers in Lean directly.
 These tests verify that the Bridge.lean serialization logic works correctly.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.BridgeTest
 
@@ -247,7 +254,7 @@ def jsonNatFieldIs (field : String) (expected : Nat) (j : Json) : Bool :=
 syntax (name := expectTypedBridgeAccepted) "expect_typed_bridge_accepted" : tactic
 
 @[tactic expectTypedBridgeAccepted]
-def elabExpectTypedBridgeAccepted : Tactic := fun _ => do
+meta def elabExpectTypedBridgeAccepted : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let proof ← Term.elabTerm (← `(True.intro)) (some goalType)
@@ -264,7 +271,7 @@ def elabExpectTypedBridgeAccepted : Tactic := fun _ => do
 syntax (name := expectTypedBridgeRejected) "expect_typed_bridge_rejected" : tactic
 
 @[tactic expectTypedBridgeRejected]
-def elabExpectTypedBridgeRejected : Tactic := fun _ => do
+meta def elabExpectTypedBridgeRejected : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let proof ← Term.elabTerm (← `(True.intro)) (some goalType)
@@ -290,7 +297,7 @@ syntax (name := expectTypedBridgeTransportRollback)
   "expect_typed_bridge_transport_rollback" : tactic
 
 @[tactic expectTypedBridgeTransportRollback]
-def elabExpectTypedBridgeTransportRollback : Tactic := fun _ => do
+meta def elabExpectTypedBridgeTransportRollback : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let falseType ← Term.elabTerm (← `(False)) none
@@ -320,7 +327,7 @@ syntax (name := expectTypedBridgeVerificationFailure)
   "expect_typed_bridge_verification_failure" : tactic
 
 @[tactic expectTypedBridgeVerificationFailure]
-def elabExpectTypedBridgeVerificationFailure : Tactic := fun _ => do
+meta def elabExpectTypedBridgeVerificationFailure : Tactic := fun _ => do
   let goal ← getMainGoal
   let goalType ← goal.getType
   let proof ← Term.elabTerm (← `(True.intro)) (some goalType)

@@ -3,14 +3,18 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Meta.ProveSupported
-import LeanCert.Meta.ProveContinuous
+module
+
+public import LeanCert.Meta.ProveSupported
+public import LeanCert.Meta.ProveContinuous
 
 /-!
 # Support Proof Generator Tests
 
 Smoke tests for automatic support and continuity proof generation.
 -/
+
+public section
 
 namespace LeanCert.Test.Support
 

@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Support
-import LeanCert.Engine.Eval.Core
-import LeanCert.Engine.Eval.Extended
-import LeanCert.Engine.Bounds.Lemmas
+module
+
+public import LeanCert.Core.Support
+public import LeanCert.Engine.Eval.Core
+public import LeanCert.Engine.Eval.Extended
+public import LeanCert.Engine.Bounds.Lemmas
 
 /-!
 # Interval Evaluation of Expressions
@@ -55,6 +57,8 @@ The evaluators are split by computability:
 - `evalInterval` is NONCOMPUTABLE, using Real.exp with floor/ceil bounds
 - Both are fully verified (no sorry, no axioms)
 -/
+
+public section
 
 namespace LeanCert.Engine
 

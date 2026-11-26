@@ -3,15 +3,17 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Core.IntervalRat.LogReduction
-import LeanCert.Core.Taylor
-import LeanCert.Core.Expr
-import Mathlib.Analysis.Complex.ExponentialBounds
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
-import Mathlib.Analysis.SpecificLimits.Normed
-import Mathlib.Analysis.Real.Pi.Bounds
-import Mathlib.Data.List.Range
+module
+
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Core.IntervalRat.LogReduction
+public import LeanCert.Core.Taylor
+public import LeanCert.Core.Expr
+public import Mathlib.Analysis.Complex.ExponentialBounds
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
+public import Mathlib.Analysis.SpecificLimits.Normed
+public import Mathlib.Analysis.Real.Pi.Bounds
+public import Mathlib.Data.List.Range
 
 /-!
 # Rational Endpoint Intervals - Computable Taylor Series
@@ -39,6 +41,8 @@ using Taylor series with rational coefficients and rigorous remainder bounds.
 All definitions in this file use only rational arithmetic and are fully computable.
 The proofs connect these to the real-valued functions via Taylor's theorem.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 
@@ -87,7 +91,7 @@ def evalTaylorSeries (coeffs : List ℚ) (I : IntervalRat) : IntervalRat :=
 /-- Tail-recursive exp coefficient generator.
     `expTaylorCoeffsAux n k c` produces `n+1` coefficients starting at index `k`,
     assuming `c = 1 / k!`. -/
-private def expTaylorCoeffsAux : ℕ → ℕ → ℚ → List ℚ
+def expTaylorCoeffsAux : ℕ → ℕ → ℚ → List ℚ
   | 0, _, c => [c]
   | (n + 1), k, c => c :: expTaylorCoeffsAux n (k + 1) (c / (k + 1))
 
@@ -178,7 +182,7 @@ def expRemainderBoundComputable (I : IntervalRat) (n : ℕ) : IntervalRat :=
       · exact Nat.cast_nonneg _
     linarith⟩
 
-private def expPointComputableRaw (q : ℚ) (n : ℕ := 10) : IntervalRat :=
+def expPointComputableRaw (q : ℚ) (n : ℕ := 10) : IntervalRat :=
   let I := singleton q
   let coeffs := expTaylorCoeffs n
   let polyVal := evalTaylorSeries coeffs I
@@ -188,7 +192,7 @@ private def expPointComputableRaw (q : ℚ) (n : ℕ := 10) : IntervalRat :=
 /-- Heuristic reduction factor for exp evaluation.
     We choose `k = log2(ceil(|q|) + 1)`, so `2^k` grows roughly with |q|.
     No correctness depends on the specific choice; it only affects performance. -/
-private def expReduceK (q : ℚ) : ℕ :=
+def expReduceK (q : ℚ) : ℕ :=
   Nat.log2 (Nat.ceil |q| + 1)
 
 /-- Computable interval enclosure for exp at a single rational point.

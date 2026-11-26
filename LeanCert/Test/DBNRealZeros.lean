@@ -1,5 +1,9 @@
-import LeanCert.Analysis.DBN.RealZeros
-import Mathlib.Util.AssertNoSorry
+module
+
+public import LeanCert.Analysis.DBN.RealZeros
+public import Mathlib.Util.AssertNoSorry
+
+public section
 
 open LeanCert.Analysis.DBN Complex Polynomial Filter
 

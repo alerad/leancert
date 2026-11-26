@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Eval.Backend
-import LeanCert.Engine.Optimization.Global
+module
+
+public import LeanCert.Engine.Eval.Backend
+public import LeanCert.Engine.Optimization.Global
 
 /-!
 # Unified global-optimization backends
@@ -13,6 +15,8 @@ This is the optimization counterpart of the checked evaluation dispatcher. It
 owns backend selection and translates common options to concrete optimizer
 configurations.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Optimization
 
@@ -31,14 +35,14 @@ structure GlobalOutcome where
   result : GlobalResult
   backend : ConcreteBackend
 
-private def rationalConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfig := {
+def rationalConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfig := {
   maxIterations := cfg.maxIterations
   tolerance := cfg.tolerance
   useMonotonicity := cfg.useMonotonicity
   taylorDepth := cfg.taylorDepth
 }
 
-private def dyadicConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfigDyadic := {
+def dyadicConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfigDyadic := {
   maxIterations := cfg.maxIterations
   tolerance := cfg.tolerance
   useMonotonicity := cfg.useMonotonicity
@@ -46,7 +50,7 @@ private def dyadicConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfigDyadic 
   precision := cfg.dyadicPrecision
 }
 
-private def affineConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfigAffine := {
+def affineConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfigAffine := {
   maxIterations := cfg.maxIterations
   tolerance := cfg.tolerance
   useMonotonicity := cfg.useMonotonicity
@@ -54,7 +58,7 @@ private def affineConfig (cfg : BackendGlobalOptConfig) : GlobalOptConfigAffine 
   maxNoiseSymbols := cfg.maxNoiseSymbols
 }
 
-private def globalOptimizeWith (minimize : Bool) (cfg : BackendGlobalOptConfig)
+def globalOptimizeWith (minimize : Bool) (cfg : BackendGlobalOptConfig)
     (e : Expr) (box : Box) : EvalResult GlobalOutcome := do
   let backend ← resolveBackend cfg.backend .globalOptimization
   let result ← match backend with

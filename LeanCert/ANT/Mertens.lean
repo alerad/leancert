@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT.Abel
-import LeanCert.ANT.EulerProduct
-import LeanCert.Engine.Chebyshev.Theta
+module
+
+public import LeanCert.ANT.Abel
+public import LeanCert.ANT.EulerProduct
+public import LeanCert.Engine.Chebyshev.Theta
 
 /-!
 # Finite Mertens-style certificates
@@ -13,6 +15,8 @@ import LeanCert.Engine.Chebyshev.Theta
 This module connects the existing Chebyshev theta log enclosures to finite
 prime-weighted sums that occur in Mertens/Euler-product arguments.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT
 

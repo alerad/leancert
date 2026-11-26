@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Tactic
+module
+
+public import Mathlib.Tactic
 
 /-!
 # Fixed-cutoff eventual bounds
@@ -16,6 +18,8 @@ Candidate cutoffs are untrusted.  The Boolean checker validates the endpoint
 inequality and the Golden Theorem proves that the same inequality holds at
 every larger natural number.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.FinSumDyadic
+module
+
+public import LeanCert.Engine.FinSumDyadic
 
 /-!
 # Witness-Based Finite Sum Evaluator
@@ -32,6 +34,8 @@ example : ∑ k ∈ Finset.Icc 1 100, myF k ≤ target :=
   verify_witness_sum_upper myF myEval 1 100 target cfg myEval_correct (by native_decide)
 ```
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

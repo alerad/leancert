@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
+module
+
+public import LeanCert.Engine.IntervalEval
 
 /-!
 # N-Dimensional Boxes for Global Optimization
@@ -30,6 +32,8 @@ For expressions with `n` variables (var 0 through var n-1), a box should
 have at least `n` intervals. The conversion `Box.toEnv` returns `default`
 for out-of-bounds indices.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Optimization
 

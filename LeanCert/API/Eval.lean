@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Eval.Backend
+module
+
+public import LeanCert.Engine.Eval.Backend
 
 /-!
 # Public checked interval evaluation
@@ -17,6 +19,8 @@ Backend-native result types remain available from `LeanCert.Backend.*`;
 the public outcome intentionally contains only the common interval and the
 backend that produced it.
 -/
+
+@[expose] public section
 
 namespace LeanCert
 

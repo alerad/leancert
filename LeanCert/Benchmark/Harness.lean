@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Schema
+module
+
+public import LeanCert.Benchmark.Schema
 
 /-!
 # Benchmark harness
@@ -13,6 +15,8 @@ supports warmups, repeated raw samples, human summaries, JSONL output, suite
 selection, and case-name filtering. Algorithm counters and proof-pipeline
 profiling can be layered on later without changing the sample schema.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark
 
@@ -56,7 +60,7 @@ Options:\n\
   --list                     List selected cases without running them\n\
   --help                     Show this help\n"
 
-private def parseNat (flag value : String) : Except String Nat :=
+def parseNat (flag value : String) : Except String Nat :=
   match value.toNat? with
   | some n => .ok n
   | none => .error s!"{flag} expects a natural number, got '{value}'"
@@ -80,19 +84,19 @@ partial def parseArgs (args : List String) (cfg : Config := {}) : Except String 
   | "--help" :: _ => .error usage
   | flag :: _ => .error s!"unknown or incomplete option '{flag}'\n\n{usage}"
 
-private def insertNat (n : Nat) : List Nat → List Nat
+def insertNat (n : Nat) : List Nat → List Nat
   | [] => [n]
   | x :: xs => if n ≤ x then n :: x :: xs else x :: insertNat n xs
 
-private def sortNats (values : List Nat) : List Nat :=
+def sortNats (values : List Nat) : List Nat :=
   values.foldl (fun sorted value => insertNat value sorted) []
 
-private def percentile (sorted : List Nat) (percent : Nat) : Nat :=
+def percentile (sorted : List Nat) (percent : Nat) : Nat :=
   match sorted with
   | [] => 0
   | _ => sorted.getD ((((sorted.length - 1) * percent) + 50) / 100) 0
 
-private def median (values : List Nat) : Nat :=
+def median (values : List Nat) : Nat :=
   let sorted := sortNats values
   match sorted.length with
   | 0 => 0
@@ -100,14 +104,14 @@ private def median (values : List Nat) : Nat :=
       if n % 2 = 1 then sorted.getD (n / 2) 0
       else (sorted.getD (n / 2 - 1) 0 + sorted.getD (n / 2) 0) / 2
 
-private def medianAbsoluteDeviation (values : List Nat) : Nat :=
+def medianAbsoluteDeviation (values : List Nat) : Nat :=
   let center := median values
   median (values.map fun value => value.max center - value.min center)
 
-private def pad3 (n : Nat) : String :=
+def pad3 (n : Nat) : String :=
   if n < 10 then s!"00{n}" else if n < 100 then s!"0{n}" else s!"{n}"
 
-private def formatNanos (ns : Nat) : String :=
+def formatNanos (ns : Nat) : String :=
   if ns ≥ 1000000 then
     s!"{ns / 1000000}.{pad3 ((ns % 1000000) / 1000)} ms"
   else if ns ≥ 1000 then
@@ -115,13 +119,13 @@ private def formatNanos (ns : Nat) : String :=
   else
     s!"{ns} ns"
 
-private def markdownCell (value : String) : String :=
+def markdownCell (value : String) : String :=
   value.replace "|" "\\|" |>.replace "\n" " "
 
-private def bitLength (n : Nat) : Nat :=
+def bitLength (n : Nat) : Nat :=
   if n = 0 then 0 else Nat.log2 n + 1
 
-private def formatWidth (width : ℚ) : String :=
+def formatWidth (width : ℚ) : String :=
   let exact := s!"{width}"
   if exact.length ≤ 32 then exact
   else
@@ -130,7 +134,7 @@ private def formatWidth (width : ℚ) : String :=
     let scale := (numeratorBits : Int) - (denominatorBits : Int)
     s!"≈2^{scale} ({numeratorBits}-bit/{denominatorBits}-bit)"
 
-private def measure (benchmark : Case) : IO (Nat × Outcome) := do
+def measure (benchmark : Case) : IO (Nat × Outcome) := do
   let iterations := max 1 benchmark.innerIterations
   let start ← IO.monoNanosNow
   let mut last ← benchmark.run
@@ -139,13 +143,13 @@ private def measure (benchmark : Case) : IO (Nat × Outcome) := do
   let stop ← IO.monoNanosNow
   return ((stop - start) / iterations, last)
 
-private def selected (cfg : Config) (benchmark : Case) : Bool :=
+def selected (cfg : Config) (benchmark : Case) : Bool :=
   benchmark.suites.contains cfg.suite &&
     match cfg.caseFilter with
     | none => true
     | some filter => filter.isEmpty || (benchmark.name.splitOn filter).length > 1
 
-private def runCase (runId : String) (cfg : Config) (benchmark : Case) : IO Bool := do
+def runCase (runId : String) (cfg : Config) (benchmark : Case) : IO Bool := do
   for _ in [:cfg.warmups] do
     let _ ← measure benchmark
 

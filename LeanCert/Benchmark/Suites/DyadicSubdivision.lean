@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.Core.DyadicFrontier
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.Core.DyadicFrontier
 
 /-!
 # Exact dyadic subdivision benchmarks
@@ -14,11 +16,13 @@ bisection trees. Future addressed-cell and direct-decoding implementations can
 be compared against the same depths and semantic total-width check.
 -/
 
+@[expose] public section
+
 namespace LeanCert.Benchmark.DyadicSubdivision
 
 open LeanCert.Core
 
-private def unitInterval : IntervalDyadic :=
+def unitInterval : IntervalDyadic :=
   ⟨LeanCert.Core.Dyadic.ofInt 0, LeanCert.Core.Dyadic.ofInt 1,
     by norm_num [LeanCert.Core.Dyadic.toRat_ofInt]⟩
 
@@ -29,7 +33,7 @@ def leavesAtDepth (I : IntervalDyadic) : Nat → List IntervalDyadic
       (leavesAtDepth I depth).flatMap fun cell =>
         [cell.bisect.1, cell.bisect.2]
 
-private def runCompleteTree (depth : Nat) : IO Outcome := do
+def runCompleteTree (depth : Nat) : IO Outcome := do
   let leaves := leavesAtDepth unitInterval depth
   let totalWidth := leaves.foldl (fun total cell => total.add cell.width)
     (0 : LeanCert.Core.Dyadic)
@@ -61,7 +65,7 @@ def preparedLeavesAtDepth (I : IntervalDyadic) (depth : Nat) : List IntervalDyad
 def sequentialLeavesAtDepth (I : IntervalDyadic) (depth : Nat) : List IntervalDyadic :=
   (DyadicCell.PreparedDyadicLevel.prepare I depth).materialize
 
-private def validateLeaves (leaves : List IntervalDyadic) (depth : Nat) : IO Outcome := do
+def validateLeaves (leaves : List IntervalDyadic) (depth : Nat) : IO Outcome := do
   let totalWidth := leaves.foldl (fun total cell => total.add cell.width)
     (0 : LeanCert.Core.Dyadic)
   if leaves.length != 2 ^ depth then
@@ -78,16 +82,16 @@ private def validateLeaves (leaves : List IntervalDyadic) (depth : Nat) : IO Out
     }
   return { status := "success", backendUsed := some "dyadic" }
 
-private def runDirectCells (depth : Nat) : IO Outcome := do
+def runDirectCells (depth : Nat) : IO Outcome := do
   validateLeaves (directLeavesAtDepth unitInterval depth) depth
 
-private def runPreparedCells (depth : Nat) : IO Outcome := do
+def runPreparedCells (depth : Nat) : IO Outcome := do
   validateLeaves (preparedLeavesAtDepth unitInterval depth) depth
 
-private def runSequentialCells (depth : Nat) : IO Outcome := do
+def runSequentialCells (depth : Nat) : IO Outcome := do
   validateLeaves (sequentialLeavesAtDepth unitInterval depth) depth
 
-private def runAddressesOnly (depth : Nat) : IO Outcome := do
+def runAddressesOnly (depth : Nat) : IO Outcome := do
   let cells := List.ofFn fun index : Fin (2 ^ depth) => DyadicCell.mk depth index
   if cells.length != 2 ^ depth then
     return {
@@ -112,7 +116,7 @@ def pathsAtDepth : Nat → List DyadicPath
 /-- Measure construction and structural validation of a complete path frontier.
 This deliberately excludes numerical leaf evaluation and proof construction, so
 it is not an end-to-end addressed-subdivision benchmark. -/
-private def runFrontierCheck (depth : Nat) : IO Outcome := do
+def runFrontierCheck (depth : Nat) : IO Outcome := do
   let paths := pathsAtDepth depth
   if paths.length != 2 ^ depth then
     return {
@@ -136,7 +140,7 @@ private def runFrontierCheck (depth : Nat) : IO Outcome := do
         }
       return { status := "success", backendUsed := some "dyadic" }
 
-private def subdivisionCase (depth innerIterations : Nat) : Case := {
+def subdivisionCase (depth innerIterations : Nat) : Case := {
   name := s!"dyadic_subdivision.complete_tree.depth_{depth}"
   family := "dyadic_subdivision"
   tier := if depth < 10 then "micro" else "scaling"
@@ -153,7 +157,7 @@ private def subdivisionCase (depth innerIterations : Nat) : Case := {
   run := runCompleteTree depth
 }
 
-private def directCellCase (depth innerIterations : Nat) : Case := {
+def directCellCase (depth innerIterations : Nat) : Case := {
   name := s!"dyadic_subdivision.direct_cells.depth_{depth}"
   family := "dyadic_subdivision"
   tier := if depth < 10 then "micro" else "scaling"
@@ -170,7 +174,7 @@ private def directCellCase (depth innerIterations : Nat) : Case := {
   run := runDirectCells depth
 }
 
-private def preparedCellCase (depth innerIterations : Nat) : Case := {
+def preparedCellCase (depth innerIterations : Nat) : Case := {
   name := s!"dyadic_subdivision.prepared_cells.depth_{depth}"
   family := "dyadic_subdivision"
   tier := if depth < 10 then "micro" else "scaling"
@@ -187,7 +191,7 @@ private def preparedCellCase (depth innerIterations : Nat) : Case := {
   run := runPreparedCells depth
 }
 
-private def sequentialCellCase (depth innerIterations : Nat) : Case := {
+def sequentialCellCase (depth innerIterations : Nat) : Case := {
   name := s!"dyadic_subdivision.sequential_cells.depth_{depth}"
   family := "dyadic_subdivision"
   tier := if depth < 10 then "micro" else "scaling"
@@ -204,7 +208,7 @@ private def sequentialCellCase (depth innerIterations : Nat) : Case := {
   run := runSequentialCells depth
 }
 
-private def addressCase (depth innerIterations : Nat) : Case := {
+def addressCase (depth innerIterations : Nat) : Case := {
   name := s!"dyadic_subdivision.addresses_only.depth_{depth}"
   family := "dyadic_subdivision"
   tier := if depth < 10 then "micro" else "scaling"
@@ -221,7 +225,7 @@ private def addressCase (depth innerIterations : Nat) : Case := {
   run := runAddressesOnly depth
 }
 
-private def frontierCheckCase (depth innerIterations : Nat) : Case := {
+def frontierCheckCase (depth innerIterations : Nat) : Case := {
   name := s!"dyadic_subdivision.frontier_check.depth_{depth}"
   family := "dyadic_subdivision"
   tier := if depth < 10 then "micro" else "scaling"

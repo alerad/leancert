@@ -3,26 +3,30 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Harness
-import LeanCert.Engine.Algebra.Bezout
+module
+
+public import LeanCert.Benchmark.Harness
+public import LeanCert.Engine.Algebra.Bezout
 
 /-! Benchmarks for exact executable Bézout derivative certificates. -/
+
+@[expose] public section
 
 namespace LeanCert.Benchmark.AlgebraicBezout
 
 open LeanCert.Engine
 
 /-- `x^degree - 2`, in ascending coefficient order. -/
-private def powerMinusTwo (degree : Nat) : QPoly :=
+def powerMinusTwo (degree : Nat) : QPoly :=
   ⟨((( -2 : ℚ) :: List.replicate (degree - 1) 0) ++ [1]).toArray⟩
 
 /-- The exact identity `degree * P - x * P' = -2 * degree`. -/
-private def powerCertificate (degree : Nat) : BezoutCert where
+def powerCertificate (degree : Nat) : BezoutCert where
   A := QPoly.constant (degree : ℚ)
   B := ⟨#[0, -1]⟩
   c := -(2 * (degree : ℚ))
 
-private def runDegree (degree : Nat) : IO Outcome := do
+def runDegree (degree : Nat) : IO Outcome := do
   -- Keep the certificate action on the measured runtime path.
   let stamp ← IO.monoNanosNow
   let actualDegree := if stamp = 0 then 3 else degree

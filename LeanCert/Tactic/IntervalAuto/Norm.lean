@@ -3,8 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Tactic.IntervalAuto.Types
+module
+
+public import Lean
+public meta import Lean
+public import LeanCert.Tactic.IntervalAuto.Types
 
 /-!
 # Goal Normalization for Interval Tactics
@@ -14,6 +17,8 @@ This module provides utilities for normalizing goal structure before parsing:
 - Detection of goal patterns that need normalization
 - The `interval_norm` tactic
 -/
+
+public section
 
 open Lean Meta Elab Tactic
 
@@ -46,6 +51,8 @@ theorem forall_and_of_Icc_rev {α} [Preorder α] {lo hi : α} {P : α → Prop} 
   exact h x ⟨hx.2, hx.1⟩
 
 /-! ## Goal Structure Detection -/
+
+public meta section
 
 private def goalNeedsIccWrapper (goalType : Lean.Expr) : MetaM Bool := do
   let goalType ← whnf goalType
@@ -149,18 +156,18 @@ def tryNormalizeGoalToIcc : TacticM Bool := do
 /-! ## rpow Normalization Helpers -/
 
 /-- Normalize `x ^ (1/2)` into `sqrt x`. -/
-private theorem rpow_one_half_eq_sqrt (x : ℝ) :
+theorem rpow_one_half_eq_sqrt (x : ℝ) :
     x ^ ((1 : ℝ) / 2) = Real.sqrt x := by
   rw [Real.sqrt_eq_rpow]
 
 /-- Normalize `x ^ (2⁻¹)` into `sqrt x`. -/
-private theorem rpow_inv_two_eq_sqrt (x : ℝ) :
+theorem rpow_inv_two_eq_sqrt (x : ℝ) :
     x ^ ((2 : ℝ)⁻¹) = Real.sqrt x := by
   have hInv : ((2 : ℝ)⁻¹) = ((1 : ℝ) / 2) := by norm_num
   rw [hInv, rpow_one_half_eq_sqrt]
 
 /-- Normalize `x ^ (3/2)` into `x * sqrt x`. -/
-private theorem rpow_three_halves_eq_mul_sqrt (x : ℝ) :
+theorem rpow_three_halves_eq_mul_sqrt (x : ℝ) :
     x ^ ((3 : ℝ) / 2) = x * Real.sqrt x := by
   by_cases hx : x = 0
   · subst hx
@@ -170,7 +177,7 @@ private theorem rpow_three_halves_eq_mul_sqrt (x : ℝ) :
     simp [Real.sqrt_eq_rpow, mul_comm]
 
 /-- Normalize `x ^ 1.5` into `x * sqrt x`. -/
-private theorem rpow_one_point_five_eq_mul_sqrt (x : ℝ) :
+theorem rpow_one_point_five_eq_mul_sqrt (x : ℝ) :
     x ^ (1.5 : ℝ) = x * Real.sqrt x := by
   have hDec : (1.5 : ℝ) = ((3 : ℝ) / 2) := by norm_num
   rw [hDec, rpow_three_halves_eq_mul_sqrt]
@@ -213,5 +220,7 @@ syntax (name := intervalNormTac) "interval_norm" : tactic
 
 @[tactic intervalNormTac]
 def elabIntervalNorm : Tactic := fun _ => intervalNormCore
+
+end
 
 end LeanCert.Tactic.Auto

@@ -16,7 +16,7 @@ divisor-indexed canonical product by powers `(z - z₀)^k` away from `z₀`. It 
 local identity on a punctured ball used later in removable-singularity arguments.
 -/
 
-@[expose] public section
+public section
 
 open Filter Function Complex Finset Topology
 open scoped Topology BigOperators

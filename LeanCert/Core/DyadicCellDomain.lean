@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.CertifiedCellDomain
-import LeanCert.Core.IntervalDyadic
+module
+
+public import LeanCert.Core.CertifiedCellDomain
+public import LeanCert.Core.IntervalDyadic
 
 /-!
 # Certified dyadic interval subdivision
@@ -12,6 +14,8 @@ import LeanCert.Core.IntervalDyadic
 Exact midpoint bisection supplies the first `CertifiedCellDomain` instance.
 Both children are closed: their shared midpoint seam is deliberately retained.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Core
 

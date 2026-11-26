@@ -3,7 +3,9 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalReal
+module
+
+public import LeanCert.Core.IntervalReal
 
 /-!
 # Affine Arithmetic
@@ -37,6 +39,8 @@ where `εᵢ ∈ [-1, 1]` are noise symbols tracking input correlations.
 
 * Stolfi & de Figueiredo, "Self-Validated Numerical Methods and Applications"
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Affine
 

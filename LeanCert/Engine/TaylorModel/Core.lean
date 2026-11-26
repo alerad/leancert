@@ -3,12 +3,14 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEval
-import Mathlib.RingTheory.Polynomial.Basic
-import Mathlib.Algebra.Polynomial.Degree.Defs
-import Mathlib.Data.Nat.Choose.Sum
-import Mathlib.Data.Nat.Choose.Basic
-import Mathlib.Data.List.GetD
+module
+
+public import LeanCert.Engine.IntervalEval
+public import Mathlib.RingTheory.Polynomial.Basic
+public import Mathlib.Algebra.Polynomial.Degree.Defs
+public import Mathlib.Data.Nat.Choose.Sum
+public import Mathlib.Data.Nat.Choose.Basic
+public import Mathlib.Data.List.GetD
 
 /-!
 # Taylor Models - Core Definitions
@@ -30,6 +32,8 @@ A Taylor model for f on interval I centered at c is:
 
 Operations on Taylor models (add, mul, compose) preserve this property.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

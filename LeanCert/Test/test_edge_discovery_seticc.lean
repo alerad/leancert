@@ -1,4 +1,8 @@
-import LeanCert.Tactic.Discovery
+module
+
+public import LeanCert.Tactic.Discovery
+
+public section
 
 abbrev Icc01 : Set ℝ := Set.Icc (0:ℝ) 1
 

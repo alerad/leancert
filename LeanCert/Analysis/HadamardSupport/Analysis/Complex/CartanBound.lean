@@ -32,7 +32,6 @@ which majorizes the logarithmic singularity on dyadic intervals.
 
 @[expose] public section
 
-
 namespace Complex
 namespace CartanBound
 

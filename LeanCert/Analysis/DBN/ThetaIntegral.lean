@@ -1,12 +1,17 @@
-import LeanCert.Analysis.DBN.ThetaDerivatives
-import LeanCert.Analysis.DBN.HeatFlow
-import Mathlib.MeasureTheory.Integral.IntegralEqImproper
+module
+
+public import LeanCert.Analysis.DBN.ThetaDerivatives
+public import LeanCert.Analysis.DBN.HeatFlow
+public import Mathlib.MeasureTheory.Integral.IntegralEqImproper
 
 /-!
 # The cosine-transform identity for the actual heat integral at time zero
 
 The integration-by-parts boundary term is retained. No xi identity is assumed.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open MeasureTheory Set Filter
 open scoped Topology

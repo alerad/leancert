@@ -1,8 +1,13 @@
-import LeanCert.Analysis.DBN.HeatGrowth
-import LeanCert.Analysis.HadamardSupport.Analysis.Complex.HadamardFactorization.Order
+module
+
+public import LeanCert.Analysis.DBN.HeatGrowth
+public import LeanCert.Analysis.HadamardSupport.Analysis.Complex.HadamardFactorization.Order
 
 /-! Hadamard factorization instantiated for the actual H_t at every real time, not an assumed xi model.
 Symmetric polynomial cutoffs and strip-preserving approximation are still separate. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Complex.Hadamard
 

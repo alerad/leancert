@@ -3,8 +3,10 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean.Data.Json
-import LeanCertMathlibPin
+module
+
+public import Lean.Data.Json
+public import LeanCertMathlibPin
 
 /-!
 # Mathlib Compatibility Checker
@@ -12,6 +14,8 @@ import LeanCertMathlibPin
 A simple tool to check if the current project's Mathlib version matches LeanCert's expected version.
 Run with: `lake exe check-compat`
 -/
+
+@[expose] public section
 
 open System
 

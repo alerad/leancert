@@ -3,9 +3,11 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Affine.Nonlinear
-import LeanCert.Core.IntervalRat.Taylor
-import LeanCert.Engine.IntervalEval
+module
+
+public import LeanCert.Engine.Affine.Nonlinear
+public import LeanCert.Core.IntervalRat.Taylor
+public import LeanCert.Engine.IntervalEval
 
 /-!
 # Affine Arithmetic: Transcendental Functions
@@ -31,6 +33,8 @@ For tanh(x):
 2. For small x, tanh(x) ≈ x is a good approximation
 3. For larger x, we use the secant/tangent approach
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Affine
 

@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Chebyshev.Psi
-import LeanCert.Engine.Chebyshev.Theta
+module
+
+public import LeanCert.Engine.Chebyshev.Psi
+public import LeanCert.Engine.Chebyshev.Theta
 
 /-!
 # Chebyshev Validity Exports
@@ -12,6 +14,8 @@ import LeanCert.Engine.Chebyshev.Theta
 Stable Validity-layer import path for Chebyshev `ψ` and `θ` certificate bridge
 theorems. Definitions remain in their engine modules.
 -/
+
+public section
 
 namespace LeanCert.Validity.Chebyshev
 

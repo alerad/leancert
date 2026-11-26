@@ -3,7 +3,9 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Affine.Transcendental
+module
+
+public import LeanCert.Engine.Affine.Transcendental
 
 /-!
 # Affine Arithmetic: Vector Operations
@@ -33,6 +35,8 @@ With Affine Arithmetic:
 * `AffineVector.sub` - Element-wise subtraction
 * `AffineVector.layerNorm` - LayerNorm with proper dependency tracking
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Affine
 

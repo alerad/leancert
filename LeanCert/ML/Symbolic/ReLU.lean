@@ -3,7 +3,9 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalDyadic
+module
+
+public import LeanCert.Core.IntervalDyadic
 
 /-!
 # Verified DeepPoly ReLU Relaxation
@@ -39,6 +41,8 @@ using linear functions:
 * `upper_bound_valid` - The triangle upper bound contains ReLU in the crossing case
 * `relu_relaxation_sound` - Complete soundness theorem for all cases
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Symbolic
 

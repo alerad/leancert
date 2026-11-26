@@ -1,6 +1,11 @@
-import LeanCert.Analysis.DBN.HeatRegularity
+module
+
+public import LeanCert.Analysis.DBN.HeatRegularity
 
 /-! Subquadratic spatial growth of the actual heat integral at every real time. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open MeasureTheory Set Complex
 

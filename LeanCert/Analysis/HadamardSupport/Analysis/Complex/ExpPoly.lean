@@ -3,7 +3,6 @@ Copyright (c) 2026 Matteo Cipollina. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Matteo Cipollina
 -/
-
 module
 
 public import Mathlib.Analysis.Complex.HasPrimitives
@@ -27,9 +26,7 @@ if `H` is entire and has no zeros, then a polynomial-type growth bound of the fo
 
 -/
 
-@[expose] public section
-
-noncomputable section
+public noncomputable section
 
 namespace Complex
 namespace Hadamard

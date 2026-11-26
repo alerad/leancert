@@ -3,12 +3,14 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.RootFinding.Basic
-import LeanCert.Engine.RootFinding.Bisection
-import LeanCert.Engine.RootFinding.Newton
-import LeanCert.Engine.RootFinding.MVTBounds
-import LeanCert.Engine.RootFinding.Contraction
-import LeanCert.Engine.RootFinding.Krawczyk
+module
+
+public import LeanCert.Engine.RootFinding.Basic
+public import LeanCert.Engine.RootFinding.Bisection
+public import LeanCert.Engine.RootFinding.Newton
+public import LeanCert.Engine.RootFinding.MVTBounds
+public import LeanCert.Engine.RootFinding.Contraction
+public import LeanCert.Engine.RootFinding.Krawczyk
 
 /-!
 # Root Finding: Main Module
@@ -42,7 +44,7 @@ For most applications, import this module to get access to all root finding
 functionality:
 
 ```lean
-import LeanCert.Engine.RootFinding.Main
+public import LeanCert.Engine.RootFinding.Main
 ```
 
 Or import specific submodules as needed.
@@ -58,6 +60,8 @@ Or import specific submodules as needed.
 - MVT wrapper lemmas and all contraction contradiction lemmas
 - Polynomial systems: `krawczykCheck_sound`
 -/
+
+public section
 
 namespace LeanCert.Engine
 

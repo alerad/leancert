@@ -16,7 +16,7 @@ Building on quotient convergence and boundedness on punctured balls, this file p
 singularity results and identifies the exact zero multiplicity of `divisorCanonicalProduct`.
 -/
 
-@[expose] public section
+public section
 
 open Filter Function Complex Finset Topology
 open scoped Topology BigOperators

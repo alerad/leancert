@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.LeanCert
+module
+
+public import LeanCert.Tactic.LeanCert
 
 /-!
 # Isolated Solver Protocol Tests
@@ -12,13 +14,15 @@ Synthetic solvers exercise proof-artifact isolation independently of numerical
 engines.
 -/
 
+@[expose] public section
+
 open Lean Meta Elab Tactic
 open LeanCert.Tactic
 open LeanCert.Tactic.Solver
 
 set_option linter.unusedTactic false
 
-private def testPlan : SolverPlan := {
+private meta def testPlan : SolverPlan := {
   intent := .intervalBound
   solver := `syntheticSolver
   strategyId := .intervalEnclosure
@@ -28,27 +32,27 @@ private def testPlan : SolverPlan := {
   verificationRequested := .auto
 }
 
-private def assertOriginalGoals (before : List MVarId) : TacticM Unit := do
+private meta def assertOriginalGoals (before : List MVarId) : TacticM Unit := do
   let after ← getGoals
   unless after == before do
     throwError "isolated solver did not restore the original goal list"
 
-private def localEnvironmentSize : TacticM Nat := do
+private meta def localEnvironmentSize : TacticM Nat := do
   return (← getEnv).constants.map₂.foldl (init := 0) fun count _ _ => count + 1
 
-private def runSynthetic (solver : TacticM Unit) : TacticM AttemptOutcome := do
+private meta def runSynthetic (solver : TacticM Unit) : TacticM AttemptOutcome := do
   let goal ← getMainGoal
   proveWithTypedSolver testPlan (← goal.getType) do
     solver
     return .ok {}
 
-private def runSyntheticWithPlan (plan : SolverPlan)
+private meta def runSyntheticWithPlan (plan : SolverPlan)
     (solver : TacticM (Except AttemptFailure SolverExecution)) :
     TacticM AttemptOutcome := do
   let goal ← getMainGoal
   proveWithTypedSolver plan (← goal.getType) solver
 
-private def runSyntheticExecution (solver : TacticM SolverExecution) :
+private meta def runSyntheticExecution (solver : TacticM SolverExecution) :
     TacticM AttemptOutcome := do
   let goal ← getMainGoal
   proveWithTypedSolver testPlan (← goal.getType) do

@@ -3,19 +3,34 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.LeanCert.Config
-import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
-import LeanCert.Tactic.LeanCert.Diagnostic.Render
-import LeanCert.Tactic.LeanCert.Integral
-import LeanCert.Tactic.LeanCert.Semantic.Parse
-import LeanCert.Tactic.LeanCert.Semantic.Prepare
-import LeanCert.Tactic.LeanCert.Solver.Protocol
-import LeanCert.Tactic.Extension.Execute
-import LeanCert.Tactic.Discovery
-import LeanCert.Tactic.FinSumExpand
-import LeanCert.Tactic.EventualBound
-import LeanCert.Tactic.Krawczyk
-import LeanCert.Engine.Search.CounterExample
+module
+
+public import LeanCert.Tactic.LeanCert.Config
+public import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public import LeanCert.Tactic.LeanCert.Diagnostic.Render
+public import LeanCert.Tactic.LeanCert.Integral
+public import LeanCert.Tactic.LeanCert.Semantic.Parse
+public import LeanCert.Tactic.LeanCert.Semantic.Prepare
+public import LeanCert.Tactic.LeanCert.Solver.Protocol
+public import LeanCert.Tactic.Extension.Execute
+public import LeanCert.Tactic.Discovery
+public import LeanCert.Tactic.FinSumExpand
+public import LeanCert.Tactic.EventualBound
+public import LeanCert.Tactic.Krawczyk
+public import LeanCert.Engine.Search.CounterExample
+public meta import LeanCert.Tactic.LeanCert.Config
+public meta import LeanCert.Tactic.LeanCert.Bridge.ReifiedFunction
+public meta import LeanCert.Tactic.LeanCert.Diagnostic.Render
+public meta import LeanCert.Tactic.LeanCert.Integral
+public meta import LeanCert.Tactic.LeanCert.Semantic.Parse
+public meta import LeanCert.Tactic.LeanCert.Semantic.Prepare
+public meta import LeanCert.Tactic.LeanCert.Solver.Protocol
+public meta import LeanCert.Tactic.Extension.Execute
+public meta import LeanCert.Tactic.Discovery
+public meta import LeanCert.Tactic.FinSumExpand
+public meta import LeanCert.Tactic.EventualBound
+public meta import LeanCert.Tactic.Krawczyk
+public meta import LeanCert.Engine.Search.CounterExample
 
 /-!
 # Semantic LeanCert Router
@@ -24,6 +39,8 @@ import LeanCert.Engine.Search.CounterExample
 deterministic portfolio through isolated, validated proof artifacts. It is a
 semantic front door, not a new numerical engine.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic
 
@@ -50,10 +67,10 @@ structure SolverSpec where
   budget is spent. Inapplicable solvers are skipped silently. -/
   applicable : Semantic.PreparedGoal → TacticM Bool := fun _ => pure true
 
-private def suggestion (tactic : String) (args : Array String := #[]) : ProofSuggestion :=
+def suggestion (tactic : String) (args : Array String := #[]) : ProofSuggestion :=
   { tactic, positionalArgs := args }
 
-private def primarySuggestion (cfg : LeanCertConfig)
+def primarySuggestion (cfg : LeanCertConfig)
     (mode : VerificationMode) : ProofSuggestion := Id.run do
   let mut namedArgs : Array (String × String) := #[]
   if cfg.budget != 6 then namedArgs := namedArgs.push ("budget", toString cfg.budget)
@@ -69,7 +86,7 @@ private def primarySuggestion (cfg : LeanCertConfig)
     trust := if cfg.trust.isSome || mode != .native then some mode else none
   }
 
-private def report (intent : GoalIntent) (strategy : String)
+def report (intent : GoalIntent) (strategy : String)
     (cfg : LeanCertConfig) (mode : VerificationMode)
     (backendPolicy : BackendPolicy := .unknown)
     (dedicatedProof : Option ProofSuggestion := none)
@@ -94,7 +111,7 @@ private def report (intent : GoalIntent) (strategy : String)
     verificationRequested := mode
   }
 
-private def subdivisionExecution
+def subdivisionExecution
     (outcome : Auto.SubdivisionOutcome) : SolverExecution := {
     backend := some .rationalInterval
     verificationUsage :=
@@ -113,7 +130,7 @@ private def subdivisionExecution
     }
   }
 
-private def subdivisionFailure :
+def subdivisionFailure :
     Auto.SubdivisionFailure → AttemptFailure
   | .unsupported expression detail =>
       .unsupported { expression, detail := some detail }
@@ -136,7 +153,7 @@ private def subdivisionFailure :
   | .internalFailure detail =>
       .internalError `LeanCert.Tactic.Auto.intervalBoundSubdivCoreTyped detail
 
-private unsafe def adaptiveSubdivisionAttemptTyped (cfg : LeanCertConfig) :
+unsafe def adaptiveSubdivisionAttemptTyped (cfg : LeanCertConfig) :
     TacticM (Except AttemptFailure SolverExecution) := do
   let original ← saveState
   let stages := (NumericalRefinementPolicy.adaptive cfg.taylorDepth
@@ -160,7 +177,7 @@ private unsafe def adaptiveSubdivisionAttemptTyped (cfg : LeanCertConfig) :
       detail := "The numerical refinement policy scheduled no positive subdivision depth."
     }
 
-private def pointExecution (outcome : Auto.PointInequalityOutcome) :
+def pointExecution (outcome : Auto.PointInequalityOutcome) :
     SolverExecution := Id.run do
   let mut notes := #[s!"Taylor depth: {outcome.taylorDepth}"]
   if let some precision := outcome.precision then
@@ -175,7 +192,7 @@ private def pointExecution (outcome : Auto.PointInequalityOutcome) :
     notes
   }
 
-private def pointAttemptTyped (depth : Nat) :
+def pointAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   Auto.intervalNormCore
   let goal ← getMainGoal
@@ -199,7 +216,7 @@ private def pointAttemptTyped (depth : Nat) :
   | .error (.internalFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
 
-private def adaptivePointAttemptTyped (policy : NumericalRefinementPolicy) :
+def adaptivePointAttemptTyped (policy : NumericalRefinementPolicy) :
     TacticM (Except AttemptFailure SolverExecution) := do
   Auto.intervalNormCore
   let goal ← getMainGoal
@@ -217,7 +234,7 @@ private def adaptivePointAttemptTyped (policy : NumericalRefinementPolicy) :
   | .error (.internalFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.interval_decide detail
 
-private def bernsteinExecution (outcome : Auto.BernsteinBoundOutcome) :
+def bernsteinExecution (outcome : Auto.BernsteinBoundOutcome) :
     SolverExecution := {
   backend := some .exactRational
   verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
@@ -228,7 +245,7 @@ private def bernsteinExecution (outcome : Auto.BernsteinBoundOutcome) :
     s!"boxes examined: {outcome.boxesExamined}"]
 }
 
-private def bernsteinFailure : Auto.BernsteinBoundFailure → AttemptFailure
+def bernsteinFailure : Auto.BernsteinBoundFailure → AttemptFailure
   | .unsupported expression detail =>
       .unsupported { expression, detail := some detail }
   | .notPolynomial expression =>
@@ -247,7 +264,7 @@ private def bernsteinFailure : Auto.BernsteinBoundFailure → AttemptFailure
   | .internalFailure detail =>
       .internalError `LeanCert.Tactic.Auto.bernsteinBoundCoreTyped detail
 
-private unsafe def bernsteinAttemptTyped (maxDepth : Nat) :
+unsafe def bernsteinAttemptTyped (maxDepth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← Auto.bernsteinBoundCoreTyped maxDepth with
   | .ok outcome => return .ok (bernsteinExecution outcome)
@@ -255,7 +272,7 @@ private unsafe def bernsteinAttemptTyped (maxDepth : Nat) :
 
 /-- The Bernstein strategy applies when every prepared function is a
 univariate rational polynomial. -/
-private unsafe def bernsteinApplicable (prepared : Semantic.PreparedGoal) :
+unsafe def bernsteinApplicable (prepared : Semantic.PreparedGoal) :
     TacticM Bool := do
   if prepared.functions.isEmpty then return false
   for function in prepared.functions do
@@ -265,7 +282,7 @@ private unsafe def bernsteinApplicable (prepared : Semantic.PreparedGoal) :
     | .unsupported .. | .deferred .. => return false
   return true
 
-private def directBoundExecution (outcome : Auto.IntervalBoundOutcome) :
+def directBoundExecution (outcome : Auto.IntervalBoundOutcome) :
     SolverExecution := Id.run do
   let mut notes := #[s!"Taylor depth: {outcome.taylorDepth}"]
   if let some precision := outcome.precision then
@@ -280,7 +297,7 @@ private def directBoundExecution (outcome : Auto.IntervalBoundOutcome) :
     notes
   }
 
-private def registeredEnclosureExecution
+def registeredEnclosureExecution
     (outcome : Extension.RegisteredEnclosureOutcome) : SolverExecution := {
   backend := some .rationalInterval
   verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
@@ -307,7 +324,7 @@ private def registeredEnclosureExecution
       #[s!"proof-carrying composition: {outcome.compositionSteps} surrounding core layer(s)"]
 }
 
-private def registeredEnclosureFailure :
+def registeredEnclosureFailure :
     Extension.RegisteredEnclosureFailure → AttemptFailure
   | .notApplicable => .notApplicable
   | .unsupported expression detail =>
@@ -331,7 +348,7 @@ private def registeredEnclosureFailure :
       .internalError
         `LeanCert.Tactic.Extension.registeredEnclosureBoundSubdivCoreTyped detail
 
-private unsafe def adaptiveRegisteredEnclosureAttemptTyped
+unsafe def adaptiveRegisteredEnclosureAttemptTyped
     (prepared : Semantic.PreparedGoal) (policy : NumericalRefinementPolicy) :
     TacticM (Except AttemptFailure SolverExecution) := do
   let original ← saveState
@@ -352,7 +369,7 @@ private unsafe def adaptiveRegisteredEnclosureAttemptTyped
   original.restore
   return .error <| lastFailure.getD .notApplicable
 
-private unsafe def adaptiveDirectBoundAttemptTyped
+unsafe def adaptiveDirectBoundAttemptTyped
     (policy : NumericalRefinementPolicy) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← Auto.intervalBoundAdaptiveCoreTyped policy with
@@ -369,7 +386,7 @@ private unsafe def adaptiveDirectBoundAttemptTyped
   | .error (.internalFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.certify_bound detail
 
-private def discoveryExecution (outcome : DiscoveryOutcome) : SolverExecution := {
+def discoveryExecution (outcome : DiscoveryOutcome) : SolverExecution := {
   backend := some .rationalInterval
   verificationUsage := Solver.VerificationUsage.ofEvents outcome.verification
   checker := outcome.checker
@@ -397,7 +414,7 @@ private def discoveryExecution (outcome : DiscoveryOutcome) : SolverExecution :=
   ]
 }
 
-private def discoveryFailure (solver : Name) :
+def discoveryFailure (solver : Name) :
     DiscoveryFailure → AttemptFailure
   | .unsupported expression detail =>
       .unsupported { expression, detail := some detail }
@@ -414,21 +431,21 @@ private def discoveryFailure (solver : Name) :
   | .internalFailure detail =>
       .internalError solver detail
 
-private unsafe def minimizeAttemptTyped (depth : Nat) :
+unsafe def minimizeAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← intervalMinimizeCoreTyped depth with
   | .ok outcome => return .ok (discoveryExecution outcome)
   | .error failure =>
       return .error (discoveryFailure `LeanCert.Tactic.Discovery.interval_minimize failure)
 
-private unsafe def maximizeAttemptTyped (depth : Nat) :
+unsafe def maximizeAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← intervalMaximizeCoreTyped depth with
   | .ok outcome => return .ok (discoveryExecution outcome)
   | .error failure =>
       return .error (discoveryFailure `LeanCert.Tactic.Discovery.interval_maximize failure)
 
-private unsafe def minimizeMvAttemptTyped (depth : Nat) :
+unsafe def minimizeMvAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← intervalMinimizeMvCoreTyped depth with
   | .ok outcome => return .ok (discoveryExecution outcome)
@@ -436,7 +453,7 @@ private unsafe def minimizeMvAttemptTyped (depth : Nat) :
       return .error (discoveryFailure
         `LeanCert.Tactic.Discovery.interval_minimize_mv failure)
 
-private unsafe def maximizeMvAttemptTyped (depth : Nat) :
+unsafe def maximizeMvAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← intervalMaximizeMvCoreTyped depth with
   | .ok outcome => return .ok (discoveryExecution outcome)
@@ -444,7 +461,7 @@ private unsafe def maximizeMvAttemptTyped (depth : Nat) :
       return .error (discoveryFailure
         `LeanCert.Tactic.Discovery.interval_maximize_mv failure)
 
-private def attainedFailure (solver : Name) :
+def attainedFailure (solver : Name) :
     AttainedExtremumFailure → AttemptFailure
   | .unsupported expression detail =>
       .unsupported { expression, detail := some detail }
@@ -464,7 +481,7 @@ private def attainedFailure (solver : Name) :
   | .transportFailure detail => .internalError solver detail
   | .internalFailure detail => .internalError solver detail
 
-private def attainedExecution
+def attainedExecution
     (outcome : AttainedExtremumOutcome) : SolverExecution := Id.run do
   let mut usage : Solver.VerificationUsage := {}
   let mut certificates : Array Solver.CertificateObservation := #[]
@@ -511,7 +528,7 @@ private def attainedExecution
     ]
   }
 
-private unsafe def argminAttemptTyped (depth : Nat) :
+unsafe def argminAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← intervalArgminCoreTyped depth with
   | .ok outcome => return .ok (attainedExecution outcome)
@@ -519,7 +536,7 @@ private unsafe def argminAttemptTyped (depth : Nat) :
       return .error (attainedFailure
         `LeanCert.Tactic.Discovery.interval_argmin failure)
 
-private unsafe def argmaxAttemptTyped (depth : Nat) :
+unsafe def argmaxAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← intervalArgmaxCoreTyped depth with
   | .ok outcome => return .ok (attainedExecution outcome)
@@ -527,7 +544,7 @@ private unsafe def argmaxAttemptTyped (depth : Nat) :
       return .error (attainedFailure
         `LeanCert.Tactic.Discovery.interval_argmax failure)
 
-private def finiteSumExecution (outcome : FinSumOutcome) : SolverExecution := {
+def finiteSumExecution (outcome : FinSumOutcome) : SolverExecution := {
     backend := some .dyadicInterval
     verificationUsage :=
       Solver.VerificationUsage.ofEvents outcome.verification
@@ -547,12 +564,12 @@ private def finiteSumExecution (outcome : FinSumOutcome) : SolverExecution := {
     }
   }
 
-private def unknownDomainSource : Semantic.IntervalSyntax := {
+def unknownDomainSource : Semantic.IntervalSyntax := {
   original := mkConst ``True
   kind := .intervalRat
 }
 
-private def finSumAttemptTyped (precision : Int) (depth : Nat) :
+def finSumAttemptTyped (precision : Int) (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← finSumBoundCoreTyped precision depth with
   | .ok outcome => return .ok (finiteSumExecution outcome)
@@ -577,7 +594,7 @@ private def finSumAttemptTyped (precision : Int) (depth : Nat) :
   | .error (.internalFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.finsum_bound detail
 
-private def integralExecution (backend : Option NumericalBackend)
+def integralExecution (backend : Option NumericalBackend)
     (outcomes : Array IntegralOutcome) : SolverExecution := Id.run do
   let mut usage : Solver.VerificationUsage := {}
   let mut notes : Array String := #[]
@@ -622,7 +639,7 @@ private def integralExecution (backend : Option NumericalBackend)
     notes
   }
 
-private def integralFailureToAttempt (solver : Name) :
+def integralFailureToAttempt (solver : Name) :
     IntegralFailure → AttemptFailure
   | .unsupported detail =>
       .unsupported { expression := "interval integral", detail := some detail }
@@ -649,14 +666,14 @@ private def integralFailureToAttempt (solver : Name) :
   | .transportFailure detail => .internalError solver detail
   | .internalFailure detail => .internalError solver detail
 
-private def integralExactAttemptTyped :
+def integralExactAttemptTyped :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← integralExactCoreTyped with
   | .ok outcomes => return .ok (integralExecution (some .exactRational) outcomes)
   | .error failure =>
       return .error (integralFailureToAttempt `LeanCert.Tactic.integral_exact failure)
 
-private def integralSearchAttemptTyped (start maximum : Nat) :
+def integralSearchAttemptTyped (start maximum : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← integralSearchCoreTyped start maximum with
   | .ok outcomes =>
@@ -664,7 +681,7 @@ private def integralSearchAttemptTyped (start maximum : Nat) :
   | .error failure =>
       return .error (integralFailureToAttempt `LeanCert.Tactic.integral_search failure)
 
-private def checkedExecution (backend : Option NumericalBackend)
+def checkedExecution (backend : Option NumericalBackend)
     (verification : LeanCert.Tactic.VerificationUsage)
     (checker verifier : Name) (notes : Array String := #[]) : SolverExecution := {
   backend
@@ -674,7 +691,7 @@ private def checkedExecution (backend : Option NumericalBackend)
   notes
 }
 
-private def rootDiscoveryAttemptTyped
+def rootDiscoveryAttemptTyped
     (solver : Name)
     (attempt : TacticM (Except RootDiscoveryFailure RootDiscoveryOutcome)) :
     TacticM (Except AttemptFailure SolverExecution) := do
@@ -692,17 +709,17 @@ private def rootDiscoveryAttemptTyped
   | .error (.internalFailure detail) =>
       return .error <| .internalError solver detail
 
-private def rootExistsAttemptTyped (depth : Nat) :
+def rootExistsAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) :=
   rootDiscoveryAttemptTyped `LeanCert.Tactic.Discovery.interval_roots
     (intervalRootsCoreTyped depth)
 
-private unsafe def uniqueRootAttemptTyped (depth : Nat) :
+unsafe def uniqueRootAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) :=
   rootDiscoveryAttemptTyped `LeanCert.Tactic.Discovery.interval_unique_root
     (intervalUniqueRootCoreTyped depth)
 
-private def noRootAttemptTyped (depth : Nat) :
+def noRootAttemptTyped (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← Auto.rootBoundCoreTyped depth with
   | .ok outcome =>
@@ -718,7 +735,7 @@ private def noRootAttemptTyped (depth : Nat) :
   | .error (.internalFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.root_bound detail
 
-private unsafe def optimizationAttemptTyped (maxIterations : Nat)
+unsafe def optimizationAttemptTyped (maxIterations : Nat)
     (useMonotonicity : Bool) (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← Auto.optBoundCoreTyped maxIterations useMonotonicity depth with
@@ -748,7 +765,7 @@ private unsafe def optimizationAttemptTyped (maxIterations : Nat)
   | .error (.internalFailure detail) =>
       return .error <| .internalError `LeanCert.Tactic.Auto.opt_bound detail
 
-private unsafe def multivariateAttemptTyped (maxIterations : Nat)
+unsafe def multivariateAttemptTyped (maxIterations : Nat)
     (tolerance : ℚ) (useMonotonicity : Bool) (depth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← Auto.multivariateBoundCoreTyped maxIterations tolerance
@@ -792,7 +809,7 @@ def exactTacticAttemptTyped (tactic : TacticM Unit) :
   tactic
   return .ok {}
 
-private def certificateCheckAttemptTyped :
+def certificateCheckAttemptTyped :
     TacticM (Except AttemptFailure SolverExecution) := do
   let cfg ← LeanCert.Tactic.VerificationConfig.current
   let goal ← getMainGoal
@@ -810,7 +827,7 @@ private def certificateCheckAttemptTyped :
       return .error <| .internalError `LeanCert.Tactic.leancert
         (failure.message "leancert")
 
-private def eventualFailure : EventualBoundFailure → AttemptFailure
+def eventualFailure : EventualBoundFailure → AttemptFailure
   | .unsupportedTail expression detail =>
       .unsupported { expression, detail := some detail }
   | .invalidParameters detail =>
@@ -832,7 +849,7 @@ private def eventualFailure : EventualBoundFailure → AttemptFailure
   | .internalFailure detail =>
       .internalError `LeanCert.Tactic.eventualBoundCoreTyped detail
 
-private def eventualBoundAttemptTyped (maxChecks : Nat) :
+def eventualBoundAttemptTyped (maxChecks : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← eventualBoundCoreTyped none maxChecks with
   | .error failure => return .error (eventualFailure failure)
@@ -856,7 +873,7 @@ private def eventualBoundAttemptTyped (maxChecks : Nat) :
         notes := if outcome.discovered then #[] else #[s!"Explicit cutoff: N = {outcome.cutoff}"]
       }
 
-private def automaticKrawczykFailure
+def automaticKrawczykFailure
     (failure : SystemUniqueRootFailure) : AttemptFailure :=
   match failure with
   | .unsupportedGoal _ => .notApplicable
@@ -907,7 +924,7 @@ private def automaticKrawczykFailure
   | .internalFailure detail => .internalError
       `LeanCert.Tactic.systemUniqueRootAutomaticCoreTyped detail
 
-private unsafe def systemRootAttemptTyped (maxIterations taylorDepth : Nat) :
+unsafe def systemRootAttemptTyped (maxIterations taylorDepth : Nat) :
     TacticM (Except AttemptFailure SolverExecution) := do
   match ← systemUniqueRootAutomaticCoreTyped maxIterations 4 taylorDepth with
   | .error failure => return .error (automaticKrawczykFailure failure)
@@ -931,7 +948,7 @@ private unsafe def systemRootAttemptTyped (maxIterations taylorDepth : Nat) :
       }
 
 /-- The deterministic strategy portfolio for a recognized goal intent. -/
-private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
+unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
     (mode : VerificationMode) : Array SolverSpec :=
   let d := cfg.taylorDepth
   let d2 := d + 10
@@ -1149,7 +1166,7 @@ private unsafe def portfolio (intent : GoalIntent) (cfg : LeanCertConfig)
         solve := integralSearchAttemptTyped 16 16384 }]
   | .conjunction => #[]
 
-private def Semantic.SemanticGoal.comparison? :
+def Semantic.SemanticGoal.comparison? :
     Semantic.SemanticGoal → Option Semantic.Comparison
   | .point spec => some spec.comparison
   | .bound spec => some spec.comparison
@@ -1157,17 +1174,17 @@ private def Semantic.SemanticGoal.comparison? :
   | .finiteSum spec => some spec.comparison
   | _ => none
 
-private def SolverSpec.isApplicableTo
+def SolverSpec.isApplicableTo
     (spec : SolverSpec) (goal : Semantic.SemanticGoal) : Bool :=
   match spec.comparisons, goal.comparison? with
   | some accepted, some comparison => accepted.contains comparison
   | some _, none => false
   | none, _ => true
 
-private def outcomeSummary (outcome : AttemptOutcome) : String :=
+def outcomeSummary (outcome : AttemptOutcome) : String :=
   Diagnostic.attemptOutcome outcome
 
-private def throwRouterFailure {α : Type}
+def throwRouterFailure {α : Type}
     (verbosity : Diagnostic.DiagnosticVerbosity)
     (failure : Diagnostic.RouterFailure) : TacticM α :=
   throwError "{Diagnostic.routerFailure verbosity failure}"
@@ -1199,13 +1216,13 @@ def enforceAttemptDisposition
           throwRouterFailure verbosity <| Diagnostic.RouterFailure.internalError
             "The disposition table stopped on a nonterminal solver outcome."
 
-private def trySolver (spec : SolverSpec) : TacticM AttemptOutcome := do
+def trySolver (spec : SolverSpec) : TacticM AttemptOutcome := do
   let goal ← getMainGoal
   let proposition ← goal.getType
   Solver.proveWithTypedSolver { spec.report with cost := spec.cost }
     proposition spec.solve
 
-private partial def normalizedBoundProposition (spec : Semantic.BoundSpec) :
+partial def normalizedBoundProposition (spec : Semantic.BoundSpec) :
     MetaM Lean.Expr := do
   let rec visit (index : Nat) (arguments : Array Lean.Expr) : MetaM Lean.Expr := do
     if h : index < spec.boundVars.size then
@@ -1224,7 +1241,7 @@ private partial def normalizedBoundProposition (spec : Semantic.BoundSpec) :
       | _ => pure spec.original
   visit 0 #[]
 
-private def canonicalRootProposition (spec : Semantic.RootSpec) : MetaM Lean.Expr := do
+def canonicalRootProposition (spec : Semantic.RootSpec) : MetaM Lean.Expr := do
   withLocalDeclD spec.boundVar.userName spec.boundVar.type fun x => do
     let membership ← mkAppM ``Membership.mem #[spec.boundVar.domain.original, x]
     let value := (mkApp spec.function x).headBeta
@@ -1238,7 +1255,7 @@ private def canonicalRootProposition (spec : Semantic.RootSpec) : MetaM Lean.Exp
     | .unique => mkAppM ``ExistsUnique #[predicate]
     | .excluded => pure spec.original
 
-private def canonicalExtremumProposition (spec : Semantic.ExtremumSpec) :
+def canonicalExtremumProposition (spec : Semantic.ExtremumSpec) :
     MetaM Lean.Expr := do
   withLocalDeclD spec.boundVar.userName spec.boundVar.type fun x => do
     let xMembership ← mkAppM ``Membership.mem #[spec.boundVar.domain.original, x]
@@ -1257,7 +1274,7 @@ private def canonicalExtremumProposition (spec : Semantic.ExtremumSpec) :
 /-- Adapt a numerical engine to the comparison normalized by the
 semantic parser. The numerical engine sees `lhs - rhs ⋚ 0`; the resulting proof
 is transported back with the ordinary ordered-ring equivalence. -/
-private def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) :
+def trySolverFor (spec : SolverSpec) (semantic : Semantic.SemanticGoal) :
     TacticM AttemptOutcome := do
   let runSpec := spec.solve
   let action ←
@@ -1308,13 +1325,13 @@ def SolverSpec.toSemanticSolver (spec : SolverSpec) : SemanticSolver := {
   attempt := fun prepared _ => trySolverFor spec prepared.semantic
 }
 
-private def commitArtifact (artifact : ProofArtifact) : TacticM SolverReport := do
+def commitArtifact (artifact : ProofArtifact) : TacticM SolverReport := do
   let goal ← getMainGoal
   goal.assign artifact.proof
   replaceMainGoal []
   return artifact.report
 
-private def rejectUnsupportedPreparedFunctions (prepared : Semantic.PreparedGoal)
+def rejectUnsupportedPreparedFunctions (prepared : Semantic.PreparedGoal)
     (verbosity : Diagnostic.DiagnosticVerbosity) : TacticM Unit := do
   for function in prepared.functions do
     match function with
@@ -1328,7 +1345,7 @@ private def rejectUnsupportedPreparedFunctions (prepared : Semantic.PreparedGoal
           Diagnostic.RouterFailure.unsupportedExpression (toString source)
           s!"LeanCert already unfolded reducible user definitions.\n{detail}"
 
-private def preparedReified? (prepared : Semantic.PreparedGoal) (source : Lean.Expr) :
+def preparedReified? (prepared : Semantic.PreparedGoal) (source : Lean.Expr) :
     MetaM (Option Bridge.ReifiedFunction) := do
   for function in prepared.functions do
     match function with
@@ -1341,7 +1358,7 @@ private def preparedReified? (prepared : Semantic.PreparedGoal) (source : Lean.E
 point-enclosure path used by the ordinary portfolio.  The proof goal is
 temporary: successful verification is retained only as diagnostic evidence,
 and the caller's complete tactic state is restored before returning. -/
-private def certifiedPointRefutation?
+def certifiedPointRefutation?
     (semantic : Semantic.SemanticGoal)
     (cfg : LeanCertConfig) : TacticM (Option Diagnostic.RefutationEvidence) := do
   let .point spec := semantic
@@ -1384,7 +1401,7 @@ private def certifiedPointRefutation?
 This is diagnostic evidence, not a proof attempt: the original goal state is
 never changed.  Comparison normalization lets this handle upper and lower
 bounds while preserving the function's original syntax for reification. -/
-private unsafe def certifiedBoundRefutation?
+unsafe def certifiedBoundRefutation?
     (semantic : Semantic.SemanticGoal)
     (prepared : Semantic.PreparedGoal)
     (cfg : LeanCertConfig) : TacticM (Option Diagnostic.RefutationEvidence) := do
@@ -1463,7 +1480,7 @@ private unsafe def certifiedBoundRefutation?
     return none
 
 /-- Select the numerical portfolio associated with a parsed semantic atom. -/
-private def intentOfSemanticGoal (goal : Semantic.SemanticGoal) : MetaM (Option GoalIntent) := do
+def intentOfSemanticGoal (goal : Semantic.SemanticGoal) : MetaM (Option GoalIntent) := do
   match goal with
   | .point _ => return some .pointInequality
   | .integral _ => return some .integralBound
@@ -1865,7 +1882,7 @@ syntax "(" &"subdivisions" " := " num ")" : leanCertConfigItem
 syntax "(" &"maxIterations" " := " num ")" : leanCertConfigItem
 syntax "(" &"trust" " := " leanCertTrustMode ")" : leanCertConfigItem
 
-private def elaborateInlineConfig (items : Array Syntax) : TacticM LeanCertConfig := do
+def elaborateInlineConfig (items : Array Syntax) : TacticM LeanCertConfig := do
   let mut cfg : LeanCertConfig := {}
   for item in items do
     match item with

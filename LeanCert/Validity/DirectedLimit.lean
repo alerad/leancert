@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Topology.Order.Basic
-import Mathlib.Topology.Instances.Real.Lemmas
-import Mathlib.Data.Rat.Cast.Order
+module
+
+public import Mathlib.Topology.Order.Basic
+public import Mathlib.Topology.Instances.Real.Lemmas
+public import Mathlib.Data.Rat.Cast.Order
 
 /-!
 # Directed-limit certificates
@@ -33,6 +35,8 @@ BKLNW developments. The symmetric (monotone from below) variant is obtained by n
 * `DirectedLimitCert` — packaging of the two inequality families
 * `DirectedLimitCert.approx_tendsto_limit` — vanishing tails ⟹ convergence
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

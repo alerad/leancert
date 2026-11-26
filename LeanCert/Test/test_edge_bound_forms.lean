@@ -1,4 +1,8 @@
-import LeanCert.Tactic.IntervalAuto
+module
+
+public import LeanCert.Tactic.IntervalAuto
+
+public section
 
 theorem edge_bound_setof : ∀ x ∈ {x : ℝ | (0:ℝ) ≤ x ∧ x ≤ 1}, x * x ≤ (1 : ℚ) := by
   certify_bound

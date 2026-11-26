@@ -1,8 +1,13 @@
-import LeanCert.Analysis.DBN.HeatMoments
-import LeanCert.Analysis.DBN.HeatSymmetry
+module
+
+public import LeanCert.Analysis.DBN.HeatMoments
+public import LeanCert.Analysis.DBN.HeatSymmetry
 
 /-! Joint continuity, entire spatial dependence, and the backward heat equation
 for the actual de Bruijn–Newman heat integral. -/
+
+public section
+
 namespace LeanCert.Analysis.DBN
 open MeasureTheory Set Filter
 

@@ -3,8 +3,10 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Network
-import LeanCert.ML.IntervalVector
+module
+
+public import LeanCert.ML.Network
+public import LeanCert.ML.IntervalVector
 
 /-!
 # Verified Model Distillation / Equivalence Checking
@@ -28,6 +30,8 @@ We define the difference graph:
 We compute interval bounds for Diff(InputBox).
 If the resulting interval is contained in [-ε, ε], the networks are ε-equivalent.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Distillation
 

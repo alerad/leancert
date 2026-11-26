@@ -3,14 +3,18 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Meta.ToExpr
-import LeanCert.Tactic.IntervalAuto
+module
+
+public import LeanCert.Meta.ToExpr
+public import LeanCert.Tactic.IntervalAuto
 
 /-!
 # Numeric Extraction Regression Tests
 
 Smoke tests for canonical rational extraction through reification.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.Numeral
 

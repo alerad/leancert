@@ -3,7 +3,11 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert
+module
+
+public import LeanCert
+meta import LeanCert.Engine.Eval.Backend
+meta import LeanCert.API.Eval
 
 /-!
 # Tests for Native Sqrt Support
@@ -15,6 +19,8 @@ It verifies:
 3. Expression evaluation with sqrt
 4. Interval evaluation via the Dyadic backend
 -/
+
+@[expose] public section
 
 namespace LeanCert.Test.SqrtTest
 

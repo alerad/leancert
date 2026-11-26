@@ -3,7 +3,9 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Affine.Basic
+module
+
+public import LeanCert.Engine.Affine.Basic
 
 /-!
 # Affine Arithmetic: Non-Linear Operations
@@ -26,6 +28,8 @@ This is sound because for any `x ∈ [lo, hi]`:
 * `AffineForm.sqrt` - Square root using Chebyshev approximation
 * `AffineForm.div` - Division via multiplication by inverse
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Affine
 

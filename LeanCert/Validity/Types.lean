@@ -3,10 +3,12 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.Expr
-import LeanCert.Core.Interval
-import LeanCert.Engine.IntervalEval
-import LeanCert.Engine.Optimization.Global
+module
+
+public import LeanCert.Core.Expr
+public import LeanCert.Core.Interval
+public import LeanCert.Engine.IntervalEval
+public import LeanCert.Engine.Optimization.Global
 
 /-!
 # Discovery Mode: Proof-Carrying Result Types
@@ -32,6 +34,8 @@ Each structure contains:
 The proofs use the "Golden Theorems" from `Certificate.lean` applied to
 computationally verified certificates.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity
 

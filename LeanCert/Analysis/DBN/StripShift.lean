@@ -1,6 +1,8 @@
-import Mathlib.Analysis.Complex.Polynomial.Basic
-import Mathlib.Algebra.Order.BigOperators.GroupWithZero.Multiset
-import Mathlib.Tactic
+module
+
+public import Mathlib.Analysis.Complex.Polynomial.Basic
+public import Mathlib.Algebra.Order.BigOperators.GroupWithZero.Multiset
+public import Mathlib.Tactic
 
 /-!
 # The finite imaginary-shift strip contraction
@@ -10,6 +12,9 @@ proves strict separation outside the contracted strip. Multiplicities are
 retained in the root multiset; no simple-root or root-motion hypothesis is used.
 This file does not assert the corresponding theorem for the DBN heat integral.
 -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex Polynomial ComplexConjugate
 

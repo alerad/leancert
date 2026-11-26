@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Data.Rat.Cast.Order
-import Mathlib.Basic.Real.Basic
+module
+
+public import Mathlib.Data.Rat.Cast.Order
+public import Mathlib.Basic.Real.Basic
 
 /-!
 # Small rational interval certificate combinators
@@ -16,6 +18,8 @@ These helpers factor the common LeanCert pattern:
 * semantic lower/upper correctness proofs;
 * a boolean endpoint check.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Cert
 

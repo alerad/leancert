@@ -30,7 +30,7 @@ many points.
   points.
 -/
 
-@[expose] public section
+public section
 
 open Filter Topology Set
 

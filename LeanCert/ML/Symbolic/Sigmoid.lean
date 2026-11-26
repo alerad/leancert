@@ -3,8 +3,10 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ML.Symbolic.ReLU
-import Mathlib.Analysis.SpecialFunctions.ExpDeriv
+module
+
+public import LeanCert.ML.Symbolic.ReLU
+public import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 
 /-!
 # Verified DeepPoly Sigmoid Relaxation
@@ -35,6 +37,8 @@ Unlike ReLU (piecewise linear), sigmoid requires careful handling:
 * `sigmoid_strictMono` - Sigmoid is strictly monotone increasing
 * `sigmoid_relaxation_sound` - Soundness of monotonicity-based bounds
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Symbolic
 

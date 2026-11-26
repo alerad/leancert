@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.ANT.Abel
-import LeanCert.Core.Expr
+module
+
+public import LeanCert.ANT.Abel
+public import LeanCert.Core.Expr
 
 /-!
 # Certified asymptotic envelopes
@@ -18,6 +20,8 @@ The first layer is deliberately small: it proves envelope algebra directly from
 the semantic certificate.  Later reflective checkers can target these semantic
 combinators without increasing the trusted surface.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT.Asymp
 

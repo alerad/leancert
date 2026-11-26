@@ -1,9 +1,14 @@
-import LeanCert.Analysis.DBN.HeatShift
-import LeanCert.Analysis.DBN.HeatRegularity
-import Mathlib.MeasureTheory.Integral.DominatedConvergence
-import Mathlib.Analysis.SpecialFunctions.Complex.LogBounds
+module
+
+public import LeanCert.Analysis.DBN.HeatShift
+public import LeanCert.Analysis.DBN.HeatRegularity
+public import Mathlib.MeasureTheory.Integral.DominatedConvergence
+public import Mathlib.Analysis.SpecialFunctions.Complex.LogBounds
 
 /-! Locally uniform convergence of finite imaginary shifts to time one half. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open Complex MeasureTheory Set Filter
 open scoped Topology

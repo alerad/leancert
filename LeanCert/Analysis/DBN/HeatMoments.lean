@@ -1,11 +1,16 @@
-import LeanCert.Analysis.DBN.HeatFlow
-import LeanCert.Analysis.ParametricIntegral
-import LeanCert.Analysis.GaussianMoments
-import Mathlib.Analysis.Complex.RealDeriv
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
+module
+
+public import LeanCert.Analysis.DBN.HeatFlow
+public import LeanCert.Analysis.ParametricIntegral
+public import LeanCert.Analysis.GaussianMoments
+public import Mathlib.Analysis.Complex.RealDeriv
+public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Deriv
 
 /-! Polynomial moments with cosine phase shifts. Successive phase shifts
 encode spatial derivatives without a separate sine/cosine proof hierarchy. -/
+
+@[expose] public section
+
 namespace LeanCert.Analysis.DBN
 open MeasureTheory Set Filter
 open scoped Topology

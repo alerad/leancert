@@ -3,15 +3,25 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Lean
-import LeanCert.Engine.FinSumDyadic
-import LeanCert.Meta.ToExpr
-import LeanCert.Meta.ProveSupported
-import LeanCert.Tactic.IntervalAuto
-import LeanCert.Tactic.FinsetParse
-import LeanCert.Tactic.FinSumWitness
-import LeanCert.Tactic.BridgeNative
-import Mathlib.Algebra.BigOperators.Fin
+module
+
+public import Lean
+public import LeanCert.Engine.FinSumDyadic
+public import LeanCert.Meta.ToExpr
+public import LeanCert.Meta.ProveSupported
+public import LeanCert.Tactic.IntervalAuto
+public import LeanCert.Tactic.FinsetParse
+public import LeanCert.Tactic.FinSumWitness
+public import LeanCert.Tactic.BridgeNative
+public import Mathlib.Algebra.BigOperators.Fin
+public meta import LeanCert.Engine.FinSumDyadic
+public meta import LeanCert.Meta.ToExpr
+public meta import LeanCert.Meta.ProveSupported
+public meta import LeanCert.Tactic.IntervalAuto
+public meta import LeanCert.Tactic.FinsetParse
+public meta import LeanCert.Tactic.FinSumWitness
+public meta import LeanCert.Tactic.BridgeNative
+public meta import Mathlib.Algebra.BigOperators.Fin
 
 /-!
 # `finsum_bound`: O(1) Proof-Size Tactic for Finite Sum Bounds
@@ -63,6 +73,8 @@ example : ∑ _k ∈ Finset.Icc 1 5, (1 : ℝ) ≤ 6 := by
   → verify_finsum_upper_full/lower_full (bridge theorem)
 ```
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic Term
 

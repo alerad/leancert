@@ -1,4 +1,9 @@
-import LeanCert.Engine.Table
+module
+
+public import LeanCert.Engine.Table
+meta import LeanCert.Engine.Table
+
+@[expose] public section
 
 namespace LeanCert.Tests.Table
 

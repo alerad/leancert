@@ -3,12 +3,14 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalDyadic
-import LeanCert.Core.IntervalRat.Basic
-import LeanCert.Core.IntervalRat.Taylor
-import LeanCert.Engine.Integrate
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.Algebra.QPolyBernstein
+module
+
+public import LeanCert.Core.IntervalDyadic
+public import LeanCert.Core.IntervalRat.Basic
+public import LeanCert.Core.IntervalRat.Taylor
+public import LeanCert.Engine.Integrate
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.Algebra.QPolyBernstein
 
 /-!
 # Dyadic Polynomial Taylor Models
@@ -23,6 +25,8 @@ precision.
 * `DyPoly` — polynomial with `Dyadic` coefficients
 * `DyTM` — Taylor model: `DyPoly` + `IntervalDyadic` remainder
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 
@@ -178,7 +182,7 @@ structure DyTM where
 
 namespace DyTM
 
-private def shiftedDomain (tm : DyTM) : IntervalDyadic :=
+def shiftedDomain (tm : DyTM) : IntervalDyadic :=
   IntervalDyadic.addRounded tm.domain (IntervalDyadic.neg (IntervalDyadic.singleton tm.center)) tm.prec
 
 def bound (tm : DyTM) : IntervalDyadic :=

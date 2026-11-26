@@ -21,9 +21,7 @@ The convergence results specialize the locally uniform product API for scaled We
 developed in `Mathlib.Analysis.Complex.WeierstrassFactor`.
 -/
 
-@[expose] public section
-
-noncomputable section
+@[expose] public noncomputable section
 
 open Filter Topology
 

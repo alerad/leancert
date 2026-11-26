@@ -3,10 +3,16 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import Mathlib.Tactic.Basic
-import LeanCert.Tactic.LeanCert.Config
-import LeanCert.Tactic.LeanCert.Diagnostic.Evidence
-import LeanCert.Tactic.LeanCert.Semantic.Prepare
+module
+
+public import Mathlib.Tactic.Basic
+public import LeanCert.Tactic.LeanCert.Config
+public import LeanCert.Tactic.LeanCert.Diagnostic.Evidence
+public import LeanCert.Tactic.LeanCert.Semantic.Prepare
+public meta import Mathlib.Tactic.Basic
+public meta import LeanCert.Tactic.LeanCert.Config
+public meta import LeanCert.Tactic.LeanCert.Diagnostic.Evidence
+public meta import LeanCert.Tactic.LeanCert.Semantic.Prepare
 
 /-!
 # Semantic Solver Protocol
@@ -14,6 +20,8 @@ import LeanCert.Tactic.LeanCert.Semantic.Prepare
 New semantic solvers return proof artifacts and typed expected outcomes.  They
 do not mutate the user's original tactic goal.
 -/
+
+public noncomputable meta section
 
 open Lean Meta
 

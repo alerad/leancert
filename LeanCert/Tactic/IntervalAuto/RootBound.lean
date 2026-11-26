@@ -3,16 +3,24 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto.Basic
-import LeanCert.Tactic.Verification
-import LeanCert.Validity.Bounds
-import LeanCert.Engine.Optimization.BoundVerify
+module
+
+public import LeanCert.Tactic.IntervalAuto.Basic
+public import LeanCert.Tactic.Verification
+public import LeanCert.Validity.Bounds
+public import LeanCert.Engine.Optimization.BoundVerify
+public meta import LeanCert.Tactic.IntervalAuto.Basic
+public meta import LeanCert.Tactic.Verification
+public meta import LeanCert.Validity.Bounds
+public meta import LeanCert.Engine.Optimization.BoundVerify
 
 /-!
 # Root Finding Tactic
 
 The `root_bound` tactic proves `∀ x ∈ I, f x ≠ 0` using interval arithmetic.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic Term
 

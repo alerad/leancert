@@ -3,13 +3,24 @@ Copyright (c) 2024 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Tactic.IntervalAuto.Basic
-import LeanCert.Tactic.NumericalRefinement
-import LeanCert.Tactic.Verification
-import LeanCert.Validity.Bounds
-import LeanCert.Validity.DyadicBounds
-import LeanCert.Engine.Eval.Core
-import LeanCert.Engine.Optimization.BoundVerify
+module
+
+public import LeanCert.Tactic.IntervalAuto.Basic
+public import LeanCert.Tactic.NumericalRefinement
+public import LeanCert.Tactic.Verification
+public import LeanCert.Validity.Bounds
+public import LeanCert.Validity.DyadicBounds
+public import LeanCert.Engine.Eval.Core
+public import LeanCert.Engine.Optimization.BoundVerify
+public meta import LeanCert.Tactic.IntervalAuto.Basic
+public meta import LeanCert.Tactic.NumericalRefinement
+public meta import LeanCert.Tactic.Verification
+public meta import LeanCert.Validity.Bounds
+public meta import LeanCert.Validity.DyadicBounds
+public meta import LeanCert.Engine.Eval.Core
+public meta import LeanCert.Engine.Optimization.BoundVerify
+public import LeanCert.Tactic.IntervalAuto.Diagnostic
+public meta import LeanCert.Tactic.IntervalAuto.Diagnostic
 
 /-!
 # Main Interval Bound Tactics
@@ -17,6 +28,8 @@ import LeanCert.Engine.Optimization.BoundVerify
 Core interval bound proving: `intervalBoundCore`, `certify_bound`, `certify_bound`.
 Also includes shadow diagnostics for error reporting.
 -/
+
+public noncomputable meta section
 
 open Lean Meta Elab Tactic Term
 
@@ -193,6 +206,40 @@ private def closeBoundCertificate (_verifier : Name) (goal : MVarId) :
   | .rejected => throwError "certify_bound: certificate checker evaluated to false"
   | .failed failure => throwError (failure.message "certify_bound")
 
+/-- Run `convert proof using 3` on a `∀ x ∈ I, lhs ~ rhs` goal, leaving the side goals
+as the current goals.
+
+In a module, `congr!` cannot step through implications, because the lemma it uses for
+that (Mathlib's `implies_congr'`) is private. It then leaves a side goal
+`(x ∈ I → P) ↔ (x ∈ I' → Q)` instead of `I = I'` and `P = Q`. Split such goals with the
+public `imp_congr_ctx` and `implies_congr_ctx`, which also keep `x ∈ I'` as a hypothesis,
+so the side goals are the same in modules and in non-module files. -/
+def convertBoundProof (proof : Term) : TacticM Unit := do
+  evalTactic (← `(tactic| convert ($proof) using 3))
+  let mut sideGoals := #[]
+  for goal in ← getGoals do
+    let isImplicationCongr ← goal.withContext do
+      let ty ← instantiateMVars (← goal.getType)
+      match ty.iff?, ty.eq? with
+      | some (lhs, rhs), _ | _, some (_, lhs, rhs) => pure (lhs.isArrow && rhs.isArrow)
+      | _, _ => pure false
+    unless isImplicationCongr do
+      sideGoals := sideGoals.push goal
+      continue
+    setGoals [goal]
+    let saved ← saveState
+    try
+      evalTactic (← `(tactic|
+        first
+          | refine imp_congr_ctx ?_ fun _ => ?_
+          | refine implies_congr_ctx ?_ fun _ => ?_))
+      evalTactic (← `(tactic| all_goals congr! 1))
+      sideGoals := sideGoals ++ (← getGoals)
+    catch _ =>
+      saved.restore
+      sideGoals := sideGoals.push goal
+  setGoals sideGoals.toList
+
 /-- Transport a verified bound proof onto the (possibly `Set.Icc`-normalised)
 goal, closing the residual side goals. Shared by the direct, subdivision, and
 Bernstein strategies. -/
@@ -203,7 +250,7 @@ def closeBoundTransport (goal : MVarId) (proof : Lean.Expr)
   try
     let proofTerm ← Lean.Elab.Term.exprToSyntax proof
     setGoals [goal]
-    evalTactic (← `(tactic| convert ($proofTerm) using 3))
+    convertBoundProof proofTerm
     let sideGoals ← getGoals
     for sideGoal in sideGoals do
       setGoals [sideGoal]
@@ -481,7 +528,7 @@ where
 
             -- Now use convert on the conclusion (not the full proof)
             setGoals [goal]
-            evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+            convertBoundProof conclusionTerm
 
             -- Close side goals (usually equality goals for Set.Icc and bounds)
             let goals ← getGoals
@@ -559,7 +606,7 @@ where
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
             setGoals [goal]
-            evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+            convertBoundProof conclusionTerm
             let goals ← getGoals
             for g in goals do
               setGoals [g]
@@ -657,7 +704,7 @@ where
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
             setGoals [goal]
-            evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+            convertBoundProof conclusionTerm
 
             -- Close side goals
             let goals ← getGoals
@@ -732,7 +779,7 @@ where
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
             setGoals [goal]
-            evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+            convertBoundProof conclusionTerm
             let goals ← getGoals
             for g in goals do
               setGoals [g]
@@ -830,7 +877,7 @@ where
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
             setGoals [goal]
-            evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+            convertBoundProof conclusionTerm
 
             -- Close side goals
             let goals ← getGoals
@@ -965,7 +1012,7 @@ where
             let conclusionProof ← mkAppM' proof #[certProof]
             let conclusionTerm ← Lean.Elab.Term.exprToSyntax conclusionProof
             setGoals [goal]
-            evalTactic (← `(tactic| convert ($conclusionTerm) using 3))
+            convertBoundProof conclusionTerm
 
             -- Close side goals
             let goals ← getGoals

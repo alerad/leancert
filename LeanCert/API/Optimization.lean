@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.API.Eval
-import LeanCert.Engine.Optimization.Backend
+module
+
+public import LeanCert.API.Eval
+public import LeanCert.Engine.Optimization.Backend
 
 /-!
 # Public checked global optimization
@@ -13,6 +15,8 @@ Global optimization composes the same evaluation options used by
 `LeanCert.evalInterval` with backend-independent branch-and-bound search
 options. Concrete backend configuration types remain implementation details.
 -/
+
+@[expose] public section
 
 namespace LeanCert
 
@@ -49,7 +53,7 @@ structure GlobalOptOptions where
   search : SearchOptions := {}
   deriving Repr, DecidableEq, Inhabited
 
-private def GlobalOptOptions.toEngineConfig
+def GlobalOptOptions.toEngineConfig
     (options : GlobalOptOptions) : Engine.Optimization.BackendGlobalOptConfig := {
   backend := options.evaluation.backend
   taylorDepth := options.evaluation.precisionOptions.taylorDepth
@@ -60,7 +64,7 @@ private def GlobalOptOptions.toEngineConfig
   useMonotonicity := options.search.useMonotonicity
 }
 
-private def GlobalResult.ofEngine
+def GlobalResult.ofEngine
     (result : Engine.Optimization.GlobalResult) : GlobalResult := {
   lowerBound := result.bound.lo
   upperBound := result.bound.hi
@@ -68,7 +72,7 @@ private def GlobalResult.ofEngine
   iterations := result.bound.iterations
 }
 
-private def GlobalOutcome.ofEngine
+def GlobalOutcome.ofEngine
     (outcome : Engine.Optimization.GlobalOutcome) : GlobalOutcome := {
   result := GlobalResult.ofEngine outcome.result
   backend := outcome.backend

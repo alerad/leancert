@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Chebyshev.Psi
-import LeanCert.Engine.Chebyshev.Theta
+module
+
+public import LeanCert.Engine.Chebyshev.Psi
+public import LeanCert.Engine.Chebyshev.Theta
 
 /-!
 # Certified Chebyshev checker bounds
@@ -12,6 +14,8 @@ import LeanCert.Engine.Chebyshev.Theta
 Stable aliases for the checker-to-theorem APIs used by explicit-PNT projects.
 The underlying verified implementations remain in `LeanCert.Engine`.
 -/
+
+public section
 
 namespace LeanCert.CertifiedBounds.Chebyshev
 

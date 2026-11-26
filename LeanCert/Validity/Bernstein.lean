@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.Algebra.QPolyBernstein
-import LeanCert.Engine.Algebra.QPolyIntegral
+module
+
+public import LeanCert.Engine.Algebra.QPolyBernstein
+public import LeanCert.Engine.Algebra.QPolyIntegral
 
 /-!
 # Golden theorems for Bernstein polynomial certificates
@@ -15,6 +17,8 @@ polynomial (`QPoly.ofExpr`) and runs the recursive Bernstein certificate
 theorems need no `ExprSupportedCore` premise. All theorems here are kernel-clean;
 the checker itself may be closed by kernel or native evaluation.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Validity.Bernstein
 

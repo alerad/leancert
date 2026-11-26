@@ -3,8 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.DyadicCell
-import LeanCert.Engine.Optimization.Box
+module
+
+public import LeanCert.Core.DyadicCell
+public import LeanCert.Engine.Optimization.Box
 
 /-!
 # Addressed multidimensional box subdivision
@@ -13,6 +15,8 @@ Adaptive paths record both the selected coordinate and the left/right branch.
 Morton addresses are deliberately separate: they describe balanced fixed-level
 refinement with the regular coordinate schedule `0, 1, ..., dimension - 1`.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine.Optimization
 

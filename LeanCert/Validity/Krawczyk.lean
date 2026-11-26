@@ -3,7 +3,9 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.RootFinding.Krawczyk
+module
+
+public import LeanCert.Engine.RootFinding.Krawczyk
 
 /-!
 # Golden theorems for system root certificates
@@ -11,6 +13,8 @@ import LeanCert.Engine.RootFinding.Krawczyk
 The checker and certificate live in the Engine.  This module provides the
 stable Validity-layer theorem name intended for downstream proofs.
 -/
+
+public section
 
 namespace LeanCert.Validity
 

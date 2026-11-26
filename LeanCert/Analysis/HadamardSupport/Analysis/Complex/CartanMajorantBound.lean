@@ -17,9 +17,7 @@ we bound finite partial sums `∑_{p∈s} b p` of the majorant exponent `b` by
 `Cprod * (1+r)^τ`, where `Cprod` depends only on `τ`, `m`, and the τ-sum `Sτ`.
 -/
 
-@[expose] public section
-
-noncomputable section
+@[expose] public noncomputable section
 
 namespace Complex.Hadamard
 

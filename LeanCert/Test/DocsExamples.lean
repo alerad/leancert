@@ -1,10 +1,12 @@
-import LeanCert.Tactic
-import LeanCert.ML.Distillation
-import LeanCert.ML.Attention
-import LeanCert.ML.LayerNormAffine
-import LeanCert.ML.Optimized
-import LeanCert.ML.Symbolic.ReLU
-import LeanCert.ML.Symbolic.Sigmoid
+module
+
+public import LeanCert.Tactic
+public import LeanCert.ML.Distillation
+public import LeanCert.ML.Attention
+public import LeanCert.ML.LayerNormAffine
+public import LeanCert.ML.Optimized
+public import LeanCert.ML.Symbolic.ReLU
+public import LeanCert.ML.Symbolic.Sigmoid
 
 /-!
 # Documentation smoke tests
@@ -12,6 +14,8 @@ import LeanCert.ML.Symbolic.Sigmoid
 Copy-pasteable declarations used by the public documentation belong here (or
 in another compiled example). Schematic snippets must be labelled as such.
 -/
+
+@[expose] public section
 
 open LeanCert.Core
 open LeanCert.ML

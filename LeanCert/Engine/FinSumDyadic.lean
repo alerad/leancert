@@ -3,9 +3,11 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEvalDyadic
-import Mathlib.Algebra.BigOperators.Group.Finset.Basic
-import Mathlib.Order.Interval.Finset.Nat
+module
+
+public import LeanCert.Engine.IntervalEvalDyadic
+public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+public import Mathlib.Order.Interval.Finset.Nat
 
 /-!
 # General Finite Sum Evaluator with O(1) Proof Size
@@ -53,6 +55,8 @@ checkFinSumUpperBound : Bool
 verify_finsum_upper (bridge theorem)
 ```
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 

@@ -3,9 +3,11 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Engine.IntervalEvalDyadic
-import LeanCert.Engine.Integrate
-import LeanCert.Core.DyadicCell
+module
+
+public import LeanCert.Engine.IntervalEvalDyadic
+public import LeanCert.Engine.Integrate
+public import LeanCert.Core.DyadicCell
 
 /-!
 # Dyadic Interval Integration
@@ -24,6 +26,8 @@ Dyadic arithmetic avoids GCD normalization overhead that dominates rational arit
 for complex expressions. Expected 10-50x speedup for expressions with deep
 transcendental nesting (like the Li2 integrand).
 -/
+
+@[expose] public section
 
 open MeasureTheory
 open LeanCert.Core

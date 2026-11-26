@@ -3,13 +3,17 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Benchmark.Suites.Evaluation
-import LeanCert.Benchmark.Suites.Integration
-import LeanCert.Benchmark.Suites.Krawczyk
-import LeanCert.Benchmark.Suites.DomainAwareAD
-import LeanCert.Benchmark.Suites.AlgebraicBezout
-import LeanCert.Benchmark.Suites.DyadicSubdivision
-import LeanCert.Benchmark.Suites.NumericalRefinement
+module
+
+public import LeanCert.Benchmark.Suites.Evaluation
+public import LeanCert.Benchmark.Suites.Integration
+public import LeanCert.Benchmark.Suites.Krawczyk
+public import LeanCert.Benchmark.Suites.DomainAwareAD
+public import LeanCert.Benchmark.Suites.AlgebraicBezout
+public import LeanCert.Benchmark.Suites.DyadicSubdivision
+public import LeanCert.Benchmark.Suites.NumericalRefinement
+
+@[expose] public section
 
 namespace LeanCert.Benchmark
 

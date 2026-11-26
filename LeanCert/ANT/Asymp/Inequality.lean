@@ -3,9 +3,10 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
-import LeanCert.ANT.Asymp.Checkers
-import LeanCert.Engine.Table
+public import LeanCert.ANT.Asymp.Checkers
+public import LeanCert.Engine.Table
 
 /-!
 # PNT-facing inequality certificates
@@ -16,6 +17,8 @@ tables.  The trusted core remains the checker soundness theorem in
 `LeanCert.ANT.Asymp.Checkers`; this file only gives the standard user-facing
 shape.
 -/
+
+@[expose] public section
 
 namespace LeanCert.ANT.Asymp
 

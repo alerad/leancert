@@ -3,8 +3,10 @@ Copyright (c) 2025 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
-import LeanCert.Core.IntervalDyadic
-import Mathlib.Basic.Real.Basic
+module
+
+public import LeanCert.Core.IntervalDyadic
+public import Mathlib.Basic.Real.Basic
 
 /-!
 # Optimized Interval Arrays (Structure-of-Arrays Layout)
@@ -34,6 +36,8 @@ IntervalArray = { lo: Array Dyadic, hi: Array Dyadic }
 * `mem` - Membership predicate for real vectors
 * `add`, `sub` - Interval operations on arrays
 -/
+
+@[expose] public section
 
 namespace LeanCert.ML.Optimized
 

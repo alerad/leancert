@@ -3,6 +3,7 @@ Copyright (c) 2026 LeanCert Contributors. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: LeanCert Contributors
 -/
+module
 
 /-!
 # Finite Table Certificates
@@ -21,6 +22,8 @@ The intended workflow is:
 This avoids one theorem per row while keeping the proof boundary small and
 fully verified.
 -/
+
+@[expose] public section
 
 namespace LeanCert.Engine
 
